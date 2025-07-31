@@ -1,3 +1,5 @@
+import com.micrantha.bluebell.BluebellDownload
+
 plugins {
     alias(libs.plugins.nativeCocoapods)
     alias(libs.plugins.kotlinMultiplatform)
@@ -212,6 +214,14 @@ bluebell {
             "LOGIN_EMAIL",
             "LOGIN_PASSWORD",
         )
+    }
+    assets {
+        downloads {
+            create("mobilenet_v3_lite") {
+                url = "https://storage.googleapis.com/mediapipe-models/image_embedder/mobilenet_v3_small/float32/1/mobilenet_v3_small.tflite"
+                destination = "models/embedding/image_lite.tflite"
+            }
+        }
     }
     graphql {
         serviceName = "eyespie"
