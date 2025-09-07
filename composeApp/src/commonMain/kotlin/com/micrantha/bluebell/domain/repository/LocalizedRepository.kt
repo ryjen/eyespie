@@ -13,6 +13,5 @@ interface LocalizedRepository {
         runBlocking {  getString(str, *args) }
     }
 
-
     fun format(epochSeconds: Long, format: String, timeZone: String, locale: String): String
 }

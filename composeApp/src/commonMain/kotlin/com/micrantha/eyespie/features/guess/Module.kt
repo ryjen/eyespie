@@ -18,7 +18,7 @@ internal fun module() = DI.Module("Guess") {
     }
     bindFactory { args: ScanGuessArgs -> ScanGuessScreen(args) }
     bindFactory { args: ScanGuessArgs ->
-        ScanGuessEnvironment(args, get(), get(), get())
+        ScanGuessEnvironment(args, get(), get(),get())
     }
 
 }

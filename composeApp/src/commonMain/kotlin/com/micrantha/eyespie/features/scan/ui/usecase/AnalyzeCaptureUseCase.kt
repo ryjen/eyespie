@@ -6,7 +6,6 @@ import com.micrantha.eyespie.domain.entities.Clue
 import com.micrantha.eyespie.domain.repository.ColorRepository
 import com.micrantha.eyespie.domain.repository.DetectRepository
 import com.micrantha.eyespie.domain.repository.LabelRepository
-import com.micrantha.eyespie.domain.repository.SegmentRepository
 import com.micrantha.eyespie.platform.scan.CameraImage
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -20,7 +19,6 @@ import kotlinx.coroutines.launch
 class AnalyzeCaptureUseCase(
     private val labelRepository: LabelRepository,
     private val detectionRepository: DetectRepository,
-    private val segmentRepository: SegmentRepository,
     private val colorRepository: ColorRepository,
     private val dispatcher: Dispatcher
 ) : Dispatcher by dispatcher {
@@ -36,9 +34,6 @@ class AnalyzeCaptureUseCase(
         }
         launch {
             send(detectionRepository.analyze(image).getOrThrow())
-        }
-        launch {
-            send(segmentRepository.analyze(image).getOrThrow())
         }
         launch {
             send(colorRepository.analyze(image).getOrThrow())

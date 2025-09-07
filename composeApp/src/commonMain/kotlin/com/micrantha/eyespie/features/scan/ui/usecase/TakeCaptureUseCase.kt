@@ -4,7 +4,6 @@ import com.benasher44.uuid.uuid4
 import com.micrantha.bluebell.arch.Dispatcher
 import com.micrantha.bluebell.domain.usecase.dispatchUseCase
 import com.micrantha.bluebell.platform.Platform
-import com.micrantha.eyespie.domain.repository.MatchRepository
 import com.micrantha.eyespie.features.scan.ui.capture.ScanAction.GeneratedImage
 import com.micrantha.eyespie.platform.scan.CameraImage
 import com.micrantha.eyespie.platform.scan.generator.ImageObfuscator
@@ -19,7 +18,6 @@ import kotlin.coroutines.coroutineContext
 
 class TakeCaptureUseCase(
     private val platform: Platform,
-    private val matchRepository: MatchRepository,
     private val imageObfuscator: ImageObfuscator,
     private val dispatcher: Dispatcher,
 ) : Dispatcher by dispatcher {
@@ -37,9 +35,7 @@ class TakeCaptureUseCase(
     private suspend fun analyze(image: CameraImage) = supervisorScope {
         val tasks = listOf(
             async {
-                matchRepository.analyze(image).onSuccess {
-                    dispatch(it)
-                }
+                // TODO: get embeddings from supabase
             },
             async {
                 imageObfuscator.generate(image).onSuccess {

@@ -1,7 +1,5 @@
 package com.micrantha.eyespie.domain.entities
 
-import androidx.compose.ui.geometry.Rect
-import androidx.compose.ui.graphics.ImageBitmap
 import okio.ByteString
 import okio.Path
 
@@ -28,10 +26,6 @@ typealias LocationProof = LocationClue
 
 typealias DetectProof = Set<DetectClue>
 
-typealias SegmentProof = List<SegmentClue>
-
-typealias MatchProof = List<MatchClue>
-
 sealed interface Clue<T> {
     val data: T
 
@@ -42,41 +36,32 @@ sealed interface SortedClue<T : Comparable<T>> : Clue<T>, Comparable<SortedClue<
     override fun compareTo(other: SortedClue<T>) = data.compareTo(other.data)
 }
 
-data class ColorClue(
-    override val data: String
-) : SortedClue<String> {
-    override fun hashCode() = data.hashCode()
-
-    override fun equals(other: Any?): Boolean {
-        if (other is ColorClue) {
-            return other.data == data
-        }
-        return super.equals(other)
-    }
+sealed interface RankedClue<T : Comparable<T>> : Clue<T>, Comparable<RankedClue<T>> {
+    val confidence: Float
+    override fun compareTo(other: RankedClue<T>) = confidence.compareTo(other.confidence)
 }
 
-data class LabelClue(
-    override val data: String,
-    val confidence: Float
-) : SortedClue<String> {
-
-    override fun compareTo(other: SortedClue<String>): Int {
-        return if (other is LabelClue) {
-            other.confidence.compareTo(confidence)
-        } else {
-            data.compareTo(other.data)
-        }
-    }
+abstract class EquatableClue<T> : Clue<T> {
 
     override fun hashCode() = data.hashCode()
 
     override fun equals(other: Any?): Boolean {
-        if (other is LabelClue) {
+        if (other is EquatableClue<T>) {
             return data == other.data
         }
         return super.equals(other)
     }
 }
+
+data class ColorClue(
+    override val data: String,
+    override val confidence: Float
+) : EquatableClue<String>(), RankedClue<String>
+
+data class LabelClue(
+    override val data: String,
+    override val confidence: Float
+) : EquatableClue<String>(), RankedClue<String>
 
 data class LocationClue(
     override val data: Location.Data, // TODO: make a geofence area
@@ -84,19 +69,12 @@ data class LocationClue(
 
 data class RhymeClue(
     override val data: String,
-) : Clue<String>
+    override val confidence: Float
+) : EquatableClue<String>(), RankedClue<String>
 
 data class DetectClue(
-    override val data: Rect,
-    val labels: LabelProof
-) : Clue<Rect>
-
-data class SegmentClue(
-    override val data: ImageBitmap
-) : Clue<ImageBitmap>
+    override val data: String,
+    override val confidence: Float
+) : EquatableClue<String>(), RankedClue<String>
 
 typealias Embedding = ByteString
-
-data class MatchClue(
-    override val data: Embedding
-) : Clue<Embedding>

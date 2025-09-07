@@ -9,10 +9,6 @@ import androidx.camera.core.ExperimentalGetImage
 import androidx.camera.core.ImageProxy
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.core.graphics.createBitmap
-import com.google.mediapipe.framework.image.BitmapImageBuilder
-import com.google.mediapipe.framework.image.MPImage
-import com.google.mediapipe.framework.image.MediaImageBuilder
-import com.google.mediapipe.tasks.vision.core.ImageProcessingOptions
 import com.micrantha.bluebell.platform.toByteArray
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
@@ -28,7 +24,6 @@ actual class CameraImage @kotlin.OptIn(ExperimentalTime::class) constructor(
 ) {
 
     private var imageBitmapBuffer: Bitmap? = null
-    private var mediaImage: MPImage? = null
 
     actual val width get() = _width
     actual val height get() = _height
@@ -46,7 +41,6 @@ actual class CameraImage @kotlin.OptIn(ExperimentalTime::class) constructor(
         _image = image.image
         _bitmap = null
         imageBitmapBuffer = null
-        mediaImage = null
     }
 
     @kotlin.OptIn(ExperimentalTime::class)
@@ -64,29 +58,11 @@ actual class CameraImage @kotlin.OptIn(ExperimentalTime::class) constructor(
         _image = null
         _bitmap = bitmap
         imageBitmapBuffer = null
-        mediaImage = null
     }
 
     actual fun toImageBitmap() = toBitmap().asImageBitmap()
 
     actual fun toByteArray() = toBitmap().toByteArray()
-
-    val processingOptions: ImageProcessingOptions by lazy {
-        ImageProcessingOptions.builder().apply {
-            setRotationDegrees(rotation)
-            regionOfInterest?.let { setRegionOfInterest(it) }
-        }.build()
-    }
-
-    fun asMPImage(): MPImage {
-        if (mediaImage != null) return mediaImage!!
-
-        mediaImage = _image?.let {
-            MediaImageBuilder(it).build()
-        } ?: BitmapImageBuilder(toBitmap()).build()
-
-        return mediaImage!!
-    }
 
     fun toBitmap(): Bitmap {
         if (imageBitmapBuffer != null) return imageBitmapBuffer!!

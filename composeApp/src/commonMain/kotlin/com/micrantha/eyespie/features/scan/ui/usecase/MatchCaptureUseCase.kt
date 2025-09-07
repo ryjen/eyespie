@@ -2,24 +2,23 @@ package com.micrantha.eyespie.features.scan.ui.usecase
 
 import com.micrantha.bluebell.app.Log
 import com.micrantha.bluebell.domain.usecase.dispatchUseCase
-import com.micrantha.eyespie.domain.repository.MatchRepository
+import com.micrantha.eyespie.domain.entities.Embedding
 import com.micrantha.eyespie.platform.scan.CameraImage
 import okio.ByteString
 import kotlin.coroutines.coroutineContext
-
 import kotlin.math.sqrt
 
 class MatchCaptureUseCase(
-    private val matchRepository: MatchRepository
 ) {
     suspend operator fun invoke(
         image: CameraImage,
         embedding: ByteString
     ): Result<Boolean> =
         dispatchUseCase(coroutineContext) {
-            val clue = matchRepository.analyze(image).getOrNull() ?: return@dispatchUseCase false
+            // TODO: get embeddings from supabase
+            val match: Embedding = Embedding.EMPTY
 
-            val result = similarity(clue.first().data.toByteArray(), embedding.toByteArray())
+            val result = similarity(match.toByteArray(), embedding.toByteArray())
 
             Log.i("image match similarity: $result")
 

@@ -2,45 +2,42 @@
 
 cache4k = "0.14.0"
 cameraExtensions = "1.4.2"
-compose = "1.8.3"
-compose-plugin = "1.9.0-alpha03"
+compose = "1.9.0"
+compose-plugin = "1.9.0-rc01"
 agp = "8.11.1"
 android-minSdk = "29"
 android-compileSdk = "36"
 android-targetSdk = "36"
 androidx-activityCompose = "1.10.1"
-androidx-core-ktx = "1.16.0"
+androidx-core-ktx = "1.17.0"
 androidx-appcompat = "1.7.1"
-androidx-material = "1.12.0"
+androidx-material = "1.13.0"
 androidx-constraintlayout = "2.2.1"
 androidx-test-junit = "1.3.0"
 androidx-espresso-core = "3.7.0"
 androidx-work = "2.10.3"
-fragmentKtx = "1.8.8"
+fragmentKtx = "1.8.9"
 geoCompose = "0.8.0"
 supabaseKt = "latest.release"
 kamelImage = "1.0.7"
 kodeinDi = "7.26.1"
 kodeinDiConf = "7.26.1"
-kotlin = "2.2.0"
+kotlin = "2.2.10"
 junit = "4.13.2"
-graphql = "4.3.2"
+graphql = "4.3.3"
 kotlinxCollectionsImmutable = "0.4.0"
 kotlinxCoroutinesAndroid = "1.10.2"
 kotlinxDatetime = "0.7.1"
 kotlinxSerializationJson = "1.9.0"
 ktorClient = "3.2.3"
-lifecycleRuntimeKtx = "2.9.2"
+lifecycleRuntimeKtx = "2.9.3"
 okio = "3.16.0"
 paletteKtx = "1.0.0"
-permissionsCompose = "0.19.1"
+permissionsCompose = "0.20.1"
 voyagerNavigator = "1.0.1"
-tensorflowLiteSupport = "latest.release"
-tensorflowLite = "latest.release"
-mediapipe = "0.10.26.1"
-mediapipeGenAI = "0.10.25"
+cactus = "0.2.5"
 buildConfig = "v5.6.7"
-mokoMedia = "0.11.0"
+mokoMedia = "0.11.1"
 datastore = "1.1.7"
 
 [plugins]
@@ -116,17 +113,6 @@ supabase-storage = { module = "io.github.jan-tennert.supabase:storage-kt", versi
 voyager-kodein = { module = "cafe.adriel.voyager:voyager-kodein", version.ref = "voyagerNavigator" }
 voyager-navigator = { module = "cafe.adriel.voyager:voyager-navigator", version.ref = "voyagerNavigator" }
 voyager-transitions = { module = "cafe.adriel.voyager:voyager-transitions", version.ref = "voyagerNavigator" }
-tensorflow-lite = { module = "org.tensorflow:tensorflow-lite", version.ref = "tensorflowLite" }
-tensorflow-lite-gpu = { module = "org.tensorflow:tensorflow-lite-gpu", version.ref = "tensorflowLite" }
-tensorflow-lite-support = { module = "org.tensorflow:tensorflow-lite-support", version.ref = "tensorflowLiteSupport" }
-tensorflow-lite-metadata = { module = "org.tensorflow:tensorflow-lite-metadata", version.ref = "tensorflowLiteSupport" }
-tensorflow-lite-task-vision = { module = "org.tensorflow:tensorflow-lite-task-vision", version.ref = "tensorflowLiteSupport" }
-tensorflow-lite-gpu-delegate-plugin = { module = "org.tensorflow:tensorflow-lite-gpu-delegate-plugin", version.ref = "tensorflowLiteSupport" }
-mediapipe-tasks-core = { module = "com.google.mediapipe:solution-core", version.ref = "mediapipe" }
-mediapipe-tasks-vision = { module = "com.google.mediapipe:tasks-vision", version.ref = "mediapipe" }
-mediapipe-tasks-text = { module = "com.google.mediapipe:tasks-text", version.ref = "mediapipe" }
-mediapipe-tasks-audio = { module = "com.google.mediapipe:tasks-audio", version.ref = "mediapipe" }
-mediapipe-tasks-image-generator = { module = "com.google.mediapipe:tasks-vision-image-generator", version.ref = "mediapipe" }
-mediapipe-tasks-genai = { module = "com.google.mediapipe:tasks-genai", version.ref = "mediapipeGenAI" }
+cactus-library = { module = "com.cactus:library", version.ref = "cactus"}
 moko-media = { module = "dev.icerock.moko:media", version.ref = "mokoMedia" }
 build-config = { module = "com.github.gmazzo.gradle-buildconfig-plugin:com.github.gmazzo.buildconfig.gradle.plugin", version.ref = "buildConfig" }

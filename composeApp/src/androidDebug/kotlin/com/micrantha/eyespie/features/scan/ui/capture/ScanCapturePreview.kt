@@ -1,7 +1,6 @@
 package com.micrantha.eyespie.features.scan.ui.capture
 
 import androidx.compose.runtime.Composable
-import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.DrawScope
@@ -16,14 +15,6 @@ fun ScanCapturePreview() = PreviewContext(
         clues = listOf(
             "clue 1",
             "clue 2"
-        ),
-        overlays = listOf(
-            ScanBox(
-                rect = Rect(left = 50F, right = 150F, top = 100F, bottom = 200F),
-                label = "test",
-                imageWidth = 200,
-                imageHeight = 400
-            )
         ),
         enabled = true,
         capture = object : Painter() {

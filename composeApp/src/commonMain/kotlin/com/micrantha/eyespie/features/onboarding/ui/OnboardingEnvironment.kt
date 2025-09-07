@@ -36,8 +36,8 @@ class OnboardingEnvironment(
             ).let { taskId ->
                 notifications.schedule(
                     id = taskId,
-                    title = string(S.download_started),
-                    message = string(S.downloading, "Gemma3 AI Model"),
+                    title = string(S.download_started).getOrThrow(),
+                    message = string(S.downloading, "Gemma3 AI Model").getOrThrow(),
                 )
             }
         }
