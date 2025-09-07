@@ -5,8 +5,6 @@ import com.micrantha.eyespie.domain.entities.Proof
 import com.micrantha.eyespie.features.scan.data.ColorDataRepository
 import com.micrantha.eyespie.features.scan.data.DetectDataRepository
 import com.micrantha.eyespie.features.scan.data.LabelDataRepository
-import com.micrantha.eyespie.features.scan.data.MatchDataRepository
-import com.micrantha.eyespie.features.scan.data.SegmentDataRepository
 import com.micrantha.eyespie.features.scan.data.mapping.ClueDomainMapper
 import com.micrantha.eyespie.features.scan.data.source.LabelRemoteSource
 import com.micrantha.eyespie.features.scan.ui.capture.ScanCaptureEnvironment
@@ -18,7 +16,6 @@ import com.micrantha.eyespie.features.scan.ui.edit.ScanEditScreen
 import com.micrantha.eyespie.features.scan.ui.edit.ScanEditScreenModel
 import com.micrantha.eyespie.features.scan.ui.usecase.AnalyzeCaptureUseCase
 import com.micrantha.eyespie.features.scan.ui.usecase.GetEditCaptureUseCase
-import com.micrantha.eyespie.features.scan.ui.usecase.MatchCaptureUseCase
 import com.micrantha.eyespie.features.scan.ui.usecase.SaveCaptureUseCase
 import com.micrantha.eyespie.features.scan.ui.usecase.SubAnalyzeClueUseCase
 import com.micrantha.eyespie.features.scan.ui.usecase.TakeCaptureUseCase
@@ -37,12 +34,8 @@ internal fun module() = DI.Module("Scan") {
     bindProvider { ColorDataRepository(di, get()) }
     bindProvider { DetectDataRepository(di, get()) }
     bindProvider { LabelDataRepository(di, get(), get(), get()) }
-    bindProvider { SegmentDataRepository(di, get()) }
-    bindProvider { MatchDataRepository(di, get()) }
 
-    bindProviderOf(::TakeCaptureUseCase)
     bindProviderOf(::SaveCaptureUseCase)
-    bindProviderOf(::MatchCaptureUseCase)
     bindProviderOf(::AnalyzeCaptureUseCase)
     bindProviderOf(::GetEditCaptureUseCase)
     bindProviderOf(::SubAnalyzeClueUseCase)

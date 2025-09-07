@@ -10,6 +10,7 @@ import com.micrantha.eyespie.domain.entities.Proof
 import com.micrantha.eyespie.domain.entities.Thing
 import com.micrantha.eyespie.features.players.domain.entities.Player
 import com.micrantha.eyespie.features.scan.data.mapping.ClueDomainMapper
+import com.micrantha.eyespie.features.scan.data.model.ColorClueData
 import com.micrantha.eyespie.features.scan.data.model.LabelClueData
 import com.micrantha.eyespie.features.scan.data.model.ProofData
 import com.micrantha.eyespie.features.things.data.model.MatchRequest
@@ -96,14 +97,14 @@ class ThingsDomainMapper(
 
     fun match(data: MatchResponse) = Thing.Match(
         id = data.id,
-        image = Json.decodeFromJsonElement(data.content),
+        embedding = Json.decodeFromJsonElement(data.content),
         similarity = data.similarity
     )
 
     private fun prove(data: Clues) = ProofData(
         labels = data.labels?.map { LabelClueData(it.data, it.confidence) },
         location = data.location?.data?.let { clueMapper.location(it) },
-        colors = data.colors?.map { it.data }
+        colors = data.colors?.map { ColorClueData(it.data, it.confidence) }
     )
 
     private fun prove(data: ProofData) = Clues(
@@ -111,6 +112,6 @@ class ThingsDomainMapper(
         location = data.location?.let {
             clueMapper.clue(it)
         },
-        colors = data.colors?.map { ColorClue(it) }?.toSet()
+        colors = data.colors?.map { ColorClue(it.data, it.confidence) }?.toSet()
     )
 }

@@ -45,7 +45,7 @@ fun ScanEditPreview() = PreviewContext(
     ScanEditScreen(it, Proof(
         clues = Clues(
             labels = List(3) { LabelClue("label$it", 0.5f * it) }.toSet(),
-            colors = List(3) { ColorClue("color$it")}.toSet(),
+            colors = List(3) { ColorClue("color$it", 0.5f * it)}.toSet(),
             location = LocationClue(
                 Location.Data(
                     name = "somewhere",

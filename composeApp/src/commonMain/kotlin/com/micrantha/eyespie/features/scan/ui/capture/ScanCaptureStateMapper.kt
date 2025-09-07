@@ -16,7 +16,6 @@ class ScanCaptureStateMapper : StateMapper<ScanState, ScanUiState> {
     override fun map(state: ScanState): ScanUiState = try {
         ScanUiState(
             clues = clues(state),
-            overlays = overlays(state),
             enabled = state.enabled,
             busy = state.busy,
             capture = if (state.enabled.not()) (state.obfuscated ?: state.image)?.toImageBitmap()
@@ -37,7 +36,7 @@ class ScanCaptureStateMapper : StateMapper<ScanState, ScanUiState> {
         ),
         name = state.labels?.minByOrNull { it.confidence }?.data,
         image = state.path!!,
-        match = state.match?.data ?: Embedding.EMPTY,
+        match = state.match ?: Embedding.EMPTY,
         location = state.location?.point,
         playerID = state.playerID!!
     )
@@ -64,27 +63,5 @@ class ScanCaptureStateMapper : StateMapper<ScanState, ScanUiState> {
             }
         }
         state.location?.let { add("Location: ${it.point}") }
-    }
-
-    private fun overlays(state: ScanState): List<ScanOverlay> {
-        val result = mutableListOf<ScanOverlay>()
-        if (state.enabled.not()) return result
-
-        if (state.image != null) {
-            state.detection?.let {
-                result.add(
-                    ScanBox(
-                        it.data,
-                        it.labels.firstOrNull()?.display() ?: "",
-                        imageWidth = state.image.width,
-                        imageHeight = state.image.height
-                    )
-                )
-            }
-        }
-        state.segment?.let {
-            result.add(ScanMask(it.data))
-        }
-        return result
     }
 }

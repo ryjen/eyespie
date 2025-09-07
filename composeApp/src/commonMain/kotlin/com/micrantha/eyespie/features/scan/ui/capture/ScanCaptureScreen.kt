@@ -39,7 +39,6 @@ import com.micrantha.eyespie.core.ui.component.LocationEnabledEffect
 import com.micrantha.eyespie.features.scan.ui.capture.ScanAction.EditScan
 import com.micrantha.eyespie.features.scan.ui.capture.ScanAction.SaveScan
 import com.micrantha.eyespie.features.scan.ui.components.ScannedClues
-import com.micrantha.eyespie.features.scan.ui.components.ScannedOverlays
 import com.micrantha.eyespie.platform.scan.CameraScanner
 import dev.icerock.moko.permissions.Permission
 import dev.icerock.moko.permissions.PermissionsController
@@ -132,12 +131,6 @@ private fun BoxWithConstraintsScope.RenderCapture(state: ScanUiState, dispatch: 
 
 @Composable
 private fun BoxWithConstraintsScope.RenderClues(state: ScanUiState, dispatch: Dispatch) {
-
-    if (state.overlays.isNotEmpty()) {
-        ScannedOverlays(
-            data = state.overlays
-        )
-    }
 
     if (state.clues.isNotEmpty()) {
         ScannedClues(

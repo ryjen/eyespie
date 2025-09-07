@@ -4,17 +4,10 @@ import android.graphics.RectF
 import androidx.camera.core.ExperimentalGetImage
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageProxy
-import com.google.mediapipe.tasks.core.BaseOptions
 import com.micrantha.bluebell.app.Log
 import com.micrantha.eyespie.platform.scan.components.CameraScannerDispatch
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
-
-internal fun baseOptions(model: String, block: BaseOptions.Builder.() -> Unit = {}) =
-    BaseOptions.builder()
-        .setModelAssetPath(model)
-        .apply(block)
-        .build()
 
 interface CameraAnalyzerConfig<Value, Options, Client, Result> {
     fun map(result: Result): Value

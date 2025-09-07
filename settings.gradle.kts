@@ -17,6 +17,7 @@ dependencyResolutionManagement {
         maven("https://repo.repsy.io/mvn/chrynan/public")
         maven("https://maven.pkg.jetbrains.space/public/p/compose/dev")
         maven("https://maven.pkg.jetbrains.space/public/p/ktor/eap")
+        mavenLocal()
     }
 }
 

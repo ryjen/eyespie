@@ -15,8 +15,6 @@ import com.micrantha.eyespie.core.ui.component.combine
 import com.micrantha.eyespie.domain.entities.ColorClue
 import com.micrantha.eyespie.domain.entities.DetectClue
 import com.micrantha.eyespie.domain.entities.LabelClue
-import com.micrantha.eyespie.domain.entities.MatchClue
-import com.micrantha.eyespie.domain.entities.SegmentClue
 import com.micrantha.eyespie.domain.repository.LocationRepository
 import com.micrantha.eyespie.features.scan.ui.capture.ScanAction.EditSaved
 import com.micrantha.eyespie.features.scan.ui.capture.ScanAction.EditScan
@@ -111,16 +109,7 @@ class ScanCaptureEnvironment(
         )
 
         is DetectClue -> state.copy(
-            detection = action,
-            labels = state.labels.combine(action.labels)
-        )
-
-        is SegmentClue -> state.copy(
-            segment = action
-        )
-
-        is MatchClue -> state.copy(
-            match = action
+            detection = state.detection.combine(action),
         )
 
         is ScanSavable -> state.copy(
