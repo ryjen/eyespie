@@ -29,7 +29,6 @@ import androidx.compose.ui.graphics.toAndroidRectF
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.LocalLifecycleOwner
-import com.micrantha.eyespie.platform.scan.components.CameraScannerDispatch
 import java.util.concurrent.Executors
 
 
@@ -156,4 +155,3 @@ private fun CameraSelector.toggle() = when (this) {
     CameraSelector.DEFAULT_BACK_CAMERA -> CameraSelector.DEFAULT_FRONT_CAMERA
     else -> CameraSelector.DEFAULT_BACK_CAMERA
 }
-

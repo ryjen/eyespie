@@ -19,9 +19,6 @@ kotlin {
         license = "GPLv3"
         ios.deploymentTarget = "15.0"
         podfile = project.file("../iosApp/Podfile")
-
-        pod("MediaPipeTasksVision")
-        pod("MediaPipeTasksGenAI")
     }
 
     applyDefaultHierarchyTemplate()
@@ -93,6 +90,7 @@ kotlin {
 
             implementation(libs.datastore)
             implementation(libs.datastore.preferences)
+            implementation(libs.cactus.library)
 
             //implementation("ca.rmen:rhymer:1.2.0")
 
@@ -124,7 +122,6 @@ kotlin {
             implementation(libs.androidx.camera.extensions)
 
             implementation(libs.kotlinx.coroutines.android)
-            implementation(libs.cactus.library)
 
             implementation(libs.compose.ui.tooling)
         }

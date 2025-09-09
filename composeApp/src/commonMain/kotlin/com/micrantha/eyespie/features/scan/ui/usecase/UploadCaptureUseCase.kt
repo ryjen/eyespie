@@ -11,7 +11,7 @@ import kotlinx.coroutines.withContext
 import okio.Path.Companion.toPath
 import kotlin.coroutines.coroutineContext
 
-class SaveCaptureUseCase(
+class UploadCaptureUseCase(
     private val storageRepository: StorageRepository,
     private val thingRepository: ThingRepository,
     private val fileSystem: FileSystem

@@ -35,7 +35,6 @@ import com.micrantha.bluebell.ui.theme.Dimensions
 import com.micrantha.eyespie.app.S
 import com.micrantha.eyespie.core.ui.component.ChoiceField
 import com.micrantha.eyespie.core.ui.component.LocationEnabledEffect
-import com.micrantha.eyespie.domain.entities.Proof
 import com.micrantha.eyespie.features.scan.ui.edit.ScanEditAction.ClearLabel
 import com.micrantha.eyespie.features.scan.ui.edit.ScanEditAction.ColorChanged
 import com.micrantha.eyespie.features.scan.ui.edit.ScanEditAction.CustomLabelChanged
@@ -44,11 +43,12 @@ import com.micrantha.eyespie.features.scan.ui.edit.ScanEditAction.LabelChanged
 import com.micrantha.eyespie.features.scan.ui.edit.ScanEditAction.NameChanged
 import com.micrantha.eyespie.features.scan.ui.edit.ScanEditAction.SaveScanEdit
 import eyespie.composeapp.generated.resources.new_thing
+import okio.Path
 import org.jetbrains.compose.resources.stringResource
 
 class ScanEditScreen(
     context: ScreenContext,
-    private val proof: Proof
+    private val image: Path
 ) : ScaffoldScreen(context), StateRenderer<ScanEditUiState> {
 
     @Composable
@@ -57,7 +57,7 @@ class ScanEditScreen(
 
         val title = stringResource(S.new_thing)
         LaunchedEffect(Unit) {
-            screenModel.dispatch(Init(proof))
+            screenModel.dispatch(Init(image))
             screenModel.dispatch(Scaffolding.Title(title))
             screenModel.dispatch(CanGoBack(true))
             screenModel.dispatch(

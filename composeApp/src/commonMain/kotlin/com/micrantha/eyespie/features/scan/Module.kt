@@ -1,12 +1,6 @@
 package com.micrantha.eyespie.features.scan
 
 import com.micrantha.bluebell.get
-import com.micrantha.eyespie.domain.entities.Proof
-import com.micrantha.eyespie.features.scan.data.ColorDataRepository
-import com.micrantha.eyespie.features.scan.data.DetectDataRepository
-import com.micrantha.eyespie.features.scan.data.LabelDataRepository
-import com.micrantha.eyespie.features.scan.data.mapping.ClueDomainMapper
-import com.micrantha.eyespie.features.scan.data.source.LabelRemoteSource
 import com.micrantha.eyespie.features.scan.ui.capture.ScanCaptureEnvironment
 import com.micrantha.eyespie.features.scan.ui.capture.ScanCaptureScreen
 import com.micrantha.eyespie.features.scan.ui.capture.ScanCaptureScreenModel
@@ -16,29 +10,18 @@ import com.micrantha.eyespie.features.scan.ui.edit.ScanEditScreen
 import com.micrantha.eyespie.features.scan.ui.edit.ScanEditScreenModel
 import com.micrantha.eyespie.features.scan.ui.usecase.AnalyzeCaptureUseCase
 import com.micrantha.eyespie.features.scan.ui.usecase.GetEditCaptureUseCase
-import com.micrantha.eyespie.features.scan.ui.usecase.SaveCaptureUseCase
-import com.micrantha.eyespie.features.scan.ui.usecase.SubAnalyzeClueUseCase
-import com.micrantha.eyespie.features.scan.ui.usecase.TakeCaptureUseCase
+import com.micrantha.eyespie.features.scan.ui.usecase.UploadCaptureUseCase
+import okio.Path
 import org.kodein.di.DI
 import org.kodein.di.bindFactory
-import org.kodein.di.bindProvider
 import org.kodein.di.bindProviderOf
 
 
 internal fun module() = DI.Module("Scan") {
 
-    bindProviderOf(::ClueDomainMapper)
-
-    bindProviderOf(::LabelRemoteSource)
-
-    bindProvider { ColorDataRepository(di, get()) }
-    bindProvider { DetectDataRepository(di, get()) }
-    bindProvider { LabelDataRepository(di, get(), get(), get()) }
-
-    bindProviderOf(::SaveCaptureUseCase)
+    bindProviderOf(::UploadCaptureUseCase)
     bindProviderOf(::AnalyzeCaptureUseCase)
     bindProviderOf(::GetEditCaptureUseCase)
-    bindProviderOf(::SubAnalyzeClueUseCase)
 
     bindProviderOf(::ScanCaptureStateMapper)
     bindProviderOf(::ScanCaptureEnvironment)
@@ -47,5 +30,5 @@ internal fun module() = DI.Module("Scan") {
 
     bindProviderOf(::ScanEditEnvironment)
     bindProviderOf(::ScanEditScreenModel)
-    bindFactory { proof: Proof -> ScanEditScreen(get(), proof) }
+    bindFactory { image: Path -> ScanEditScreen(get(), image) }
 }

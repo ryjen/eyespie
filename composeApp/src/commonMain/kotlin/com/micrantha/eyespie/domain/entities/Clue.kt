@@ -5,14 +5,15 @@ import okio.Path
 
 data class Clues(
     val labels: LabelProof? = null,
-    val location: LocationClue? = null, // TODO: Geofence
-    val colors: ColorProof? = null
+    val location: LocationProof? = null, // TODO: Geofence
+    val colors: ColorProof? = null,
+    val detections: DetectProof? = null
 )
 
 data class Proof(
     val clues: Clues?,
     val location: Location.Point?,
-    val match: Embedding,
+    val match: Embedding?,
     val image: Path,
     val name: String?,
     val playerID: String

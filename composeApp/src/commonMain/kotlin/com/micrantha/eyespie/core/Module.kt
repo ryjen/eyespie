@@ -4,10 +4,15 @@ import com.micrantha.eyespie.core.data.account.AccountDataRepository
 import com.micrantha.eyespie.core.data.account.mapping.AccountDomainMapper
 import com.micrantha.eyespie.core.data.account.model.CurrentSession
 import com.micrantha.eyespie.core.data.account.source.AccountRemoteSource
+import com.micrantha.eyespie.core.data.ai.AiDataRepository
+import com.micrantha.eyespie.core.data.ai.ClueDataRepository
+import com.micrantha.eyespie.core.data.ai.mapping.ClueDataMapper
+import com.micrantha.eyespie.core.data.ai.source.CluePromptSource
+import com.micrantha.eyespie.core.data.ai.source.LLMLocalSource
 import com.micrantha.eyespie.core.data.client.SupaClient
 import com.micrantha.eyespie.core.data.client.SupaRealtimeClient
 import com.micrantha.eyespie.core.data.storage.StorageDataRepository
-import com.micrantha.eyespie.core.data.storage.source.StorageLocalSource
+import com.micrantha.eyespie.core.data.storage.source.CacheLocalSource
 import com.micrantha.eyespie.core.data.storage.source.StorageRemoteSource
 import com.micrantha.eyespie.core.data.system.LocationDataRepository
 import com.micrantha.eyespie.core.data.system.RealtimeDataRepository
@@ -33,7 +38,7 @@ internal fun module() = DI.Module("Core Feature") {
 
     bindSingleton { CurrentSession }
 
-    bindProviderOf(::StorageLocalSource)
+    bindProviderOf(::CacheLocalSource)
     bindProviderOf(::StorageRemoteSource)
     bindProviderOf(::StorageDataRepository)
 
@@ -42,6 +47,12 @@ internal fun module() = DI.Module("Core Feature") {
     bindProviderOf(::RealtimeDataRepository)
     bindSingletonOf(::RealtimeRemoteSource)
     bindProviderOf(::RealtimeDomainMapper)
+
+    bindProviderOf(::AiDataRepository)
+    bindProviderOf(::ClueDataRepository)
+    bindProviderOf(::ClueDataMapper)
+    bindProviderOf(::LLMLocalSource)
+    bindProviderOf(::CluePromptSource)
 
     delegate<LocationLocalSource>().to<LocationTracker>()
 }

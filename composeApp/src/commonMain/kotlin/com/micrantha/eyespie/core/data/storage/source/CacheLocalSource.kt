@@ -3,7 +3,7 @@ package com.micrantha.eyespie.core.data.storage.source
 import io.github.reactivecircus.cache4k.Cache
 import kotlin.time.Duration.Companion.days
 
-class StorageLocalSource {
+class CacheLocalSource {
     private val cache: Cache<String, ByteArray> = Cache.Builder<String, ByteArray>()
         .expireAfterAccess(7.days)
         .build()

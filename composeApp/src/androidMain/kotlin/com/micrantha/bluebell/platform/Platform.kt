@@ -4,6 +4,7 @@ import android.content.Context
 import com.micrantha.bluebell.domain.repository.LocalizedRepository
 import okio.FileSystem
 import okio.Path
+import okio.Path.Companion.toPath
 import okio.buffer
 import java.time.Instant
 import java.time.LocalDateTime
@@ -49,7 +50,7 @@ actual class Platform(
         }
     }
 
-    actual fun dataStorePath(fileName: String): String {
-        return context.filesDir.resolve(fileName).absolutePath
+    actual fun filePath(fileName: String): Path {
+        return context.filesDir.resolve(fileName).absolutePath.toPath()
     }
 }
