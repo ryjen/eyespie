@@ -1,6 +1,5 @@
 package com.micrantha.eyespie.features.scan.ui.edit
 
-import com.benasher44.uuid.uuid4
 import com.micrantha.bluebell.app.Log
 import com.micrantha.bluebell.arch.Action
 import com.micrantha.bluebell.arch.Dispatcher
@@ -9,9 +8,14 @@ import com.micrantha.bluebell.arch.Reducer
 import com.micrantha.bluebell.arch.StateMapper
 import com.micrantha.bluebell.ui.components.Router
 import com.micrantha.bluebell.ui.screen.ScreenContext
+import com.micrantha.eyespie.core.data.account.model.CurrentSession
 import com.micrantha.eyespie.core.ui.component.Choice
 import com.micrantha.eyespie.core.ui.component.updateKey
 import com.micrantha.eyespie.domain.entities.Clues
+import com.micrantha.eyespie.domain.entities.LabelClue
+import com.micrantha.eyespie.domain.entities.LocationClue
+import com.micrantha.eyespie.domain.entities.Proof
+import com.micrantha.eyespie.domain.repository.LocationRepository
 import com.micrantha.eyespie.features.scan.ui.edit.ScanEditAction.ClearColor
 import com.micrantha.eyespie.features.scan.ui.edit.ScanEditAction.ClearLabel
 import com.micrantha.eyespie.features.scan.ui.edit.ScanEditAction.ColorChanged
@@ -23,27 +27,38 @@ import com.micrantha.eyespie.features.scan.ui.edit.ScanEditAction.LoadedImage
 import com.micrantha.eyespie.features.scan.ui.edit.ScanEditAction.NameChanged
 import com.micrantha.eyespie.features.scan.ui.edit.ScanEditAction.SaveScanEdit
 import com.micrantha.eyespie.features.scan.ui.edit.ScanEditAction.SaveThingError
+import com.micrantha.eyespie.features.scan.ui.usecase.AnalyzeCaptureUseCase
 import com.micrantha.eyespie.features.scan.ui.usecase.GetEditCaptureUseCase
-import com.micrantha.eyespie.features.scan.ui.usecase.SaveCaptureUseCase
+import com.micrantha.eyespie.features.scan.ui.usecase.UploadCaptureUseCase
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
 
 class ScanEditEnvironment(
     private val context: ScreenContext,
-    private val saveCaptureUseCase: SaveCaptureUseCase,
+    private val uploadCaptureUseCase: UploadCaptureUseCase,
     private val getEditCaptureUseCase: GetEditCaptureUseCase,
+    private val analyzeCaptureUseCase: AnalyzeCaptureUseCase,
+    private val locationRepository: LocationRepository,
+    private val currentSession: CurrentSession
 ) : Reducer<ScanEditState>, Effect<ScanEditState>,
     StateMapper<ScanEditState, ScanEditUiState>,
     Dispatcher by context.dispatcher,
     Router by context.router {
 
+    init {
+        analyzeCaptureUseCase.clues.onEach(::dispatch).launchIn(dispatchScope)
+        locationRepository.flow().onEach(::dispatch).launchIn(dispatchScope)
+    }
+
     override fun reduce(state: ScanEditState, action: Action) = when (action) {
         is Init -> state.copy(
-            labels = action.proof.clues?.labels?.associate {
-                uuid4().toString() to it
-            }?.toMutableMap(),
-            colors = action.proof.clues?.colors?.associate {
-                uuid4().toString() to it
-            }?.toMutableMap(),
-            proof = action.proof
+            path = action.image
+        )
+
+        is LabelClue -> state.copy(
+            labels = state.labels?.updateKey(action.display()) { clue ->
+                clue.copy(data = action.data, confidence = action.confidence)
+            }
         )
 
         is LabelChanged -> state.copy(
@@ -81,7 +96,18 @@ class ScanEditEnvironment(
 
     override suspend fun invoke(action: Action, state: ScanEditState) {
         when (action) {
-            is SaveScanEdit -> saveCaptureUseCase(
+            is Init -> {
+                analyzeCaptureUseCase(action.image).launchIn(dispatchScope)
+                getEditCaptureUseCase(action.image)
+                    .onSuccess {
+                        dispatch(LoadedImage(it))
+                    }.onFailure {
+                        Log.e("unable to load image", it)
+                        dispatch(LoadError)
+                    }
+            }
+
+            is SaveScanEdit -> uploadCaptureUseCase(
                 state.asProof()
             ).onSuccess {
                 navigateBack()
@@ -89,14 +115,6 @@ class ScanEditEnvironment(
                 Log.e("saving scan", it)
                 dispatch(SaveThingError)
             }
-
-            is Init -> getEditCaptureUseCase(action.proof.image)
-                .onSuccess {
-                    dispatch(LoadedImage(it))
-                }.onFailure {
-                    Log.e("unable to load image", it)
-                    dispatch(LoadError)
-                }
         }
     }
 
@@ -117,20 +135,31 @@ class ScanEditEnvironment(
             )
         } ?: emptyList(),
         customColor = state.customColor,
+        detections = state.detections?.map {
+            Choice(
+                label = it.value.display(),
+                key = it.value.data,
+                tag = it.key
+            )
+        } ?: emptyList(),
+        customDetection = state.customDetection,
         name = state.name ?: "",
         image = state.image,
         enabled = state.disabled.not()
     )
 
-    companion object {
-
-        private fun ScanEditState.asProof() = proof!!.copy(
-            clues = Clues(
-                labels = labels?.values?.toSet(),
-                colors = colors?.values?.toSet()
-            ),
-            name = name,
-        )
-    }
+    private fun ScanEditState.asProof() = Proof(
+        clues = Clues(
+            labels = labels?.values?.toSet(),
+            colors = colors?.values?.toSet(),
+            detections = detections?.values?.toSet(),
+            location = location?.data?.let { LocationClue(it) }
+        ),
+        name = name,
+        location = locationRepository.currentLocation()?.point,
+        match = embedding,
+        image = path,
+        playerID = currentSession.requirePlayer().id
+    )
 
 }

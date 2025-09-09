@@ -9,13 +9,15 @@ import com.micrantha.bluebell.platform.BackgroundDownloadManager
 import com.micrantha.bluebell.platform.Notifications
 import com.micrantha.bluebell.ui.screen.ScreenContext
 import com.micrantha.eyespie.app.S
+import com.micrantha.eyespie.domain.repository.AiRepository
 import eyespie.composeapp.generated.resources.download_started
 import eyespie.composeapp.generated.resources.downloading
 
 class OnboardingEnvironment(
     private val context: ScreenContext,
     private val downloadManager: BackgroundDownloadManager,
-    private val notifications: Notifications
+    private val notifications: Notifications,
+    private val aiRepository: AiRepository
 ) : Reducer<OnboardingState>, Effect<OnboardingState>,
     LocalizedRepository by context.i18n {
     override fun reduce(
@@ -30,9 +32,10 @@ class OnboardingEnvironment(
         state: OnboardingState
     ) = when(action) {
         is OnboardingAction.Download -> {
+            val modelInfo = aiRepository.getCurrentModelInfo()
             downloadManager.startDownload(
-                url = "https://huggingface.co/litert-community/Gemma3-1B-IT/resolve/main/gemma3-1b-it-int4.task",
-                fileName = "gemma3-1b-it-int4.task"
+                url = modelInfo.url,
+                fileName = modelInfo.fileName
             ).let { taskId ->
                 notifications.schedule(
                     id = taskId,

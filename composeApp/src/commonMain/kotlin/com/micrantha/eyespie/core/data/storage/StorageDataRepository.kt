@@ -1,6 +1,6 @@
 package com.micrantha.eyespie.core.data.storage
 
-import com.micrantha.eyespie.core.data.storage.source.StorageLocalSource
+import com.micrantha.eyespie.core.data.storage.source.CacheLocalSource
 import com.micrantha.eyespie.core.data.storage.source.StorageRemoteSource
 import com.micrantha.eyespie.domain.repository.StorageRepository
 
@@ -8,7 +8,7 @@ private const val imagesBucketID = "images"
 
 class StorageDataRepository(
     private val remoteSource: StorageRemoteSource,
-    private val localSource: StorageLocalSource
+    private val localSource: CacheLocalSource
 ) : StorageRepository {
 
     override suspend fun download(path: String) =

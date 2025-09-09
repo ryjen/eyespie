@@ -19,5 +19,5 @@ expect class Platform : LocalizedRepository, FileSystem {
 
     override fun read(path: Path): ByteArray
 
-    fun dataStorePath(fileName: String): String
+    fun filePath(fileName: String): Path
 }
