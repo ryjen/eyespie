@@ -18,7 +18,6 @@ import com.micrantha.eyespie.features.scan.ui.capture.ScanAction.ScanSavable
 import com.micrantha.eyespie.features.scan.ui.edit.ScanEditScreen
 import com.micrantha.eyespie.features.scan.ui.usecase.AnalyzeCaptureUseCase
 import com.micrantha.eyespie.features.scan.ui.usecase.TakeCaptureUseCase
-import com.micrantha.eyespie.features.scan.ui.usecase.UploadCaptureUseCase
 import com.micrantha.eyespie.platform.scan.CameraImage
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
@@ -27,7 +26,6 @@ import okio.Path
 class ScanCaptureEnvironment(
     private val context: ScreenContext,
     private val takeCaptureUseCase: TakeCaptureUseCase,
-    private val uploadCaptureUseCase: UploadCaptureUseCase,
     private val analyzeCaptureUseCase: AnalyzeCaptureUseCase,
     private val currentSession: CurrentSession,
     private val locationRepository: LocationRepository,

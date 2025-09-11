@@ -2,6 +2,7 @@ package com.micrantha.eyespie
 
 import android.content.Context
 import com.cactus.CactusLM
+import com.micrantha.bluebell.data.download.DownloadTaskManager
 import com.micrantha.bluebell.platform.AndroidNetworkMonitor
 import com.micrantha.bluebell.platform.BackgroundDownloadManager
 import com.micrantha.bluebell.platform.Notifications
@@ -22,7 +23,9 @@ fun androidDependencies(
 
     bindProviderOf(::AndroidNetworkMonitor)
 
-    bindProviderOf(::BackgroundDownloadManager)
+    bindSingletonOf(::DownloadTaskManager)
 
-    bindProviderOf(::Notifications)
+    bindSingletonOf(::BackgroundDownloadManager)
+
+    bindSingletonOf(::Notifications)
 }

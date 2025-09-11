@@ -20,7 +20,7 @@ class TakeCaptureUseCase(
     suspend operator fun invoke(image: CameraImage): Result<Path> = dispatchUseCase(coroutineContext) {
         withContext(Dispatchers.IO) {
             FileSystem.SYSTEM_TEMPORARY_DIRECTORY.div(uuid4().toString()).apply {
-                platform.write(this, image.toByteArray())
+                platform.fileWrite(this, image.toByteArray())
             }
         }
     }

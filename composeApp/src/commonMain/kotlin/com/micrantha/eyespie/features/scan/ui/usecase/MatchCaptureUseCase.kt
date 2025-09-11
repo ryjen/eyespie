@@ -3,8 +3,8 @@ package com.micrantha.eyespie.features.scan.ui.usecase
 import com.micrantha.bluebell.app.Log
 import com.micrantha.bluebell.domain.usecase.dispatchUseCase
 import com.micrantha.eyespie.domain.entities.Embedding
+import com.micrantha.eyespie.domain.entities.Thing
 import com.micrantha.eyespie.platform.scan.CameraImage
-import okio.ByteString
 import kotlin.coroutines.coroutineContext
 import kotlin.math.sqrt
 
@@ -12,18 +12,20 @@ class MatchCaptureUseCase(
 ) {
     suspend operator fun invoke(
         image: CameraImage,
-        embedding: ByteString
+        thing: Thing,
     ): Result<Boolean> =
         dispatchUseCase(coroutineContext) {
-            // TODO: get embeddings from supabase
+            // TODO: get embeddings from supabase or run remote function instead
             val match: Embedding = Embedding.EMPTY
+
+            val embedding = Embedding.EMPTY
 
             val result = similarity(match.toByteArray(), embedding.toByteArray())
 
             Log.i("image match similarity: $result")
 
             // TODO: Game configurable
-            result.compareTo(0.70000000) >= 0
+            result >= 0.70000000
         }
 
     private fun similarity(vectorA: ByteArray, vectorB: ByteArray): Double {

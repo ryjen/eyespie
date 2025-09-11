@@ -9,9 +9,10 @@ import com.micrantha.eyespie.features.onboarding.ui.OnboardingScreenModel
 import org.kodein.di.DI
 import org.kodein.di.bindProvider
 import org.kodein.di.bindProviderOf
+import org.kodein.di.bindSingletonOf
 
 internal fun onboardingModule() = DI.Module("Onboarding") {
-    bindProviderOf(::OnboardingLocalSource)
+    bindSingletonOf(::OnboardingLocalSource)
     bindProviderOf(::OnboardingRepository)
 
     bindProviderOf(::OnboardingEnvironment)

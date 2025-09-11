@@ -16,7 +16,6 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Camera
 import androidx.compose.material.icons.filled.ChevronLeft
-import androidx.compose.material.icons.filled.Edit
 import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -36,9 +35,6 @@ import com.micrantha.bluebell.ui.components.StateRenderer
 import com.micrantha.bluebell.ui.components.status.LoadingContent
 import com.micrantha.bluebell.ui.theme.Dimensions
 import com.micrantha.eyespie.core.ui.component.LocationEnabledEffect
-import com.micrantha.eyespie.features.scan.ui.capture.ScanAction.EditScan
-import com.micrantha.eyespie.features.scan.ui.capture.ScanAction.SaveScan
-import com.micrantha.eyespie.features.scan.ui.components.ScannedClues
 import com.micrantha.eyespie.platform.scan.CameraScanner
 import dev.icerock.moko.permissions.Permission
 import dev.icerock.moko.permissions.PermissionsController
@@ -108,7 +104,7 @@ private fun BoxWithConstraintsScope.RenderCamera(
             RoundedCornerShape(Dimensions.Border.mediumLarge)
         ).align(Alignment.BottomCenter),
         enabled = state.enabled,
-        onClick = { dispatch(SaveScan) }
+        onClick = { dispatch(ScanAction.SaveScan) }
     ) {
         Icon(
             imageVector = Icons.Default.PhotoCamera,
@@ -132,32 +128,11 @@ private fun BoxWithConstraintsScope.RenderCapture(state: ScanUiState, dispatch: 
 @Composable
 private fun BoxWithConstraintsScope.RenderClues(state: ScanUiState, dispatch: Dispatch) {
 
-    if (state.clues.isNotEmpty()) {
-        ScannedClues(
-            clues = state.clues,
-            modifier = Modifier.align(Alignment.TopEnd)
-        )
-    }
-
     Row(
         modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth()
             .padding(Dimensions.content),
         horizontalArrangement = Arrangement.SpaceBetween
     ) {
-        IconButton(
-            modifier = Modifier.background(
-                MaterialTheme.colorScheme.surface.copy(alpha = 0.5f),
-                RoundedCornerShape(Dimensions.content)
-            ),
-            enabled = state.enabled,
-            onClick = { dispatch(EditScan) }
-        ) {
-            Icon(
-                imageVector = Icons.Default.Edit,
-                tint = MaterialTheme.colorScheme.onSurface,
-                contentDescription = null
-            )
-        }
 
         IconButton(
             modifier = Modifier.background(
@@ -165,7 +140,7 @@ private fun BoxWithConstraintsScope.RenderClues(state: ScanUiState, dispatch: Di
                 RoundedCornerShape(Dimensions.content)
             ),
             enabled = state.enabled,
-            onClick = { dispatch(SaveScan) }
+            onClick = { dispatch(ScanAction.SaveScan) }
         ) {
             Icon(
                 imageVector = Icons.Default.Camera,

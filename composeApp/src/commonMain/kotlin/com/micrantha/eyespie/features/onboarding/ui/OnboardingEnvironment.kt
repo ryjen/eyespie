@@ -1,25 +1,29 @@
 package com.micrantha.eyespie.features.onboarding.ui
 
+import com.micrantha.bluebell.app.LocalNotifier
 import com.micrantha.bluebell.arch.Action
 import com.micrantha.bluebell.arch.Effect
 import com.micrantha.bluebell.arch.Reducer
 import com.micrantha.bluebell.arch.StateMapper
 import com.micrantha.bluebell.domain.repository.LocalizedRepository
-import com.micrantha.bluebell.platform.BackgroundDownloadManager
-import com.micrantha.bluebell.platform.Notifications
+import com.micrantha.bluebell.platform.BackgroundDownloader
 import com.micrantha.bluebell.ui.screen.ScreenContext
 import com.micrantha.eyespie.app.S
+import com.micrantha.eyespie.app.ui.usecase.LoadMainUseCase
 import com.micrantha.eyespie.domain.repository.AiRepository
+import com.micrantha.eyespie.features.onboarding.data.OnboardingRepository
 import eyespie.composeapp.generated.resources.download_started
-import eyespie.composeapp.generated.resources.downloading
 
 class OnboardingEnvironment(
     private val context: ScreenContext,
-    private val downloadManager: BackgroundDownloadManager,
-    private val notifications: Notifications,
-    private val aiRepository: AiRepository
+    private val onboardingRepository: OnboardingRepository,
+    private val downloader: BackgroundDownloader,
+    private val notifications: LocalNotifier,
+    private val aiRepository: AiRepository,
+    private val loadMainUseCase: LoadMainUseCase
 ) : Reducer<OnboardingState>, Effect<OnboardingState>,
     LocalizedRepository by context.i18n {
+
     override fun reduce(
         state: OnboardingState,
         action: Action
@@ -33,16 +37,17 @@ class OnboardingEnvironment(
     ) = when(action) {
         is OnboardingAction.Download -> {
             val modelInfo = aiRepository.getCurrentModelInfo()
-            downloadManager.startDownload(
+            val taskId = downloader.startDownload(
                 url = modelInfo.url,
                 fileName = modelInfo.fileName
-            ).let { taskId ->
-                notifications.schedule(
-                    id = taskId,
-                    title = string(S.download_started).getOrThrow(),
-                    message = string(S.downloading, "Gemma3 AI Model").getOrThrow(),
-                )
-            }
+            )
+            notifications.startDownloadListener(
+                tag = taskId,
+                title = modelInfo.name,
+                message = string(S.download_started),
+            )
+            onboardingRepository.setHasRunOnce()
+            loadMainUseCase()
         }
        else -> Unit
     }

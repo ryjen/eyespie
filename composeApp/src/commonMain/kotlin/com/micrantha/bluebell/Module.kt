@@ -1,5 +1,6 @@
 package com.micrantha.bluebell
 
+import com.micrantha.bluebell.data.bluebellData
 import com.micrantha.bluebell.domain.bluebellDomain
 import com.micrantha.bluebell.domain.repository.LocalizedRepository
 import com.micrantha.bluebell.flux.bluebellFlux
@@ -17,6 +18,7 @@ import org.kodein.di.instance
 
 fun bluebellModules(trigger: DITrigger? = null) = DI.Module(name = "Bluebell") {
 
+    importOnce(bluebellData())
     importOnce(bluebellDomain())
     importOnce(bluebellUi())
     importOnce(bluebellFlux())

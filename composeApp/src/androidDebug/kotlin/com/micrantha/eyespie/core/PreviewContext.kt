@@ -19,7 +19,6 @@ import com.micrantha.bluebell.ui.screen.ScreenContext
 import com.micrantha.eyespie.androidDependencies
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.MainScope
-import okio.Path
 import org.kodein.di.DI
 
 class PreviewContext(
@@ -56,10 +55,7 @@ class PreviewContext(
     override suspend fun send(action: Action) = dispatcher.send(action)
     override fun dispatch(action: Action) = dispatcher.dispatch(action)
 
-    override val fileSystem: FileSystem = object : FileSystem {
-        override fun write(path: Path, data: ByteArray) = Unit
-        override fun read(path: Path): ByteArray = byteArrayOf()
-    }
+    override val fileSystem: FileSystem = object : FileSystem {}
 
     override val di: DI = androidDependencies(context)
 }

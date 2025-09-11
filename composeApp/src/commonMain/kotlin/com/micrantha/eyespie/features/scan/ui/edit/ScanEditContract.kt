@@ -23,7 +23,7 @@ data class ScanEditState(
 //    val colors: ColorProof? = null,
     val name: String? = null,
     val image: Painter? = null,
-    val path: Path,
+    val path: Path? = null,
     val disabled: Boolean = false,
 )
 

@@ -7,13 +7,6 @@ import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.tooling.preview.Preview
 import com.micrantha.eyespie.core.ui.component.Choice
-import com.micrantha.eyespie.domain.entities.Clues
-import com.micrantha.eyespie.domain.entities.ColorClue
-import com.micrantha.eyespie.domain.entities.Embedding
-import com.micrantha.eyespie.domain.entities.LabelClue
-import com.micrantha.eyespie.domain.entities.Location
-import com.micrantha.eyespie.domain.entities.LocationClue
-import com.micrantha.eyespie.domain.entities.Proof
 import com.micrantha.eyespie.ui.PreviewContext
 import okio.Path.Companion.toOkioPath
 import java.nio.file.Paths
@@ -37,31 +30,15 @@ fun ScanEditPreview() = PreviewContext(
             Choice("color1", tag = "color1", key = "color1"),
             Choice("color2", tag = "color2", key = "color2"),
         ),
+        detections = listOf(
+            Choice("detection1", tag = "detection1", key = "detection1"),
+            Choice("detection2", tag = "detection2", key = "detection2"),
+        ),
+        customDetection = null,
         enabled = true,
         customLabel = "customLabel",
         customColor = null
     )
 ) {
-    ScanEditScreen(it, Proof(
-        clues = Clues(
-            labels = List(3) { LabelClue("label$it", 0.5f * it) }.toSet(),
-            colors = List(3) { ColorClue("color$it", 0.5f * it)}.toSet(),
-            location = LocationClue(
-                Location.Data(
-                    name = "somewhere",
-                    city = "somewhere",
-                    region = "somewhere",
-                    country = "somewhere",
-                    accuracy = 0.5f
-                )
-            )
-        ),
-        location = Location.Point(
-            180.0, 280.0
-        ),
-        match = Embedding.EMPTY,
-        image = Paths.get(".").toOkioPath(),
-        name = "abc",
-        playerID = "123"
-    ))
+    ScanEditScreen(it, Paths.get(".").toOkioPath())
 }
