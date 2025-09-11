@@ -12,10 +12,6 @@ import com.micrantha.eyespie.ui.PreviewContext
 @Composable
 fun ScanCapturePreview() = PreviewContext(
     ScanUiState(
-        clues = listOf(
-            "clue 1",
-            "clue 2"
-        ),
         enabled = true,
         capture = object : Painter() {
             override val intrinsicSize = Size(200F, 400F)

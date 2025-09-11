@@ -17,7 +17,6 @@ data class ScanState(
 
 @Stable
 data class ScanUiState(
-    val clues: List<String>,
     val enabled: Boolean,
     val busy: Boolean,
     val capture: Painter?
@@ -27,6 +26,8 @@ sealed interface ScanAction {
     interface ScanSavable {
         val path: Path
     }
+
+    data object SaveScan : ScanAction
 
     data object DoneScan : ScanAction
 

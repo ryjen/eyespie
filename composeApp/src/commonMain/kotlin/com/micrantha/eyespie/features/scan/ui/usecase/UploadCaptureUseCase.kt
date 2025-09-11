@@ -21,7 +21,7 @@ class UploadCaptureUseCase(
         proof: Proof,
     ) = dispatchUseCase(coroutineContext) {
         val image = withContext(Dispatchers.IO) {
-            fileSystem.read(proof.image)
+            fileSystem.fileRead(proof.image)
         }
 
         storageRepository.upload(

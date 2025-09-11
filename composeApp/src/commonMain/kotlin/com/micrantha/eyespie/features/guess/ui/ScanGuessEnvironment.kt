@@ -46,7 +46,7 @@ class ScanGuessEnvironment(
             is ImageCaptured -> if (state.thing != null) {
                 matchCaptureUseCase(
                     action.image,
-                    state.thing.embedding
+                    state.thing
                 ).onSuccess { matched ->
                     if (matched) {
                         dispatch(ThingMatched)

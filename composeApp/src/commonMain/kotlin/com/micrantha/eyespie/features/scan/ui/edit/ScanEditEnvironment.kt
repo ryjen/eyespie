@@ -158,7 +158,7 @@ class ScanEditEnvironment(
         name = name,
         location = locationRepository.currentLocation()?.point,
         match = embedding,
-        image = path,
+        image = path!!,
         playerID = currentSession.requirePlayer().id
     )
 

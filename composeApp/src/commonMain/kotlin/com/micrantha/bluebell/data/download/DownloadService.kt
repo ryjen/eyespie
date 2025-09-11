@@ -1,15 +1,18 @@
 package com.micrantha.bluebell.data.download
+
 import io.ktor.client.HttpClient
 import io.ktor.client.plugins.HttpTimeout
-import io.ktor.client.request.get
 import io.ktor.client.request.head
 import io.ktor.client.request.header
+import io.ktor.client.request.prepareGet
 import io.ktor.client.statement.bodyAsChannel
 import io.ktor.http.HttpHeaders
 import io.ktor.http.HttpStatusCode
+import io.ktor.http.contentLength
 import io.ktor.http.isSuccess
 import io.ktor.utils.io.readRemaining
 import kotlinx.io.readByteArray
+import okio.BufferedSink
 
 class DownloadService(
     private val httpClient: HttpClient = HttpClient {
@@ -19,60 +22,74 @@ class DownloadService(
             socketTimeoutMillis = 30000
         }
         expectSuccess = false
-    }
+    },
 ) {
+
+    private data class DownloadFileInfo(
+        val fileName: String,
+        val contentLength: Long,
+        val supportsResume: Boolean
+    )
 
     suspend fun downloadFile(
         url: String,
-        resumePosition: Long = 0L,
+        outputSink: BufferedSink,
+        resumePosition: Long,
         progressCallback: suspend (bytesDownloaded: Long, totalBytes: Long, progress: Float) -> Unit
-    ): ByteArray {
-        val response = httpClient.get(url) {
+    ) {
+        val fileInfo = try {
+            getFileInfo(url, resumePosition)
+        } catch (e: Exception) {
+            null
+        }
+        httpClient.prepareGet(url) {
+            if (resumePosition > 0 && fileInfo?.supportsResume == true) {
+                header(HttpHeaders.Range, "bytes=${resumePosition}-")
+            }
+        }.execute { response ->
+
+            if (!response.status.isSuccess() && response.status != HttpStatusCode.PartialContent) {
+                throw Exception("HTTP Error: ${response.status.value} - ${response.status.description}")
+            }
+
+            val contentLength = fileInfo?.contentLength ?: response.contentLength() ?: -1L
+            val totalBytes = if (contentLength > 0) contentLength + resumePosition else -1L
+            val source = response.bodyAsChannel()
+            var totalBytesRead = resumePosition
+
+            val onProgress = suspend {
+                val progress = if (totalBytes > 0) {
+                    totalBytesRead.toFloat() / totalBytes.toFloat()
+                } else 0f
+
+                progressCallback(totalBytesRead, totalBytes, progress)
+            }
+
+            val bufferSize = 8192L
+
+            while (!source.isClosedForRead) {
+                val bytesRead = source.readRemaining(bufferSize)
+                if (bytesRead.exhausted()) {
+                    break
+                }
+
+                val bytes = bytesRead.readByteArray()
+
+                outputSink.write(bytes)
+
+                totalBytesRead += bytes.size
+
+                onProgress()
+            }
+        }
+    }
+
+    private suspend fun getFileInfo(url: String, resumePosition: Long): DownloadFileInfo {
+        val response = httpClient.head(url) {
             if (resumePosition > 0) {
                 header(HttpHeaders.Range, "bytes=$resumePosition-")
             }
         }
-
-        if (!response.status.isSuccess() && response.status != HttpStatusCode.PartialContent) {
-            throw Exception("HTTP Error: ${response.status.value} - ${response.status.description}")
-        }
-
-        val contentLength = response.headers[HttpHeaders.ContentLength]?.toLongOrNull() ?: -1L
-        val totalBytes = if (contentLength > 0) contentLength + resumePosition else -1L
-
-        val channel = response.bodyAsChannel()
-        val result = ByteArray(if (contentLength > 0) contentLength.toInt() else 8192 * 1024)
-        var bytesRead = 0
-        var totalBytesDownloaded = resumePosition
-
-        while (!channel.isClosedForRead) {
-            val packet = channel.readRemaining(8192)
-            if (packet.exhausted()) break
-
-            val bytes = packet.readByteArray()
-            if (bytesRead + bytes.size > result.size) {
-                val newResult = ByteArray((result.size * 1.5).toInt().coerceAtLeast(bytesRead + bytes.size))
-                result.copyInto(newResult, 0, 0, bytesRead)
-                bytes.copyInto(newResult, bytesRead)
-            } else {
-                bytes.copyInto(result, bytesRead)
-            }
-
-            bytesRead += bytes.size
-            totalBytesDownloaded += bytes.size
-
-            val progress = if (totalBytes > 0) {
-                totalBytesDownloaded.toFloat() / totalBytes.toFloat()
-            } else 0f
-
-            progressCallback(totalBytesDownloaded, totalBytes, progress)
-        }
-
-        return result.copyOf(bytesRead)
-    }
-
-    suspend fun getFileInfo(url: String): FileInfo {
-        val response = httpClient.head(url)
         if (!response.status.isSuccess()) {
             throw Exception("HTTP Error: ${response.status.value} - ${response.status.description}")
         }
@@ -87,7 +104,7 @@ class DownloadService(
 
         val acceptsRanges = response.headers[HttpHeaders.AcceptRanges]?.contains("bytes") == true
 
-        return FileInfo(
+        return DownloadFileInfo(
             fileName = fileName,
             contentLength = contentLength,
             supportsResume = acceptsRanges

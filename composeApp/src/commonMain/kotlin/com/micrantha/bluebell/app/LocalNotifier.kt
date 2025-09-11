@@ -1,12 +1,7 @@
 package com.micrantha.bluebell.app
 
 interface LocalNotifier {
-    fun schedule(
-        id: String,
-        title: String,
-        message: String,
-        atMillis: Long? = null
-    )
+    fun startDownloadListener(tag: String, title: String, message: String)
 
-    fun cancel(id: String)
+    fun cancel(tag: String)
 }

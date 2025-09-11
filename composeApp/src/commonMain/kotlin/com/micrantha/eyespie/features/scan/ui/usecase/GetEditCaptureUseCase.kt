@@ -15,6 +15,6 @@ class GetEditCaptureUseCase(
     suspend operator fun invoke(path: Path) = dispatchUseCase(
         Dispatchers.IO
     ) {
-        BitmapPainter(fileSystem.read(path).toImageBitmap())
+        BitmapPainter(fileSystem.fileRead(path).toImageBitmap())
     }
 }

@@ -1,17 +1,29 @@
 package com.micrantha.bluebell.data.download
 
+import android.Manifest
 import android.content.Context
+import androidx.annotation.RequiresPermission
 import androidx.work.CoroutineWorker
 import androidx.work.WorkerParameters
 import androidx.work.workDataOf
+import com.micrantha.bluebell.app.Log
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import okio.BufferedSink
+import okio.buffer
+import okio.sink
 import java.io.File
-import java.io.FileOutputStream
 
 internal const val KEY_URL = "download_url"
 internal const val KEY_FILE_NAME = "file_name"
 internal const val KEY_TASK_ID = "task_id"
+internal const val KEY_TASK_TAG = "task_tag"
+
+const val KEY_ERROR = "error"
+const val KEY_FILE_PATH = "file_path"
+const val KEY_PROGRESS = "progress"
+const val KEY_BYTES = "bytes"
+const val KEY_TOTAL_BYTES = "total_bytes"
 
 class DownloadWorker(
     context: Context,
@@ -20,17 +32,17 @@ class DownloadWorker(
 
     private val downloadService by lazy { DownloadService() }
 
+    @RequiresPermission(Manifest.permission.POST_NOTIFICATIONS)
     override suspend fun doWork(): Result = withContext(Dispatchers.IO) {
         val url = inputData.getString(KEY_URL)
             ?: return@withContext Result.failure()
         val fileName = inputData.getString(KEY_FILE_NAME)
             ?: return@withContext Result.failure()
-        val taskId = inputData.getString(KEY_TASK_ID)
-            ?: return@withContext Result.failure()
 
         try {
-            downloadFile(url, fileName, taskId)
+            downloadFile(url, fileName)
         } catch (e: Exception) {
+            Log.e(tag = TAG, messageString = "Error downloading file", throwable = e)
             Result.failure(
                 workDataOf("error" to (e.message ?: "Download failed"))
             )
@@ -39,11 +51,12 @@ class DownloadWorker(
         }
     }
 
+    @RequiresPermission(Manifest.permission.POST_NOTIFICATIONS)
     private suspend fun downloadFile(
         urlString: String,
         fileName: String,
-        taskId: String
     ): Result {
+        var sink: BufferedSink? = null
         return try {
             val downloadDir = File(applicationContext.filesDir, "downloads")
             if (!downloadDir.exists()) {
@@ -53,46 +66,37 @@ class DownloadWorker(
             val file = File(downloadDir, fileName)
             val resumePosition = if (file.exists()) file.length() else 0L
 
-            if (resumePosition == 0L) {
-                try {
-                    downloadService.getFileInfo(urlString)
-                    // Could update fileName here if needed
-                } catch (e: Exception) {
-                    // Continue with download even if HEAD request fails
-                }
-            }
+            sink = file.sink().buffer()
 
-            val fileData = downloadService.downloadFile(
+            downloadService.downloadFile(
                 url = urlString,
+                outputSink = sink,
                 resumePosition = resumePosition
-            ) { bytesDownloaded, totalBytes, progress ->
+            ) { _, _, progress ->
                 if (isStopped) return@downloadFile
 
                 setProgress(
                     workDataOf(
-                        "progress" to progress,
-                        "bytesDownloaded" to bytesDownloaded,
-                        "totalBytes" to totalBytes
+                        KEY_PROGRESS to progress.toInt()
                     )
                 )
             }
 
-            if (resumePosition > 0) {
-                FileOutputStream(file, true).use { output ->
-                    output.write(fileData)
-                }
-            } else {
-                file.writeBytes(fileData)
-            }
-
             Result.success(
-                workDataOf("filePath" to file.absolutePath)
+                workDataOf(KEY_FILE_PATH to file.absolutePath)
             )
 
         } catch (e: Exception) {
             Result.failure(
-                workDataOf("error" to (e.message ?: "Download failed"))
+                workDataOf(KEY_ERROR to (e.message ?: "Download failed"))
             )
+        } finally {
+            sink?.flush()
+            sink?.close()
         }
+    }
+
+    companion object {
+        const val TAG = "DownloadWorker"
     }
 }

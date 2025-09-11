@@ -18,7 +18,7 @@ class LoadMainUseCase(
     private val loadSessionPlayerUseCase: LoadSessionPlayerUseCase,
     private val onboardingRepository: OnboardingRepository
 ) {
-    suspend operator fun invoke() = try {
+    suspend operator fun invoke(): Unit = try {
 
         aiRepository.initialize()
 
@@ -30,6 +30,7 @@ class LoadMainUseCase(
             }.onSuccess { session ->
                 loadSessionPlayerUseCase.withNavigation(session)
             }
+            Unit
         }
     } catch (err: Throwable){
         Log.e("main", err){"unexpected error"}

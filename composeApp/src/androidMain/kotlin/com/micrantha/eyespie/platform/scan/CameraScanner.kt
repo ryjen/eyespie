@@ -31,6 +31,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import java.util.concurrent.Executors
 
+typealias CameraScannerDispatch = suspend (CameraImage) -> Unit
 
 @Composable
 actual fun CameraScanner(
