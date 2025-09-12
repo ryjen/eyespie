@@ -28,8 +28,14 @@ class EmailVisualTransformation(
             val username = originalText.substring(0, atIndex)
             val domainWithTld = originalText.substring(atIndex + 1)
 
-            val transformedUsername = transformPart(username, visibleCharsPrefix, visibleCharsSuffix, maskChar)
-            val transformedDomain = transformDomainPart(domainWithTld, visibleDomainPrefix, visibleDomainSuffix, maskChar)
+            val transformedUsername =
+                transformPart(username, visibleCharsPrefix, visibleCharsSuffix, maskChar)
+            val transformedDomain = transformDomainPart(
+                domainWithTld,
+                visibleDomainPrefix,
+                visibleDomainSuffix,
+                maskChar
+            )
 
             "$transformedUsername@$transformedDomain"
         }
@@ -50,11 +56,21 @@ class EmailVisualTransformation(
         return "$prefix$middleMasked$suffix"
     }
 
-    private fun transformDomainPart(domainWithTld: String, prefixLen: Int, suffixLen: Int, mask: Char): String {
+    private fun transformDomainPart(
+        domainWithTld: String,
+        prefixLen: Int,
+        suffixLen: Int,
+        mask: Char
+    ): String {
         val lastDotIndex = domainWithTld.lastIndexOf('.')
         if (lastDotIndex == -1 || lastDotIndex == 0 || lastDotIndex == domainWithTld.length - 1) {
             // No TLD or malformed, transform the whole thing as one part
-            return transformPart(domainWithTld, prefixLen, 0, mask) // Use 0 for suffix to avoid issues with short domains
+            return transformPart(
+                domainWithTld,
+                prefixLen,
+                0,
+                mask
+            ) // Use 0 for suffix to avoid issues with short domains
         }
 
         val domainName = domainWithTld.substring(0, lastDotIndex)
@@ -97,7 +113,8 @@ private class EmailOffsetMapping(
         }
 
         return if (offset <= atIndexOriginal) { // Cursor in username part
-            mapPartOffset(offset,
+            mapPartOffset(
+                offset,
                 originalText.substring(0, atIndexOriginal),
                 transformedText.substring(0, atIndexTransformed),
                 2, 1 // Assuming visibleCharsPrefix=2, visibleCharsSuffix=1 for username
@@ -129,7 +146,8 @@ private class EmailOffsetMapping(
         }
 
         return if (offset <= atIndexTransformed) { // Cursor in transformed username part
-            unmapPartOffset(offset,
+            unmapPartOffset(
+                offset,
                 transformedText.substring(0, atIndexTransformed),
                 originalText.substring(0, atIndexOriginal),
                 2, 1
@@ -149,7 +167,13 @@ private class EmailOffsetMapping(
     }
 
     // Helper for mapping offsets within a part (username or domain name)
-    private fun mapPartOffset(offset: Int, originalPart: String, transformedPart: String, prefixLen: Int, suffixLen: Int): Int {
+    private fun mapPartOffset(
+        offset: Int,
+        originalPart: String,
+        transformedPart: String,
+        prefixLen: Int,
+        suffixLen: Int
+    ): Int {
         if (offset <= prefixLen) return offset
         if (offset > originalPart.length - suffixLen) {
             // Cursor is in the suffix part
@@ -163,7 +187,13 @@ private class EmailOffsetMapping(
     }
 
     // Helper for unmapping offsets
-    private fun unmapPartOffset(offset: Int, transformedPart: String, originalPart: String, prefixLen: Int, suffixLen: Int): Int {
+    private fun unmapPartOffset(
+        offset: Int,
+        transformedPart: String,
+        originalPart: String,
+        prefixLen: Int,
+        suffixLen: Int
+    ): Int {
         if (offset <= prefixLen) return offset
         if (offset >= transformedPart.length - suffixLen) {
             // Cursor is in the suffix part of the transformed string

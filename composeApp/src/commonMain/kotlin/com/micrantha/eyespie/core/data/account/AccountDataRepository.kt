@@ -14,8 +14,8 @@ class AccountDataRepository(
 
     override suspend fun session() = remoteSource.account()
         .map(mapper::map).onSuccess {
-        currentSession.update(it)
-    }
+            currentSession.update(it)
+        }
 
     override suspend fun isLoggedIn() = remoteSource.isLoggedIn()
 
@@ -31,7 +31,8 @@ class AccountDataRepository(
         session().getOrThrow()
     }
 
-    override suspend fun register(email: String, passwd: String) = remoteSource.register(email, passwd)
+    override suspend fun register(email: String, passwd: String) =
+        remoteSource.register(email, passwd)
 
     override suspend fun registerWithGoogle() = remoteSource.registerWithGoogle()
 }

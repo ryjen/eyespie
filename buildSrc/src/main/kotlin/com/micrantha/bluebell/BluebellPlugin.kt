@@ -12,8 +12,8 @@ open class BluebellPlugin : Plugin<Project> {
         configurePlugins()
 
         afterEvaluate {
-            configureBuilds(bluebell.config)
-            configureAssets(bluebell.assets)
+            configureBuilds(bluebell.config, bluebell.assets)
+            configureAssets(bluebell.assets, bluebell.config)
             configureGraphql(bluebell.graphql, bluebell.config)
         }
     }

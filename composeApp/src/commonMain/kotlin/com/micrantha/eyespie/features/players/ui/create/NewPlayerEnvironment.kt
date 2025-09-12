@@ -47,7 +47,7 @@ class NewPlayerEnvironment(
     override fun reduce(
         state: NewPlayerState,
         action: FluxAction
-    ) = when(action) {
+    ) = when (action) {
         is Action.ChangedFirstName -> state.copy(firstName = action.firstName)
         is Action.ChangedLastName -> state.copy(lastName = action.lastName)
         is Action.ChangedNickName -> state.copy(nickName = action.nickName)
@@ -73,6 +73,7 @@ class NewPlayerEnvironment(
             }.onFailure {
                 dispatch(Action.OnError(it))
             }
+
             else -> Unit
         }
     }

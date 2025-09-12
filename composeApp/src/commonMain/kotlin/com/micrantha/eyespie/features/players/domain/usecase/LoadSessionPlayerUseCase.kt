@@ -29,9 +29,11 @@ class LoadSessionPlayerUseCase(
         }
     }
 
-    suspend fun withNavigation(session: Session, onError: (Throwable) -> Unit = {
-        context.navigate<LoginScreen>(Router.Options.Replace)
-    }) {
+    suspend fun withNavigation(
+        session: Session, onError: (Throwable) -> Unit = {
+            context.navigate<LoginScreen>(Router.Options.Replace)
+        }
+    ) {
         invoke(session).onFailure {
             onError(it)
         }.onSuccess {

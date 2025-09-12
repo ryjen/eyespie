@@ -106,10 +106,11 @@ class LoginScreen : Screen, StateRenderer<LoginUiState> {
                     else VisualTransformation.None,
                     trailingIcon = {
                         IconButton(onClick = { dispatch(LoginAction.ToggleEmailMask) }) {
-                            Icon(if (state.isEmailMasked)
-                                Icons.Default.Visibility
-                            else
-                                Icons.Default.VisibilityOff,
+                            Icon(
+                                if (state.isEmailMasked)
+                                    Icons.Default.Visibility
+                                else
+                                    Icons.Default.VisibilityOff,
                                 contentDescription = null
                             )
                         }
@@ -124,14 +125,15 @@ class LoginScreen : Screen, StateRenderer<LoginUiState> {
 
                 TextField(
                     trailingIcon = {
-                            IconButton(onClick = { dispatch(LoginAction.TogglePasswordMask) }) {
-                                Icon(if (state.isPasswordMasked)
+                        IconButton(onClick = { dispatch(LoginAction.TogglePasswordMask) }) {
+                            Icon(
+                                if (state.isPasswordMasked)
                                     Icons.Default.Visibility
                                 else
                                     Icons.Default.VisibilityOff,
-                                    contentDescription = null
-                                )
-                            }
+                                contentDescription = null
+                            )
+                        }
                     },
                     enabled = state.status.enabled(),
                     visualTransformation = if (state.isPasswordMasked)
@@ -169,7 +171,10 @@ class LoginScreen : Screen, StateRenderer<LoginUiState> {
                     contentPadding = PaddingValues(Dimensions.content),
                     onClick = { dispatch(LoginAction.OnLoginWithGoogle) }) {
                     Icon(Icons.Filled.AccountCircle, contentDescription = "google")
-                    Text(modifier = Modifier.padding(start = Dimensions.content), text = stringResource(S.login_with_google))
+                    Text(
+                        modifier = Modifier.padding(start = Dimensions.content),
+                        text = stringResource(S.login_with_google)
+                    )
                 }
 
                 Spacer(modifier = Modifier.heightIn(Dimensions.screen * 2))

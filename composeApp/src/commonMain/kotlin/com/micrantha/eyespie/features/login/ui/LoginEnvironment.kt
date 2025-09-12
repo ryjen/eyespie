@@ -63,7 +63,10 @@ class LoginEnvironment(
         is ChangedEmail -> state.copy(email = action.email)
         is ChangedPassword -> state.copy(password = action.password)
         is OnSuccess -> state.copy(status = Default)
-        is ToggleEmailMask -> state.copy(isEmailMasked = state.isEmailMasked?.not() ?: state.email.isBlank())
+        is ToggleEmailMask -> state.copy(
+            isEmailMasked = state.isEmailMasked?.not() ?: state.email.isBlank()
+        )
+
         is TogglePasswordMask -> state.copy(isPasswordMasked = !state.isPasswordMasked)
         is OnLogin, is OnLoginWithGoogle -> state.copy(status = Busy(S.logging_in))
         is OnError -> state.copy(status = Failure(S.login_failed))
@@ -95,4 +98,3 @@ class LoginEnvironment(
         }
     }
 }
-

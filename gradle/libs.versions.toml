@@ -8,14 +8,14 @@ agp = "8.13.0"
 android-minSdk = "29"
 android-compileSdk = "36"
 android-targetSdk = "36"
-androidx-activityCompose = "1.10.1"
+androidx-activityCompose = "1.11.0"
 androidx-core-ktx = "1.17.0"
 androidx-appcompat = "1.7.1"
 androidx-material = "1.13.0"
 androidx-constraintlayout = "2.2.1"
 androidx-test-junit = "1.3.0"
 androidx-espresso-core = "3.7.0"
-androidx-work = "2.10.3"
+androidx-work = "2.10.4"
 fragmentKtx = "1.8.9"
 geoCompose = "0.8.0"
 supabaseKt = "latest.release"
@@ -39,6 +39,7 @@ cactus = "0.2.4"
 buildConfig = "v5.6.7"
 mokoMedia = "0.11.1"
 datastore = "1.1.7"
+fetch = "3.4.1"
 
 [plugins]
 
@@ -116,3 +117,4 @@ voyager-transitions = { module = "cafe.adriel.voyager:voyager-transitions", vers
 cactus-library = { module = "com.cactus:library", version.ref = "cactus"}
 moko-media = { module = "dev.icerock.moko:media", version.ref = "mokoMedia" }
 build-config = { module = "com.github.gmazzo.gradle-buildconfig-plugin:com.github.gmazzo.buildconfig.gradle.plugin", version.ref = "buildConfig" }
+fetch = { module = "com.github.tonyofrancis.Fetch:fetch2", version.ref = "fetch" }

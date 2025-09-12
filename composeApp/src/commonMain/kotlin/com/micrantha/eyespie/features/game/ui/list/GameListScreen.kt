@@ -45,11 +45,11 @@ class GameListScreen(
                 Scaffolding.Actions(
                     listOf(
                         NavAction(
-                    icon = Icons.Default.Add,
-                    action = {
-                        it.dispatcher.dispatch(NewGame)
-                    }
-                ))))
+                            icon = Icons.Default.Add,
+                            action = {
+                                it.dispatcher.dispatch(NewGame)
+                            }
+                        ))))
         }
 
         val state by screenModel.state.collectAsState()

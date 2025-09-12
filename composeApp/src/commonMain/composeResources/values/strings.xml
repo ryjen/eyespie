@@ -45,6 +45,10 @@
     <string name="no_camera">Camera not available, try enable permission in settings.</string>
     <string name="no_clues">Clues not available, try capturing another image.</string>
     <string name="ok">OK</string>
+    <string name="yes">Yes</string>
+    <string name="no">No</string>
+    <string name="onboarding_genai_text">Download artificial intelligence models?\n\nModels will download in the background and help improve gameplay experience and privacy.</string>
+    <string name="onboarding_genai_title">On Device Models</string>
     <string name="no_data_found">No data found</string>
     <string name="download_started">Download started</string>
     <string name="downloading">Downloading %1$s</string>

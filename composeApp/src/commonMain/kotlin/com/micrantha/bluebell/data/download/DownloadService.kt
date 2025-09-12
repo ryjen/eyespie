@@ -1,6 +1,7 @@
 package com.micrantha.bluebell.data.download
 
 import io.ktor.client.HttpClient
+import io.ktor.client.engine.cio.CIO
 import io.ktor.client.plugins.HttpTimeout
 import io.ktor.client.request.head
 import io.ktor.client.request.header
@@ -13,9 +14,10 @@ import io.ktor.http.isSuccess
 import io.ktor.utils.io.readRemaining
 import kotlinx.io.readByteArray
 import okio.BufferedSink
+import kotlin.time.ExperimentalTime
 
 class DownloadService(
-    private val httpClient: HttpClient = HttpClient {
+    private val httpClient: HttpClient = HttpClient(CIO) {
         install(HttpTimeout) {
             requestTimeoutMillis = 60000
             connectTimeoutMillis = 30000
@@ -25,63 +27,68 @@ class DownloadService(
     },
 ) {
 
+    interface Listener {
+        suspend fun onProgress(bytesDownloaded: Long, progress: Int)
+        fun onCompleted() = Unit
+        fun onStart(totalBytes: Long)
+    }
+
     private data class DownloadFileInfo(
-        val fileName: String,
-        val contentLength: Long,
+        val contentLength: Long?,
         val supportsResume: Boolean
     )
 
+    @OptIn(ExperimentalTime::class)
     suspend fun downloadFile(
         url: String,
         outputSink: BufferedSink,
         resumePosition: Long,
-        progressCallback: suspend (bytesDownloaded: Long, totalBytes: Long, progress: Float) -> Unit
+        listener: Listener? = null,
     ) {
         val fileInfo = try {
             getFileInfo(url, resumePosition)
-        } catch (e: Exception) {
+        } catch (_: Exception) {
             null
         }
+
         httpClient.prepareGet(url) {
             if (resumePosition > 0 && fileInfo?.supportsResume == true) {
                 header(HttpHeaders.Range, "bytes=${resumePosition}-")
             }
         }.execute { response ->
+            val isPartial = response.status == HttpStatusCode.PartialContent
 
-            if (!response.status.isSuccess() && response.status != HttpStatusCode.PartialContent) {
+            if (!response.status.isSuccess() && !isPartial) {
                 throw Exception("HTTP Error: ${response.status.value} - ${response.status.description}")
             }
 
-            val contentLength = fileInfo?.contentLength ?: response.contentLength() ?: -1L
-            val totalBytes = if (contentLength > 0) contentLength + resumePosition else -1L
+            val contentLength = response.contentLength() ?: fileInfo?.contentLength ?: -1L
+            val totalBytes =
+                if (isPartial && contentLength > 0) contentLength + resumePosition else contentLength
             val source = response.bodyAsChannel()
             var totalBytesRead = resumePosition
 
-            val onProgress = suspend {
-                val progress = if (totalBytes > 0) {
-                    totalBytesRead.toFloat() / totalBytes.toFloat()
-                } else 0f
-
-                progressCallback(totalBytesRead, totalBytes, progress)
-            }
-
-            val bufferSize = 8192L
+            listener?.onStart(totalBytes)
 
             while (!source.isClosedForRead) {
-                val bytesRead = source.readRemaining(bufferSize)
+                val bytesRead = source.readRemaining(8192L)
                 if (bytesRead.exhausted()) {
                     break
                 }
 
-                val bytes = bytesRead.readByteArray()
+                bytesRead.readByteArray().apply {
+                    outputSink.write(this)
+                    totalBytesRead += size
+                }
 
-                outputSink.write(bytes)
+                val progress = if (totalBytes > 0) {
+                    (totalBytesRead.toFloat() / totalBytes.toFloat()) * 100f
+                } else 0f
 
-                totalBytesRead += bytes.size
-
-                onProgress()
+                listener?.onProgress(totalBytesRead, progress.toInt())
             }
         }
+        listener?.onCompleted()
     }
 
     private suspend fun getFileInfo(url: String, resumePosition: Long): DownloadFileInfo {
@@ -94,18 +101,10 @@ class DownloadService(
             throw Exception("HTTP Error: ${response.status.value} - ${response.status.description}")
         }
 
-        val contentLength = response.headers[HttpHeaders.ContentLength]?.toLongOrNull() ?: -1L
-        val fileName = response.headers[HttpHeaders.ContentDisposition]
-            ?.let { disposition ->
-                disposition.substringAfter("filename=", "")
-                    .trim('"')
-                    .takeIf { it.isNotEmpty() }
-            } ?: url.substringAfterLast('/').takeIf { it.isNotEmpty() } ?: "download"
-
+        val contentLength = response.headers[HttpHeaders.ContentLength]?.toLongOrNull()
         val acceptsRanges = response.headers[HttpHeaders.AcceptRanges]?.contains("bytes") == true
 
         return DownloadFileInfo(
-            fileName = fileName,
             contentLength = contentLength,
             supportsResume = acceptsRanges
         )

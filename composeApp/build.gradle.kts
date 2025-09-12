@@ -122,8 +122,10 @@ kotlin {
             implementation(libs.androidx.camera.extensions)
 
             implementation(libs.kotlinx.coroutines.android)
+            implementation(libs.fetch)
 
             implementation(libs.compose.ui.tooling)
+            implementation(libs.compose.ui.tooling.preview)
         }
 
         iosMain.dependencies {
@@ -222,54 +224,14 @@ bluebell {
         expectedKeys = listOf(
             "SUPABASE_URL",
             "SUPABASE_KEY",
-            "HUGGING_FACE_TOKEN",
         )
     }
     assets {
         downloads {
-            create("embedding_mobilenet_v3_lite.tflite") {
+            create("gemma3") {
                 url =
-                    "https://storage.googleapis.com/mediapipe-models/image_embedder/mobilenet_v3_small/float32/latest/mobilenet_v3_small.tflite"
-            }
-            create("embedding_mobilenet_v3.tflite") {
-                url =
-                    "https://storage.googleapis.com/mediapipe-models/image_embedder/mobilenet_v3_large/float32/latest/mobilenet_v3_large.tflite"
-            }
-            create("classification_efficientnet_lite.tflite") {
-                url =
-                    "https://storage.googleapis.com/mediapipe-models/image_classifier/efficientnet_lite0/float32/latest/efficientnet_lite0.tflite"
-            }
-            create("classification_efficientnet.tflite") {
-                url =
-                    "https://storage.googleapis.com/mediapipe-models/image_classifier/efficientnet_lite2/float32/latest/efficientnet_lite2.tflite"
-            }
-            create("segmentation_deeplab_v3.tflite") {
-                url =
-                    "https://storage.googleapis.com/mediapipe-models/image_segmenter/deeplab_v3/float32/latest/deeplab_v3.tflite"
-            }
-            create("detection_efficientnet_lite.tflite") {
-                url =
-                    "https://storage.googleapis.com/mediapipe-models/object_detector/efficientdet_lite0/float32/latest/efficientdet_lite0.tflite"
-            }
-            create("detection_efficientnet.tflite") {
-                url =
-                    "https://storage.googleapis.com/mediapipe-models/object_detector/efficientdet_lite2/float32/latest/efficientdet_lite2.tflite"
-            }
-            create("stylepredict_magenta_android.tflite") {
-                androidUrl =
-                    "https://storage.googleapis.com/download.tensorflow.org/models/tflite/task_library/style_transfer/android/magenta_arbitrary-image-stylization-v1-256_fp16_prediction_1.tflite"
-            }
-            create("styletransfer_magenta_android.tflite") {
-                androidUrl =
-                    "https://storage.googleapis.com/download.tensorflow.org/models/tflite/task_library/style_transfer/android/magenta_arbitrary-image-stylization-v1-256_fp16_transfer_1.tflite"
-            }
-            create("stylepredict_magenta_ios.tflite") {
-                iosUrl =
-                    "https://storage.googleapis.com/download.tensorflow.org/models/tflite/task_library/style_transfer/ios/magenta_arbitrary-image-stylization-v1-256_fp16_prediction_1.tflite"
-            }
-            create("styletransfer_magenta_ios.tflite") {
-                iosUrl =
-                    "https://storage.googleapis.com/download.tensorflow.org/models/tflite/task_library/style_transfer/ios/magenta_arbitrary-image-stylization-v1-256_fp16_transfer_1.tflite"
+                    "https://huggingface.co/unsloth/gemma-3-270m-it-GGUF/resolve/main/gemma-3-270m-it-Q8_0.gguf?download=true"
+                checksum = "d156a5159f2f79c1b1d53c7c1cc20f1ff28ab8d00f17a292620aad13399b9698"
             }
         }
     }

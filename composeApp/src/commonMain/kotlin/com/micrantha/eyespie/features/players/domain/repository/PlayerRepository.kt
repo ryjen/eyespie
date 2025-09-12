@@ -12,5 +12,10 @@ interface PlayerRepository {
 
     suspend fun player(userId: String): Result<Player>
 
-    suspend fun create(userId: String, firstName: String, lastName: String, nickName: String): Result<Player>
+    suspend fun create(
+        userId: String,
+        firstName: String,
+        lastName: String,
+        nickName: String
+    ): Result<Player>
 }

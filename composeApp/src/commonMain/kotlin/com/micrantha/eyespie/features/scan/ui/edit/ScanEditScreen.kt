@@ -64,12 +64,12 @@ class ScanEditScreen(
                 Scaffolding.Actions(
                     listOf(
                         NavAction(
-                    icon = Icons.Default.Save,
-                    action = {
-                        it.dispatcher.dispatch(SaveScanEdit)
-                    }
-                )
-            )))
+                            icon = Icons.Default.Save,
+                            action = {
+                                it.dispatcher.dispatch(SaveScanEdit)
+                            }
+                        )
+                    )))
         }
 
         LocationEnabledEffect()
@@ -94,9 +94,11 @@ class ScanEditScreen(
                 )
             }
 
-            Column(modifier = Modifier.align(Alignment.BottomCenter)
-                .padding(Dimensions.content)
-                .fillMaxWidth()) {
+            Column(
+                modifier = Modifier.align(Alignment.BottomCenter)
+                    .padding(Dimensions.content)
+                    .fillMaxWidth()
+            ) {
 
                 OutlinedTextField(
                     modifier = Modifier

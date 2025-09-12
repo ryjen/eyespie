@@ -12,12 +12,13 @@ enum class DownloadStatus {
 }
 
 @OptIn(ExperimentalUuidApi::class)
-data class DownloadTask(
-    val id: String,
+data class DownloadTask<ID>(
+    val id: ID,
     val url: String,
     val fileName: String,
+    val checksum: String? = null,
+    val filePath: String? = null,
     val status: DownloadStatus,
-    val progress: Float = 0f,
     val bytesDownloaded: Long = 0L,
     val totalBytes: Long = 0L,
     val error: String? = null

@@ -10,7 +10,7 @@ sealed interface RegisterAction {
     data object OnRegister : RegisterAction
     data object ResetStatus : RegisterAction
     data object OnSuccess : RegisterAction
-    data class OnError(val error: Throwable): RegisterAction
+    data class OnError(val error: Throwable) : RegisterAction
     data object OnRegisterWithGoogle : RegisterAction
 }
 
@@ -28,5 +28,6 @@ data class RegisterUiState(
     val status: UiResult<Unit> = UiResult.Default,
     val error: StringResource? = null // Or your specific error type if not StringResource
 ) {
-    val isValid: Boolean = email.isNotBlank() && password.isNotBlank() && password == confirmPassword && password.length >= 8 // Example validation
+    val isValid: Boolean =
+        email.isNotBlank() && password.isNotBlank() && password == confirmPassword && password.length >= 8 // Example validation
 }
