@@ -40,7 +40,10 @@ fun ExpandableHeader(
     Column(
         modifier = modifier
             .fillMaxWidth()
-            .background(Color(0xFFEEEEEE), shape = RoundedCornerShape(Dimensions.Border.mediumLarge))
+            .background(
+                Color(0xFFEEEEEE),
+                shape = RoundedCornerShape(Dimensions.Border.mediumLarge)
+            )
             .padding(Dimensions.Padding.small)
     ) {
         // Header Row

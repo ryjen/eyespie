@@ -15,6 +15,7 @@ data class MatchRequest(
         if (other == null || other !is MatchRequest) return false
         return embedding.contentEquals(other.embedding)
     }
+
     override fun hashCode() = embedding.contentHashCode()
 }
 

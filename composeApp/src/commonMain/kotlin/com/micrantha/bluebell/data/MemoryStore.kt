@@ -8,7 +8,11 @@ import kotlinx.coroutines.flow.filterNotNull
 class MemoryStore<T> {
     private val data = MutableStateFlow<T?>(null)
 
-    val value: Flow<T> = data.filterNotNull()
+    fun flow(): Flow<T> = data.filterNotNull()
+
+    fun get(): T? {
+        return data.value
+    }
 
     fun update(value: T) {
         data.value = value

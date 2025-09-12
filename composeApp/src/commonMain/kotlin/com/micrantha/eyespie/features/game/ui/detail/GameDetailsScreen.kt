@@ -37,7 +37,10 @@ import eyespie.composeapp.generated.resources.things
 import org.jetbrains.compose.resources.stringResource
 import kotlin.time.ExperimentalTime
 
-data class GameDetailsScreen(private val context: ScreenContext, private val arg: GameDetailScreenArg) : ScaffoldScreen(context),
+data class GameDetailsScreen(
+    private val context: ScreenContext,
+    private val arg: GameDetailScreenArg
+) : ScaffoldScreen(context),
     StateRenderer<GameDetailsUiState> {
 
     @Composable

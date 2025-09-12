@@ -32,7 +32,7 @@ class LoadMainUseCase(
             }
             Unit
         }
-    } catch (err: Throwable){
-        Log.e("main", err){"unexpected error"}
+    } catch (err: Throwable) {
+        Log.e("main", err) { "unexpected error" }
     }
 }

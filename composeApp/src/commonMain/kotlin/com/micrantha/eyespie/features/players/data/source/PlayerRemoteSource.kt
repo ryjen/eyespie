@@ -27,17 +27,20 @@ class PlayerRemoteSource(
         Result.failure(err)
     }
 
-    suspend fun create(userId: String, firstName: String, lastName: String, nickName: String) = try {
-        supaClient.players().insert(mapOf(
-            "user_id" to userId,
-            "first_name" to firstName,
-            "last_name" to lastName,
-            "nick_name" to nickName
-        ))
-        Result.success(Unit)
-    } catch (err: Throwable) {
-        Result.failure(err)
-    }
+    suspend fun create(userId: String, firstName: String, lastName: String, nickName: String) =
+        try {
+            supaClient.players().insert(
+                mapOf(
+                    "user_id" to userId,
+                    "first_name" to firstName,
+                    "last_name" to lastName,
+                    "nick_name" to nickName
+                )
+            )
+            Result.success(Unit)
+        } catch (err: Throwable) {
+            Result.failure(err)
+        }
 
     suspend fun nearby(location: Location.Point) = try {
         val result = supaClient.players().select {

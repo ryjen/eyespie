@@ -1,23 +1,48 @@
 package com.micrantha.bluebell
 
+import com.github.gmazzo.buildconfig.BuildConfigExtension
 import org.gradle.api.Project
 import java.io.File
 import java.net.URI
 
-fun Project.configureAssets(assets: BluebellAssets) {
+fun Project.configureAssets(assets: BluebellAssets, config: BluebellConfig) {
 
     val task = tasks.register("configureAssets") {
         group = "Bluebell"
         description = "Configure assets"
 
         copyAssets(assets)
-        downloadAssets(assets)
+        downloadBuildAssets(assets)
+        configureRuntimeAssets(assets, config)
     }
 
     tasks.findByName("generateBluebellConfig")?.dependsOn(task)
 }
 
-internal fun Project.downloadAsset(fileName: String, url: String, tempDir: File): Result<File> {
+internal fun Project.configureRuntimeAssets(assets: BluebellAssets, config: BluebellConfig) {
+
+    val runtimeAssets = assets.downloads.filter { it.isBundled.not() && it.url != null }
+
+    extensions.configure(BuildConfigExtension::class.java) {
+        packageName(config.packageName)
+        className(config.className)
+        useKotlinOutput {
+            topLevelConstants = false
+
+            buildConfigField(type = "Int", name = "MODEL_MAX", value = runtimeAssets.size)
+            runtimeAssets.forEachIndexed { index, asset ->
+                buildConfigField(type = "String?", name = "MODEL_${index}_URL", value = asset.url)
+                buildConfigField(type = "String?", name = "MODEL_${index}_NAME", value = asset.name)
+            }
+        }
+    }
+}
+
+internal fun Project.downloadBuildAsset(
+    fileName: String,
+    url: String,
+    tempDir: File
+): Result<File> {
     try {
         if (!tempDir.exists()) {
             tempDir.mkdirs()
@@ -42,54 +67,54 @@ internal fun Project.downloadAsset(fileName: String, url: String, tempDir: File)
     }
 }
 
-internal fun Project.downloadAssets(assets: BluebellAssets) {
+internal fun Project.downloadBuildAssets(assets: BluebellAssets) {
 
     val tempDir by lazy { layout.buildDirectory.dir("tmp").get().asFile }
 
-    val tempAssets = assets.downloads.fold(mutableListOf<BluebellDownload<File>>()) { results, file ->
+    val tempAssets = assets.downloads.filter { it.isBundled }
+        .fold(mutableListOf<BluebellDownload<File>>()) { results, file ->
 
-        file.url?.let { url ->
-            downloadAsset(file.name, url, tempDir).map {
-                BluebellDownload(
-                    ios = it,
-                    android = it,
-                    name = file.name
-                )
-            }.onSuccess(results::add)
+            file.url?.let { url ->
+                downloadBuildAsset(file.name, url, tempDir).map {
+                    BluebellDownload(
+                        ios = it,
+                        android = it,
+                        name = file.name
+                    )
+                }.onSuccess(results::add)
 
-            return@fold results
-        }
+                return@fold results
+            }
 
-        file.iosUrl?.let { url ->
-            downloadAsset(file.name, url, tempDir).map {
+            file.iosUrl?.let { url ->
+                downloadBuildAsset(file.name, url, tempDir).map {
                     BluebellDownload(
                         ios = it,
                         android = null,
-                        name = file.name
+                        name = file.name,
                     )
-            }.onSuccess(results::add)
-        }
+                }.onSuccess(results::add)
+            }
 
-        file.androidUrl?.let { url ->
-            downloadAsset(file.name, url, tempDir).map {
-                BluebellDownload(
-                    ios = null,
-                    android = it,
-                    name = file.name
-                )
-            }.onSuccess(results::add)
-        }
+            file.androidUrl?.let { url ->
+                downloadBuildAsset(file.name, url, tempDir).map {
+                    BluebellDownload(
+                        ios = null,
+                        android = it,
+                        name = file.name,
+                    )
+                }.onSuccess(results::add)
+            }
 
-        results
-    }
+            results
+        }
 
     for (file in tempAssets) {
-
         val iosOutput by lazy {
-            projectDir.resolve(assets.iosDestination).resolve(file.name)
+            projectDir.resolve(defatulIosDestination).resolve(file.name)
         }
         val androidOutput by lazy {
-            projectDir.resolve(assets.androidDestination).resolve(file.name)
+            projectDir.resolve(defaultAndroidDestination).resolve(file.name)
         }
 
         file.ios?.copyTo(iosOutput, overwrite = true)

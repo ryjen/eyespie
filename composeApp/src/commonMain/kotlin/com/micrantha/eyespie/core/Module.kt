@@ -9,6 +9,7 @@ import com.micrantha.eyespie.core.data.ai.ClueDataRepository
 import com.micrantha.eyespie.core.data.ai.mapping.ClueDataMapper
 import com.micrantha.eyespie.core.data.ai.source.CluePromptSource
 import com.micrantha.eyespie.core.data.ai.source.LLMLocalSource
+import com.micrantha.eyespie.core.data.ai.source.ModelSource
 import com.micrantha.eyespie.core.data.client.SupaClient
 import com.micrantha.eyespie.core.data.client.SupaRealtimeClient
 import com.micrantha.eyespie.core.data.storage.StorageDataRepository
@@ -51,6 +52,7 @@ internal fun module() = DI.Module("Core Feature") {
     bindProviderOf(::AiDataRepository)
     bindProviderOf(::ClueDataRepository)
     bindProviderOf(::ClueDataMapper)
+    bindProviderOf(::ModelSource)
     bindProviderOf(::LLMLocalSource)
     bindProviderOf(::CluePromptSource)
 

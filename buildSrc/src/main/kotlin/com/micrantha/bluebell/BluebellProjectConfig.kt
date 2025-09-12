@@ -25,7 +25,7 @@ fun BluebellConfig.loadConfigFromEnvironment(): Result<Map<String, String>> {
     }
 }
 
-fun Project.configureBuilds(config: BluebellConfig) {
+fun Project.configureBuilds(config: BluebellConfig, assets: BluebellAssets) {
 
     config.properties = config.loadConfigFromEnvironment().getOrDefault(emptyMap())
 
@@ -39,6 +39,12 @@ fun Project.configureBuilds(config: BluebellConfig) {
     fun generateSource(task: BuildConfigTask) {
         val entries =
             config.properties.entries.map { "\"${it.key}\" to ${config.className}.${it.key}" }
+                .toMutableList()
+
+        assets.downloads.forEachIndexed { i, asset ->
+            entries.add("\"MODEL_${i}_NAME\" to ${config.className}.MODEL_${i}_NAME")
+            entries.add("\"MODEL_${i}_URL\" to ${config.className}.MODEL_${i}_URL")
+        }
 
         val outputDir = task.outputDir.dir(
             config.packageName.replace(".", File.separator)
@@ -103,7 +109,7 @@ private fun generatedExtensionSourceCode(config: BluebellConfig, entries: List<S
 package ${config.packageName}
 import kotlin.reflect.KProperty
 
-${if(config.properties.isEmpty()) "object ${config.className}" else ""}
+${if (config.properties.isEmpty()) "object ${config.className}" else ""}
 
 private val map = mapOf<String, String?>(
     ${entries.joinToString(",\n    ")}

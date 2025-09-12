@@ -18,7 +18,7 @@ class CluePromptSource {
             [{data: string, confidence: number}]
     """
 
-     val labelPrompt = """
+    val labelPrompt = """
         Examine the image and classify it with labels to a maximum of 5.
         Provide output as JSON with the following format: 
             [{data: string, confidence: number}]

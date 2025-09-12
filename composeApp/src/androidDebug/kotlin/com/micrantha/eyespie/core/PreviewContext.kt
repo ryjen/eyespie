@@ -61,7 +61,10 @@ class PreviewContext(
 }
 
 @Composable
-fun <State> PreviewContext(state: State, renderer: @Composable (ScreenContext) -> StateRenderer<State>) {
+fun <State> PreviewContext(
+    state: State,
+    renderer: @Composable (ScreenContext) -> StateRenderer<State>
+) {
 
     val screenContext = PreviewContext(LocalContext.current)
 

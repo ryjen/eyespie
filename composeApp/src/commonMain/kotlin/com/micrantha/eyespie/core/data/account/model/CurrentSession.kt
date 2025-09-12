@@ -11,7 +11,7 @@ import kotlin.time.ExperimentalTime
 object CurrentSession {
     private val data = MutableStateFlow<Session?>(null)
     var player: Player? = null
-       private set
+        private set
 
     fun update(value: Session) {
         data.update { value }

@@ -2,8 +2,8 @@ package com.micrantha.eyespie.features.onboarding.ui
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -17,12 +17,19 @@ import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.style.TextAlign
 import cafe.adriel.voyager.kodein.rememberScreenModel
 import com.micrantha.bluebell.arch.Dispatch
 import com.micrantha.bluebell.ui.components.StateRenderer
 import com.micrantha.bluebell.ui.theme.Dimensions
+import com.micrantha.eyespie.app.S
 import com.micrantha.eyespie.core.ui.Screen
 import com.micrantha.eyespie.features.onboarding.ui.components.ClickableAnimatedPagerIndicator
+import eyespie.composeapp.generated.resources.no
+import eyespie.composeapp.generated.resources.onboarding_genai_text
+import eyespie.composeapp.generated.resources.onboarding_genai_title
+import eyespie.composeapp.generated.resources.yes
+import org.jetbrains.compose.resources.stringResource
 
 // TODO: wizard like setup for first run
 // A) How to Play
@@ -52,7 +59,7 @@ class OnboardingScreen : Screen, StateRenderer<OnboardingUiState> {
         Render(state, screenModel)
     }
 
-    enum class OnboardingPage{
+    enum class OnboardingPage {
         GenAI
     }
 
@@ -61,19 +68,19 @@ class OnboardingScreen : Screen, StateRenderer<OnboardingUiState> {
         state: OnboardingUiState,
         dispatch: Dispatch
     ) {
-        val pagerState=rememberPagerState(
+        val pagerState = rememberPagerState(
             initialPage = 0,
-            pageCount = {OnboardingPage.entries.size}
+            pageCount = { OnboardingPage.entries.size }
         )
 
         HorizontalPager(
-            state=pagerState,
+            state = pagerState,
         ) {
-            Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
-                Column {
-                    when (it) {
-                        OnboardingPage.GenAI.ordinal -> RenderGenAI(state, dispatch)
-                    }
+            Box(
+                modifier = Modifier.fillMaxSize()
+            ) {
+                when (it) {
+                    OnboardingPage.GenAI.ordinal -> RenderGenAI(state, dispatch)
                 }
                 ClickableAnimatedPagerIndicator(
                     pagerState = pagerState,
@@ -84,20 +91,36 @@ class OnboardingScreen : Screen, StateRenderer<OnboardingUiState> {
     }
 
     @Composable
-    private fun ColumnScope.RenderGenAI(state: OnboardingUiState, dispatch: Dispatch){
-        Text("Download artificial intelligence models?  Models help improve gameplay and experience.")
+    private fun BoxScope.RenderGenAI(state: OnboardingUiState, dispatch: Dispatch) {
 
-        Row(
-            modifier = Modifier.fillMaxWidth().align(Alignment.CenterHorizontally),
-            horizontalArrangement = Arrangement.SpaceEvenly
+        Text(
+            textAlign = TextAlign.Center,
+            modifier = Modifier.align(Alignment.TopCenter).padding(top = Dimensions.Padding.large),
+            text = stringResource(S.onboarding_genai_title)
+        )
+        Column(
+            modifier = Modifier.align(Alignment.Center),
         ) {
-            OutlinedButton({
-                dispatch(OnboardingAction.Next)
-            }) {
-                Text("No")
-            }
-            OutlinedButton({dispatch(OnboardingAction.Download)}) {
-                Text("Yes")
+            Text(
+                textAlign = TextAlign.Center,
+                modifier = Modifier.fillMaxWidth()
+                    .padding(Dimensions.Padding.large),
+                text = stringResource(S.onboarding_genai_text)
+            )
+
+            Row(
+                modifier = Modifier.fillMaxWidth()
+                    .padding(Dimensions.Padding.large),
+                horizontalArrangement = Arrangement.SpaceEvenly
+            ) {
+                OutlinedButton({
+                    dispatch(OnboardingAction.Next)
+                }) {
+                    Text(stringResource(S.no))
+                }
+                OutlinedButton({ dispatch(OnboardingAction.Download) }) {
+                    Text(stringResource(S.yes))
+                }
             }
         }
     }

@@ -38,7 +38,7 @@ class ScaffoldScreenModel(context: ScreenContext) : StatefulScreenModel<Scaffold
 
 abstract class ScaffoldScreen(
     private val context: ScreenContext
-): Screen, DIAware by context {
+) : Screen, DIAware by context {
 
     @Composable
     abstract fun Render()

@@ -34,7 +34,12 @@ class RegisterEnvironment(
             password = state.password,
             confirmPassword = state.confirmPassword,
             status = state.status
-        ) else uiState.copy(email = state.email, password = state.password, confirmPassword = state.confirmPassword, status = state.status)
+        ) else uiState.copy(
+            email = state.email,
+            password = state.password,
+            confirmPassword = state.confirmPassword,
+            status = state.status
+        )
     }
 
     override fun reduce(state: RegisterState, action: Action) = when (action) {
@@ -42,7 +47,12 @@ class RegisterEnvironment(
         is RegisterAction.ChangedPassword -> state.copy(password = action.password)
         is RegisterAction.ChangedConfirmPassword -> state.copy(confirmPassword = action.confirm)
         is RegisterAction.OnSuccess -> state.copy(status = Default)
-        is RegisterAction.OnRegister, is RegisterAction.OnRegisterWithGoogle -> state.copy(status = Busy(S.logging_in))
+        is RegisterAction.OnRegister, is RegisterAction.OnRegisterWithGoogle -> state.copy(
+            status = Busy(
+                S.logging_in
+            )
+        )
+
         is RegisterAction.OnError -> state.copy(status = Failure(S.register_failed))
         is RegisterAction.ResetStatus -> state.copy(status = Default)
         else -> state
