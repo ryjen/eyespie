@@ -35,5 +35,5 @@ fun bluebellModules(trigger: DITrigger? = null) = DI.Module(name = "Bluebell") {
 
 inline fun <reified T : Any> DIAware.get() = instance<T>()
 inline fun <reified T : Any> DirectDIAware.get() = instance<T>()
-inline fun <reified T : Any, reified A: Any> DIAware.get(arg: A) = instance<A, T>(arg = arg)
-inline fun <reified T : Any, reified A: Any> DirectDIAware.get(arg: A) = instance<A, T>(arg = arg)
+inline fun <reified T : Any, reified A : Any> DIAware.get(arg: A) = instance<A, T>(arg = arg)
+inline fun <reified T : Any, reified A : Any> DirectDIAware.get(arg: A) = instance<A, T>(arg = arg)

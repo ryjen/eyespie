@@ -11,8 +11,8 @@ import com.micrantha.eyespie.features.scan.ui.edit.ScanEditScreen
 import com.micrantha.eyespie.features.scan.ui.edit.ScanEditScreenModel
 import com.micrantha.eyespie.features.scan.ui.usecase.AnalyzeCaptureUseCase
 import com.micrantha.eyespie.features.scan.ui.usecase.LoadImageUseCase
+import com.micrantha.eyespie.features.scan.ui.usecase.TakeCaptureUseCase
 import com.micrantha.eyespie.features.scan.ui.usecase.UploadCaptureUseCase
-import okio.Path
 import org.kodein.di.DI
 import org.kodein.di.bindFactory
 import org.kodein.di.bindProviderOf
@@ -23,6 +23,7 @@ internal fun module() = DI.Module("Scan") {
     bindProviderOf(::UploadCaptureUseCase)
     bindProviderOf(::AnalyzeCaptureUseCase)
     bindProviderOf(::LoadImageUseCase)
+    bindProviderOf(::TakeCaptureUseCase)
 
     bindProviderOf(::ScanCaptureStateMapper)
     bindProviderOf(::ScanCaptureEnvironment)

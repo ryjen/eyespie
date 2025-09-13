@@ -29,7 +29,8 @@ actual class Platform(
         val instant = Instant.ofEpochSecond(epochSeconds)
         val zoneId = ZoneId.of(timeZone)
         val date = LocalDateTime.ofInstant(instant, zoneId)
-        val formatter = DateTimeFormatter.ofPattern(format, Locale.forLanguageTag(locale.toLanguageTag()))
+        val formatter =
+            DateTimeFormatter.ofPattern(format, Locale.forLanguageTag(locale.toLanguageTag()))
         return date.format(formatter)
     }
 
@@ -38,7 +39,17 @@ actual class Platform(
         return String.format(locale, format, *args)
     }
 
-    actual fun filePath(fileName: String): Path {
-        return context.filesDir.resolve(fileName).absolutePath.toPath()
+    actual override fun filesPath(): Path {
+        return context.applicationContext.filesDir.absolutePath.toPath()
+    }
+
+    actual override fun modelsPath(): Path {
+        val path = context.applicationContext.cacheDir.resolve("models")
+        if (!path.mkdir()) {
+            if (!path.exists() || !path.isDirectory) {
+                throw IllegalStateException("Failed to create models directory")
+            }
+        }
+        return path.absolutePath.toPath()
     }
 }

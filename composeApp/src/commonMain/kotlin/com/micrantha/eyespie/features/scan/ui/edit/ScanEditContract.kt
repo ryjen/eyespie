@@ -26,14 +26,18 @@ data class ScanEditState(
     val image: Painter? = null,
     val disabled: Boolean = false,
     val location: Location? = null,
-    val path: Path? = null
+    val path: Path? = null,
+    val hasAI: Boolean = false
 )
 
 data class ScanEditUiState(
+    val showLabels: Boolean,
     val labels: List<Choice>,
     val customLabel: String?,
+    val showColors: Boolean,
     val colors: List<Choice>,
     val customColor: String?,
+    val showDetections: Boolean,
     val detections: List<Choice>,
     val customDetection: String?,
     val name: String,
@@ -46,8 +50,11 @@ sealed interface ScanEditAction {
 
     data class LabelChanged(val data: Choice) : ScanEditAction
     data class ColorChanged(val data: Choice) : ScanEditAction
+    data class DetectionChanged(val data: Choice) : ScanEditAction
 
     data class CustomLabelChanged(val data: String) : ScanEditAction
+    data class CustomColorChanged(val data: String) : ScanEditAction
+    data class CustomDetectionChanged(val data: String) : ScanEditAction
 
     data object SaveScanEdit : ScanEditAction
 
@@ -62,4 +69,6 @@ sealed interface ScanEditAction {
     data object ClearColor : ScanEditAction
 
     data object ClearLabel : ScanEditAction
+
+    data object ClearDetection : ScanEditAction
 }

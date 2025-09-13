@@ -1,7 +1,6 @@
 package com.micrantha.eyespie
 
 import android.content.Context
-import com.cactus.CactusLM
 import com.micrantha.bluebell.domain.usecases.CurrentLocaleUseCase
 import com.micrantha.bluebell.get
 import com.micrantha.bluebell.platform.AndroidNetworkMonitor
@@ -18,15 +17,15 @@ fun androidDependencies(
 ) = DI {
     bindInstance { context }
 
-    bindInstance { CactusLM() }
-
     bindSingletonOf(::Platform)
 
     bindProviderOf(::AndroidNetworkMonitor)
 
     bindProviderOf(::CurrentLocaleUseCase)
 
-    bindFactory { namespace: String -> BackgroundDownloadManager(
-        get(), namespace
-    )}
+    bindFactory { namespace: String ->
+        BackgroundDownloadManager(
+            get(), get(), namespace
+        )
+    }
 }

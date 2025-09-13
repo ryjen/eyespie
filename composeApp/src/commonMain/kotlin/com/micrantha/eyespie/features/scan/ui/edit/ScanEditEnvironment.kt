@@ -15,10 +15,12 @@ import com.micrantha.eyespie.domain.entities.Clues
 import com.micrantha.eyespie.domain.entities.LabelClue
 import com.micrantha.eyespie.domain.entities.LocationClue
 import com.micrantha.eyespie.domain.entities.Proof
-import com.micrantha.eyespie.domain.repository.LocationRepository
+import com.micrantha.eyespie.domain.repository.AiRepository
 import com.micrantha.eyespie.features.scan.ui.edit.ScanEditAction.ClearColor
 import com.micrantha.eyespie.features.scan.ui.edit.ScanEditAction.ClearLabel
 import com.micrantha.eyespie.features.scan.ui.edit.ScanEditAction.ColorChanged
+import com.micrantha.eyespie.features.scan.ui.edit.ScanEditAction.CustomColorChanged
+import com.micrantha.eyespie.features.scan.ui.edit.ScanEditAction.CustomDetectionChanged
 import com.micrantha.eyespie.features.scan.ui.edit.ScanEditAction.CustomLabelChanged
 import com.micrantha.eyespie.features.scan.ui.edit.ScanEditAction.Init
 import com.micrantha.eyespie.features.scan.ui.edit.ScanEditAction.LabelChanged
@@ -31,28 +33,24 @@ import com.micrantha.eyespie.features.scan.ui.usecase.AnalyzeCaptureUseCase
 import com.micrantha.eyespie.features.scan.ui.usecase.LoadImageUseCase
 import com.micrantha.eyespie.features.scan.ui.usecase.UploadCaptureUseCase
 import kotlinx.coroutines.flow.launchIn
-import kotlinx.coroutines.flow.onEach
 
 class ScanEditEnvironment(
     private val context: ScreenContext,
     private val uploadCaptureUseCase: UploadCaptureUseCase,
     private val loadImageUseCase: LoadImageUseCase,
     private val analyzeCaptureUseCase: AnalyzeCaptureUseCase,
-    private val locationRepository: LocationRepository,
-    private val currentSession: CurrentSession
+    private val currentSession: CurrentSession,
+    private val aiRepository: AiRepository
 ) : Reducer<ScanEditState>, Effect<ScanEditState>,
     StateMapper<ScanEditState, ScanEditUiState>,
     Dispatcher by context.dispatcher,
     Router by context.router {
 
-    init {
-        analyzeCaptureUseCase.flow().onEach(::dispatch).launchIn(dispatchScope)
-    }
-
     override fun reduce(state: ScanEditState, action: Action) = when (action) {
         is Init -> state.copy(
             path = action.params.image,
-            location = action.params.location
+            location = action.params.location,
+            hasAI = true //aiRepository.isReady()
         )
 
         is LabelClue -> state.copy(
@@ -91,13 +89,22 @@ class ScanEditEnvironment(
         )
 
         is CustomLabelChanged -> state.copy(customLabel = action.data)
+        is CustomColorChanged -> state.copy(customColor = action.data)
+        is CustomDetectionChanged -> state.copy(customDetection = action.data)
+        is SaveScanEdit -> state.copy(disabled = true)
+        is SaveThingError -> state.copy(disabled = false)
+        is LoadError -> state.copy(disabled = false)
         else -> state
     }
 
     override suspend fun invoke(action: Action, state: ScanEditState) {
         when (action) {
             is Init -> {
-                analyzeCaptureUseCase(action.params.image).launchIn(dispatchScope)
+                aiRepository.initialize().onSuccess {
+                    analyzeCaptureUseCase(action.params.image).launchIn(dispatchScope)
+                }.onFailure {
+                    dispatch(LoadError)
+                }
                 loadImageUseCase(action.params.image)
                     .onSuccess {
                         dispatch(LoadedImage(it))
@@ -127,6 +134,8 @@ class ScanEditEnvironment(
             )
         } ?: emptyList(),
         customLabel = state.customLabel,
+        showLabels = state.labels?.isNotEmpty() ?: state.customLabel?.isNotBlank()
+        ?: state.hasAI.not(),
         colors = state.colors?.map {
             Choice(
                 label = it.value.display(),
@@ -135,6 +144,8 @@ class ScanEditEnvironment(
             )
         } ?: emptyList(),
         customColor = state.customColor,
+        showColors = state.colors?.isNotEmpty() ?: state.customColor?.isNotBlank()
+        ?: state.hasAI.not(),
         detections = state.detections?.map {
             Choice(
                 label = it.value.display(),
@@ -143,6 +154,8 @@ class ScanEditEnvironment(
             )
         } ?: emptyList(),
         customDetection = state.customDetection,
+        showDetections = state.detections?.isNotEmpty() ?: state.customDetection?.isNotBlank()
+        ?: state.hasAI.not(),
         name = state.name ?: "",
         image = state.image,
         enabled = state.disabled.not()
@@ -156,7 +169,7 @@ class ScanEditEnvironment(
             location = location?.data?.let { LocationClue(it) }
         ),
         name = name,
-        location = locationRepository.currentLocation()?.point,
+        location = location?.point,
         match = embedding,
         image = path!!,
         playerID = currentSession.requirePlayer().id

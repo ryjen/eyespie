@@ -1,5 +1,6 @@
 package com.micrantha.eyespie.core
 
+import com.cactus.CactusVLM
 import com.micrantha.eyespie.core.data.account.AccountDataRepository
 import com.micrantha.eyespie.core.data.account.mapping.AccountDomainMapper
 import com.micrantha.eyespie.core.data.account.model.CurrentSession
@@ -46,7 +47,7 @@ internal fun module() = DI.Module("Core Feature") {
     bindProviderOf(::LocationDomainMapper)
     bindProviderOf(::LocationDataRepository)
     bindProviderOf(::RealtimeDataRepository)
-    bindSingletonOf(::RealtimeRemoteSource)
+    bindProviderOf(::RealtimeRemoteSource)
     bindProviderOf(::RealtimeDomainMapper)
 
     bindProviderOf(::AiDataRepository)
@@ -55,6 +56,8 @@ internal fun module() = DI.Module("Core Feature") {
     bindProviderOf(::ModelSource)
     bindProviderOf(::LLMLocalSource)
     bindProviderOf(::CluePromptSource)
+
+    bindSingleton { CactusVLM() }
 
     delegate<LocationLocalSource>().to<LocationTracker>()
 }

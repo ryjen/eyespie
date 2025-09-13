@@ -1,19 +1,16 @@
 package com.micrantha.eyespie.core.data.ai.source
 
 import com.cactus.CactusVLM
-import com.micrantha.bluebell.domain.security.sha256
-import com.micrantha.bluebell.platform.Platform
 import com.micrantha.eyespie.domain.entities.ModelInfo
 
 class LLMLocalSource(
-    private val platform: Platform
+    private val llm: CactusVLM
 ) {
-    private val llm = CactusVLM()
-
-    suspend fun init(model: ModelInfo) = try {
+    suspend fun init(info: ModelInfo) = try {
         Result.success(
             llm.init(
-                platform.filePath(sha256(model.name)).toString()
+                info.model.filename(),
+                info.encoder.filename()
             )
         )
     } catch (e: Throwable) {
@@ -25,11 +22,18 @@ class LLMLocalSource(
             prompt = prompt,
             imagePath = imagePath
         )
-        if (result != null) {
-            Result.success(result)
-        } else {
-            Result.failure(Throwable("No result"))
+        if (result == null) {
+            throw IllegalStateException("No result")
         }
+        Result.success(result)
+    } catch (e: Throwable) {
+        Result.failure(e)
+    }
+
+    suspend fun download() = try {
+        Result.success(
+            llm.download()
+        )
     } catch (e: Throwable) {
         Result.failure(e)
     }

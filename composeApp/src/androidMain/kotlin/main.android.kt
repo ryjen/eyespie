@@ -4,7 +4,10 @@ import com.micrantha.eyespie.UIShow
 
 @Composable
 fun MainActivityContent() {
-    EyesPieTheme {
+    EyesPieTheme(
+        darkTheme = false,
+        dynamicColor = false
+    ) {
         UIShow()
     }
 }

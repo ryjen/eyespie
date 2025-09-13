@@ -8,7 +8,9 @@ import com.micrantha.eyespie.core.PreviewContext
 @Composable
 fun OnboardingScreenPreview() = PreviewContext(
     OnboardingUiState(
-        page = 0
+        page = OnboardingPage.GenAI,
+        isBusy = true,
+        isError = true
     )
 ) {
     OnboardingScreen()
