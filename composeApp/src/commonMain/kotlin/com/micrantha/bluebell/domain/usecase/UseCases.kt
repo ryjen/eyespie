@@ -9,6 +9,19 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withContext
 import kotlin.coroutines.CoroutineContext
 
+fun <Out> useCase(
+    always: () -> Unit = {},
+    block: () -> Out
+): Result<Out> {
+    return try {
+        Result.success(block())
+    } catch (e: Throwable) {
+        Result.failure(e)
+    } finally {
+        always()
+    }
+}
+
 /** Executes the use case asynchronously and returns a [Result].
  *
  * @return a [Result].

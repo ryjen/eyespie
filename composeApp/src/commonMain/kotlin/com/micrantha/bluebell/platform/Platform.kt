@@ -16,5 +16,7 @@ expect class Platform : LocalizedRepository, FileSystem {
 
     override fun format(format: String, vararg args: Any): String
 
-    fun filePath(fileName: String): Path
+    override fun filesPath(): Path
+
+    override fun modelsPath(): Path
 }

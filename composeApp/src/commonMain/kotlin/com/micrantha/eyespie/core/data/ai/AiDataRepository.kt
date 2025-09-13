@@ -11,29 +11,32 @@ class AiDataRepository(
 ) : AiRepository {
 
     override var currentModel = modelSource.modelInfo.firstOrNull()
-        private set
 
     override val models: List<ModelInfo>
         get() = modelSource.modelInfo
 
     override fun isReady(): Boolean {
-        return modelSource.modelInfo.all {
+        return currentModel?.let {
             modelSource.exists(it)
-        }
+        } ?: false
     }
 
     override fun selectModel(model: ModelInfo) {
         currentModel = model
     }
 
-    override suspend fun initialize(): Result<Boolean> {
+    override suspend fun initialize(): Result<Unit> {
         if (isReady().not()) {
             return Result.failure(Throwable("LLM not ready"))
         }
         if (currentModel == null) {
             return Result.failure(Throwable("No current model"))
         }
-        return llmLocalSource.init(currentModel!!)
+        return llmLocalSource.init(currentModel!!).mapCatching { result ->
+            if (result.not()) {
+                throw Throwable("LLM init failed")
+            }
+        }
     }
 
 }

@@ -34,10 +34,14 @@ import com.micrantha.bluebell.ui.screen.ScreenContext
 import com.micrantha.bluebell.ui.theme.Dimensions
 import com.micrantha.eyespie.app.S
 import com.micrantha.eyespie.core.ui.component.ChoiceField
-import com.micrantha.eyespie.core.ui.component.LocationEnabledEffect
+import com.micrantha.eyespie.features.scan.ui.edit.ScanEditAction.ClearColor
+import com.micrantha.eyespie.features.scan.ui.edit.ScanEditAction.ClearDetection
 import com.micrantha.eyespie.features.scan.ui.edit.ScanEditAction.ClearLabel
 import com.micrantha.eyespie.features.scan.ui.edit.ScanEditAction.ColorChanged
+import com.micrantha.eyespie.features.scan.ui.edit.ScanEditAction.CustomColorChanged
+import com.micrantha.eyespie.features.scan.ui.edit.ScanEditAction.CustomDetectionChanged
 import com.micrantha.eyespie.features.scan.ui.edit.ScanEditAction.CustomLabelChanged
+import com.micrantha.eyespie.features.scan.ui.edit.ScanEditAction.DetectionChanged
 import com.micrantha.eyespie.features.scan.ui.edit.ScanEditAction.Init
 import com.micrantha.eyespie.features.scan.ui.edit.ScanEditAction.LabelChanged
 import com.micrantha.eyespie.features.scan.ui.edit.ScanEditAction.NameChanged
@@ -70,8 +74,6 @@ class ScanEditScreen(
                         )
                     )))
         }
-
-        LocationEnabledEffect()
 
         val state by screenModel.state.collectAsState()
 
@@ -110,7 +112,7 @@ class ScanEditScreen(
                     placeholder = { Text(text = "Enter an identifying name") }
                 )
 
-                if (state.labels.isNotEmpty()) {
+                if (state.showLabels) {
                     Spacer(Modifier.sizeIn(Dimensions.content))
                     ChoiceField(
                         modifier = Modifier.fillMaxWidth(),
@@ -135,14 +137,14 @@ class ScanEditScreen(
                     }
                 }
 
-                if (state.colors.isNotEmpty()) {
+                if (state.showColors) {
                     Spacer(Modifier.sizeIn(Dimensions.content))
                     ChoiceField(
                         modifier = Modifier.fillMaxWidth(),
                         label = { Text(text = "Color") },
                         choices = state.colors,
                         trailingIcon = {
-                            IconButton(onClick = { dispatch(ClearLabel) }) {
+                            IconButton(onClick = { dispatch(ClearColor) }) {
                                 Icon(
                                     imageVector = Icons.Default.Delete,
                                     contentDescription = null
@@ -152,8 +154,36 @@ class ScanEditScreen(
                         onValue = {
                             state.customColor ?: it.label
                         },
+                        onCustom = {
+                            dispatch(CustomColorChanged(it))
+                        }
                     ) { choice ->
                         dispatch(ColorChanged(choice))
+                    }
+                }
+
+                if (state.showDetections) {
+                    Spacer(Modifier.sizeIn(Dimensions.content))
+                    ChoiceField(
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text(text = "Detection") },
+                        choices = state.detections,
+                        trailingIcon = {
+                            IconButton(onClick = { dispatch(ClearDetection) }) {
+                                Icon(
+                                    imageVector = Icons.Default.Delete,
+                                    contentDescription = null
+                                )
+                            }
+                        },
+                        onValue = {
+                            state.customDetection ?: it.label
+                        },
+                        onCustom = {
+                            dispatch(CustomDetectionChanged(it))
+                        }
+                    ) { choice ->
+                        dispatch(DetectionChanged(choice))
                     }
                 }
 

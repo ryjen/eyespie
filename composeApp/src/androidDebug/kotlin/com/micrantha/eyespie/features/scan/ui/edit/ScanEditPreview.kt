@@ -38,11 +38,16 @@ fun ScanEditPreview() = PreviewContext(
         customDetection = null,
         enabled = true,
         customLabel = "customLabel",
-        customColor = null
+        customColor = null,
+        showLabels = true,
+        showColors = true,
+        showDetections = true
     )
 ) {
-    ScanEditScreen(it, ScanEditParams(
-        Paths.get(".").toOkioPath(),
-        Location()
-    ))
+    ScanEditScreen(
+        it, ScanEditParams(
+            Paths.get(".").toOkioPath(),
+            Location()
+        )
+    )
 }

@@ -27,7 +27,7 @@ class ClueDataRepository(
     }
 
     override suspend fun embedding(image: Path): Result<Embedding> {
-        TODO("Not yet implemented")
+        return Result.success(Embedding.EMPTY)
     }
 
     override suspend fun labels(image: Path): Result<LabelProof> {

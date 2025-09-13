@@ -8,6 +8,10 @@ import okio.use
 
 interface FileSystem {
 
+    fun filesPath(): Path
+
+    fun modelsPath(): Path
+
     fun fileExists(path: Path): Boolean {
         return FileSystem.SYSTEM.exists(path)
     }

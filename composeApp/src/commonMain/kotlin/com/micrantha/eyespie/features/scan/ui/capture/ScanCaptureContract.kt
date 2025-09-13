@@ -23,8 +23,6 @@ data class ScanUiState(
 sealed interface ScanAction {
     data object SaveScan : ScanAction
 
-    data object DoneScan : ScanAction
-
     data object ScanError : ScanAction
 
     data object Back : ScanAction

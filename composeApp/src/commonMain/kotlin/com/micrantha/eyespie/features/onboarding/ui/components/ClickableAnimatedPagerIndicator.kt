@@ -11,6 +11,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.pager.PagerState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.rememberCoroutineScope
@@ -26,8 +27,8 @@ import kotlinx.coroutines.launch
 fun ClickableAnimatedPagerIndicator(
     pagerState: PagerState,
     modifier: Modifier = Modifier,
-    activeColor: Color = Color.White,
-    inactiveColor: Color = Color.Gray,
+    activeColor: Color = MaterialTheme.colorScheme.primary,
+    inactiveColor: Color = MaterialTheme.colorScheme.onSurfaceVariant,
     defaultSize: Dp = 8.dp,
     selectedSize: Dp = 16.dp,
     spacing: Dp = 8.dp,

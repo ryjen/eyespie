@@ -214,3 +214,6 @@ fastlane/report.xml
 
 ## AI Tools 
 .claude
+
+.gemini/
+gha-creds-*.json

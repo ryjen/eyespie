@@ -36,26 +36,27 @@ fun ChoiceField(
     onCustom: ((String) -> Unit)? = null,
     onSelect: (Choice) -> Unit,
 ) {
-    var current by remember { mutableStateOf(choices.first()) }
+    var current by remember { mutableStateOf(choices.firstOrNull()) }
     var active by remember { mutableStateOf(false) }
+
 
     Box(
         modifier = modifier
     ) {
         OutlinedTextField(
             modifier = Modifier.fillMaxWidth(),
-            value = onValue(current),
+            value = current?.let { onValue(it) } ?: "",
             readOnly = onCustom == null,
             onValueChange = onCustom ?: { },
-            label = { label(current) },
+            label = current?.let { { label(it) } },
             trailingIcon = {
                 Row {
                     Icon(
                         modifier = Modifier.padding(end = Dimensions.Padding.small)
                             .clickable {
                                 active = active.not()
-                                if (active.not()) {
-                                    onSelect(current)
+                                if (active.not() && current != null) {
+                                    onSelect(current!!)
                                 }
                             },
                         imageVector = if (active)
@@ -74,7 +75,7 @@ fun ChoiceField(
             active = active,
             onDismiss = {
                 active = false
-                onSelect(current)
+                current?.let { onSelect(it) }
             },
             choices = choices,
             onSelect = { choice ->

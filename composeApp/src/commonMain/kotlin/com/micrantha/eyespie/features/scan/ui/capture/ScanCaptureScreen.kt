@@ -6,7 +6,6 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.BoxWithConstraintsScope
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -39,6 +38,7 @@ import com.micrantha.eyespie.platform.scan.CameraScanner
 import dev.icerock.moko.permissions.Permission
 import dev.icerock.moko.permissions.PermissionsController
 import dev.icerock.moko.permissions.camera.CAMERA
+import dev.icerock.moko.permissions.location.LOCATION
 import org.kodein.di.compose.rememberInstance
 
 class ScanCaptureScreen : Screen, StateRenderer<ScanUiState> {
@@ -48,9 +48,8 @@ class ScanCaptureScreen : Screen, StateRenderer<ScanUiState> {
 
         LaunchedEffect(Unit) {
             permissions.providePermission(Permission.CAMERA)
+            permissions.providePermission(Permission.LOCATION)
         }
-
-        LocationEnabledEffect()
 
         val screenModel: ScanCaptureScreenModel = rememberScreenModel()
 
@@ -61,6 +60,9 @@ class ScanCaptureScreen : Screen, StateRenderer<ScanUiState> {
 
     @Composable
     override fun Render(state: ScanUiState, dispatch: Dispatch) {
+
+        LocationEnabledEffect(dispatch = dispatch)
+
         BoxWithConstraints(
             modifier = Modifier.fillMaxSize().background(Color.Transparent),
             contentAlignment = Alignment.Center
@@ -98,21 +100,24 @@ private fun BoxWithConstraintsScope.RenderCamera(
         dispatch.send(it)
     }
 
-    IconButton(
-        modifier = Modifier.background(
-            MaterialTheme.colorScheme.surface.copy(alpha = 0.5f),
-            RoundedCornerShape(Dimensions.Border.mediumLarge)
-        ).align(Alignment.BottomCenter),
-        enabled = state.enabled,
-        onClick = { dispatch(ScanAction.SaveScan) }
+    Row(
+        modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = Dimensions.Padding.large)
     ) {
-        Icon(
-            imageVector = Icons.Default.PhotoCamera,
-            tint = MaterialTheme.colorScheme.onSurface,
-            contentDescription = null
-        )
+        IconButton(
+            modifier = Modifier.background(
+                MaterialTheme.colorScheme.surface.copy(alpha = 0.5f),
+                RoundedCornerShape(Dimensions.Border.mediumLarge)
+            ).sizeIn(Dimensions.touchable),
+            enabled = state.enabled,
+            onClick = { dispatch(ScanAction.SaveScan) }
+        ) {
+            Icon(
+                imageVector = Icons.Default.PhotoCamera,
+                tint = MaterialTheme.colorScheme.onSurface,
+                contentDescription = null
+            )
+        }
     }
-    Spacer(Modifier.sizeIn(Dimensions.screen))
 }
 
 @Composable

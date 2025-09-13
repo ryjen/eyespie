@@ -20,7 +20,6 @@ import com.micrantha.bluebell.ui.model.UiResult.Failure
 import com.micrantha.bluebell.ui.model.UiResult.Ready
 import com.micrantha.eyespie.app.S
 import com.micrantha.eyespie.core.ui.component.AppTitle
-import com.micrantha.eyespie.core.ui.component.LocationEnabledEffect
 import com.micrantha.eyespie.core.ui.component.RealtimeDataEnabledEffect
 import com.micrantha.eyespie.features.dashboard.ui.DashboardAction.Load
 import com.micrantha.eyespie.features.dashboard.ui.DashboardAction.ScanNewThing
@@ -42,10 +41,6 @@ class DashboardScreen : Screen {
             screenModel.dispatch(Load)
         }
 
-        LocationEnabledEffect()
-
-        RealtimeDataEnabledEffect()
-
         val state by screenModel.state.collectAsState()
 
         Render(state, screenModel)
@@ -56,6 +51,9 @@ class DashboardScreen : Screen {
         state: DashboardUiState,
         dispatch: Dispatch
     ) {
+
+        RealtimeDataEnabledEffect(dispatch = dispatch)
+
         Column(
             modifier = Modifier.fillMaxWidth().scrollable(rememberScrollState(), Vertical)
         ) {

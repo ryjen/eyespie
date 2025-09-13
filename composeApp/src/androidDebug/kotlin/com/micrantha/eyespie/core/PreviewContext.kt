@@ -19,6 +19,9 @@ import com.micrantha.bluebell.ui.screen.ScreenContext
 import com.micrantha.eyespie.androidDependencies
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.MainScope
+import okio.Path
+import okio.Path.Companion.toPath
+import okio.fakefilesystem.FakeFileSystem
 import org.kodein.di.DI
 
 class PreviewContext(
@@ -56,7 +59,20 @@ class PreviewContext(
     override suspend fun send(action: Action) = dispatcher.send(action)
     override fun dispatch(action: Action) = dispatcher.dispatch(action)
 
-    override val fileSystem: FileSystem = object : FileSystem {}
+    override val fileSystem: FileSystem = object : FileSystem {
+        private val fs by lazy { FakeFileSystem() }
+        override fun filesPath(): Path {
+            val path = "/files".toPath()
+            fs.createDirectories(path)
+            return path
+        }
+
+        override fun modelsPath(): Path {
+            val path = "/models".toPath()
+            fs.createDirectories(path)
+            return path
+        }
+    }
 
     override val di: DI = androidDependencies(context)
 }

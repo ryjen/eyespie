@@ -8,7 +8,7 @@ import com.micrantha.bluebell.platform.Platform
 class OnboardingLocalSource(private val platform: Platform) {
     val dataStore: DataStore<Preferences> by lazy {
         PreferenceDataStoreFactory.createWithPath(
-            produceFile = { platform.filePath("onboarding.preferences_pb") }
+            produceFile = { platform.filesPath().resolve("onboarding.preferences_pb") }
         )
     }
 }

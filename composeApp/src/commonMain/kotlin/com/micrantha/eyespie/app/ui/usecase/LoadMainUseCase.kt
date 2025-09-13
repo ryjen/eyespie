@@ -5,7 +5,6 @@ import com.micrantha.bluebell.ui.components.Router
 import com.micrantha.bluebell.ui.screen.ScreenContext
 import com.micrantha.bluebell.ui.screen.navigate
 import com.micrantha.eyespie.domain.repository.AccountRepository
-import com.micrantha.eyespie.domain.repository.AiRepository
 import com.micrantha.eyespie.features.login.ui.LoginScreen
 import com.micrantha.eyespie.features.onboarding.data.OnboardingRepository
 import com.micrantha.eyespie.features.onboarding.ui.OnboardingScreen
@@ -13,14 +12,11 @@ import com.micrantha.eyespie.features.players.domain.usecase.LoadSessionPlayerUs
 
 class LoadMainUseCase(
     private val context: ScreenContext,
-    private val aiRepository: AiRepository,
     private val accountRepository: AccountRepository,
     private val loadSessionPlayerUseCase: LoadSessionPlayerUseCase,
     private val onboardingRepository: OnboardingRepository
 ) {
     suspend operator fun invoke(): Unit = try {
-
-        aiRepository.initialize()
 
         if (onboardingRepository.hasRunOnce().not()) {
             context.navigate<OnboardingScreen>(Router.Options.Replace)

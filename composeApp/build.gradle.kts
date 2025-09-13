@@ -57,6 +57,7 @@ kotlin {
 
             implementation(libs.cache4k)
 
+            implementation(libs.kotlinx.io)
             implementation(libs.kotlinx.datetime)
             implementation(libs.kotlinx.coroutines.core)
             implementation(libs.kotlinx.collections.immutable)
@@ -208,6 +209,7 @@ android {
     }
 
     dependencies {
+        debugImplementation("com.squareup.okio:okio-fakefilesystem:3.7.0")
     }
 }
 
