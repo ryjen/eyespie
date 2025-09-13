@@ -17,7 +17,7 @@ internal fun onboardingModule() = DI.Module("Onboarding") {
     bindProviderOf(::OnboardingRepository)
 
     bindProviderOf(::OnboardingEnvironment)
-    bindProviderOf(::DownloadModelsUseCase)
+    bindProvider { DownloadModelsUseCase(get(), get(arg = "models")) }
     bindProviderOf(::OnboardingScreen)
     bindProvider { OnboardingScreenModel(get(), get()) }
 }

@@ -2,6 +2,7 @@ package com.micrantha.bluebell.platform
 
 import android.content.Context
 import com.micrantha.bluebell.domain.repository.LocalizedRepository
+import com.micrantha.bluebell.domain.usecases.CurrentLocaleUseCase
 import okio.Path
 import okio.Path.Companion.toPath
 import java.time.Instant
@@ -15,21 +16,26 @@ import com.micrantha.bluebell.platform.FileSystem as BluebellFileSystem
 actual class Platform(
     private val context: Context,
     actual val networkMonitor: NetworkMonitor,
-    actual val downloader: BackgroundDownloader
+    private val currentLocaleUseCase: CurrentLocaleUseCase
 ) : LocalizedRepository, BluebellFileSystem {
     actual val name: String = "Android ${android.os.Build.VERSION.SDK_INT}"
 
     actual override fun format(
         epochSeconds: Long,
         format: String,
-        timeZone: String,
-        locale: String
+        timeZone: String
     ): String {
+        val locale = currentLocaleUseCase().getOrThrow()
         val instant = Instant.ofEpochSecond(epochSeconds)
         val zoneId = ZoneId.of(timeZone)
         val date = LocalDateTime.ofInstant(instant, zoneId)
-        val formatter = DateTimeFormatter.ofPattern(format, Locale.forLanguageTag(locale))
+        val formatter = DateTimeFormatter.ofPattern(format, Locale.forLanguageTag(locale.toLanguageTag()))
         return date.format(formatter)
+    }
+
+    actual override fun format(format: String, vararg args: Any): String {
+        val locale = currentLocaleUseCase().getOrThrow()
+        return String.format(locale, format, *args)
     }
 
     actual fun filePath(fileName: String): Path {

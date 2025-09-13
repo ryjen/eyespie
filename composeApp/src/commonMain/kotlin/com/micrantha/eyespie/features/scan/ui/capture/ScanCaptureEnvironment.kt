@@ -10,26 +10,22 @@ import com.micrantha.bluebell.ui.components.Router
 import com.micrantha.bluebell.ui.components.Router.Options.Replace
 import com.micrantha.bluebell.ui.screen.ScreenContext
 import com.micrantha.bluebell.ui.screen.navigate
-import com.micrantha.eyespie.core.data.account.model.CurrentSession
+import com.micrantha.eyespie.domain.entities.Location
 import com.micrantha.eyespie.domain.repository.LocationRepository
+import com.micrantha.eyespie.features.scan.ui.capture.ScanAction.Back
 import com.micrantha.eyespie.features.scan.ui.capture.ScanAction.DoneScan
 import com.micrantha.eyespie.features.scan.ui.capture.ScanAction.ScanError
-import com.micrantha.eyespie.features.scan.ui.capture.ScanAction.ScanSavable
+import com.micrantha.eyespie.features.scan.ui.edit.ScanEditParams
 import com.micrantha.eyespie.features.scan.ui.edit.ScanEditScreen
-import com.micrantha.eyespie.features.scan.ui.usecase.AnalyzeCaptureUseCase
 import com.micrantha.eyespie.features.scan.ui.usecase.TakeCaptureUseCase
 import com.micrantha.eyespie.platform.scan.CameraImage
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
-import okio.Path
 
 class ScanCaptureEnvironment(
     private val context: ScreenContext,
     private val takeCaptureUseCase: TakeCaptureUseCase,
-    private val analyzeCaptureUseCase: AnalyzeCaptureUseCase,
-    private val currentSession: CurrentSession,
-    private val locationRepository: LocationRepository,
-    private val mapper: ScanCaptureStateMapper,
+    locationRepository: LocationRepository,
 ) : Reducer<ScanState>, Effect<ScanState>,
     Router by context.router,
     FileSystem by context.fileSystem,
@@ -37,7 +33,7 @@ class ScanCaptureEnvironment(
     LocalizedRepository by context.i18n {
 
     init {
-        analyzeCaptureUseCase.clues.onEach(::dispatch).launchIn(dispatchScope)
+        locationRepository.flow().onEach(::dispatch).launchIn(dispatchScope)
     }
 
     override suspend fun invoke(action: Action, state: ScanState) {
@@ -46,26 +42,25 @@ class ScanCaptureEnvironment(
             is DoneScan -> takeCaptureUseCase(
                 state.image!!
             ).onSuccess { url ->
-                context.navigate<ScanEditScreen, Path>(options = Replace, arg = url)
+                context.navigate<ScanEditScreen, ScanEditParams>(options = Replace, arg = ScanEditParams(url, state.location!!))
             }.onFailure {
                 dispatch(ScanError)
             }
 
-            is ScanAction.Back -> context.router.navigateBack()
+            is Back -> context.router.navigateBack()
         }
     }
 
     override fun reduce(state: ScanState, action: Action) = when (action) {
         is CameraImage -> state.copy(image = action)
 
-        is ScanSavable -> state.copy(
-            path = action.path,
+        is Location -> state.copy(
+            location = action
         )
 
         is DoneScan -> state.copy(
             busy = true,
             enabled = false,
-            playerID = currentSession.requirePlayer().id,
         )
 
         is ScanError -> state.copy(

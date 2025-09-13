@@ -1,15 +1,13 @@
 package com.micrantha.bluebell.platform
 
 import android.Manifest
-import android.R
-import android.app.NotificationChannel
-import android.app.NotificationManager
 import android.content.Context
 import android.util.Log
 import androidx.annotation.RequiresPermission
 import androidx.browser.trusted.sharing.ShareTarget.FileFormField.KEY_NAME
-import androidx.core.app.NotificationCompat
-import androidx.core.app.NotificationManagerCompat
+import com.micrantha.bluebell.domain.security.sha256
+import com.micrantha.eyespie.BuildConfig
+import com.tonyodev.fetch2.DefaultFetchNotificationManager
 import com.tonyodev.fetch2.Download
 import com.tonyodev.fetch2.Error
 import com.tonyodev.fetch2.Fetch
@@ -18,51 +16,28 @@ import com.tonyodev.fetch2.FetchListener
 import com.tonyodev.fetch2.NetworkType
 import com.tonyodev.fetch2.Priority
 import com.tonyodev.fetch2.Request
-import com.tonyodev.fetch2.Status
 import com.tonyodev.fetch2core.DownloadBlock
 import com.tonyodev.fetch2core.Extras
+import okio.source
 import java.io.File
-import java.security.MessageDigest
 
 class BackgroundDownloadManager(
     private val context: Context,
-) : BackgroundDownloader, FetchListener {
+    private val namespace: String = "background-downloads"
+) : DefaultFetchNotificationManager(context), BackgroundDownloader, FetchListener {
 
-
-    init {
-        createNotificationChannel()
-    }
-
-    private val metaData by lazy {
-        mutableMapOf<Int, MetaData>()
-    }
-
-    data class MetaData(
-        val name: String,
-        val checksum: String?
-    )
-
-    private val notificationManager by lazy {
-        NotificationManagerCompat.from(context)
-    }
-
-    private val notification by lazy {
-        NotificationCompat.Builder(context.applicationContext, CHANNEL_DOWNLOADS)
-            .setSmallIcon(R.drawable.stat_sys_download_done)
-            .setPriority(NotificationCompat.PRIORITY_LOW)
-            .setGroup("Downloads")
-            .setOnlyAlertOnce(true)
-            .setOngoing(true)
-            .setProgress(100, 0, true)
+    private val fetchConfig by lazy {
+        FetchConfiguration.Builder(context)
+            .setDownloadConcurrentLimit(3)
+            .setNotificationManager(this)
+            .enableLogging(BuildConfig.DEBUG)
     }
 
     private val fetch by lazy {
-        val fetchConfiguration = FetchConfiguration.Builder(context)
-            .setDownloadConcurrentLimit(3)
-            .enableLogging(true)
-            .build()
-
-        Fetch.Impl.getInstance(fetchConfiguration)
+        fetchConfig.setNamespace(namespace)
+        Fetch.getInstance(fetchConfig.build()).apply {
+            addListener(this@BackgroundDownloadManager)
+        }
     }
 
     private fun createDownloadFile(fileName: String): File {
@@ -97,12 +72,11 @@ class BackgroundDownloadManager(
         }
 
         fetch.enqueue(request)
-
-        metaData[request.id] = MetaData(name, checksum)
     }
 
     override fun onAdded(download: Download) = Unit
 
+    @RequiresPermission(Manifest.permission.POST_NOTIFICATIONS)
     override fun onQueued(
         download: Download,
         waitingOnNetwork: Boolean
@@ -112,140 +86,78 @@ class BackgroundDownloadManager(
 
     @RequiresPermission(Manifest.permission.POST_NOTIFICATIONS)
     override fun onCompleted(download: Download) {
-        updateNotification(download)
-
+        // If configuration provided a checksum, validate it
+        // using sha-256 hash.  Fetch already validates md5 if the server supports
         val expectedChecksum = download.extras.map[KEY_CHECKSUM] ?: return
-
         val isValid = validateChecksum(download.file, expectedChecksum)
         if (isValid) {
             Log.d("Fetch", "Checksum valid ✅")
         } else {
             Log.e("Fetch", "Checksum mismatch ❌")
+            fetch.retry(download.id)
         }
     }
 
-    @RequiresPermission(Manifest.permission.POST_NOTIFICATIONS)
     override fun onError(
         download: Download,
         error: Error,
         throwable: Throwable?
     ) {
-        updateNotification(download)
+        Log.e("Fetch", "Error: ${error.name}")
     }
 
-    @RequiresPermission(Manifest.permission.POST_NOTIFICATIONS)
     override fun onDownloadBlockUpdated(
         download: Download,
         downloadBlock: DownloadBlock,
         totalBlocks: Int
-    ) {
-        updateNotification(download)
-    }
+    ) = Unit
 
-    @RequiresPermission(Manifest.permission.POST_NOTIFICATIONS)
     override fun onStarted(
         download: Download,
         downloadBlocks: List<DownloadBlock>,
         totalBlocks: Int
-    ) {
-        updateNotification(download)
-    }
+    ) = Unit
 
-    @RequiresPermission(Manifest.permission.POST_NOTIFICATIONS)
     override fun onProgress(
         download: Download,
         etaInMilliSeconds: Long,
         downloadedBytesPerSecond: Long
-    ) {
-        updateNotification(download)
-    }
+    ) = Unit
 
-    @RequiresPermission(Manifest.permission.POST_NOTIFICATIONS)
-    override fun onPaused(download: Download) {
-        updateNotification(download)
-    }
+    override fun onPaused(download: Download) = Unit
 
-    @RequiresPermission(Manifest.permission.POST_NOTIFICATIONS)
-    override fun onResumed(download: Download) {
-        updateNotification(download)
-    }
+    override fun onResumed(download: Download) = Unit
 
-    override fun onCancelled(download: Download) {
-        notificationManager.cancel(download.id)
-    }
+    override fun onCancelled(download: Download) = Unit
 
-    override fun onRemoved(download: Download) {
-        notificationManager.cancel(download.id)
-    }
+    override fun onRemoved(download: Download) = Unit
 
-    override fun onDeleted(download: Download) {
-        notificationManager.cancel(download.id)
-    }
+    override fun onDeleted(download: Download) = Unit
 
     private fun validateChecksum(file: String, checksum: String?): Boolean {
         if (checksum == null) return true
 
-        val digest = MessageDigest.getInstance("SHA-256")
-        val buffer = ByteArray(8192)
+        val file = File(file)
 
-        File(file).inputStream().use { inputStream ->
-            var bytesRead = inputStream.read(buffer)
-            while (bytesRead != -1) {
-                digest.update(buffer, 0, bytesRead)
-                bytesRead = inputStream.read(buffer)
-            }
-        }
+        if (!file.exists()) return false
 
-        val actualChecksum = digest.digest().joinToString("") { "%02x".format(it) }
+        val actualChecksum = sha256(file.source())
+
         return actualChecksum.equals(checksum, ignoreCase = true)
     }
 
-    private fun createNotificationChannel() {
-        val channel = NotificationChannel(
-            CHANNEL_DOWNLOADS,
-            "Download Progress Notifications",
-            NotificationManager.IMPORTANCE_LOW
-        )
-        context.applicationContext.getSystemService(NotificationManager::class.java)
-            .createNotificationChannel(channel)
+    override fun getFetchInstanceForNamespace(namespace: String): Fetch {
+        fetchConfig.setNamespace(namespace)
+        return Fetch.getInstance(fetchConfig.build()).apply {
+            addListener(this@BackgroundDownloadManager)
+        }
     }
 
-    @RequiresPermission(Manifest.permission.POST_NOTIFICATIONS)
-    private fun updateNotification(download: Download) {
-        notification
-            .setContentTitle(download.extras.getString(KEY_NAME, "File"))
-            .setContentText(download.status.text)
-
-        when (download.status) {
-            Status.DOWNLOADING -> {
-                notification.setProgress(100, download.progress, download.progress <= 0)
-            }
-
-            Status.ADDED, Status.QUEUED -> {
-                notification.setProgress(0, 0, true)
-            }
-
-            else -> {
-                notification.setProgress(0, 0, false)
-            }
-        }
-
-        notificationManager.notify(download.id, notification.build())
+    override fun getDownloadNotificationTitle(download: Download): String {
+        return download.extras.getString(KEY_NAME,  super.getDownloadNotificationTitle(download))
     }
-
-    private val Status.text: String
-        get() = when (this) {
-            Status.QUEUED -> "Queued"
-            Status.DOWNLOADING -> "Downloading"
-            Status.PAUSED -> "Paused"
-            Status.COMPLETED -> "Completed"
-            Status.CANCELLED -> "Cancelled"
-            Status.FAILED -> "Failed"
-            else -> ""
-        }
 
     companion object {
-        private const val CHANNEL_DOWNLOADS = "downloads"
         private const val KEY_CHECKSUM = "checksum"
     }
 }

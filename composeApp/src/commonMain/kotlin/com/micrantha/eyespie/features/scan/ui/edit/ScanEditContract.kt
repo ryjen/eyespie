@@ -9,6 +9,11 @@ import com.micrantha.eyespie.domain.entities.LabelClue
 import com.micrantha.eyespie.domain.entities.Location
 import okio.Path
 
+data class ScanEditParams(
+    val image: Path,
+    val location: Location
+)
+
 data class ScanEditState(
     val labels: MutableMap<String, LabelClue>? = null,
     val customLabel: String? = null,
@@ -17,14 +22,11 @@ data class ScanEditState(
     val detections: MutableMap<String, DetectClue>? = null,
     val customDetection: String? = null,
     val embedding: Embedding? = null,
-    val location: Location? = null,
-//    val labels: LabelProof? = null,
-//    val detections: DetectProof? = null,
-//    val colors: ColorProof? = null,
     val name: String? = null,
     val image: Painter? = null,
-    val path: Path? = null,
     val disabled: Boolean = false,
+    val location: Location? = null,
+    val path: Path? = null
 )
 
 data class ScanEditUiState(
@@ -40,7 +42,7 @@ data class ScanEditUiState(
 )
 
 sealed interface ScanEditAction {
-    data class Init(val image: Path) : ScanEditAction
+    data class Init(val params: ScanEditParams) : ScanEditAction
 
     data class LabelChanged(val data: Choice) : ScanEditAction
     data class ColorChanged(val data: Choice) : ScanEditAction

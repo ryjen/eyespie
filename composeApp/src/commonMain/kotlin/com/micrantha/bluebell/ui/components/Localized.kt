@@ -4,7 +4,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.State
 import androidx.compose.runtime.produceState
 import com.micrantha.bluebell.domain.entities.LocalizedString
-import com.micrantha.bluebell.domain.usecase.FormatDateTimeUseCase
+import com.micrantha.bluebell.domain.usecase.LocaleFormatUseCase
 import com.micrantha.bluebell.ui.screen.LocalScreenContext
 import org.jetbrains.compose.resources.getString
 import org.kodein.di.instance
@@ -16,9 +16,9 @@ import kotlin.time.Instant
 fun longDateTime(instant: Instant): String {
     val viewContext = LocalScreenContext.current
 
-    val formatDateTimeUseCase: FormatDateTimeUseCase by viewContext.instance()
+    val formatDateTimeUseCase: LocaleFormatUseCase by viewContext.instance()
 
-    return formatDateTimeUseCase(instant)
+    return formatDateTimeUseCase.extended(instant)
 }
 
 @Composable

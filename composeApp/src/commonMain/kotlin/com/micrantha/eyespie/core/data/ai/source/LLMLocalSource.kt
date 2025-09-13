@@ -1,7 +1,7 @@
 package com.micrantha.eyespie.core.data.ai.source
 
 import com.cactus.CactusVLM
-import com.micrantha.bluebell.domain.security.hash
+import com.micrantha.bluebell.domain.security.sha256
 import com.micrantha.bluebell.platform.Platform
 import com.micrantha.eyespie.domain.entities.ModelInfo
 
@@ -13,7 +13,7 @@ class LLMLocalSource(
     suspend fun init(model: ModelInfo) = try {
         Result.success(
             llm.init(
-                platform.filePath(hash(model.name)).toString()
+                platform.filePath(sha256(model.name)).toString()
             )
         )
     } catch (e: Throwable) {

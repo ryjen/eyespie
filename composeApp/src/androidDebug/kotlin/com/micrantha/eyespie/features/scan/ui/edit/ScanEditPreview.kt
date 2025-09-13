@@ -6,8 +6,9 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.drawscope.DrawScope
 import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.tooling.preview.Preview
+import com.micrantha.eyespie.core.PreviewContext
 import com.micrantha.eyespie.core.ui.component.Choice
-import com.micrantha.eyespie.ui.PreviewContext
+import com.micrantha.eyespie.domain.entities.Location
 import okio.Path.Companion.toOkioPath
 import java.nio.file.Paths
 
@@ -40,5 +41,8 @@ fun ScanEditPreview() = PreviewContext(
         customColor = null
     )
 ) {
-    ScanEditScreen(it, Paths.get(".").toOkioPath())
+    ScanEditScreen(it, ScanEditParams(
+        Paths.get(".").toOkioPath(),
+        Location()
+    ))
 }
