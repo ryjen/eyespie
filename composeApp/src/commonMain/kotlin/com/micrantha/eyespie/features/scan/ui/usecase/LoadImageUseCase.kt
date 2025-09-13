@@ -8,7 +8,7 @@ import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 import okio.Path
 
-class GetEditCaptureUseCase(
+class LoadImageUseCase(
     private val fileSystem: FileSystem
 ) {
 

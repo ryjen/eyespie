@@ -1,4 +1,4 @@
-package com.micrantha.eyespie.ui
+package com.micrantha.eyespie.core
 
 import android.content.Context
 import androidx.compose.runtime.Composable
@@ -28,9 +28,10 @@ class PreviewContext(
         override fun format(
             epochSeconds: Long,
             format: String,
-            timeZone: String,
-            locale: String
+            timeZone: String
         ): String = format
+
+        override fun format(format: String, vararg args: Any) = format
 
     }
     override val router: Router = object : Router {

@@ -43,12 +43,11 @@ import com.micrantha.eyespie.features.scan.ui.edit.ScanEditAction.LabelChanged
 import com.micrantha.eyespie.features.scan.ui.edit.ScanEditAction.NameChanged
 import com.micrantha.eyespie.features.scan.ui.edit.ScanEditAction.SaveScanEdit
 import eyespie.composeapp.generated.resources.new_thing
-import okio.Path
 import org.jetbrains.compose.resources.stringResource
 
 class ScanEditScreen(
     context: ScreenContext,
-    private val image: Path
+    private val params: ScanEditParams
 ) : ScaffoldScreen(context), StateRenderer<ScanEditUiState> {
 
     @Composable
@@ -57,7 +56,7 @@ class ScanEditScreen(
 
         val title = stringResource(S.new_thing)
         LaunchedEffect(Unit) {
-            screenModel.dispatch(Init(image))
+            screenModel.dispatch(Init(params))
             screenModel.dispatch(Scaffolding.Title(title))
             screenModel.dispatch(CanGoBack(true))
             screenModel.dispatch(

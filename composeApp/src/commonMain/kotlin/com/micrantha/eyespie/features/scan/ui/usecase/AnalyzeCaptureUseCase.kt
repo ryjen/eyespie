@@ -21,7 +21,7 @@ class AnalyzeCaptureUseCase(
 
     private val _clues = MutableSharedFlow<Action>(replay = 4)
 
-    val clues = _clues.asSharedFlow()
+    fun flow() = _clues.asSharedFlow()
 
     @OptIn(ExperimentalCoroutinesApi::class)
     operator fun invoke(image: Path) = channelFlow<Collection<Clue<*>>> {

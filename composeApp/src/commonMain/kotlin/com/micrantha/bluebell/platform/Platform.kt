@@ -8,14 +8,13 @@ expect class Platform : LocalizedRepository, FileSystem {
 
     val networkMonitor: NetworkMonitor
 
-    val downloader: BackgroundDownloader
-
     override fun format(
         epochSeconds: Long,
         format: String,
         timeZone: String,
-        locale: String
     ): String
+
+    override fun format(format: String, vararg args: Any): String
 
     fun filePath(fileName: String): Path
 }

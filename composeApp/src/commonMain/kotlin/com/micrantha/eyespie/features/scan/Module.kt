@@ -6,10 +6,11 @@ import com.micrantha.eyespie.features.scan.ui.capture.ScanCaptureScreen
 import com.micrantha.eyespie.features.scan.ui.capture.ScanCaptureScreenModel
 import com.micrantha.eyespie.features.scan.ui.capture.ScanCaptureStateMapper
 import com.micrantha.eyespie.features.scan.ui.edit.ScanEditEnvironment
+import com.micrantha.eyespie.features.scan.ui.edit.ScanEditParams
 import com.micrantha.eyespie.features.scan.ui.edit.ScanEditScreen
 import com.micrantha.eyespie.features.scan.ui.edit.ScanEditScreenModel
 import com.micrantha.eyespie.features.scan.ui.usecase.AnalyzeCaptureUseCase
-import com.micrantha.eyespie.features.scan.ui.usecase.GetEditCaptureUseCase
+import com.micrantha.eyespie.features.scan.ui.usecase.LoadImageUseCase
 import com.micrantha.eyespie.features.scan.ui.usecase.UploadCaptureUseCase
 import okio.Path
 import org.kodein.di.DI
@@ -21,7 +22,7 @@ internal fun module() = DI.Module("Scan") {
 
     bindProviderOf(::UploadCaptureUseCase)
     bindProviderOf(::AnalyzeCaptureUseCase)
-    bindProviderOf(::GetEditCaptureUseCase)
+    bindProviderOf(::LoadImageUseCase)
 
     bindProviderOf(::ScanCaptureStateMapper)
     bindProviderOf(::ScanCaptureEnvironment)
@@ -30,5 +31,5 @@ internal fun module() = DI.Module("Scan") {
 
     bindProviderOf(::ScanEditEnvironment)
     bindProviderOf(::ScanEditScreenModel)
-    bindFactory { image: Path -> ScanEditScreen(get(), image) }
+    bindFactory { params: ScanEditParams -> ScanEditScreen(get(), params) }
 }

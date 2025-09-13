@@ -28,7 +28,7 @@ import com.micrantha.eyespie.features.scan.ui.edit.ScanEditAction.NameChanged
 import com.micrantha.eyespie.features.scan.ui.edit.ScanEditAction.SaveScanEdit
 import com.micrantha.eyespie.features.scan.ui.edit.ScanEditAction.SaveThingError
 import com.micrantha.eyespie.features.scan.ui.usecase.AnalyzeCaptureUseCase
-import com.micrantha.eyespie.features.scan.ui.usecase.GetEditCaptureUseCase
+import com.micrantha.eyespie.features.scan.ui.usecase.LoadImageUseCase
 import com.micrantha.eyespie.features.scan.ui.usecase.UploadCaptureUseCase
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
@@ -36,7 +36,7 @@ import kotlinx.coroutines.flow.onEach
 class ScanEditEnvironment(
     private val context: ScreenContext,
     private val uploadCaptureUseCase: UploadCaptureUseCase,
-    private val getEditCaptureUseCase: GetEditCaptureUseCase,
+    private val loadImageUseCase: LoadImageUseCase,
     private val analyzeCaptureUseCase: AnalyzeCaptureUseCase,
     private val locationRepository: LocationRepository,
     private val currentSession: CurrentSession
@@ -46,13 +46,13 @@ class ScanEditEnvironment(
     Router by context.router {
 
     init {
-        analyzeCaptureUseCase.clues.onEach(::dispatch).launchIn(dispatchScope)
-        locationRepository.flow().onEach(::dispatch).launchIn(dispatchScope)
+        analyzeCaptureUseCase.flow().onEach(::dispatch).launchIn(dispatchScope)
     }
 
     override fun reduce(state: ScanEditState, action: Action) = when (action) {
         is Init -> state.copy(
-            path = action.image
+            path = action.params.image,
+            location = action.params.location
         )
 
         is LabelClue -> state.copy(
@@ -97,8 +97,8 @@ class ScanEditEnvironment(
     override suspend fun invoke(action: Action, state: ScanEditState) {
         when (action) {
             is Init -> {
-                analyzeCaptureUseCase(action.image).launchIn(dispatchScope)
-                getEditCaptureUseCase(action.image)
+                analyzeCaptureUseCase(action.params.image).launchIn(dispatchScope)
+                loadImageUseCase(action.params.image)
                     .onSuccess {
                         dispatch(LoadedImage(it))
                     }.onFailure {

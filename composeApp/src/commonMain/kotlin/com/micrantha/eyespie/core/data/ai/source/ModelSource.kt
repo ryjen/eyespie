@@ -1,6 +1,6 @@
 package com.micrantha.eyespie.core.data.ai.source
 
-import com.micrantha.bluebell.domain.security.hash
+import com.micrantha.bluebell.domain.security.sha256
 import com.micrantha.bluebell.platform.Platform
 import com.micrantha.eyespie.domain.entities.ModelInfo
 
@@ -14,5 +14,5 @@ class ModelSource(private val platform: Platform) {
         )
     )
 
-    fun exists(model: ModelInfo) = platform.fileExists(platform.filePath(hash(model.name)))
+    fun exists(model: ModelInfo) = platform.fileExists(platform.filePath(sha256(model.name)))
 }
