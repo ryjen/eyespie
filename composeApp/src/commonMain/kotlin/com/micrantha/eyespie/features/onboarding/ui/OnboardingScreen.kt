@@ -12,6 +12,8 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.sizeIn
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material3.CircularProgressIndicator
@@ -83,6 +85,10 @@ class OnboardingScreen : Screen, StateRenderer<OnboardingUiState> {
             initialPage = state.page.ordinal,
             pageCount = { OnboardingPage.entries.size }
         )
+
+        LaunchedEffect(Unit) {
+            dispatch(OnboardingAction.Init)
+        }
 
         LaunchedEffect(pagerState.currentPage) {
             delay(300)
@@ -167,8 +173,23 @@ class OnboardingScreen : Screen, StateRenderer<OnboardingUiState> {
                     modifier = Modifier.align(Alignment.CenterHorizontally)
                         .sizeIn(48.dp)
                 )
+            } else if (state.selectedModel == null) {
+                LazyColumn(
+                    modifier = Modifier.align(Alignment.CenterHorizontally),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                ) {
+                    items(state.models) {
+                        OutlinedButton(
+                            onClick = { dispatch(OnboardingAction.SelectedModel(it)) }
+                        ) {
+                            Text(
+                                it.name
+                            )
+                        }
+                    }
+                }
             } else {
-                Spacer(Modifier.heightIn(48.dp))
+                Text(state.selectedModel.name)
             }
 
             if (state.isError) {

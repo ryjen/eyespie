@@ -2,41 +2,39 @@ package com.micrantha.eyespie.core.data.ai
 
 import com.micrantha.eyespie.core.data.ai.source.LLMLocalSource
 import com.micrantha.eyespie.core.data.ai.source.ModelSource
-import com.micrantha.eyespie.domain.entities.ModelInfo
+import com.micrantha.eyespie.core.data.storage.source.PreferencesLocalSource
+import com.micrantha.eyespie.domain.entities.ModelFile
 import com.micrantha.eyespie.domain.repository.AiRepository
 
 class AiDataRepository(
     private val llmLocalSource: LLMLocalSource,
     private val modelSource: ModelSource,
+    private val preferencesLocalSource: PreferencesLocalSource
 ) : AiRepository {
 
-    override var currentModel = modelSource.modelInfo.firstOrNull()
-
-    override val models: List<ModelInfo>
-        get() = modelSource.modelInfo
-
-    override fun isReady(): Boolean {
-        return currentModel?.let {
-            modelSource.exists(it)
-        } ?: false
+    override suspend fun listModels(): Result<List<ModelFile>> = try {
+        Result.success(modelSource.list().map {
+            ModelFile(
+                downloadUrl = it.download_url,
+                name = it.name,
+                slug = it.slug
+            )
+        })
+    } catch (e: Throwable) {
+        Result.failure(e)
     }
 
-    override fun selectModel(model: ModelInfo) {
-        currentModel = model
+    override suspend fun downloadModel(model: ModelFile): Result<Unit> {
+        return modelSource.downloadModel(model).onSuccess {
+            preferencesLocalSource["model"] = model.slug
+        }
     }
 
-    override suspend fun initialize(): Result<Unit> {
-        if (isReady().not()) {
-            return Result.failure(Throwable("LLM not ready"))
-        }
-        if (currentModel == null) {
-            return Result.failure(Throwable("No current model"))
-        }
-        return llmLocalSource.init(currentModel!!).mapCatching { result ->
+    override suspend fun initialize(model: ModelFile?): Result<Unit> {
+        return llmLocalSource.init(model?.slug).mapCatching { result ->
             if (result.not()) {
                 throw Throwable("LLM init failed")
             }
         }
     }
-
 }

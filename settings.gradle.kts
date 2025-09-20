@@ -17,7 +17,14 @@ dependencyResolutionManagement {
         maven("https://repo.repsy.io/mvn/chrynan/public")
         maven("https://maven.pkg.jetbrains.space/public/p/compose/dev")
         maven("https://maven.pkg.jetbrains.space/public/p/ktor/eap")
-        mavenLocal()
+        maven {
+            name = "GitHubPackagesCactus"
+            url = uri("https://maven.pkg.github.com/cactus-compute/cactus-kotlin")
+            credentials {
+                username = providers.gradleProperty("GITHUB_USER").orNull ?: throw IllegalStateException("GITHUB_USER not set")
+                password = providers.gradleProperty("GITHUB_TOKEN").orNull ?: throw IllegalStateException("GITHUB_TOKEN not set")
+            }
+        }
     }
 }
 
