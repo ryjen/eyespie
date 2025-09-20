@@ -1,6 +1,6 @@
 package com.micrantha.eyespie.core
 
-import com.cactus.CactusVLM
+import com.cactus.CactusLM
 import com.micrantha.eyespie.core.data.account.AccountDataRepository
 import com.micrantha.eyespie.core.data.account.mapping.AccountDomainMapper
 import com.micrantha.eyespie.core.data.account.model.CurrentSession
@@ -15,6 +15,7 @@ import com.micrantha.eyespie.core.data.client.SupaClient
 import com.micrantha.eyespie.core.data.client.SupaRealtimeClient
 import com.micrantha.eyespie.core.data.storage.StorageDataRepository
 import com.micrantha.eyespie.core.data.storage.source.CacheLocalSource
+import com.micrantha.eyespie.core.data.storage.source.PreferencesLocalSource
 import com.micrantha.eyespie.core.data.storage.source.StorageRemoteSource
 import com.micrantha.eyespie.core.data.system.LocationDataRepository
 import com.micrantha.eyespie.core.data.system.RealtimeDataRepository
@@ -43,6 +44,7 @@ internal fun module() = DI.Module("Core Feature") {
     bindProviderOf(::CacheLocalSource)
     bindProviderOf(::StorageRemoteSource)
     bindProviderOf(::StorageDataRepository)
+    bindSingletonOf(::PreferencesLocalSource)
 
     bindProviderOf(::LocationDomainMapper)
     bindProviderOf(::LocationDataRepository)
@@ -57,7 +59,7 @@ internal fun module() = DI.Module("Core Feature") {
     bindProviderOf(::LLMLocalSource)
     bindProviderOf(::CluePromptSource)
 
-    bindSingleton { CactusVLM() }
+    bindSingleton { CactusLM() }
 
     delegate<LocationLocalSource>().to<LocationTracker>()
 }

@@ -1,15 +1,12 @@
 package com.micrantha.eyespie.domain.repository
 
-import com.micrantha.eyespie.domain.entities.ModelInfo
+import com.micrantha.eyespie.domain.entities.ModelFile
 
 interface AiRepository {
-    suspend fun initialize(): Result<Unit>
 
-    val currentModel: ModelInfo?
+    suspend fun initialize(model: ModelFile? = null): Result<Unit>
 
-    val models: List<ModelInfo>
+    suspend fun listModels(): Result<List<ModelFile>>
 
-    fun selectModel(model: ModelInfo)
-
-    fun isReady(): Boolean
+    suspend fun downloadModel(model: ModelFile): Result<Unit>
 }

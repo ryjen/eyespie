@@ -13,7 +13,8 @@ import okio.Path
 class ClueDataRepository(
     private val llmLocalSource: LLMLocalSource,
     private val cluePromptSource: CluePromptSource,
-    private val clueDataMapper: ClueDataMapper
+    private val clueDataMapper: ClueDataMapper,
+    // private val imageEmbedder: ImageEmbedder,
 ) : ClueRepository {
 
     override suspend fun colors(image: Path): Result<ColorProof> {
