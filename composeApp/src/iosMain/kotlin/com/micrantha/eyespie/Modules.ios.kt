@@ -1,11 +1,9 @@
 package com.micrantha.eyespie
 
 import com.micrantha.bluebell.platform.Platform
-import com.micrantha.eyespie.platform.scan.analyzer.ColorCaptureAnalyzer
+import com.micrantha.eyespie.platform.scan.analyzer.DominantColorCaptureAnalyzer
 import com.micrantha.eyespie.platform.scan.analyzer.DetectCaptureAnalyzer
 import com.micrantha.eyespie.platform.scan.analyzer.LabelCaptureAnalyzer
-import com.micrantha.eyespie.platform.scan.analyzer.MatchCaptureAnalyzer
-import com.micrantha.eyespie.platform.scan.analyzer.SegmentCaptureAnalyzer
 import com.micrantha.eyespie.platform.scan.generator.ImageObfuscator
 import com.micrantha.eyespie.platform.scan.generator.ImageStyler
 import org.kodein.di.DI
@@ -20,10 +18,8 @@ fun iosModules(app: AppDelegate) = DI {
     bindProvider { app.networkMonitor }
 
     bindProviderOf(::LabelCaptureAnalyzer)
-    bindProviderOf(::ColorCaptureAnalyzer)
+    bindProviderOf(::DominantColorCaptureAnalyzer)
     bindProviderOf(::DetectCaptureAnalyzer)
-    bindProviderOf(::SegmentCaptureAnalyzer)
-    bindProviderOf(::MatchCaptureAnalyzer)
 
     bindProviderOf(::ImageObfuscator)
     bindProviderOf(::ImageStyler)

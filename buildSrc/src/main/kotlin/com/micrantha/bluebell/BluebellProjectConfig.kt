@@ -41,7 +41,7 @@ fun Project.configureBuilds(config: BluebellConfig, assets: BluebellAssets) {
             config.properties.entries.map { "\"${it.key}\" to ${config.className}.${it.key}" }
                 .toMutableList()
 
-        assets.downloads.forEachIndexed { i, asset ->
+        assets.runtimeDownloads().forEachIndexed { i, _ ->
             entries.add("\"MODEL_${i}_NAME\" to ${config.className}.MODEL_${i}_NAME")
             entries.add("\"MODEL_${i}_URL\" to ${config.className}.MODEL_${i}_URL")
         }

@@ -19,6 +19,9 @@ kotlin {
         license = "GPLv3"
         ios.deploymentTarget = "15.0"
         podfile = project.file("../iosApp/Podfile")
+
+        pod("MediaPipeTasksVision")
+        pod("MediaPipeTasksGenAI")
     }
 
     applyDefaultHierarchyTemplate()
@@ -122,9 +125,12 @@ kotlin {
             implementation(libs.androidx.camera.view)
             implementation(libs.androidx.camera.extensions)
 
+            implementation(libs.androidx.exifinterface)
+
             implementation(libs.kotlinx.coroutines.android)
             implementation(libs.fetch)
-
+            implementation(libs.mediapipe.tasks.vision)
+            implementation(libs.mediapipe.tasks.genai)
             implementation(libs.compose.ui.tooling)
             implementation(libs.compose.ui.tooling.preview)
         }
@@ -155,10 +161,12 @@ android {
     }
     sourceSets["main"].manifest.srcFile("src/androidMain/AndroidManifest.xml")
     sourceSets["main"].res.srcDirs("src/androidMain/res")
+    sourceSets["main"].resources.srcDirs("src/commonMain/resources")
 
     buildFeatures {
         compose = true
         buildConfig = true
+        mlModelBinding = true
     }
 
     bundle {
@@ -230,10 +238,15 @@ bluebell {
     }
     assets {
         downloads {
-            create("gemma3") {
+            create("classification_efficientnet_lite.tflite") {
                 url =
-                    "https://huggingface.co/unsloth/gemma-3-270m-it-GGUF/resolve/main/gemma-3-270m-it-Q8_0.gguf?download=true"
-                checksum = "d156a5159f2f79c1b1d53c7c1cc20f1ff28ab8d00f17a292620aad13399b9698"
+                    "https://storage.googleapis.com/mediapipe-models/image_classifier/efficientnet_lite0/int8/latest/efficientnet_lite0.tflite"
+                isBundled = true
+            }
+            create("detection_efficientnet_lite.tflite") {
+                url =
+                    "https://storage.googleapis.com/mediapipe-models/object_detector/efficientdet_lite0/int8/latest/efficientdet_lite0.tflite"
+                isBundled = true
             }
         }
     }

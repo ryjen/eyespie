@@ -54,28 +54,18 @@ abstract class EquatableClue<T> : Clue<T> {
     }
 }
 
-data class ColorClue(
+data class DataClue(
     override val data: String,
     override val confidence: Float
 ) : EquatableClue<String>(), RankedClue<String>
 
-data class LabelClue(
-    override val data: String,
-    override val confidence: Float
-) : EquatableClue<String>(), RankedClue<String>
+typealias LabelClue = DataClue
+typealias ColorClue = DataClue
+typealias RhymeClue = DataClue
+typealias DetectClue = DataClue
 
 data class LocationClue(
     override val data: Location.Data, // TODO: make a geofence area
 ) : SortedClue<Location.Data>
-
-data class RhymeClue(
-    override val data: String,
-    override val confidence: Float
-) : EquatableClue<String>(), RankedClue<String>
-
-data class DetectClue(
-    override val data: String,
-    override val confidence: Float
-) : EquatableClue<String>(), RankedClue<String>
 
 typealias Embedding = ByteString

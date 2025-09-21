@@ -31,14 +31,13 @@ fun ChoiceField(
     modifier: Modifier = Modifier,
     choices: List<Choice>,
     onValue: (Choice) -> String = { it.label },
-    label: @Composable (Choice) -> Unit,
-    trailingIcon: @Composable () -> Unit,
+    label: (@Composable (Choice) -> Unit)? = null,
+    trailingIcon: (@Composable () -> Unit)? = null,
     onCustom: ((String) -> Unit)? = null,
-    onSelect: (Choice) -> Unit,
+    onSelect: ((Choice) -> Unit)? = null,
 ) {
     var current by remember { mutableStateOf(choices.firstOrNull()) }
     var active by remember { mutableStateOf(false) }
-
 
     Box(
         modifier = modifier
@@ -48,7 +47,7 @@ fun ChoiceField(
             value = current?.let { onValue(it) } ?: "",
             readOnly = onCustom == null,
             onValueChange = onCustom ?: { },
-            label = current?.let { { label(it) } },
+            label = current?.let { { label?.invoke(it) } },
             trailingIcon = {
                 Row {
                     Icon(
@@ -56,7 +55,7 @@ fun ChoiceField(
                             .clickable {
                                 active = active.not()
                                 if (active.not() && current != null) {
-                                    onSelect(current!!)
+                                    onSelect?.invoke(current!!)
                                 }
                             },
                         imageVector = if (active)
@@ -65,7 +64,7 @@ fun ChoiceField(
                             Icons.Default.ArrowDropDown,
                         contentDescription = null,
                     )
-                    trailingIcon()
+                    trailingIcon?.invoke()
                 }
             }
         )
@@ -75,7 +74,7 @@ fun ChoiceField(
             active = active,
             onDismiss = {
                 active = false
-                current?.let { onSelect(it) }
+                current?.let { onSelect?.invoke(it) }
             },
             choices = choices,
             onSelect = { choice ->

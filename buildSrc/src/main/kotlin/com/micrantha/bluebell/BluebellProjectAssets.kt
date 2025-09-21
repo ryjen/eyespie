@@ -5,6 +5,10 @@ import org.gradle.api.Project
 import java.io.File
 import java.net.URI
 
+internal val defaultSharedDestination = "src/commonMain/resources"
+internal val defaultIosDestination: String = "src/iosMain/resources"
+internal val defaultAndroidDestination: String = "src/androidMain/assets"
+
 fun Project.configureAssets(assets: BluebellAssets, config: BluebellConfig) {
 
     val task = tasks.register("configureAssets") {
@@ -21,7 +25,9 @@ fun Project.configureAssets(assets: BluebellAssets, config: BluebellConfig) {
 
 internal fun Project.configureRuntimeAssets(assets: BluebellAssets, config: BluebellConfig) {
 
-    val runtimeAssets = assets.downloads.filter { it.isBundled.not() && it.url != null }
+    val runtimeAssets = assets.runtimeDownloads()
+
+    if (runtimeAssets.isEmpty()) return
 
     extensions.configure(BuildConfigExtension::class.java) {
         packageName(config.packageName)
@@ -71,7 +77,7 @@ internal fun Project.downloadBuildAssets(assets: BluebellAssets) {
 
     val tempDir by lazy { layout.buildDirectory.dir("tmp").get().asFile }
 
-    val tempAssets = assets.downloads.filter { it.isBundled }
+    val tempAssets = assets.bundledDownloads()
         .fold(mutableListOf<BluebellDownload<File>>()) { results, file ->
 
             file.url?.let { url ->
@@ -111,7 +117,7 @@ internal fun Project.downloadBuildAssets(assets: BluebellAssets) {
 
     for (file in tempAssets) {
         val iosOutput by lazy {
-            projectDir.resolve(defatulIosDestination).resolve(file.name)
+            projectDir.resolve(defaultIosDestination).resolve(file.name)
         }
         val androidOutput by lazy {
             projectDir.resolve(defaultAndroidDestination).resolve(file.name)

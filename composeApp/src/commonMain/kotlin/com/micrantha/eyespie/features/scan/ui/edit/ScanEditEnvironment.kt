@@ -1,5 +1,6 @@
 package com.micrantha.eyespie.features.scan.ui.edit
 
+import androidx.compose.ui.graphics.painter.BitmapPainter
 import com.micrantha.bluebell.app.Log
 import com.micrantha.bluebell.arch.Action
 import com.micrantha.bluebell.arch.Dispatcher
@@ -15,7 +16,7 @@ import com.micrantha.eyespie.domain.entities.Clues
 import com.micrantha.eyespie.domain.entities.LabelClue
 import com.micrantha.eyespie.domain.entities.LocationClue
 import com.micrantha.eyespie.domain.entities.Proof
-import com.micrantha.eyespie.domain.repository.AiRepository
+import com.micrantha.eyespie.domain.repository.ClueRepository
 import com.micrantha.eyespie.features.scan.ui.edit.ScanEditAction.ClearColor
 import com.micrantha.eyespie.features.scan.ui.edit.ScanEditAction.ClearLabel
 import com.micrantha.eyespie.features.scan.ui.edit.ScanEditAction.ColorChanged
@@ -25,22 +26,16 @@ import com.micrantha.eyespie.features.scan.ui.edit.ScanEditAction.CustomLabelCha
 import com.micrantha.eyespie.features.scan.ui.edit.ScanEditAction.Init
 import com.micrantha.eyespie.features.scan.ui.edit.ScanEditAction.LabelChanged
 import com.micrantha.eyespie.features.scan.ui.edit.ScanEditAction.LoadError
-import com.micrantha.eyespie.features.scan.ui.edit.ScanEditAction.LoadedImage
 import com.micrantha.eyespie.features.scan.ui.edit.ScanEditAction.NameChanged
 import com.micrantha.eyespie.features.scan.ui.edit.ScanEditAction.SaveScanEdit
 import com.micrantha.eyespie.features.scan.ui.edit.ScanEditAction.SaveThingError
-import com.micrantha.eyespie.features.scan.ui.usecase.AnalyzeCaptureUseCase
-import com.micrantha.eyespie.features.scan.ui.usecase.LoadImageUseCase
-import com.micrantha.eyespie.features.scan.ui.usecase.UploadCaptureUseCase
-import kotlinx.coroutines.flow.launchIn
+import com.micrantha.eyespie.features.scan.usecase.UploadCaptureUseCase
 
 class ScanEditEnvironment(
     private val context: ScreenContext,
     private val uploadCaptureUseCase: UploadCaptureUseCase,
-    private val loadImageUseCase: LoadImageUseCase,
-    private val analyzeCaptureUseCase: AnalyzeCaptureUseCase,
+    private val clueRepository: ClueRepository,
     private val currentSession: CurrentSession,
-    private val aiRepository: AiRepository
 ) : Reducer<ScanEditState>, Effect<ScanEditState>,
     StateMapper<ScanEditState, ScanEditUiState>,
     Dispatcher by context.dispatcher,
@@ -48,7 +43,7 @@ class ScanEditEnvironment(
 
     override fun reduce(state: ScanEditState, action: Action) = when (action) {
         is Init -> state.copy(
-            path = action.params.image,
+            image = action.params.image,
             location = action.params.location,
             hasAI = true //aiRepository.isReady()
         )
@@ -76,16 +71,18 @@ class ScanEditEnvironment(
             name = action.data
         )
 
-        is LoadedImage -> state.copy(
-            image = action.data
-        )
-
         is ClearLabel -> state.copy(
             customLabel = ""
         )
 
         is ClearColor -> state.copy(
             customColor = ""
+        )
+
+        is ScanEditAction.AnalyzedClues -> state.copy(
+            labels = action.clues.labels?.associateBy { it.data }?.toMutableMap(),
+            colors = action.clues.colors?.associateBy { it.data }?.toMutableMap(),
+            detections = action.clues.detections?.associateBy { it.data }?.toMutableMap(),
         )
 
         is CustomLabelChanged -> state.copy(customLabel = action.data)
@@ -100,18 +97,11 @@ class ScanEditEnvironment(
     override suspend fun invoke(action: Action, state: ScanEditState) {
         when (action) {
             is Init -> {
-                aiRepository.initialize().onSuccess {
-                    analyzeCaptureUseCase(action.params.image).launchIn(dispatchScope)
+                clueRepository.generate(state.image!!).onSuccess {
+                    dispatch(ScanEditAction.AnalyzedClues(it))
                 }.onFailure {
                     dispatch(LoadError)
                 }
-                loadImageUseCase(action.params.image)
-                    .onSuccess {
-                        dispatch(LoadedImage(it))
-                    }.onFailure {
-                        Log.e("unable to load image", it)
-                        dispatch(LoadError)
-                    }
             }
 
             is SaveScanEdit -> uploadCaptureUseCase(
@@ -157,7 +147,7 @@ class ScanEditEnvironment(
         showDetections = state.detections?.isNotEmpty() ?: state.customDetection?.isNotBlank()
         ?: state.hasAI.not(),
         name = state.name ?: "",
-        image = state.image,
+        image = state.image?.let { BitmapPainter(it.toImageBitmap()) },
         enabled = state.disabled.not()
     )
 

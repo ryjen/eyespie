@@ -1,26 +1,39 @@
 package com.micrantha.eyespie.core.data.ai.source
 
+import com.micrantha.eyespie.core.data.ai.model.AiPrompt
+
 class CluePromptSource {
-    val colorsPrompt = """
-        Examine the image and determine the dominant colors with a maximum of 5.
-        Provide output as JSON with the following format: 
-            [{data: string, confidence: number}]
-        Confidence should take into account:
-            - the total percentage
-            - the variation of hue within the color
-            - the brightness of the color compared to others
-    """
+    fun cluesPrompt() = AiPrompt(
+        role = "user",
+        prompt = """
+            Find the following clues:
+            - colors
+            - classifications
+            - detected objects
+        """)
 
-
-    val detectPrompt = """
-        Examine the image and detect the objects within it to a maximum of 5.
-        Provide output as JSON with the following format: 
+    fun rhymesPrompt(words: String) = AiPrompt(
+        role = "user",
+        prompt = """
+            Generate a list of potential rhymes for the following words: $words
+            
+            Output as JSON with the following format:
             [{data: string, confidence: number}]
-    """
+        """
+    )
 
-    val labelPrompt = """
-        Examine the image and classify it with labels to a maximum of 5.
-        Provide output as JSON with the following format: 
-            [{data: string, confidence: number}]
-     """
+    fun proofPrompt(colors: String, classifications: String, detections: String) = AiPrompt(
+        role = "user",
+        prompt = """
+            You are someone playing a game of "I Spy".
+            Given the following potential clues formatted in JSON:
+            
+            Colors: $colors
+            Classifications: $classifications
+            Detections: $detections
+
+            Generate a final proof of the best clues.  Try to relate or rank the clues.
+            Output as JSON with the following format:
+        """)
+
 }

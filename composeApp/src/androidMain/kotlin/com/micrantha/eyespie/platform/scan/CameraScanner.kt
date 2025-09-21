@@ -37,6 +37,7 @@ typealias CameraScannerDispatch = suspend (CameraImage) -> Unit
 actual fun CameraScanner(
     modifier: Modifier,
     regionOfInterest: Rect?,
+    onCameraError: (Throwable) -> Unit,
     onCameraImage: CameraScannerDispatch
 ) {
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -46,7 +47,7 @@ actual fun CameraScanner(
     var cameraProvider by remember { mutableStateOf<ProcessCameraProvider?>(null) }
 
     val analyzer = remember(regionOfInterest, onCameraImage) {
-        CameraAnalyzer(regionOfInterest?.toAndroidRectF(), onCameraImage, scope)
+        CameraAnalyzer(regionOfInterest?.toAndroidRectF(), onCameraImage, onCameraError, scope)
     }
 
     val cameraSelector by remember { mutableStateOf(CameraSelector.DEFAULT_BACK_CAMERA) }
@@ -92,7 +93,7 @@ private fun createCameraUseCases(
     analyzer: CameraAnalyzer
 ): UseCaseGroup {
 
-    val targetScreenSize = Size(1600, 1200)
+    val targetScreenSize = Size(500, 500)
 
     val executor = Executors.newSingleThreadExecutor()
 
@@ -108,7 +109,7 @@ private fun createCameraUseCases(
 
     val imageCapture = ImageCapture.Builder()
         .setResolutionSelector(resolutionSelector)
-        .setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY)
+        .setCaptureMode(ImageCapture.CAPTURE_MODE_MAXIMIZE_QUALITY)
         .setFlashMode(ImageCapture.FLASH_MODE_AUTO)
         .build()
 
@@ -125,7 +126,7 @@ private fun createCameraUseCases(
     val imageAnalysis = ImageAnalysis.Builder()
         .setResolutionSelector(resolutionSelector)
         .setOutputImageFormat(ImageAnalysis.OUTPUT_IMAGE_FORMAT_RGBA_8888)
-        .setBackpressureStrategy(ImageAnalysis.STRATEGY_KEEP_ONLY_LATEST)
+        .setBackpressureStrategy(ImageAnalysis.STRATEGY_BLOCK_PRODUCER)
         .build()
         .apply { setAnalyzer(executor, analyzer) }
     useCases.addUseCase(imageAnalysis)

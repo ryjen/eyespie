@@ -1,4 +1,4 @@
-package com.micrantha.eyespie.features.scan.ui.usecase
+package com.micrantha.eyespie.features.scan.usecase
 
 import com.micrantha.bluebell.domain.usecase.dispatchUseCase
 import com.micrantha.bluebell.platform.FileSystem
