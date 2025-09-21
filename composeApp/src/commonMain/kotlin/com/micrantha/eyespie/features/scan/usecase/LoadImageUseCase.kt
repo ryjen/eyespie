@@ -1,6 +1,5 @@
-package com.micrantha.eyespie.features.scan.ui.usecase
+package com.micrantha.eyespie.features.scan.usecase
 
-import androidx.compose.ui.graphics.painter.BitmapPainter
 import com.micrantha.bluebell.domain.usecase.dispatchUseCase
 import com.micrantha.bluebell.platform.FileSystem
 import com.micrantha.bluebell.platform.toImageBitmap
@@ -15,6 +14,6 @@ class LoadImageUseCase(
     suspend operator fun invoke(path: Path) = dispatchUseCase(
         Dispatchers.IO
     ) {
-        BitmapPainter(fileSystem.fileRead(path).toImageBitmap())
+        fileSystem.fileRead(path).toImageBitmap()
     }
 }

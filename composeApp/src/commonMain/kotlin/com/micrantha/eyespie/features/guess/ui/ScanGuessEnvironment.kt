@@ -15,7 +15,7 @@ import com.micrantha.eyespie.features.guess.ui.ScanGuessAction.Load
 import com.micrantha.eyespie.features.guess.ui.ScanGuessAction.Loaded
 import com.micrantha.eyespie.features.guess.ui.ScanGuessAction.ThingMatched
 import com.micrantha.eyespie.features.guess.ui.ScanGuessAction.ThingNotFound
-import com.micrantha.eyespie.features.scan.ui.usecase.MatchCaptureUseCase
+import com.micrantha.eyespie.features.scan.usecase.MatchCaptureUseCase
 import eyespie.composeapp.generated.resources.no_data_found
 import org.jetbrains.compose.resources.getString
 

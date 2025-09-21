@@ -2,19 +2,23 @@ package com.micrantha.eyespie.features.scan.ui.edit
 
 import androidx.compose.ui.graphics.painter.Painter
 import com.micrantha.eyespie.core.ui.component.Choice
+import com.micrantha.eyespie.domain.entities.Clues
 import com.micrantha.eyespie.domain.entities.ColorClue
 import com.micrantha.eyespie.domain.entities.DetectClue
 import com.micrantha.eyespie.domain.entities.Embedding
 import com.micrantha.eyespie.domain.entities.LabelClue
 import com.micrantha.eyespie.domain.entities.Location
+import com.micrantha.eyespie.platform.scan.CameraImage
 import okio.Path
 
 data class ScanEditParams(
-    val image: Path,
+    val image: CameraImage,
     val location: Location
 )
 
 data class ScanEditState(
+    val image: CameraImage? = null,
+
     val labels: MutableMap<String, LabelClue>? = null,
     val customLabel: String? = null,
     val colors: MutableMap<String, ColorClue>? = null,
@@ -23,7 +27,6 @@ data class ScanEditState(
     val customDetection: String? = null,
     val embedding: Embedding? = null,
     val name: String? = null,
-    val image: Painter? = null,
     val disabled: Boolean = false,
     val location: Location? = null,
     val path: Path? = null,
@@ -62,8 +65,6 @@ sealed interface ScanEditAction {
 
     data object LoadError : ScanEditAction
 
-    data class LoadedImage(val data: Painter) : ScanEditAction
-
     data class NameChanged(val data: String) : ScanEditAction
 
     data object ClearColor : ScanEditAction
@@ -71,4 +72,6 @@ sealed interface ScanEditAction {
     data object ClearLabel : ScanEditAction
 
     data object ClearDetection : ScanEditAction
+
+    data class AnalyzedClues(val clues: Clues) : ScanEditAction
 }

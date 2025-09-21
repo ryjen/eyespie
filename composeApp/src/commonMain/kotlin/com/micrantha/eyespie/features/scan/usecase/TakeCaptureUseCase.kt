@@ -1,4 +1,4 @@
-package com.micrantha.eyespie.features.scan.ui.usecase
+package com.micrantha.eyespie.features.scan.usecase
 
 import com.benasher44.uuid.uuid4
 import com.micrantha.bluebell.arch.Dispatcher

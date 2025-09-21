@@ -1,17 +1,16 @@
 package com.micrantha.eyespie.features.scan.ui.edit
 
 import androidx.compose.foundation.Image
-import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.gestures.Orientation
+import androidx.compose.foundation.gestures.scrollable
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.sizeIn
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Save
-import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -46,7 +45,10 @@ import com.micrantha.eyespie.features.scan.ui.edit.ScanEditAction.Init
 import com.micrantha.eyespie.features.scan.ui.edit.ScanEditAction.LabelChanged
 import com.micrantha.eyespie.features.scan.ui.edit.ScanEditAction.NameChanged
 import com.micrantha.eyespie.features.scan.ui.edit.ScanEditAction.SaveScanEdit
+import eyespie.composeapp.generated.resources.category
+import eyespie.composeapp.generated.resources.color
 import eyespie.composeapp.generated.resources.new_thing
+import eyespie.composeapp.generated.resources.things
 import org.jetbrains.compose.resources.stringResource
 
 class ScanEditScreen(
@@ -59,7 +61,8 @@ class ScanEditScreen(
         val screenModel: ScanEditScreenModel = rememberScreenModel()
 
         val title = stringResource(S.new_thing)
-        LaunchedEffect(Unit) {
+
+        LaunchedEffect(title) {
             screenModel.dispatch(Init(params))
             screenModel.dispatch(Scaffolding.Title(title))
             screenModel.dispatch(CanGoBack(true))
@@ -72,7 +75,9 @@ class ScanEditScreen(
                                 it.dispatcher.dispatch(SaveScanEdit)
                             }
                         )
-                    )))
+                    )
+                )
+            )
         }
 
         val state by screenModel.state.collectAsState()
@@ -84,119 +89,100 @@ class ScanEditScreen(
     @Composable
     override fun Render(state: ScanEditUiState, dispatch: Dispatch) {
 
-        Box(
-            modifier = Modifier.fillMaxSize(),
+        val scrollState = rememberScrollState()
+
+        Column(
+            modifier = Modifier.fillMaxSize()
+                .scrollable(state = scrollState, orientation = Orientation.Vertical)
         ) {
             state.image?.let {
                 Image(
-                    modifier = Modifier.fillMaxSize(),
+                    modifier = Modifier.align(Alignment.CenterHorizontally).sequentialFieldPadding(),
                     painter = it,
                     contentDescription = null,
                 )
             }
 
-            Column(
-                modifier = Modifier.align(Alignment.BottomCenter)
-                    .padding(Dimensions.content)
-                    .fillMaxWidth()
-            ) {
+            OutlinedTextField(
+                modifier = Modifier
+                    .fillMaxWidth().sequentialFieldPadding(),
+                value = state.name,
+                onValueChange = { dispatch(NameChanged(it)) },
+                label = { Text(text = "Name") },
+                singleLine = true,
+                maxLines = 1,
+                placeholder = { Text(text = "Enter an identifying name") }
+            )
+            ChoiceField(
+                modifier = Modifier.fillMaxWidth().sequentialFieldPadding(),
+                choices = state.labels,
+                label = { Text(stringResource(S.category)) },
+                onValue = {
+                    state.customLabel ?: it.label
+                },
+                trailingIcon = {
+                    if (state.customLabel != null)
+                        IconButton(onClick = { dispatch(ClearLabel) }) {
+                            Icon(
+                                imageVector = Icons.Default.Delete,
+                                contentDescription = null
+                            )
+                        } else null
+                },
+                onCustom = {
+                    dispatch(CustomLabelChanged(it))
+                }
+            ) { choice ->
+                dispatch(LabelChanged(choice))
+            }
 
-                OutlinedTextField(
-                    modifier = Modifier
-                        .fillMaxWidth(),
-                    value = state.name,
-                    onValueChange = { dispatch(NameChanged(it)) },
-                    label = { Text(text = "Name") },
-                    singleLine = true,
-                    maxLines = 1,
-                    placeholder = { Text(text = "Enter an identifying name") }
-                )
-
-                if (state.showLabels) {
-                    Spacer(Modifier.sizeIn(Dimensions.content))
-                    ChoiceField(
-                        modifier = Modifier.fillMaxWidth(),
-                        label = { Text(text = "What") },
-                        choices = state.labels,
-                        onValue = {
-                            state.customLabel ?: it.label
-                        },
-                        trailingIcon = {
-                            IconButton(onClick = { dispatch(ClearLabel) }) {
-                                Icon(
-                                    imageVector = Icons.Default.Delete,
-                                    contentDescription = null
-                                )
-                            }
-                        },
-                        onCustom = {
-                            dispatch(CustomLabelChanged(it))
+            ChoiceField(
+                modifier = Modifier.fillMaxWidth().sequentialFieldPadding(),
+                choices = state.colors,
+                label = { Text(stringResource(S.color)) },
+                trailingIcon = {
+                    if (state.customLabel != null)
+                        IconButton(onClick = { dispatch(ClearColor) }) {
+                            Icon(
+                                imageVector = Icons.Default.Delete,
+                                contentDescription = null
+                            )
                         }
-                    ) { choice ->
-                        dispatch(LabelChanged(choice))
-                    }
+                },
+                onValue = {
+                    state.customColor ?: it.label
+                },
+                onCustom = {
+                    dispatch(CustomColorChanged(it))
                 }
+            ) { choice ->
+                dispatch(ColorChanged(choice))
+            }
 
-                if (state.showColors) {
-                    Spacer(Modifier.sizeIn(Dimensions.content))
-                    ChoiceField(
-                        modifier = Modifier.fillMaxWidth(),
-                        label = { Text(text = "Color") },
-                        choices = state.colors,
-                        trailingIcon = {
-                            IconButton(onClick = { dispatch(ClearColor) }) {
-                                Icon(
-                                    imageVector = Icons.Default.Delete,
-                                    contentDescription = null
-                                )
-                            }
-                        },
-                        onValue = {
-                            state.customColor ?: it.label
-                        },
-                        onCustom = {
-                            dispatch(CustomColorChanged(it))
+            ChoiceField(
+                modifier = Modifier.fillMaxWidth().sequentialFieldPadding(),
+                choices = state.detections,
+                label = { Text(stringResource(S.things)) },
+                trailingIcon = {
+                    if (state.customDetection != null)
+                        IconButton(onClick = { dispatch(ClearDetection) }) {
+                            Icon(
+                                imageVector = Icons.Default.Delete,
+                                contentDescription = null
+                            )
                         }
-                    ) { choice ->
-                        dispatch(ColorChanged(choice))
-                    }
+                },
+                onValue = {
+                    state.customDetection ?: it.label
+                },
+                onCustom = {
+                    dispatch(CustomDetectionChanged(it))
                 }
-
-                if (state.showDetections) {
-                    Spacer(Modifier.sizeIn(Dimensions.content))
-                    ChoiceField(
-                        modifier = Modifier.fillMaxWidth(),
-                        label = { Text(text = "Detection") },
-                        choices = state.detections,
-                        trailingIcon = {
-                            IconButton(onClick = { dispatch(ClearDetection) }) {
-                                Icon(
-                                    imageVector = Icons.Default.Delete,
-                                    contentDescription = null
-                                )
-                            }
-                        },
-                        onValue = {
-                            state.customDetection ?: it.label
-                        },
-                        onCustom = {
-                            dispatch(CustomDetectionChanged(it))
-                        }
-                    ) { choice ->
-                        dispatch(DetectionChanged(choice))
-                    }
-                }
-
-                Spacer(Modifier.sizeIn(Dimensions.content))
-
-                Button(
-                    enabled = state.enabled,
-                    modifier = Modifier.fillMaxWidth(),
-                    onClick = { dispatch(SaveScanEdit) }
-                ) {
-                    Text("Save")
-                }
+            ) { choice ->
+                dispatch(DetectionChanged(choice))
             }
         }
     }
+
+    fun Modifier.sequentialFieldPadding() = padding(horizontal = Dimensions.content).padding(top = Dimensions.content)
 }

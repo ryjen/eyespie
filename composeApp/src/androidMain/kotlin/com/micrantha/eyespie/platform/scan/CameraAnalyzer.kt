@@ -4,13 +4,27 @@ import android.graphics.RectF
 import androidx.camera.core.ExperimentalGetImage
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageProxy
+import com.google.mediapipe.tasks.core.BaseOptions
 import com.micrantha.bluebell.app.Log
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
+internal fun baseOptions(model: String, block: BaseOptions.Builder.() -> Unit = {}) =
+    BaseOptions.builder()
+        .setModelAssetPath(model)
+        .apply(block)
+        .build()
+
+interface CameraAnalyzerConfig<Value, Options, Client, Result> {
+    fun map(result: Result): Value
+
+    fun client(block: Options.() -> Unit): Client
+}
+
 class CameraAnalyzer(
     private val regionOfInterest: RectF? = null,
     private val callback: CameraScannerDispatch,
+    private val errorCallback: (Throwable) -> Unit,
     private val scope: CoroutineScope
 ) : ImageAnalysis.Analyzer {
     private lateinit var current: CameraImage
@@ -36,6 +50,7 @@ class CameraAnalyzer(
                 //image.close()
             }
         } catch (err: Throwable) {
+            errorCallback(err)
             Log.e("analyzer", err) { "unable to analyze camera image" }
         }
     }

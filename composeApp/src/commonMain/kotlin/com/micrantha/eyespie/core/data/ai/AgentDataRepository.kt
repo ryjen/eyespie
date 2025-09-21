@@ -1,13 +1,13 @@
 package com.micrantha.eyespie.core.data.ai
 
-import com.micrantha.eyespie.core.data.ai.source.LLMLocalSource
+import com.micrantha.eyespie.core.data.ai.source.AgentLocalSource
 import com.micrantha.eyespie.core.data.ai.source.ModelSource
 import com.micrantha.eyespie.core.data.storage.source.PreferencesLocalSource
 import com.micrantha.eyespie.domain.entities.ModelFile
 import com.micrantha.eyespie.domain.repository.AiRepository
 
-class AiDataRepository(
-    private val llmLocalSource: LLMLocalSource,
+class AgentDataRepository(
+    private val llmLocalSource: AgentLocalSource,
     private val modelSource: ModelSource,
     private val preferencesLocalSource: PreferencesLocalSource
 ) : AiRepository {

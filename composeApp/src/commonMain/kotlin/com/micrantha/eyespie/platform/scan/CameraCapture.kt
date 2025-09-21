@@ -5,9 +5,10 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Rect
 
 @Composable
-expect fun CameraScanner(
-    modifier: Modifier,
+expect fun CameraCapture(
+    modifier: Modifier = Modifier,
     regionOfInterest: Rect? = null,
     onCameraError: (Throwable) -> Unit = {},
-    onCameraImage: suspend (CameraImage) -> Unit
+    onCameraImage: (CameraImage) -> Unit,
+    captureButton: @Composable (() -> Unit) -> Unit
 )

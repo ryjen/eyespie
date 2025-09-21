@@ -33,6 +33,9 @@
     <string name="name">Name</string>
     <string name="next">Next</string>
     <string name="new_thing">New Thing</string>
+    <string name="details">Details</string>
+    <string name="category">Category</string>
+    <string name="color">Color</string>
     <string name="new_thing_description">Scan a new thing for your collection. People nearby will be able to try and guess it.</string>
     <string name="loading_dashboard">Loading dashboard…</string>
     <string name="my_things">My Things</string>

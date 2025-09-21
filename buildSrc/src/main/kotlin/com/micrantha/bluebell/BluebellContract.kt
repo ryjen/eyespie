@@ -27,12 +27,10 @@ open class GraphqlConfig {
 
 abstract class BluebellAssets @Inject constructor(objects: ObjectFactory) {
     var downloads = objects.domainObjectContainer(BluebellAsset::class)
+    fun runtimeDownloads() = downloads.filter { it.isBundled.not() }
+    fun bundledDownloads() = downloads.filter { it.isBundled }
     val copies: List<BluebellCopy> = emptyList()
 }
-
-
-internal var defatulIosDestination: String = "src/iosMain/resources"
-internal var defaultAndroidDestination: String = "src/androidMain/assets"
 
 abstract class BluebellAsset @Inject constructor(val name: String) {
     var url: String? = null

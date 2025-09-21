@@ -9,21 +9,27 @@ import androidx.camera.core.ExperimentalGetImage
 import androidx.camera.core.ImageProxy
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.core.graphics.createBitmap
+import com.google.mediapipe.framework.image.BitmapImageBuilder
+import com.google.mediapipe.framework.image.MPImage
+import com.google.mediapipe.framework.image.MediaImageBuilder
+import com.google.mediapipe.tasks.vision.core.ImageProcessingOptions
 import com.micrantha.bluebell.platform.toByteArray
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
+import androidx.core.graphics.scale
 
 actual class CameraImage @kotlin.OptIn(ExperimentalTime::class) constructor(
     private var _image: Image? = null,
     private var _bitmap: Bitmap? = null,
     private var _width: Int,
     private var _height: Int,
-    private var _rotation: Int = 0,
+    private var _rotation: Int? = null,
     private var _timestamp: Long = Clock.System.now().epochSeconds,
     private var regionOfInterest: RectF? = null,
 ) {
 
     private var imageBitmapBuffer: Bitmap? = null
+    private var mediaImage: MPImage? = null
 
     actual val width get() = _width
     actual val height get() = _height
@@ -41,6 +47,7 @@ actual class CameraImage @kotlin.OptIn(ExperimentalTime::class) constructor(
         _image = image.image
         _bitmap = null
         imageBitmapBuffer = null
+        mediaImage = null
     }
 
     @kotlin.OptIn(ExperimentalTime::class)
@@ -58,30 +65,67 @@ actual class CameraImage @kotlin.OptIn(ExperimentalTime::class) constructor(
         _image = null
         _bitmap = bitmap
         imageBitmapBuffer = null
+        mediaImage = null
     }
 
     actual fun toImageBitmap() = toBitmap().asImageBitmap()
 
     actual fun toByteArray() = toBitmap().toByteArray()
 
+    val processingOptions: ImageProcessingOptions by lazy {
+        ImageProcessingOptions.builder().apply {
+            rotation?.let { setRotationDegrees(it) }
+            regionOfInterest?.let { setRegionOfInterest(it) }
+        }.build()
+    }
+
+    fun asMPImage(): MPImage {
+        if (mediaImage != null) return mediaImage!!
+
+        mediaImage = _image?.let {
+            MediaImageBuilder(it).build()
+        } ?: BitmapImageBuilder(toBitmap()).build()
+
+        return mediaImage!!
+    }
+
     fun toBitmap(): Bitmap {
         if (imageBitmapBuffer != null) return imageBitmapBuffer!!
 
-        val result = _image?.let { image ->
-            createBitmap(_width, _height).apply {
-                copyPixelsFromBuffer(
-                    image.planes[0].buffer
-                )
+        if (_bitmap != null) {
+            if (rotation == null) {
+                return _bitmap!!
             }
-        } ?: _bitmap?.let { bitmap ->
-            bitmap.copy(bitmap.config!!, true)
-        } ?: throw IllegalStateException("unable to convert image to bitmap")
+            return rotate(_bitmap!!.copy(_bitmap!!.config!!, true), rotation!!)
+        }
 
+        if (_image == null) throw IllegalStateException("unable to convert image to bitmap")
+
+        imageBitmapBuffer = createBitmap(_width, _height).apply {
+            copyPixelsFromBuffer(
+                _image!!.planes[0].buffer
+            )
+        }
+
+        if (rotation == null) return imageBitmapBuffer!!
+
+        return rotate(imageBitmapBuffer!!, rotation!!)
+    }
+
+    fun resize(width: Int, height: Int): CameraImage {
+        _width = width
+        _height = height
+        imageBitmapBuffer = toBitmap().scale(_width, _height, false)
+
+        return this
+    }
+
+    private fun rotate(bitmap: Bitmap, rotation: Int): Bitmap {
         val matrix = Matrix()
         matrix.postRotate(rotation.toFloat())
 
         imageBitmapBuffer = Bitmap.createBitmap(
-            result,
+            bitmap,
             0,
             0,
             _width,

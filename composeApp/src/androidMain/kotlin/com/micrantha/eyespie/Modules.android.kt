@@ -1,11 +1,13 @@
 package com.micrantha.eyespie
 
 import android.content.Context
-import com.micrantha.bluebell.domain.usecases.CurrentLocaleUseCase
 import com.micrantha.bluebell.get
 import com.micrantha.bluebell.platform.AndroidNetworkMonitor
 import com.micrantha.bluebell.platform.BackgroundDownloadManager
 import com.micrantha.bluebell.platform.Platform
+import com.micrantha.eyespie.platform.scan.analyzer.DetectCaptureAnalyzer
+import com.micrantha.eyespie.platform.scan.analyzer.DominantColorCaptureAnalyzer
+import com.micrantha.eyespie.platform.scan.analyzer.LabelCaptureAnalyzer
 import org.kodein.di.DI
 import org.kodein.di.bindFactory
 import org.kodein.di.bindInstance
@@ -21,7 +23,9 @@ fun androidDependencies(
 
     bindProviderOf(::AndroidNetworkMonitor)
 
-    bindProviderOf(::CurrentLocaleUseCase)
+    bindProviderOf(::LabelCaptureAnalyzer)
+    bindProviderOf(::DominantColorCaptureAnalyzer)
+    bindProviderOf(::DetectCaptureAnalyzer)
 
     bindFactory { namespace: String ->
         BackgroundDownloadManager(

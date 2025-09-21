@@ -1,19 +1,15 @@
 package com.micrantha.eyespie.features.scan.ui.capture
 
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.BoxWithConstraintsScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.sizeIn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.Camera
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material3.Icon
@@ -34,7 +30,7 @@ import com.micrantha.bluebell.ui.components.StateRenderer
 import com.micrantha.bluebell.ui.components.status.LoadingContent
 import com.micrantha.bluebell.ui.theme.Dimensions
 import com.micrantha.eyespie.core.ui.component.LocationEnabledEffect
-import com.micrantha.eyespie.platform.scan.CameraScanner
+import com.micrantha.eyespie.platform.scan.CameraCapture
 import dev.icerock.moko.permissions.Permission
 import dev.icerock.moko.permissions.PermissionsController
 import dev.icerock.moko.permissions.camera.CAMERA
@@ -69,10 +65,9 @@ class ScanCaptureScreen : Screen, StateRenderer<ScanUiState> {
         ) {
             when {
                 state.busy -> LoadingContent()
-                state.capture != null -> RenderCapture(state, dispatch)
+                // TODO: select regions and retry
                 else -> RenderCamera(state, dispatch)
             }
-
         }
     }
 }
@@ -94,64 +89,30 @@ private fun BoxWithConstraintsScope.RenderCamera(
             tint = MaterialTheme.colorScheme.surface
         )
     }
-    CameraScanner(
+    CameraCapture(
         modifier = Modifier.align(Alignment.TopCenter).fillMaxSize(),
-    ) {
-        dispatch.send(it)
-    }
-
-    Row(
-        modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = Dimensions.Padding.large)
-    ) {
-        IconButton(
-            modifier = Modifier.background(
-                MaterialTheme.colorScheme.surface.copy(alpha = 0.5f),
-                RoundedCornerShape(Dimensions.Border.mediumLarge)
-            ).sizeIn(Dimensions.touchable),
-            enabled = state.enabled,
-            onClick = { dispatch(ScanAction.SaveScan) }
-        ) {
-            Icon(
-                imageVector = Icons.Default.PhotoCamera,
-                tint = MaterialTheme.colorScheme.onSurface,
-                contentDescription = null
-            )
+        onCameraImage = { image ->
+            dispatch(image)
         }
-    }
-}
-
-@Composable
-private fun BoxWithConstraintsScope.RenderCapture(state: ScanUiState, dispatch: Dispatch) {
-    Image(
-        modifier = Modifier.align(Alignment.TopCenter).fillMaxSize(),
-        painter = state.capture!!,
-        contentDescription = null
-    )
-    RenderClues(state, dispatch)
-}
-
-@Composable
-private fun BoxWithConstraintsScope.RenderClues(state: ScanUiState, dispatch: Dispatch) {
-
-    Row(
-        modifier = Modifier.align(Alignment.BottomCenter).fillMaxWidth()
-            .padding(Dimensions.content),
-        horizontalArrangement = Arrangement.SpaceBetween
-    ) {
-
-        IconButton(
-            modifier = Modifier.background(
-                MaterialTheme.colorScheme.surface.copy(alpha = 0.5f),
-                RoundedCornerShape(Dimensions.content)
-            ),
-            enabled = state.enabled,
-            onClick = { dispatch(ScanAction.SaveScan) }
+    ) { action ->
+        Row(
+            modifier = Modifier.align(Alignment.BottomCenter)
+                .padding(bottom = Dimensions.Padding.large)
         ) {
-            Icon(
-                imageVector = Icons.Default.Camera,
-                tint = MaterialTheme.colorScheme.onSurface,
-                contentDescription = null
-            )
+            IconButton(
+                modifier = Modifier.background(
+                    MaterialTheme.colorScheme.surface.copy(alpha = 0.5f),
+                    RoundedCornerShape(Dimensions.Border.mediumLarge)
+                ).sizeIn(Dimensions.touchable),
+                enabled = state.enabled,
+                onClick = action
+            ) {
+                Icon(
+                    imageVector = Icons.Default.PhotoCamera,
+                    tint = MaterialTheme.colorScheme.onSurface,
+                    contentDescription = null
+                )
+            }
         }
     }
 }

@@ -9,15 +9,14 @@ import androidx.compose.ui.tooling.preview.Preview
 import com.micrantha.eyespie.core.PreviewContext
 import com.micrantha.eyespie.core.ui.component.Choice
 import com.micrantha.eyespie.domain.entities.Location
-import okio.Path.Companion.toOkioPath
-import java.nio.file.Paths
+import com.micrantha.eyespie.platform.scan.CameraImage
 
 @Preview(showBackground = true, backgroundColor = 0xFF, widthDp = 200, heightDp = 400)
 @Composable
 fun ScanEditPreview() = PreviewContext(
     state = ScanEditUiState(
         image = object : Painter() {
-            override val intrinsicSize = Size(200F, 400F)
+            override val intrinsicSize = Size(200F, 200F)
             override fun DrawScope.onDraw() {
                 drawRect(Color.Yellow)
             }
@@ -46,8 +45,8 @@ fun ScanEditPreview() = PreviewContext(
 ) {
     ScanEditScreen(
         it, ScanEditParams(
-            Paths.get(".").toOkioPath(),
-            Location()
+            image = CameraImage(_width = 200, _height = 200),
+            location = Location()
         )
     )
 }

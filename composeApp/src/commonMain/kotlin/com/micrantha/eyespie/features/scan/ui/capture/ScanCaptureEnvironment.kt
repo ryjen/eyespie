@@ -14,12 +14,10 @@ import com.micrantha.eyespie.features.scan.ui.capture.ScanAction.SaveScan
 import com.micrantha.eyespie.features.scan.ui.capture.ScanAction.ScanError
 import com.micrantha.eyespie.features.scan.ui.edit.ScanEditParams
 import com.micrantha.eyespie.features.scan.ui.edit.ScanEditScreen
-import com.micrantha.eyespie.features.scan.ui.usecase.TakeCaptureUseCase
 import com.micrantha.eyespie.platform.scan.CameraImage
 
 class ScanCaptureEnvironment(
     private val context: ScreenContext,
-    private val takeCaptureUseCase: TakeCaptureUseCase,
 ) : Reducer<ScanState>, Effect<ScanState>,
     Router by context.router,
     FileSystem by context.fileSystem,
@@ -28,18 +26,12 @@ class ScanCaptureEnvironment(
 
     override suspend fun invoke(action: Action, state: ScanState) {
         when (action) {
-
-            is SaveScan -> takeCaptureUseCase(
-                state.image!!
-            ).onSuccess { url ->
-                state.location?.let { location ->
-                    navigate(
-                        ScanEditScreen(context, ScanEditParams(url, location)),
-                        Router.Options.Replace
-                    )
-                }
-                dispatch(SaveScan)
-            }.onFailure {
+            is CameraImage -> try {
+                navigate(
+                    ScanEditScreen(context, ScanEditParams(action, state.location!!)),
+                    Router.Options.Replace
+                )
+            } catch (e: Throwable) {
                 dispatch(ScanError)
             }
 
@@ -48,7 +40,6 @@ class ScanCaptureEnvironment(
     }
 
     override fun reduce(state: ScanState, action: Action) = when (action) {
-        is CameraImage -> state.copy(image = action)
 
         is Location -> state.copy(
             location = action
