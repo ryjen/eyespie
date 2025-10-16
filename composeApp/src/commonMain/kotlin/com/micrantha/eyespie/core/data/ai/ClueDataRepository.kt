@@ -23,7 +23,7 @@ class ClueDataRepository(
     private val detectCaptureAnalyzer: DetectCaptureAnalyzer
 ) : ClueRepository {
 
-    override suspend fun generate(image: CameraImage): Result<Clues> = try {
+     suspend fun generateLegacy(image: CameraImage): Result<Clues> = try {
         withContext(Dispatchers.Default) {
             val colors = async {
                 colorCaptureAnalyzer.analyze(image).getOrThrow()
@@ -46,7 +46,7 @@ class ClueDataRepository(
         Result.failure(e)
     }
 
-    suspend fun generateFromAgent(image: CameraImage): Result<Clues> = try {
+    override suspend fun generate(image: CameraImage): Result<Clues> = try {
         val completion = agentLocalSource.generate(
             listOf(
                 cluePromptSource.cluesPrompt(),
@@ -63,9 +63,9 @@ class ClueDataRepository(
         }
 
         val clues = Clues(
-            colors = toolResults["colors"],
-            detections = toolResults["detect"],
-            labels = toolResults["labels"],
+            colors = toolResults["color"],
+            detections = toolResults["detected"],
+            labels = toolResults["label"],
         )
 
         Result.success(clues)

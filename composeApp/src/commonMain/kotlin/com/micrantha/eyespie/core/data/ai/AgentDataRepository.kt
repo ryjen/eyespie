@@ -31,10 +31,6 @@ class AgentDataRepository(
     }
 
     override suspend fun initialize(model: ModelFile?): Result<Unit> {
-        return llmLocalSource.init(model?.slug).mapCatching { result ->
-            if (result.not()) {
-                throw Throwable("LLM init failed")
-            }
-        }
+        return llmLocalSource.init(model?.slug)
     }
 }

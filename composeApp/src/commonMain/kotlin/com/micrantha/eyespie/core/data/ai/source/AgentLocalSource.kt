@@ -14,18 +14,22 @@ class AgentLocalSource(
     private val llm: CactusLM,
 ) {
     suspend fun init(model: String? = null) = try {
-        Result.success(
-            llm.initializeModel(
-                CactusInitParams(
-                    model = model
-                )
+        if (llm.initializeModel(
+            CactusInitParams(
+                model = model
             )
-        )
+        ).not()) {
+            throw IllegalStateException("Failed to initialize model")
+        }
+        Result.success(Unit)
     } catch (e: Throwable) {
         Result.failure(e)
     }
 
     suspend fun generate(prompts: List<AiPrompt>, tools: Map<String, AiTool<*, *>>) = try {
+        if (llm.isLoaded().not()) {
+            throw IllegalStateException("Model not loaded")
+        }
         val completion = llm.generateCompletion(
             prompts.map {
                 ChatMessage(
@@ -68,14 +72,6 @@ class AgentLocalSource(
         )
 
         Result.success(result)
-    } catch (e: Throwable) {
-        Result.failure(e)
-    }
-
-    suspend fun download() = try {
-        Result.success(
-            llm.downloadModel()
-        )
     } catch (e: Throwable) {
         Result.failure(e)
     }
