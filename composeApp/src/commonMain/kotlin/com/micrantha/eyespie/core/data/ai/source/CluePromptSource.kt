@@ -6,10 +6,16 @@ class CluePromptSource {
     fun cluesPrompt() = AiPrompt(
         role = "user",
         prompt = """
+            You are someone playing a game of "I Spy".
+            
             Find the following clues:
             - colors
             - classifications
             - detected objects
+            
+            Try to relate or rank the clues.  Generate a final proof of the best clues.  
+            Output as JSON with the following format:
+            {"colors": {data: string, confidence: number}, "classifications": {data: string, confidence: number}, "detections": {data: string, confidence: number}}
         """)
 
     fun rhymesPrompt(words: String) = AiPrompt(

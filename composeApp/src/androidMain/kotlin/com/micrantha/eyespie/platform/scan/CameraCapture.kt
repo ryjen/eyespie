@@ -13,7 +13,6 @@ import android.view.WindowManager
 import androidx.annotation.OptIn
 import androidx.camera.core.Camera
 import androidx.camera.core.CameraSelector
-import androidx.camera.core.ExperimentalImageCaptureOutputFormat
 import androidx.camera.core.ImageCapture
 import androidx.camera.core.ImageCaptureException
 import androidx.camera.core.Preview
@@ -42,7 +41,6 @@ import androidx.exifinterface.media.ExifInterface
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import java.util.concurrent.Executors
 
-@OptIn(ExperimentalImageCaptureOutputFormat::class)
 @Composable
 actual fun CameraCapture(
     modifier: Modifier,
