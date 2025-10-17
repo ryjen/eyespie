@@ -66,12 +66,6 @@ class PreviewContext(
             fs.createDirectories(path)
             return path
         }
-
-        override fun modelsPath(): Path {
-            val path = "/models".toPath()
-            fs.createDirectories(path)
-            return path
-        }
     }
 
     override val di: DI = androidDependencies(context)

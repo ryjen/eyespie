@@ -12,7 +12,7 @@ import com.micrantha.eyespie.platform.scan.CameraImage
 import okio.Path
 
 data class ScanEditParams(
-    val image: CameraImage,
+    val image: Path,
     val location: Location
 )
 

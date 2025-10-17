@@ -9,7 +9,7 @@ import androidx.compose.ui.tooling.preview.Preview
 import com.micrantha.eyespie.core.PreviewContext
 import com.micrantha.eyespie.core.ui.component.Choice
 import com.micrantha.eyespie.domain.entities.Location
-import com.micrantha.eyespie.platform.scan.CameraImage
+import okio.Path.Companion.toPath
 
 @Preview(showBackground = true, backgroundColor = 0xFF, widthDp = 200, heightDp = 400)
 @Composable
@@ -45,7 +45,7 @@ fun ScanEditPreview() = PreviewContext(
 ) {
     ScanEditScreen(
         it, ScanEditParams(
-            image = CameraImage(_width = 200, _height = 200),
+            image = "some/image".toPath(),
             location = Location()
         )
     )

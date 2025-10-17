@@ -51,14 +51,4 @@ actual class Platform(
     actual override fun filesPath(): Path {
         return context.applicationContext.filesDir.absolutePath.toPath()
     }
-
-    actual override fun modelsPath(): Path {
-        val path = context.applicationContext.cacheDir.resolve("models")
-        if (!path.mkdir()) {
-            if (!path.exists() || !path.isDirectory) {
-                throw IllegalStateException("Failed to create models directory")
-            }
-        }
-        return path.absolutePath.toPath()
-    }
 }

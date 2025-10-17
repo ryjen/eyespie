@@ -1,17 +1,12 @@
 package com.micrantha.eyespie.core
 
-import com.cactus.CactusLM
 import com.micrantha.eyespie.core.data.account.AccountDataRepository
 import com.micrantha.eyespie.core.data.account.mapping.AccountDomainMapper
 import com.micrantha.eyespie.core.data.account.model.CurrentSession
 import com.micrantha.eyespie.core.data.account.source.AccountRemoteSource
-import com.micrantha.eyespie.core.data.ai.AgentDataRepository
 import com.micrantha.eyespie.core.data.ai.ClueDataRepository
 import com.micrantha.eyespie.core.data.ai.mapping.ClueDataMapper
-import com.micrantha.eyespie.core.data.ai.source.AgentLocalSource
 import com.micrantha.eyespie.core.data.ai.source.CluePromptSource
-import com.micrantha.eyespie.core.data.ai.source.ModelSource
-import com.micrantha.eyespie.core.data.ai.source.ToolSource
 import com.micrantha.eyespie.core.data.client.SupaClient
 import com.micrantha.eyespie.core.data.client.SupaRealtimeClient
 import com.micrantha.eyespie.core.data.storage.StorageDataRepository
@@ -53,15 +48,9 @@ internal fun module() = DI.Module("Core Feature") {
     bindProviderOf(::RealtimeRemoteSource)
     bindProviderOf(::RealtimeDomainMapper)
 
-    bindProviderOf(::AgentDataRepository)
     bindProviderOf(::ClueDataRepository)
     bindProviderOf(::ClueDataMapper)
-    bindProviderOf(::ModelSource)
-    bindProviderOf(::ToolSource)
-    bindProviderOf(::AgentLocalSource)
     bindProviderOf(::CluePromptSource)
-
-    bindSingleton { CactusLM() }
 
     delegate<LocationLocalSource>().to<LocationTracker>()
 }

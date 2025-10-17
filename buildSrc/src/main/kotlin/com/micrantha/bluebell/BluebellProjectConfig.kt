@@ -102,7 +102,6 @@ fun Project.configureBuilds(config: BluebellConfig, assets: BluebellAssets) {
             generateSource(generateTask.get())
         }
     }
-
 }
 
 private fun generatedExtensionSourceCode(config: BluebellConfig, entries: List<String>) = """

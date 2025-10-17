@@ -29,7 +29,7 @@ abstract class BluebellAssets @Inject constructor(objects: ObjectFactory) {
     var downloads = objects.domainObjectContainer(BluebellAsset::class)
     fun runtimeDownloads() = downloads.filter { it.isBundled.not() }
     fun bundledDownloads() = downloads.filter { it.isBundled }
-    val copies: List<BluebellCopy> = emptyList()
+    val files = objects.domainObjectContainer(BluebellCopy::class)
 }
 
 abstract class BluebellAsset @Inject constructor(val name: String) {
@@ -46,8 +46,7 @@ data class BluebellDownload<T>(
     val ios: T? = null,
 )
 
-data class BluebellCopy(
-    val source: String,
-    val destination: String,
-    val id: String
-)
+abstract class BluebellCopy @Inject constructor(val name: String) {
+    var source: String? = null
+    var isLink: Boolean = true
+}

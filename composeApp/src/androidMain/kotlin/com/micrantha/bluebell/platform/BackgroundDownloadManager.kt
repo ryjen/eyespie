@@ -4,7 +4,6 @@ import android.content.Context
 import android.util.Log
 import com.micrantha.bluebell.domain.security.sha256
 import com.micrantha.eyespie.BuildConfig
-import com.micrantha.eyespie.core.data.ai.source.modelPath
 import com.micrantha.eyespie.domain.entities.UrlFile
 import com.tonyodev.fetch2.AbstractFetchListener
 import com.tonyodev.fetch2.DefaultFetchNotificationManager
@@ -50,7 +49,7 @@ class BackgroundDownloadManager(
             KEY_CHECKSUM to url.checksum
         )
 
-        val filePath = platform.modelPath(url)
+        val filePath = platform.filesPath(url)
 
         val request = Request(
             url = url.location,

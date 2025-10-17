@@ -2,15 +2,14 @@ package com.micrantha.eyespie.platform.scan
 
 import android.content.ContentValues
 import android.content.Context
-import android.graphics.BitmapFactory
 import android.hardware.display.DisplayManager
+import android.net.Uri
 import android.os.Build
 import android.provider.MediaStore
 import android.util.Size
 import android.view.ScaleGestureDetector
 import android.view.ScaleGestureDetector.SimpleOnScaleGestureListener
 import android.view.WindowManager
-import androidx.annotation.OptIn
 import androidx.camera.core.Camera
 import androidx.camera.core.CameraSelector
 import androidx.camera.core.ImageCapture
@@ -33,12 +32,15 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Rect
-import androidx.compose.ui.graphics.toAndroidRectF
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.exifinterface.media.ExifInterface
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import okio.Path
+import okio.Path.Companion.toPath
+import java.io.File
+import java.io.FileOutputStream
 import java.util.concurrent.Executors
 
 @Composable
@@ -46,7 +48,7 @@ actual fun CameraCapture(
     modifier: Modifier,
     regionOfInterest: Rect?,
     onCameraError: (Throwable) -> Unit,
-    onCameraImage: (CameraImage) -> Unit,
+    onCameraImage: (Path) -> Unit,
     captureButton: @Composable (() -> Unit) -> Unit
 ) {
     val lifecycleOwner = LocalLifecycleOwner.current
@@ -152,25 +154,7 @@ actual fun CameraCapture(
                 }
 
                 override fun onImageSaved(outputFileResults: ImageCapture.OutputFileResults) {
-                    val rotation = context.contentResolver.openInputStream(outputFileResults.savedUri!!).use {
-                        val exif = ExifInterface(it!!)
-                        exif.getAttributeInt(
-                            ExifInterface.TAG_ORIENTATION,
-                            ExifInterface.ORIENTATION_UNDEFINED
-                        )
-                    }
-                    val image = context.contentResolver.openInputStream(outputFileResults.savedUri!!).use {
-                        BitmapFactory.decodeStream(it)
-                    }
-                    onCameraImage(
-                        CameraImage(
-                            _bitmap = image,
-                            _width = image.width,
-                            _height = image.height,
-                            _rotation = exifOrientationToDegrees(rotation),
-                            regionOfInterest = regionOfInterest?.toAndroidRectF()
-                        )
-                    )
+                    onCameraImage(context.saveImageToPath(outputFileResults.savedUri!!))
                 }
             }
         )
@@ -196,6 +180,17 @@ private fun Context.getDisplayRotation(): Int {
         wm.defaultDisplay.rotation
     }
 }
+
+fun Context.saveImageToPath(uri: Uri): Path {
+    val destinationFile = File.createTempFile("camera", "capture", cacheDir)
+    contentResolver.openInputStream(uri)?.use { input ->
+        FileOutputStream(destinationFile).use { output ->
+            input.copyTo(output)
+        }
+    }
+    return destinationFile.absolutePath.toPath()
+}
+
 
 
 private fun createCameraUseCases(

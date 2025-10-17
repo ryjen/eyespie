@@ -4,6 +4,7 @@ import com.github.gmazzo.buildconfig.BuildConfigExtension
 import org.gradle.api.Project
 import java.io.File
 import java.net.URI
+import java.nio.file.Files
 
 internal val defaultSharedDestination = "src/commonMain/resources"
 internal val defaultIosDestination: String = "src/iosMain/resources"
@@ -138,15 +139,31 @@ internal fun Project.downloadBuildAssets(assets: BluebellAssets) {
 
 internal fun Project.copyAssets(assets: BluebellAssets) {
 
-    for (file in assets.copies) {
-        val from = File(projectDir.path, file.source)
+    for (file in assets.files) {
+        val from = File(projectDir.path, file.source!!)
 
         if (from.exists().not()) {
             logger.warn("Asset ${from.path} does not exist, skipping")
             continue
         }
-        val to = File(projectDir.path, file.destination)
+        val iosOutput by lazy {
+            projectDir.resolve(defaultIosDestination).resolve(from.name)
+        }
+        val androidOutput by lazy {
+            projectDir.resolve(defaultAndroidDestination).resolve(from.name)
+        }
+        if (file.isLink) {
+            if (iosOutput.exists().not()) {
+                Files.createSymbolicLink(iosOutput.toPath(), from.toPath())
+            }
+            if (androidOutput.exists().not()) {
+                Files.createSymbolicLink(androidOutput.toPath(), from.toPath())
+            }
+        } else {
+            from.copyTo(iosOutput, true)
+            from.copyTo(androidOutput, true)
+        }
+        logger.lifecycle("> ${from.name} added to resources")
 
-        from.copyTo(to, true)
     }
 }
