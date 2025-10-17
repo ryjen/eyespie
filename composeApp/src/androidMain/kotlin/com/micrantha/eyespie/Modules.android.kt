@@ -4,7 +4,9 @@ import android.content.Context
 import com.micrantha.bluebell.get
 import com.micrantha.bluebell.platform.AndroidNetworkMonitor
 import com.micrantha.bluebell.platform.BackgroundDownloadManager
+import com.micrantha.bluebell.platform.GenAI
 import com.micrantha.bluebell.platform.Platform
+import com.micrantha.eyespie.platform.scan.LoadCameraImageUseCase
 import com.micrantha.eyespie.platform.scan.analyzer.DetectCaptureAnalyzer
 import com.micrantha.eyespie.platform.scan.analyzer.DominantColorCaptureAnalyzer
 import com.micrantha.eyespie.platform.scan.analyzer.LabelCaptureAnalyzer
@@ -26,6 +28,12 @@ fun androidDependencies(
     bindProviderOf(::LabelCaptureAnalyzer)
     bindProviderOf(::DominantColorCaptureAnalyzer)
     bindProviderOf(::DetectCaptureAnalyzer)
+
+    bindProviderOf(::BackgroundDownloadManager)
+
+    bindProviderOf(::LoadCameraImageUseCase)
+
+    bindSingletonOf(::GenAI)
 
     bindFactory { namespace: String ->
         BackgroundDownloadManager(

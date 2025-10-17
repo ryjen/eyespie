@@ -8,16 +8,12 @@ import com.micrantha.bluebell.arch.StateMapper
 import com.micrantha.bluebell.domain.repository.LocalizedRepository
 import com.micrantha.bluebell.ui.screen.ScreenContext
 import com.micrantha.eyespie.app.ui.usecase.LoadMainUseCase
-import com.micrantha.eyespie.domain.repository.AiRepository
 import com.micrantha.eyespie.features.onboarding.data.OnboardingRepository
-import com.micrantha.eyespie.features.onboarding.usecase.DownloadModelsUseCase
 
 class OnboardingEnvironment(
     private val context: ScreenContext,
     private val onboardingRepository: OnboardingRepository,
-    private val downloadModelsUseCase: DownloadModelsUseCase,
     private val loadMainUseCase: LoadMainUseCase,
-    private val aiRepository: AiRepository
 ) : Reducer<OnboardingState>, Effect<OnboardingState>,
     LocalizedRepository by context.i18n, Dispatcher by context.dispatcher {
 
@@ -27,26 +23,20 @@ class OnboardingEnvironment(
     ): OnboardingState = when (action) {
         is OnboardingAction.Error -> state.copy(
             error = action.error,
-            isDownloading = false
+            isInitializing = false
+        )
+
+        is OnboardingAction.StartGenAI -> state.copy(
+            isInitializing = true,
+            error = null,
         )
 
         is OnboardingAction.PageChanged -> state.copy(
             page = OnboardingPage.entries[action.page]
         )
 
-        is OnboardingAction.LoadedModels -> state.copy(
-            models = action.models,
-            isDownloading = false,
-        )
-
-        is OnboardingAction.SelectedModel -> state.copy(
-            selectedModel = action.model,
-            isDownloading = true,
-            error = null
-        )
-
         is OnboardingAction.Done -> state.copy(
-            isDownloading = false
+            isInitializing = false
         )
 
         else -> state
@@ -57,33 +47,15 @@ class OnboardingEnvironment(
         state: OnboardingState
     ) {
         when (action) {
-            is OnboardingAction.Init -> {
-                aiRepository.listModels().onSuccess {
-                    dispatch(OnboardingAction.LoadedModels(it))
-                }.onFailure {
-                    dispatch(OnboardingAction.Error(it))
-                }
-            }
-
-            is OnboardingAction.Download -> {
-                downloadModelsUseCase().onSuccess {
-                    dispatch(OnboardingAction.NextPage)
-                }.onFailure {
-                    dispatch(OnboardingAction.Error(it))
-                }
-            }
-
-            is OnboardingAction.SelectedModel -> {
-                aiRepository.downloadModel(action.model).onSuccess {
-                    dispatch(OnboardingAction.Done)
-                }.onFailure {
-                    dispatch(OnboardingAction.Error(it))
-                }
+            is OnboardingAction.StartGenAI -> {
+               onboardingRepository.setHasGenAI()
             }
 
             is OnboardingAction.Done -> {
                 onboardingRepository.setHasRunOnce()
-                loadMainUseCase()
+                loadMainUseCase().onFailure {
+                    dispatch(OnboardingAction.Error(it))
+                }
             }
 
             is OnboardingAction.NextPage -> {
@@ -103,11 +75,9 @@ class OnboardingEnvironment(
 
     companion object : StateMapper<OnboardingState, OnboardingUiState> {
         override fun map(state: OnboardingState) = OnboardingUiState(
-            isBusy = state.isDownloading,
+            isBusy = state.isInitializing,
             isError = state.error != null,
             page = state.page,
-            models = state.models,
-            selectedModel = state.selectedModel
         )
     }
 }

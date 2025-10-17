@@ -33,8 +33,8 @@ class LoadSessionPlayerUseCase(
         session: Session, onError: (Throwable) -> Unit = {
             context.navigate<LoginScreen>(Router.Options.Replace)
         }
-    ) {
-        invoke(session).onFailure {
+    ): Result<Player?> {
+        return invoke(session).onFailure {
             onError(it)
         }.onSuccess {
             if (it == null) {

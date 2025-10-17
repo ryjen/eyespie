@@ -94,7 +94,6 @@ kotlin {
 
             implementation(libs.datastore)
             implementation(libs.datastore.preferences)
-            implementation(libs.cactus.library)
 
             //implementation("ca.rmen:rhymer:1.2.0")
 
@@ -237,6 +236,11 @@ bluebell {
         )
     }
     assets {
+        files {
+            create("gemma3") {
+                source = "../models/gemma3-1b-it-int4.litertlm"
+            }
+        }
         downloads {
             create("classification_efficientnet_lite.tflite") {
                 url =

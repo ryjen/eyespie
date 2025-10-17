@@ -1,20 +1,24 @@
 package com.micrantha.bluebell.platform
 
+import com.micrantha.bluebell.domain.security.sha256
+import com.micrantha.eyespie.domain.entities.UrlFile
 import okio.FileSystem
 import okio.Path
 import okio.SYSTEM
 import okio.buffer
 import okio.use
 
+fun UrlFile.filename() = sha256(location)
+
 interface FileSystem {
 
     fun filesPath(): Path
 
-    fun modelsPath(): Path
-
     fun fileExists(path: Path): Boolean {
         return FileSystem.SYSTEM.exists(path)
     }
+
+    fun filesPath(file: UrlFile) = filesPath().resolve(file.filename())
 
     fun fileWrite(path: Path, data: ByteArray) {
         FileSystem.SYSTEM.sink(path).use { sink ->

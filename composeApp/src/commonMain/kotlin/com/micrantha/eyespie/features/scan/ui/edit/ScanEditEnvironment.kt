@@ -30,12 +30,15 @@ import com.micrantha.eyespie.features.scan.ui.edit.ScanEditAction.NameChanged
 import com.micrantha.eyespie.features.scan.ui.edit.ScanEditAction.SaveScanEdit
 import com.micrantha.eyespie.features.scan.ui.edit.ScanEditAction.SaveThingError
 import com.micrantha.eyespie.features.scan.usecase.UploadCaptureUseCase
+import com.micrantha.eyespie.platform.scan.CameraImage
+import com.micrantha.eyespie.platform.scan.LoadCameraImageUseCase
 
 class ScanEditEnvironment(
     private val context: ScreenContext,
     private val uploadCaptureUseCase: UploadCaptureUseCase,
     private val clueRepository: ClueRepository,
     private val currentSession: CurrentSession,
+    private val loadCameraImageUseCase: LoadCameraImageUseCase
 ) : Reducer<ScanEditState>, Effect<ScanEditState>,
     StateMapper<ScanEditState, ScanEditUiState>,
     Dispatcher by context.dispatcher,
@@ -43,9 +46,13 @@ class ScanEditEnvironment(
 
     override fun reduce(state: ScanEditState, action: Action) = when (action) {
         is Init -> state.copy(
-            image = action.params.image,
+            path = action.params.image,
             location = action.params.location,
             hasAI = true //aiRepository.isReady()
+        )
+
+        is CameraImage -> state.copy(
+            image = action
         )
 
         is LabelClue -> state.copy(
@@ -97,12 +104,19 @@ class ScanEditEnvironment(
     override suspend fun invoke(action: Action, state: ScanEditState) {
         when (action) {
             is Init -> {
-                clueRepository.generate(state.image!!).onSuccess {
-                    dispatch(ScanEditAction.AnalyzedClues(it))
+                loadCameraImageUseCase(state.path!!).onSuccess {
+                    dispatch(it)
                 }.onFailure {
                     dispatch(LoadError)
                 }
             }
+
+            is CameraImage ->
+                clueRepository.generate(state.path!!).onSuccess {
+                    dispatch(ScanEditAction.AnalyzedClues(it))
+                }.onFailure {
+                    dispatch(LoadError)
+                }
 
             is SaveScanEdit -> uploadCaptureUseCase(
                 state.asProof()

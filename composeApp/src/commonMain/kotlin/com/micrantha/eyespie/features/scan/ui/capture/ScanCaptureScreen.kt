@@ -91,8 +91,8 @@ private fun BoxWithConstraintsScope.RenderCamera(
     }
     CameraCapture(
         modifier = Modifier.align(Alignment.TopCenter).fillMaxSize(),
-        onCameraImage = { image ->
-            dispatch(image)
+        onCameraImage = { path ->
+            dispatch(path)
         }
     ) { action ->
         Row(
