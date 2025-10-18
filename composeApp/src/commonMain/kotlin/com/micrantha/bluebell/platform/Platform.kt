@@ -1,8 +1,6 @@
 package com.micrantha.bluebell.platform
 
 import com.micrantha.bluebell.domain.repository.LocalizedRepository
-import com.micrantha.bluebell.domain.security.sha256
-import com.micrantha.eyespie.domain.entities.UrlFile
 import okio.BufferedSource
 import okio.Path
 

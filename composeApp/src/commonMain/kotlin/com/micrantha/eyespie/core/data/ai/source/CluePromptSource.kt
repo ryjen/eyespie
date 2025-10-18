@@ -16,7 +16,8 @@ class CluePromptSource {
             Try to relate or rank the clues.  Generate a final proof of the best clues.  
             Output as JSON with the following format:
             {"colors": {data: string, confidence: number}, "labels": {data: string, confidence: number}, "detections": {data: string, confidence: number}}
-        """)
+        """
+    )
 
     fun rhymesPrompt(words: String) = AiPrompt(
         role = "user",
@@ -40,6 +41,7 @@ class CluePromptSource {
 
             Generate a final proof of the best clues.  Try to relate or rank the clues.
             Output as JSON with the following format:
-        """)
+        """
+    )
 
 }

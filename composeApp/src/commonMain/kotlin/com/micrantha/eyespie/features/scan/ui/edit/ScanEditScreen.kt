@@ -97,7 +97,8 @@ class ScanEditScreen(
         ) {
             state.image?.let {
                 Image(
-                    modifier = Modifier.align(Alignment.CenterHorizontally).sequentialFieldPadding(),
+                    modifier = Modifier.align(Alignment.CenterHorizontally)
+                        .sequentialFieldPadding(),
                     painter = it,
                     contentDescription = null,
                 )
@@ -184,5 +185,6 @@ class ScanEditScreen(
         }
     }
 
-    fun Modifier.sequentialFieldPadding() = padding(horizontal = Dimensions.content).padding(top = Dimensions.content)
+    fun Modifier.sequentialFieldPadding() =
+        padding(horizontal = Dimensions.content).padding(top = Dimensions.content)
 }

@@ -1,6 +1,7 @@
 package com.micrantha.bluebell
 
 import org.gradle.api.Action
+import org.gradle.api.logging.Logger
 import org.gradle.api.model.ObjectFactory
 import javax.inject.Inject
 
@@ -24,4 +25,8 @@ open class BluebellExtension @Inject constructor(
     fun graphql(action: Action<GraphqlConfig>) {
         action.execute(graphql)
     }
+}
+
+fun Logger.bluebell(message: Any, type: (String?) -> Unit = ::lifecycle) {
+    type("> Bluebell: $message")
 }

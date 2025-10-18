@@ -19,22 +19,23 @@ actual class LoadCameraImageUseCase(
             BitmapFactory.decodeStream(it)
         }
         val result = CameraImage(
-                _bitmap = image,
-                _width = image.width,
-                _height = image.height,
-                _rotation = exifOrientationToDegrees(rotation),
-                regionOfInterest = regionOfInterest?.toAndroidRectF()
+            _bitmap = image,
+            _width = image.width,
+            _height = image.height,
+            _rotation = exifOrientationToDegrees(rotation),
+            regionOfInterest = regionOfInterest?.toAndroidRectF()
         )
         Result.success(result)
     } catch (err: Throwable) {
         Result.failure(err)
     }
 
-    private fun getCameraImageRotation(uri: Uri) = context.contentResolver.openInputStream(uri).use {
-        val exif = ExifInterface(it!!)
-        exif.getAttributeInt(
-            ExifInterface.TAG_ORIENTATION,
-            ExifInterface.ORIENTATION_UNDEFINED
-        )
-    }
+    private fun getCameraImageRotation(uri: Uri) =
+        context.contentResolver.openInputStream(uri).use {
+            val exif = ExifInterface(it!!)
+            exif.getAttributeInt(
+                ExifInterface.TAG_ORIENTATION,
+                ExifInterface.ORIENTATION_UNDEFINED
+            )
+        }
 }

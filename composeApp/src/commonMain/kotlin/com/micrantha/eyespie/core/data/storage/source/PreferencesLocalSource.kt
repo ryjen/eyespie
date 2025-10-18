@@ -17,5 +17,6 @@ class PreferencesLocalSource(private val platform: Platform) {
 
     operator fun get(key: String) = dataStore.data.map { it[stringPreferencesKey(key)] }
 
-    suspend operator fun set(key: String, value: String) = dataStore.edit { it[stringPreferencesKey(key)] = value }
+    suspend operator fun set(key: String, value: String) =
+        dataStore.edit { it[stringPreferencesKey(key)] = value }
 }

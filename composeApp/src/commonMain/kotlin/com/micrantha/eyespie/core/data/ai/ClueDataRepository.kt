@@ -25,19 +25,23 @@ class ClueDataRepository(
 
     override fun generate(image: Path): Result<Clues> {
         val prompt = cluePromptSource.cluesPrompt()
-        return llm.generate(GenAIRequest(
-            prompt = prompt.prompt,
-            images = listOf(image.toString())
-        )).map {
+        return llm.generate(
+            GenAIRequest(
+                prompt = prompt.prompt,
+                images = listOf(image.toString())
+            )
+        ).map {
             Json.decodeFromString(it)
         }
     }
 
     override fun infer(image: Path): Flow<Clues> {
         val prompt = cluePromptSource.cluesPrompt()
-        return llm.generateFlow(GenAIRequest(
-            prompt = prompt.prompt,
-            images = listOf(image.toString())
-        )).map { Json.decodeFromString(it) }
+        return llm.generateFlow(
+            GenAIRequest(
+                prompt = prompt.prompt,
+                images = listOf(image.toString())
+            )
+        ).map { Json.decodeFromString(it) }
     }
 }

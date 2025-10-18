@@ -77,7 +77,8 @@ abstract class DetectAnalyzer(private val context: Context) : DetectionAnalyzerC
         return result.detections().flatMap(::detect).toSet()
     }
 
-    private fun detect(obj: Detection) = obj.categories().map { LabelClue(it.categoryName(), it.score()) }.toSet()
+    private fun detect(obj: Detection) =
+        obj.categories().map { LabelClue(it.categoryName(), it.score()) }.toSet()
 
     override fun client(block: ObjectDetectorOptions.Builder.() -> Unit): ObjectDetector {
         val options = ObjectDetectorOptions.builder()

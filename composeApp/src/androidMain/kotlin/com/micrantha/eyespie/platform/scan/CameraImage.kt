@@ -9,6 +9,7 @@ import androidx.camera.core.ExperimentalGetImage
 import androidx.camera.core.ImageProxy
 import androidx.compose.ui.graphics.asImageBitmap
 import androidx.core.graphics.createBitmap
+import androidx.core.graphics.scale
 import com.google.mediapipe.framework.image.BitmapImageBuilder
 import com.google.mediapipe.framework.image.MPImage
 import com.google.mediapipe.framework.image.MediaImageBuilder
@@ -16,7 +17,6 @@ import com.google.mediapipe.tasks.vision.core.ImageProcessingOptions
 import com.micrantha.bluebell.platform.toByteArray
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
-import androidx.core.graphics.scale
 
 actual class CameraImage @kotlin.OptIn(ExperimentalTime::class) constructor(
     private var _image: Image? = null,
