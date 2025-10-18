@@ -7,7 +7,7 @@ import java.io.File
 import java.io.FileInputStream
 import java.util.Properties
 
-fun BluebellConfig.loadConfigFromEnvironment(): Result<Map<String, String>> {
+internal fun BluebellConfig.loadConfigFromEnvironment(manifestName: String?): Result<Map<String, String>> {
     try {
         val properties = Properties()
         FileInputStream(envFile).use { fileInputStream ->
@@ -15,6 +15,7 @@ fun BluebellConfig.loadConfigFromEnvironment(): Result<Map<String, String>> {
         }
         val config = properties.entries.associate { (key, value) -> key.toString() to "\"$value\"" }
             .toMutableMap().apply {
+                manifestName?.let { this["ASSET_MANIFEST"] = "\"$it\"" }
                 defaultedKeys.filterNot { containsKey(it) }.forEach {
                     this[it] = "null"
                 }
@@ -25,12 +26,12 @@ fun BluebellConfig.loadConfigFromEnvironment(): Result<Map<String, String>> {
     }
 }
 
-fun Project.configureBuilds(config: BluebellConfig, assets: BluebellAssets) {
+internal fun Project.configureBuilds(config: BluebellConfig, manifestName: String?) {
 
-    config.properties = config.loadConfigFromEnvironment().getOrDefault(emptyMap())
+    config.properties = config.loadConfigFromEnvironment(manifestName).getOrDefault(emptyMap())
 
     val requiredKeyError = { key: String ->
-        logger.error("> Missing '$key' in ${config.envFile}")
+        logger.bluebell("Missing '$key' in ${config.envFile}", logger::error)
         logger.error("${config.envFile} must contain the following variables:")
         config.requiredKeys.forEach { logger.error("  - $it") }
         error("missing key '$key' in ${config.envFile}")
@@ -40,11 +41,6 @@ fun Project.configureBuilds(config: BluebellConfig, assets: BluebellAssets) {
         val entries =
             config.properties.entries.map { "\"${it.key}\" to ${config.className}.${it.key}" }
                 .toMutableList()
-
-        assets.runtimeDownloads().forEachIndexed { i, _ ->
-            entries.add("\"MODEL_${i}_NAME\" to ${config.className}.MODEL_${i}_NAME")
-            entries.add("\"MODEL_${i}_URL\" to ${config.className}.MODEL_${i}_URL")
-        }
 
         val outputDir = task.outputDir.dir(
             config.packageName.replace(".", File.separator)
@@ -56,7 +52,7 @@ fun Project.configureBuilds(config: BluebellConfig, assets: BluebellAssets) {
 
         // Example code generation logic
         sourceFile.writeText(generatedExtensionSourceCode(config, entries))
-        logger.lifecycle("> Generated config extensions")
+        logger.bluebell("Generated config extensions")
     }
 
     extensions.configure(BuildConfigExtension::class.java) {
@@ -67,7 +63,7 @@ fun Project.configureBuilds(config: BluebellConfig, assets: BluebellAssets) {
         val configureBuild = {
             config.expectedKeys.forEach { key ->
                 if (config.properties.containsKey(key).not()) {
-                    logger.warn("> Missing key '$key' in ${config.envFile}")
+                    logger.bluebell("Missing key '$key' in ${config.envFile}", logger::warn)
                 }
             }
 
@@ -78,10 +74,10 @@ fun Project.configureBuilds(config: BluebellConfig, assets: BluebellAssets) {
             }
 
             config.properties.forEach { (key, value) ->
-                buildConfigField("String?", key, value)
+                buildConfigField(if (value == "null") "String?" else "String", key, value)
             }
 
-            logger.lifecycle("> Generated ${config.packageName}.${config.className}")
+            logger.bluebell("Generated ${config.packageName}.${config.className}")
         }
 
         val configTask = tasks.register("generateBluebellConfig") {

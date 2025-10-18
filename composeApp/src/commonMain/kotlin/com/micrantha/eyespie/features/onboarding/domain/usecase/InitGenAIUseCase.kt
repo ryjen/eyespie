@@ -1,19 +1,20 @@
-package com.micrantha.bluebell.domain.usecase
+package com.micrantha.eyespie.features.onboarding.domain.usecase
 
+import com.micrantha.bluebell.domain.usecase.useCase
 import com.micrantha.bluebell.platform.GenAI
 import com.micrantha.bluebell.platform.GenAIConfig
 
 class InitGenAIUseCase(
     private val llm: GenAI
 ) {
-    operator fun invoke(): Result<Unit> = try {
+    operator fun invoke(fileName: String): Result<Unit> = useCase {
         llm.initialize(
             GenAIConfig(
-                modelPath = "gemma3-1b-it-int4.litertlm",
+                modelPath = fileName,
                 maxTopK = null,
                 maxNumImages = null,
                 maxTokens = null,
-                visionAdapterPath = "classification_efficientnet_lite.tflite",
+                visionAdapterPath = null,
                 visionEncoderPath = null
             )
         ).getOrThrow()
@@ -27,7 +28,5 @@ class InitGenAIUseCase(
                 enableVisionModality = true
             )
         )
-    } catch (err: Throwable) {
-        Result.failure(err)
     }
 }

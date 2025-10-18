@@ -1,5 +1,6 @@
 plugins {
     `kotlin-dsl`
+    alias(libs.plugins.kotlinSerialization)
 }
 
 repositories {
@@ -14,4 +15,6 @@ dependencies {
     implementation(gradleApi())
     implementation(localGroovy())
     implementation(libs.build.config)
+    implementation(libs.kotlinx.serialization.json)
+    implementation(libs.kotlinx.coroutines.core)
 }

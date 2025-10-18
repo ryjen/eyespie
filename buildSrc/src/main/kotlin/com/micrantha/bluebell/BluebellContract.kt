@@ -1,5 +1,7 @@
 package com.micrantha.bluebell
 
+import org.gradle.api.Action
+import org.gradle.api.NamedDomainObjectContainer
 import org.gradle.api.model.ObjectFactory
 import org.gradle.kotlin.dsl.domainObjectContainer
 import javax.inject.Inject
@@ -25,28 +27,80 @@ open class GraphqlConfig {
     var headers: Map<String, String> = emptyMap()
 }
 
-abstract class BluebellAssets @Inject constructor(objects: ObjectFactory) {
-    var downloads = objects.domainObjectContainer(BluebellAsset::class)
-    fun runtimeDownloads() = downloads.filter { it.isBundled.not() }
-    fun bundledDownloads() = downloads.filter { it.isBundled }
-    val files = objects.domainObjectContainer(BluebellCopy::class)
+abstract class BluebellAssets @Inject constructor(private val objects: ObjectFactory) {
+    var manifest: String? = null
+    internal val downloads = objects.domainObjectContainer(BluebellDownload::class)
+    internal val copies: NamedDomainObjectContainer<BluebellAsset> =
+        objects.domainObjectContainer(BluebellAsset::class)
+    internal val links: NamedDomainObjectContainer<BluebellAsset> =
+        objects.domainObjectContainer(BluebellAsset::class)
+
+    private val copyBuilder = BluebellAssetBuilder(copies, objects)
+    private val linkBuilder = BluebellAssetBuilder(links, objects)
+    private val downloadBuilder = BluebellDownloadBuilder(downloads, objects)
+
+    fun copies(action: Action<in BluebellAssetBuilder>) {
+        action.execute(copyBuilder)
+    }
+
+    fun links(action: Action<in BluebellAssetBuilder>) {
+        action.execute(linkBuilder)
+    }
+
+    fun downloads(action: Action<in BluebellDownloadBuilder>) {
+        action.execute(downloadBuilder)
+    }
 }
 
-abstract class BluebellAsset @Inject constructor(val name: String) {
-    var url: String? = null
-    var androidUrl: String? = null
-    var iosUrl: String? = null
-    var isBundled: Boolean = false
-    var checksum: String? = null
+sealed class BluebellAsset(val name: String) {
+    open class IosAsset @Inject constructor(name: String) : BluebellAsset(name)
+    open class AndroidAsset @Inject constructor(name: String) : BluebellAsset(name)
+    open class SharedAsset @Inject constructor(name: String) : BluebellAsset(name)
+    open class DefaultAsset @Inject constructor(name: String) : BluebellAsset(name)
 }
 
-data class BluebellDownload<T>(
-    val name: String,
-    val android: T? = null,
-    val ios: T? = null,
-)
+class BluebellAssetBuilder(
+    private val container: NamedDomainObjectContainer<BluebellAsset>,
+    private val objectFactory: ObjectFactory
+) {
+    fun create(
+        name: String,
+        configure: Action<BluebellAsset.DefaultAsset>? = null
+    ): BluebellAsset.DefaultAsset {
+        val asset = objectFactory.newInstance(BluebellAsset.DefaultAsset::class.java, name)
+        container.add(asset)
+        configure?.execute(asset)
+        return asset
+    }
 
-abstract class BluebellCopy @Inject constructor(val name: String) {
-    var source: String? = null
-    var isLink: Boolean = true
+    fun ios(
+        name: String,
+        configure: Action<BluebellAsset.IosAsset>? = null
+    ): BluebellAsset.IosAsset {
+        val asset = objectFactory.newInstance(BluebellAsset.IosAsset::class.java, name)
+        container.add(asset)
+        configure?.execute(asset)
+        return asset
+    }
+
+    fun android(
+        name: String,
+        configure: Action<BluebellAsset.AndroidAsset>? = null
+    ): BluebellAsset.AndroidAsset {
+        val asset = objectFactory.newInstance(BluebellAsset.AndroidAsset::class.java, name)
+        container.add(asset)
+        configure?.execute(asset)
+        return asset
+    }
+
+    fun shared(
+        name: String,
+        configure: Action<BluebellAsset.SharedAsset>? = null
+    ): BluebellAsset.SharedAsset {
+        val asset = objectFactory.newInstance(BluebellAsset.SharedAsset::class.java, name)
+        container.add(asset)
+        configure?.execute(asset)
+        return asset
+    }
+
 }

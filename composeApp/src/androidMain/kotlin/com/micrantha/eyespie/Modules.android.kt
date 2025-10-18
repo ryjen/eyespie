@@ -29,8 +29,6 @@ fun androidDependencies(
     bindProviderOf(::DominantColorCaptureAnalyzer)
     bindProviderOf(::DetectCaptureAnalyzer)
 
-    bindProviderOf(::BackgroundDownloadManager)
-
     bindProviderOf(::LoadCameraImageUseCase)
 
     bindSingletonOf(::GenAI)

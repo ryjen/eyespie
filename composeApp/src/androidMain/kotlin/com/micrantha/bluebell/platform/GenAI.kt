@@ -30,14 +30,14 @@ actual class GenAI(
         if (config.modelPath.isBlank()) throw InvalidModelPathException()
 
         val options = LlmInference.LlmInferenceOptions.builder()
-            .setModelPath(copyAssetToFile(context, config.modelPath).absolutePath).apply {
+            .setModelPath(context.copyAssetToFile(config.modelPath).absolutePath).apply {
                 this.setVisionModelOptions(
                     VisionModelOptions.builder().apply {
                         config.visionEncoderPath?.let {
-                            setEncoderPath(it)
+                            setEncoderPath(context.copyAssetToFile(it).absolutePath)
                         }
                         config.visionAdapterPath?.let {
-                            setAdapterPath(it)
+                            setAdapterPath(context.copyAssetToFile(it).absolutePath)
                         }
                     }.build()
                 )
@@ -182,10 +182,10 @@ actual class GenAI(
         }, { runnable -> runnable.run() }) // Direct executor
     }
 
-    fun copyAssetToFile(context: Context, assetName: String): File {
-        val file = File(context.filesDir, assetName)
+    fun Context.copyAssetToFile(assetName: String): File {
+        val file = File(filesDir, assetName)
         if (!file.exists()) {
-            context.assets.open(assetName).use { input ->
+            assets.open(assetName).use { input ->
                 FileOutputStream(file).use { output ->
                     input.copyTo(output)
                 }

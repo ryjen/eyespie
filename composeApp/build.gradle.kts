@@ -216,7 +216,7 @@ android {
     }
 
     dependencies {
-        debugImplementation("com.squareup.okio:okio-fakefilesystem:3.7.0")
+        debugImplementation(libs.okio.fakefilesystem)
     }
 }
 
@@ -236,21 +236,11 @@ bluebell {
         )
     }
     assets {
-        files {
-            create("gemma3") {
-                source = "../models/gemma3-1b-it-int4.litertlm"
-            }
-        }
+        manifest = "assets.json"
         downloads {
-            create("classification_efficientnet_lite.tflite") {
-                url =
-                    "https://storage.googleapis.com/mediapipe-models/image_classifier/efficientnet_lite0/int8/latest/efficientnet_lite0.tflite"
-                isBundled = true
-            }
-            create("detection_efficientnet_lite.tflite") {
-                url =
-                    "https://storage.googleapis.com/mediapipe-models/object_detector/efficientdet_lite0/int8/latest/efficientdet_lite0.tflite"
-                isBundled = true
+            create("gemma-3n-E2B-it-int4.task") {
+                url = "https://KAGGLE_USER:KAGGLE_TOKEN@www.kaggle.com/api/v1/models/google/gemma-3n/tfLite/gemma-3n-e2b-it-int4/1/download"
+                checksum = "a7f544cfee68f579fabadb22aa9284faa4020a0f5358d0e15b49fdd4cefe4200"
             }
         }
     }

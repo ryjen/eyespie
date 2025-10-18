@@ -5,6 +5,6 @@ import kotlinx.coroutines.flow.Flow
 import okio.Path
 
 interface ClueRepository {
-     fun generate(image: Path): Result<Clues>
-     fun infer(image: Path): Flow<Clues>
+    fun generate(image: Path): Result<Clues>
+    fun infer(image: Path): Flow<Clues>
 }

@@ -4,6 +4,8 @@
 iosEntryPoint/iosEntryPoint.podspec
 shared/shared.podspec
 templates
+composeApp/bluebellAssets
+composeApp/src/commonMain/resources/assets.json
 
 ## AI Models ##
 *.tflite

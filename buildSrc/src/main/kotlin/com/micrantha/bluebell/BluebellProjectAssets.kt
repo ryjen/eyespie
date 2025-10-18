@@ -1,169 +1,245 @@
 package com.micrantha.bluebell
 
-import com.github.gmazzo.buildconfig.BuildConfigExtension
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.async
+import kotlinx.coroutines.awaitAll
+import kotlinx.coroutines.runBlocking
+import kotlinx.coroutines.withContext
+import kotlinx.serialization.ExperimentalSerializationApi
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.encodeToStream
+import org.gradle.api.NamedDomainObjectContainer
 import org.gradle.api.Project
+import org.gradle.api.tasks.Copy
 import java.io.File
-import java.net.URI
 import java.nio.file.Files
 
-internal val defaultSharedDestination = "src/commonMain/resources"
-internal val defaultIosDestination: String = "src/iosMain/resources"
-internal val defaultAndroidDestination: String = "src/androidMain/assets"
+internal const val defaultAssetSource = "bluebellAssets"
+internal const val defaultSharedDestination = "src/commonMain/resources"
+internal const val defaultIosDestination: String = "src/iosMain/resources"
+internal const val defaultAndroidDestination: String = "src/androidMain/assets"
 
-fun Project.configureAssets(assets: BluebellAssets, config: BluebellConfig) {
+internal fun Project.configureAssets(assets: BluebellAssets) {
 
-    val task = tasks.register("configureAssets") {
+    val task = tasks.register("configureBluebellAssets") {
         group = "Bluebell"
         description = "Configure assets"
 
-        copyAssets(assets)
-        downloadBuildAssets(assets)
-        configureRuntimeAssets(assets, config)
+        copyBuildAssets(assets)
+        linkBuildAssets(assets)
+        generateAssetConfig(assets)
     }
 
-    tasks.findByName("generateBluebellConfig")?.dependsOn(task)
-}
+    val generate = tasks.register("generateBluebellManifestSupport", Copy::class.java) {
 
-internal fun Project.configureRuntimeAssets(assets: BluebellAssets, config: BluebellConfig) {
+        val packageParts = BluebellAssetConfig::class.java.`package`.name
+            .split(".", File.separator)
 
-    val runtimeAssets = assets.runtimeDownloads()
+        val srcDir = projectDir.resolve("../buildSrc/src/main/kotlin")
 
-    if (runtimeAssets.isEmpty()) return
+        val srcFile = packageParts.fold(srcDir) { dest, dir ->
+            dest.resolve(dir)
+        }.resolve(BluebellAssetConfig::class.java.simpleName + ".kt")
 
-    extensions.configure(BuildConfigExtension::class.java) {
-        packageName(config.packageName)
-        className(config.className)
-        useKotlinOutput {
-            topLevelConstants = false
+        val targetDir = projectDir
+            .resolve("src")
+            .resolve("commonMain")
+            .resolve("kotlin")
 
-            buildConfigField(type = "Int", name = "MODEL_MAX", value = runtimeAssets.size)
-            runtimeAssets.forEachIndexed { index, asset ->
-                buildConfigField(type = "String?", name = "MODEL_${index}_URL", value = asset.url)
-                buildConfigField(type = "String?", name = "MODEL_${index}_NAME", value = asset.name)
-            }
+        logger.bluebell("Generated asset manifest support")
+
+        if (srcFile.exists().not()) {
+            logger.bluebell("${srcFile.path} does not exist", logger::error)
+            return@register
         }
+
+        if (targetDir.exists().not() || targetDir.isDirectory.not()) {
+            logger.bluebell("${targetDir.path} is not a directory", logger::error)
+            return@register
+        }
+
+        from(srcFile)
+        into(targetDir)
     }
+
+    tasks.findByName("generateBluebellConfig")?.dependsOn(task, generate)
 }
 
-internal fun Project.downloadBuildAsset(
-    fileName: String,
-    url: String,
-    tempDir: File
-): Result<File> {
-    try {
-        if (!tempDir.exists()) {
-            tempDir.mkdirs()
-        }
-        val destination = tempDir.resolve(fileName)
+@OptIn(ExperimentalSerializationApi::class)
+internal fun Project.generateAssetConfig(assets: BluebellAssets) {
 
-        if (destination.exists()) {
-            logger.lifecycle("> Download $fileName already exists, skipping")
-            return Result.success(destination)
-        }
+    if (assets.manifest.isNullOrBlank()) return
 
-        logger.lifecycle("> Downloading $fileName from $url")
-        URI(url).toURL().openStream().use { input ->
-            destination.outputStream().use { output ->
-                input.copyTo(output)
+    val destFile = projectDir.resolve(defaultSharedDestination).resolve(assets.manifest!!)
+
+    val config = BluebellAssetConfig(
+        assets.downloads.associate {
+            it.name to when (it) {
+                is BluebellDownload.IosDownload -> BluebellAssetConfig.Download(
+                    iosUrl = it.url,
+                    checksum = it.checksum
+                )
+
+                is BluebellDownload.AndroidDownload -> BluebellAssetConfig.Download(
+                    androidUrl = it.url,
+                    checksum = it.checksum
+                )
+
+                is BluebellDownload.DefaultDownload -> BluebellAssetConfig.Download(
+                    url = it.url,
+                    checksum = it.checksum
+                )
             }
         }
-        return Result.success(destination)
-    } catch (err: Throwable) {
-        logger.error("Unable to download $fileName from $url", err)
-        return Result.failure(err)
+    )
+    val json = Json {
+        prettyPrint = true
     }
+
+    destFile.outputStream().use {
+        json.encodeToStream(config, it)
+    }
+
+    logger.bluebell("Generated asset manifest file ${assets.manifest}")
 }
 
-internal fun Project.downloadBuildAssets(assets: BluebellAssets) {
+private fun BluebellAsset.destination(baseDir: File): List<File> = when (this) {
+    is BluebellAsset.IosAsset -> listOf(baseDir.resolve(defaultIosDestination))
+    is BluebellAsset.AndroidAsset -> listOf(baseDir.resolve(defaultAndroidDestination))
+    is BluebellAsset.SharedAsset -> listOf(baseDir.resolve(defaultSharedDestination))
+    is BluebellAsset.DefaultAsset -> listOf(
+        baseDir.resolve(defaultAndroidDestination),
+        baseDir.resolve(defaultIosDestination)
+    )
+}
 
-    val tempDir by lazy { layout.buildDirectory.dir("tmp").get().asFile }
+internal fun Project.forBuildAssets(
+    assets: NamedDomainObjectContainer<BluebellAsset>,
+    srcDest: File,
+    action: suspend (File, File) -> Unit
+) = runBlocking {
+    assets.flatMap { file ->
 
-    val tempAssets = assets.bundledDownloads()
-        .fold(mutableListOf<BluebellDownload<File>>()) { results, file ->
+        val srcFile = srcDest.resolve(file.name)
 
-            file.url?.let { url ->
-                downloadBuildAsset(file.name, url, tempDir).map {
-                    BluebellDownload(
-                        ios = it,
-                        android = it,
-                        name = file.name
-                    )
-                }.onSuccess(results::add)
-
-                return@fold results
-            }
-
-            file.iosUrl?.let { url ->
-                downloadBuildAsset(file.name, url, tempDir).map {
-                    BluebellDownload(
-                        ios = it,
-                        android = null,
-                        name = file.name,
-                    )
-                }.onSuccess(results::add)
-            }
-
-            file.androidUrl?.let { url ->
-                downloadBuildAsset(file.name, url, tempDir).map {
-                    BluebellDownload(
-                        ios = null,
-                        android = it,
-                        name = file.name,
-                    )
-                }.onSuccess(results::add)
-            }
-
-            results
+        if (srcFile.exists().not()) {
+            logger.bluebell("No asset found for asset ${file.name}", logger::error)
+            return@flatMap emptyList()
         }
 
-    for (file in tempAssets) {
-        val iosOutput by lazy {
-            projectDir.resolve(defaultIosDestination).resolve(file.name)
-        }
-        val androidOutput by lazy {
-            projectDir.resolve(defaultAndroidDestination).resolve(file.name)
-        }
-
-        file.ios?.copyTo(iosOutput, overwrite = true)
-        file.android?.copyTo(androidOutput, overwrite = true)
-
-        if (file.ios != null && file.android == null) {
-            logger.lifecycle("> ${file.name} added to ios resources")
-        } else if (file.android != null && file.ios == null) {
-            logger.lifecycle("> ${file.name} added to android resources")
-        } else {
-            logger.lifecycle("> ${file.name} added to ios and android resources")
+        file.destination(projectDir).map {
+            async { action(srcFile, it.resolve(file.name)) }
         }
     }
 }
 
-internal fun Project.copyAssets(assets: BluebellAssets) {
+internal fun Project.linkBuildAssets(assets: BluebellAssets) {
 
-    for (file in assets.files) {
-        val from = File(projectDir.path, file.source!!)
-
-        if (from.exists().not()) {
-            logger.warn("Asset ${from.path} does not exist, skipping")
-            continue
-        }
-        val iosOutput by lazy {
-            projectDir.resolve(defaultIosDestination).resolve(from.name)
-        }
-        val androidOutput by lazy {
-            projectDir.resolve(defaultAndroidDestination).resolve(from.name)
-        }
-        if (file.isLink) {
-            if (iosOutput.exists().not()) {
-                Files.createSymbolicLink(iosOutput.toPath(), from.toPath())
-            }
-            if (androidOutput.exists().not()) {
-                Files.createSymbolicLink(androidOutput.toPath(), from.toPath())
-            }
-        } else {
-            from.copyTo(iosOutput, true)
-            from.copyTo(androidOutput, true)
-        }
-        logger.lifecycle("> ${from.name} added to resources")
-
+    if (assets.links.isEmpty()) {
+        return
     }
+
+    logger.bluebell("Linking assets")
+
+    val srcDest = validateSrcDir() ?: return
+
+    val downloads = assets.links
+        .filterNot { srcDest.resolve(it.name).exists() }
+        .mapNotNull { assets.downloads.findByName(it.name) }
+
+    downloadBuildAssets(downloads, srcDest)
+
+    val links = forBuildAssets(assets.links, srcDest) { from, to ->
+        linkBuildAsset(from, to)
+    }
+
+    runBlocking {
+        awaitAll(*links.toTypedArray())
+    }
+}
+
+internal suspend fun Project.linkBuildAsset(from: File, to: File) {
+    if (from.exists().not()) {
+        logger.bluebell("Asset to link ${from.path} does not exist, skipping", logger::warn)
+        return
+    }
+
+    if (to.validateParentDir().not()) {
+        logger.bluebell("Asset to link ${to.path} has invalid directory", logger::error)
+        return
+    }
+
+    logger.bluebell("Linking ${to.path}", logger::debug)
+
+    withContext(Dispatchers.IO) {
+        Files.deleteIfExists(to.toPath())
+        Files.createSymbolicLink(to.toPath(), from.toPath())
+    }
+}
+
+internal fun Project.copyBuildAssets(assets: BluebellAssets) {
+
+    if (assets.copies.isEmpty()) {
+        return
+    }
+    logger.bluebell("Copying assets")
+
+    val srcDest = validateSrcDir() ?: return
+
+    val downloads = assets.copies
+        .filterNot { srcDest.resolve(it.name).exists() }
+        .mapNotNull { assets.downloads.findByName(it.name) }
+
+    downloadBuildAssets(downloads, srcDest)
+
+    val copies = forBuildAssets(assets.copies, srcDest) { from, to ->
+        copyBuildAsset(from, to)
+    }
+
+    runBlocking {
+        awaitAll(*copies.toTypedArray())
+    }
+}
+
+internal suspend fun Project.copyBuildAsset(from: File, to: File) {
+    if (from.exists().not()) {
+        logger.bluebell("Asset to copy ${from.path} does not exist, skipping", logger::warn)
+        return
+    }
+
+    if (to.validateParentDir().not()) {
+        logger.bluebell("Asset to copy ${to.path} has invalid directory", logger::error)
+        return
+    }
+
+    logger.bluebell("Copying ${to.path}", logger::debug)
+
+    withContext(Dispatchers.IO) {
+        from.copyTo(to, true)
+    }
+}
+
+internal fun File.validateParentDir(): Boolean {
+
+    if (parentFile.exists()) {
+        return !parentFile.isDirectory.not()
+    } else {
+        parentFile.mkdirs()
+        return true
+    }
+}
+
+internal fun Project.validateSrcDir(): File? {
+
+    val srcDest = projectDir.resolve(defaultAssetSource)
+
+    if (!srcDest.exists()) {
+        logger.bluebell(
+            "No build assets dir, download the assets you need and put them in ${srcDest.path}",
+            logger::error
+        )
+        return null
+    }
+
+    return srcDest
 }

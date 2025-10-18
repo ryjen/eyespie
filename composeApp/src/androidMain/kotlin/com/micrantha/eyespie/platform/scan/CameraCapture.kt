@@ -148,7 +148,7 @@ actual fun CameraCapture(
         imageCapture.takePicture(
             outputOptions,
             Executors.newSingleThreadExecutor(),
-            object: ImageCapture.OnImageSavedCallback {
+            object : ImageCapture.OnImageSavedCallback {
                 override fun onError(exception: ImageCaptureException) {
                     onCameraError(exception)
                 }
@@ -190,7 +190,6 @@ fun Context.saveImageToPath(uri: Uri): Path {
     }
     return destinationFile.absolutePath.toPath()
 }
-
 
 
 private fun createCameraUseCases(
