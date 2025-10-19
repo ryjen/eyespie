@@ -36,13 +36,14 @@ okio = "3.16.2"
 paletteKtx = "1.0.0"
 permissionsCompose = "0.20.1"
 voyagerNavigator = "1.0.1"
-buildConfig = "v5.6.7"
+buildConfig = "5.6.7"
 mokoMedia = "0.11.1"
 datastore = "1.1.7"
 fetch = "3.4.1"
 mediapipe = "0.10.29"
 mediapipeGenAI = "0.10.29"
 exifinterface = "1.4.1"
+jetbrainsKotlinJvm = "2.2.20"
 
 [plugins]
 
@@ -54,6 +55,7 @@ apolloGraphQL = { id = "com.apollographql.apollo", version.ref = "graphql" }
 kotlinSerialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
 nativeCocoapods = { id = "org.jetbrains.kotlin.native.cocoapods", version.ref = "kotlin" }
 compose-compiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
+jetbrains-kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "jetbrainsKotlinJvm" }
 
 [libraries]
 
@@ -120,8 +122,10 @@ voyager-kodein = { module = "cafe.adriel.voyager:voyager-kodein", version.ref = 
 voyager-navigator = { module = "cafe.adriel.voyager:voyager-navigator", version.ref = "voyagerNavigator" }
 voyager-transitions = { module = "cafe.adriel.voyager:voyager-transitions", version.ref = "voyagerNavigator" }
 moko-media = { module = "dev.icerock.moko:media", version.ref = "mokoMedia" }
-build-config = { module = "com.github.gmazzo.gradle-buildconfig-plugin:com.github.gmazzo.buildconfig.gradle.plugin", version.ref = "buildConfig" }
+build-config = { module = "com.github.gmazzo.buildconfig:com.github.gmazzo.buildconfig.gradle.plugin", version.ref = "buildConfig" }
 fetch = { module = "com.github.tonyofrancis.Fetch:fetch2", version.ref = "fetch" }
 mediapipe-tasks-genai = { module = "com.google.mediapipe:tasks-genai", version.ref = "mediapipeGenAI" }
 mediapipe-tasks-vision = { module = "com.google.mediapipe:tasks-vision", version.ref = "mediapipe" }
 androidx-exifinterface = { group = "androidx.exifinterface", name = "exifinterface", version.ref = "exifinterface" }
+android-build-tools = { group = "com.android.tools.build", name = "gradle", version.ref = "agp"}
+kotlin-gradle-plugin  = { group = "org.jetbrains.kotlin", name = "kotlin-gradle-plugin", version.ref = "kotlin"}

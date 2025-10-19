@@ -1,5 +1,4 @@
-
-rootProject.name = "BluebellBuild"
+rootProject.name = "Bluebell"
 
 dependencyResolutionManagement {
     versionCatalogs {
