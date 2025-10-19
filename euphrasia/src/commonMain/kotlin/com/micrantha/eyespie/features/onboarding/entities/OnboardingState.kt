@@ -1,4 +1,4 @@
-package com.micrantha.eyespie.features.onboarding.domain.entities
+package com.micrantha.eyespie.features.onboarding.entities
 
 import com.micrantha.bluebell.plugin.BluebellAssetConfig
 

@@ -1,4 +1,4 @@
-package com.micrantha.eyespie.features.onboarding.domain.entities
+package com.micrantha.eyespie.features.onboarding.entities
 
 sealed interface OnboardingAction {
     data object Init : OnboardingAction

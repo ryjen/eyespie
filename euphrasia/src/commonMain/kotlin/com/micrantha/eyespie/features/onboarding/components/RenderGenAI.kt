@@ -1,4 +1,4 @@
-package com.micrantha.eyespie.features.onboarding.ui.components
+package com.micrantha.eyespie.features.onboarding.components
 
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
@@ -27,8 +27,8 @@ import androidx.compose.ui.unit.sp
 import com.micrantha.bluebell.arch.Dispatch
 import com.micrantha.bluebell.ui.theme.Dimensions
 import com.micrantha.eyespie.app.S
-import com.micrantha.eyespie.features.onboarding.domain.entities.OnboardingAction
-import com.micrantha.eyespie.features.onboarding.domain.entities.OnboardingUiState
+import com.micrantha.eyespie.features.onboarding.entities.OnboardingAction
+import com.micrantha.eyespie.features.onboarding.entities.OnboardingUiState
 import eyespie.euphrasia.generated.resources.download_failed
 import eyespie.euphrasia.generated.resources.downloading
 import eyespie.euphrasia.generated.resources.no

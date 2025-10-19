@@ -1,4 +1,4 @@
-package com.micrantha.eyespie.features.onboarding.ui.components
+package com.micrantha.eyespie.features.onboarding.components
 
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateDpAsState

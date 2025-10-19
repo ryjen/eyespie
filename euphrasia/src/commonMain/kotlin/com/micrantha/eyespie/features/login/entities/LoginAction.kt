@@ -1,24 +1,6 @@
-package com.micrantha.eyespie.features.login.ui
+package com.micrantha.eyespie.features.login.entities
 
-import com.micrantha.bluebell.ui.model.UiResult
-import com.micrantha.eyespie.app.AppConfig
 import com.micrantha.eyespie.domain.entities.Session
-
-data class LoginState(
-    val email: String = AppConfig.LOGIN_EMAIL,
-    val password: String = AppConfig.LOGIN_PASSWORD,
-    val status: UiResult<Unit> = UiResult.Default,
-    val isPasswordMasked: Boolean = true,
-    val isEmailMasked: Boolean? = null
-)
-
-data class LoginUiState(
-    val email: String,
-    val password: String,
-    val status: UiResult<Unit>,
-    val isEmailMasked: Boolean,
-    val isPasswordMasked: Boolean
-)
 
 sealed interface LoginAction {
 

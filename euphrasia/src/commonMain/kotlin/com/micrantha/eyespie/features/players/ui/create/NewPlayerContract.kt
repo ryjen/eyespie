@@ -9,6 +9,7 @@ sealed interface Action {
     data class ChangedNickName(val nickName: String) : Action
     data object OnSave : Action
     data class OnError(val error: Throwable) : Action
+    data object Done: Action
 }
 
 data class NewPlayerState(

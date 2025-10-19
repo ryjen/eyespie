@@ -17,6 +17,8 @@ expect class Platform : LocalizedRepository, FileSystem {
 
     val locale: Locale
 
+    fun asset(path: Path): BufferedSource
+
     fun resource(path: Path): BufferedSource
 
     override fun format(format: String, vararg args: Any): String

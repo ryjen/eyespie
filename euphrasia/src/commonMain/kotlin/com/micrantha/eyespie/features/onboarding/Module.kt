@@ -3,10 +3,10 @@ package com.micrantha.eyespie.features.onboarding
 import com.micrantha.bluebell.get
 import com.micrantha.eyespie.features.onboarding.data.OnboardingLocalSource
 import com.micrantha.eyespie.features.onboarding.data.OnboardingRepository
-import com.micrantha.eyespie.features.onboarding.domain.usecase.DownloadModelUseCase
-import com.micrantha.eyespie.features.onboarding.domain.usecase.InitGenAIUseCase
-import com.micrantha.eyespie.features.onboarding.domain.usecase.LoadModelConfigUseCase
-import com.micrantha.eyespie.features.onboarding.ui.OnboardingEffects
+import com.micrantha.eyespie.features.onboarding.usecase.DownloadModelUseCase
+import com.micrantha.eyespie.features.onboarding.usecase.InitGenAIUseCase
+import com.micrantha.eyespie.features.onboarding.usecase.LoadModelConfigUseCase
+import com.micrantha.eyespie.features.onboarding.arch.OnboardingEffects
 import com.micrantha.eyespie.features.onboarding.ui.OnboardingScreen
 import com.micrantha.eyespie.features.onboarding.ui.OnboardingScreenModel
 import org.kodein.di.DI

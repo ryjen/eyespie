@@ -48,6 +48,10 @@ actual class Platform(
         return inputStream.source().buffer()
     }
 
+    actual fun asset(path: Path): BufferedSource {
+        return context.assets.open(path.toString()).source().buffer()
+    }
+
     actual override fun filesPath(): Path {
         return context.applicationContext.filesDir.absolutePath.toPath()
     }

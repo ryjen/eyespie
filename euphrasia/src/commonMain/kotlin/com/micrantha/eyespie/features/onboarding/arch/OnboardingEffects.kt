@@ -1,4 +1,4 @@
-package com.micrantha.eyespie.features.onboarding.ui
+package com.micrantha.eyespie.features.onboarding.arch
 
 import com.micrantha.bluebell.arch.Action
 import com.micrantha.bluebell.arch.Dispatcher
@@ -7,11 +7,11 @@ import com.micrantha.bluebell.domain.security.sha256
 import com.micrantha.bluebell.ui.screen.ScreenContext
 import com.micrantha.eyespie.app.ui.usecase.LoadMainUseCase
 import com.micrantha.eyespie.features.onboarding.data.OnboardingRepository
-import com.micrantha.eyespie.features.onboarding.domain.entities.OnboardingAction
-import com.micrantha.eyespie.features.onboarding.domain.entities.OnboardingPage
-import com.micrantha.eyespie.features.onboarding.domain.entities.OnboardingState
-import com.micrantha.eyespie.features.onboarding.domain.usecase.DownloadModelUseCase
-import com.micrantha.eyespie.features.onboarding.domain.usecase.LoadModelConfigUseCase
+import com.micrantha.eyespie.features.onboarding.entities.OnboardingAction.*
+import com.micrantha.eyespie.features.onboarding.entities.OnboardingPage
+import com.micrantha.eyespie.features.onboarding.entities.OnboardingState
+import com.micrantha.eyespie.features.onboarding.usecase.DownloadModelUseCase
+import com.micrantha.eyespie.features.onboarding.usecase.LoadModelConfigUseCase
 
 class OnboardingEffects(
     private val context: ScreenContext,
@@ -26,37 +26,38 @@ class OnboardingEffects(
         state: OnboardingState
     ) {
         when (action) {
-            is OnboardingAction.Init -> {
+            is Init -> {
                 loadModelConfig().onSuccess {
-                    dispatch(OnboardingAction.Loaded(it))
+                    dispatch(Loaded(it))
                 }.onFailure {
-                    dispatch(OnboardingAction.Error(it))
+                    dispatch(Error(it))
                 }
             }
 
-            is OnboardingAction.Download -> state.selectedModel?.let { model ->
+            is Download -> state.selectedModel?.let { model ->
                 val download = state.models?.get(model)!!
                 downloadModelUseCase(model, download)
                     .onSuccess {
                         onboardingRepository.setHasGenAI(sha256(download.url))
+                        dispatch(NextPage)
                     }.onFailure {
-                        dispatch(OnboardingAction.Error(it))
+                        dispatch(Error(it))
                     }
             }
 
-            is OnboardingAction.Done -> {
+            is Done -> {
                 onboardingRepository.setHasRunOnce()
                 loadMainUseCase().onFailure {
-                    dispatch(OnboardingAction.Error(it))
+                    dispatch(Error(it))
                 }
             }
 
-            is OnboardingAction.NextPage -> {
+            is NextPage -> {
                 val next = OnboardingPage.entries.getOrNull(state.page.ordinal + 1)
                 if (next == null) {
-                    dispatch(OnboardingAction.Done)
+                    dispatch(Done)
                 } else {
-                    dispatch(OnboardingAction.PageChanged(next.ordinal))
+                    dispatch(PageChanged(next.ordinal))
                 }
             }
 

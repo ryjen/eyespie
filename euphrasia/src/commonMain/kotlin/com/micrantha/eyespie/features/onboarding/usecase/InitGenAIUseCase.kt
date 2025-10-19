@@ -1,4 +1,4 @@
-package com.micrantha.eyespie.features.onboarding.domain.usecase
+package com.micrantha.eyespie.features.onboarding.usecase
 
 import com.micrantha.bluebell.domain.usecase.useCase
 import com.micrantha.bluebell.platform.GenAI

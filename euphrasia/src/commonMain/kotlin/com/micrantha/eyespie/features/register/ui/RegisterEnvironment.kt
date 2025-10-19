@@ -13,14 +13,17 @@ import com.micrantha.bluebell.ui.model.UiResult.Failure
 import com.micrantha.bluebell.ui.screen.ScreenContext
 import com.micrantha.bluebell.ui.screen.navigate
 import com.micrantha.eyespie.app.S
+import com.micrantha.eyespie.app.ui.usecase.LoadMainUseCase
 import com.micrantha.eyespie.domain.repository.AccountRepository
 import com.micrantha.eyespie.features.dashboard.ui.DashboardScreen
+import com.micrantha.eyespie.features.onboarding.entities.OnboardingAction
 import eyespie.euphrasia.generated.resources.logging_in
 import eyespie.euphrasia.generated.resources.register_failed
 
 class RegisterEnvironment(
     private val context: ScreenContext,
     private val accountRepository: AccountRepository,
+    private val loadMainUseCase: LoadMainUseCase
 ) : Reducer<RegisterState>, Effect<RegisterState>,
     Dispatcher by context.dispatcher,
     LocalizedRepository by context.i18n, Router by context.router {
@@ -75,7 +78,9 @@ class RegisterEnvironment(
                     dispatch(RegisterAction.OnError(it))
                 }
 
-            is RegisterAction.OnSuccess -> context.navigate<DashboardScreen>()
+            is RegisterAction.OnSuccess -> loadMainUseCase().onFailure {
+                dispatch(RegisterAction.OnError(it))
+            }
         }
     }
 }

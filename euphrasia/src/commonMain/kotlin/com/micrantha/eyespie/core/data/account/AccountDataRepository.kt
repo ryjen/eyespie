@@ -1,6 +1,5 @@
 package com.micrantha.eyespie.core.data.account
 
-import com.micrantha.eyespie.core.data.account.mapping.AccountDomainMapper
 import com.micrantha.eyespie.core.data.account.model.CurrentSession
 import com.micrantha.eyespie.core.data.account.source.AccountRemoteSource
 import com.micrantha.eyespie.domain.entities.Session
@@ -9,11 +8,16 @@ import com.micrantha.eyespie.domain.repository.AccountRepository
 class AccountDataRepository(
     private val remoteSource: AccountRemoteSource,
     private val currentSession: CurrentSession,
-    private val mapper: AccountDomainMapper,
 ) : AccountRepository {
 
     override suspend fun session() = remoteSource.account()
-        .map(mapper::map).onSuccess {
+        .map{ data ->
+            Session(
+                accessToken = data.accessToken,
+                refreshToken = data.refreshToken,
+                userId = data.userId
+            )
+        }.onSuccess {
             currentSession.update(it)
         }
 

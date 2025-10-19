@@ -11,6 +11,7 @@ import com.micrantha.bluebell.ui.model.UiResult
 import com.micrantha.bluebell.ui.screen.ScreenContext
 import com.micrantha.bluebell.ui.screen.navigate
 import com.micrantha.eyespie.app.S
+import com.micrantha.eyespie.app.ui.usecase.LoadMainUseCase
 import com.micrantha.eyespie.core.data.account.model.CurrentSession
 import com.micrantha.eyespie.features.dashboard.ui.DashboardScreen
 import com.micrantha.eyespie.features.players.domain.repository.PlayerRepository
@@ -20,7 +21,8 @@ import com.micrantha.bluebell.arch.Action as FluxAction
 class NewPlayerEnvironment(
     private val context: ScreenContext,
     private val playerRepository: PlayerRepository,
-    private val currentSession: CurrentSession
+    private val currentSession: CurrentSession,
+    private val loadMainUseCase: LoadMainUseCase
 ) : Reducer<NewPlayerState>, Effect<NewPlayerState>,
     Dispatcher by context.dispatcher,
     LocalizedRepository by context.i18n,
@@ -69,7 +71,7 @@ class NewPlayerEnvironment(
                 state.nickName
             ).onSuccess {
                 currentSession.update(it)
-                context.navigate<DashboardScreen>(Router.Options.Replace)
+                dispatch(Action.Done)
             }.onFailure {
                 dispatch(Action.OnError(it))
             }

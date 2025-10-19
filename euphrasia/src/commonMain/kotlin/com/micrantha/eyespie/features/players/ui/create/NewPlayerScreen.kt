@@ -27,7 +27,7 @@ import com.micrantha.bluebell.ui.model.error
 import com.micrantha.bluebell.ui.model.isFailure
 import com.micrantha.bluebell.ui.theme.Dimensions
 import com.micrantha.eyespie.core.ui.Screen
-import com.micrantha.eyespie.features.login.ui.LoginAction.ResetStatus
+import com.micrantha.eyespie.features.login.entities.LoginAction.ResetStatus
 import kotlinx.coroutines.delay
 import org.jetbrains.compose.resources.stringResource
 

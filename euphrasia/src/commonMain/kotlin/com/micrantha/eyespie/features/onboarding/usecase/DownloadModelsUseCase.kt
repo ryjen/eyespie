@@ -1,4 +1,4 @@
-package com.micrantha.eyespie.features.onboarding.domain.usecase
+package com.micrantha.eyespie.features.onboarding.usecase
 
 import com.benasher44.uuid.uuid4
 import com.micrantha.bluebell.domain.repository.LocalizedRepository
