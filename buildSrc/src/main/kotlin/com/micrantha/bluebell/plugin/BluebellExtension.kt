@@ -1,8 +1,14 @@
 package com.micrantha.bluebell.plugin
 
+import com.micrantha.bluebell.plugin.asset.BluebellAssets
+import com.micrantha.bluebell.plugin.config.BluebellConfig
+import com.micrantha.bluebell.plugin.config.BluebellGraphqlConfig
+import com.micrantha.bluebell.plugin.download.BluebellDownload
+import com.micrantha.bluebell.plugin.download.BluebellDownloadBuilder
 import org.gradle.api.Action
 import org.gradle.api.logging.Logger
 import org.gradle.api.model.ObjectFactory
+import org.gradle.kotlin.dsl.domainObjectContainer
 import javax.inject.Inject
 
 open class BluebellExtension @Inject constructor(
@@ -12,7 +18,11 @@ open class BluebellExtension @Inject constructor(
 
     val assets = objects.newInstance(BluebellAssets::class.java)
 
-    val graphql = objects.newInstance(GraphqlConfig::class.java)
+    val graphql = objects.newInstance(BluebellGraphqlConfig::class.java)
+
+    val downloads = objects.domainObjectContainer(BluebellDownload::class)
+
+    private val downloadBuilder = BluebellDownloadBuilder(downloads, objects)
 
     fun config(action: Action<BluebellConfig>) {
         action.execute(config)
@@ -22,8 +32,12 @@ open class BluebellExtension @Inject constructor(
         action.execute(assets)
     }
 
-    fun graphql(action: Action<GraphqlConfig>) {
+    fun graphql(action: Action<BluebellGraphqlConfig>) {
         action.execute(graphql)
+    }
+
+    fun downloads(action: Action<in BluebellDownloadBuilder>) {
+        action.execute(downloadBuilder)
     }
 }
 

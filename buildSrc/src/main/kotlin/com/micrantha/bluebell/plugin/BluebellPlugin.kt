@@ -1,5 +1,8 @@
 package com.micrantha.bluebell.plugin
 
+import com.micrantha.bluebell.plugin.asset.configureAssets
+import com.micrantha.bluebell.plugin.config.configureBuilds
+import com.micrantha.bluebell.plugin.config.configureGraphql
 import org.gradle.api.Plugin
 import org.gradle.api.Project
 
@@ -7,14 +10,15 @@ open class BluebellPlugin : Plugin<Project> {
     private var ext: BluebellExtension? = null
 
     override fun apply(project: Project) = project.run {
-        val bluebell = bluebellExtension().also { ext = it }
+        bluebellExtension().also { ext = it }.run {
 
-        loadPlugins()
+            loadPlugins()
 
-        afterEvaluate {
-            configureAssets(bluebell.assets)
-            configureGraphql(bluebell.graphql, bluebell.config)
-            configureBuilds(bluebell.config, bluebell.assets.manifest)
+            afterEvaluate {
+                configureAssets(assets, downloads)
+                configureGraphql(graphql, config)
+                configureBuilds(config, assets.manifest)
+            }
         }
     }
 }
@@ -32,20 +36,5 @@ private fun Project.loadPlugins() {
 
     pluginManager.withPlugin("org.jetbrains.kotlin.multiplatform") {
         logger.bluebell("KMP found")
-    }
-}
-
-private fun Project.configureGraphql(graphql: GraphqlConfig, config: BluebellConfig) {
-
-    if (graphql.endpoint.isBlank()) {
-        config.properties["SUPABASE_URL"]?.let {
-            graphql.endpoint = "$it/graphql/v1"
-        }
-    }
-
-    config.properties["SUPABASE_KEY"]?.let { key ->
-        graphql.headers = graphql.headers.toMutableMap().apply {
-            put("apikey", key)
-        }
     }
 }

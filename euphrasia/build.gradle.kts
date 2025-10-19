@@ -227,26 +227,10 @@ bluebell {
         className = "EnvConfig"
         envFile = ".env.local"
 
-        defaultedKeys = listOf(
-            "LOGIN_EMAIL",
-            "LOGIN_PASSWORD",
-        )
         expectedKeys = listOf(
             "SUPABASE_URL",
             "SUPABASE_KEY",
         )
-    }
-    assets {
-        manifest = "assets.json"
-        downloads {
-            create("gemma-3n") {
-                url = "https://KAGGLE_USER:KAGGLE_TOKEN@www.kaggle.com/api/v1/models/google/gemma-3n/tfLite/gemma-3n-e2b-it-int4/1/download"
-                checksum = "a7f544cfee68f579fabadb22aa9284faa4020a0f5358d0e15b49fdd4cefe4200"
-            }
-        }
-        models {
-            create("gemma-3n")
-        }
     }
     graphql {
         serviceName = "eyespie"

@@ -1,4 +1,4 @@
-package com.micrantha.bluebell.plugin
+package com.micrantha.bluebell.plugin.asset
 
 import kotlinx.serialization.Serializable
 
@@ -11,6 +11,7 @@ data class BluebellAssetConfig(
     data class Model(
         val fileName: String? = null,
     )
+
     @Serializable
     data class Download(
         val url: String,
