@@ -1,7 +1,6 @@
 package com.micrantha.eyespie.core
 
 import com.micrantha.eyespie.core.data.account.AccountDataRepository
-import com.micrantha.eyespie.core.data.account.mapping.AccountDomainMapper
 import com.micrantha.eyespie.core.data.account.model.CurrentSession
 import com.micrantha.eyespie.core.data.account.source.AccountRemoteSource
 import com.micrantha.eyespie.core.data.ai.ClueDataRepository
@@ -32,9 +31,7 @@ internal fun module() = DI.Module("Core Feature") {
 
     bindProviderOf(::AccountRemoteSource)
     bindProviderOf(::AccountDataRepository)
-
-    bindProviderOf(::AccountDomainMapper)
-
+    
     bindSingleton { CurrentSession }
 
     bindProviderOf(::CacheLocalSource)

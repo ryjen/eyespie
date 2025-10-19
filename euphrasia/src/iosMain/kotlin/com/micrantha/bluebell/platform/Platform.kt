@@ -66,6 +66,8 @@ actual class Platform(
         return Buffer().write(data.toByteArray())
     }
 
+    actual fun asset(path: Path): BufferedSource = resource(path)
+
     actual override fun filesPath(): Path {
         return NSHomeDirectory().toPath().resolve("files")
     }

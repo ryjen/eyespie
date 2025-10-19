@@ -1,4 +1,4 @@
-package com.micrantha.eyespie.features.onboarding.ui.components
+package com.micrantha.eyespie.features.onboarding.components
 
 import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
@@ -14,7 +14,7 @@ import androidx.compose.ui.text.style.TextAlign
 import com.micrantha.bluebell.arch.Dispatch
 import com.micrantha.bluebell.ui.theme.Dimensions
 import com.micrantha.eyespie.app.EyesPie
-import com.micrantha.eyespie.features.onboarding.domain.entities.OnboardingUiState
+import com.micrantha.eyespie.features.onboarding.entities.OnboardingUiState
 
 @Composable
 fun BoxScope.RenderWelcome(state: OnboardingUiState, dispatch: Dispatch) {

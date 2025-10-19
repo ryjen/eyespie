@@ -1,10 +1,10 @@
-package com.micrantha.eyespie.features.onboarding.ui
+package com.micrantha.eyespie.features.onboarding.arch
 
 import com.micrantha.bluebell.arch.StateMapper
 import com.micrantha.bluebell.domain.repository.LocalizedRepository
 import com.micrantha.bluebell.ui.screen.ScreenContext
-import com.micrantha.eyespie.features.onboarding.domain.entities.OnboardingState
-import com.micrantha.eyespie.features.onboarding.domain.entities.OnboardingUiState
+import com.micrantha.eyespie.features.onboarding.entities.OnboardingState
+import com.micrantha.eyespie.features.onboarding.entities.OnboardingUiState
 
 class OnboardingMapper(
     private val context: ScreenContext,

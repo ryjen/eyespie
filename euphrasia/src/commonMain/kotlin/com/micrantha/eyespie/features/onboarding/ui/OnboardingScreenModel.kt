@@ -1,10 +1,12 @@
 package com.micrantha.eyespie.features.onboarding.ui
 
-import com.micrantha.bluebell.com.micrantha.eyespie.features.onboarding.ui.OnboardingReducer
 import com.micrantha.bluebell.ui.screen.MappedScreenModel
 import com.micrantha.bluebell.ui.screen.ScreenContext
-import com.micrantha.eyespie.features.onboarding.domain.entities.OnboardingState
-import com.micrantha.eyespie.features.onboarding.domain.entities.OnboardingUiState
+import com.micrantha.eyespie.features.onboarding.arch.OnboardingEffects
+import com.micrantha.eyespie.features.onboarding.arch.OnboardingMapper
+import com.micrantha.eyespie.features.onboarding.arch.OnboardingReducer
+import com.micrantha.eyespie.features.onboarding.entities.OnboardingState
+import com.micrantha.eyespie.features.onboarding.entities.OnboardingUiState
 
 class OnboardingScreenModel(
     context: ScreenContext,

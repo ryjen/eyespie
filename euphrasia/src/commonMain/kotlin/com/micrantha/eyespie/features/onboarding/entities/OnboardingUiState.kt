@@ -1,4 +1,4 @@
-package com.micrantha.eyespie.features.onboarding.domain.entities
+package com.micrantha.eyespie.features.onboarding.entities
 
 data class OnboardingUiState(
     val page: OnboardingPage,

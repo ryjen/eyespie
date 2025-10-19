@@ -1,23 +1,27 @@
-package com.micrantha.eyespie.ui.login
+package com.micrantha.eyespie.features.login.ui
 
 import com.micrantha.bluebell.ui.screen.MappedScreenModel
 import com.micrantha.bluebell.ui.screen.ScreenContext
-import com.micrantha.eyespie.features.login.ui.LoginEnvironment
-import com.micrantha.eyespie.features.login.ui.LoginState
-import com.micrantha.eyespie.features.login.ui.LoginUiState
+import com.micrantha.eyespie.features.login.arch.LoginEffects
+import com.micrantha.eyespie.features.login.arch.LoginMapper
+import com.micrantha.eyespie.features.login.arch.LoginReducer
+import com.micrantha.eyespie.features.login.entities.LoginState
+import com.micrantha.eyespie.features.login.entities.LoginUiState
 
 class LoginScreenModel(
     screenContext: ScreenContext,
-    environment: LoginEnvironment,
+    effects: LoginEffects,
+    reducer: LoginReducer = LoginReducer(),
+    mapper: LoginMapper = LoginMapper(),
     initialState: LoginState = LoginState()
 ) : MappedScreenModel<LoginState, LoginUiState>(
     screenContext,
     initialState,
-    environment::map
+    mapper
 ) {
 
     init {
-        store.addReducer(environment::reduce)
-            .applyEffect(environment::invoke)
+        store.addReducer(reducer::reduce)
+            .applyEffect(effects::invoke)
     }
 }

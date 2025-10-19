@@ -27,12 +27,10 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TextField
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.font.FontStyle
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
@@ -41,14 +39,14 @@ import com.micrantha.bluebell.arch.Dispatch
 import com.micrantha.bluebell.ui.components.EmailVisualTransformation
 import com.micrantha.bluebell.ui.components.StateRenderer
 import com.micrantha.bluebell.ui.model.enabled
-import com.micrantha.bluebell.ui.model.error
 import com.micrantha.bluebell.ui.model.isFailure
 import com.micrantha.bluebell.ui.theme.Dimensions
 import com.micrantha.eyespie.app.EyesPie
 import com.micrantha.eyespie.app.S
 import com.micrantha.eyespie.core.ui.Screen
-import com.micrantha.eyespie.features.login.ui.LoginAction.ResetStatus
-import com.micrantha.eyespie.ui.login.LoginScreenModel
+import com.micrantha.eyespie.features.login.entities.LoginAction
+import com.micrantha.eyespie.features.login.entities.LoginUiState
+import com.micrantha.eyespie.features.login.components.Messages
 import eyespie.euphrasia.generated.resources.app_title
 import eyespie.euphrasia.generated.resources.email
 import eyespie.euphrasia.generated.resources.login
@@ -57,7 +55,6 @@ import eyespie.euphrasia.generated.resources.login_password_placeholder
 import eyespie.euphrasia.generated.resources.login_with_google
 import eyespie.euphrasia.generated.resources.password
 import eyespie.euphrasia.generated.resources.register
-import kotlinx.coroutines.delay
 import org.jetbrains.compose.resources.stringResource
 
 class LoginScreen : Screen, StateRenderer<LoginUiState> {
@@ -199,22 +196,6 @@ class LoginScreen : Screen, StateRenderer<LoginUiState> {
                         Messages(state = state, dispatch = dispatch)
                     }
                 }
-            }
-        }
-    }
-
-    @Composable
-    private fun Messages(state: LoginUiState, dispatch: Dispatch) {
-        state.status.error?.let {
-            Text(
-                text = stringResource(it),
-                fontStyle = FontStyle.Italic,
-                color = MaterialTheme.colorScheme.error
-            )
-
-            LaunchedEffect(Unit) {
-                delay(5000)
-                dispatch(ResetStatus)
             }
         }
     }

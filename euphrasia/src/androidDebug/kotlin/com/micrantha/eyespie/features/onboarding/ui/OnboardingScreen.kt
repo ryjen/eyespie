@@ -3,8 +3,8 @@ package com.micrantha.eyespie.features.onboarding.ui
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.tooling.preview.Preview
 import com.micrantha.eyespie.core.PreviewContext
-import com.micrantha.eyespie.features.onboarding.domain.entities.OnboardingPage
-import com.micrantha.eyespie.features.onboarding.domain.entities.OnboardingUiState
+import com.micrantha.eyespie.features.onboarding.entities.OnboardingPage
+import com.micrantha.eyespie.features.onboarding.entities.OnboardingUiState
 
 @Preview(
     showBackground = true,
