@@ -29,4 +29,5 @@ dependencyResolutionManagement {
 }
 
 rootProject.name = "EyesPie"
-include(":composeApp")
+include(":bluebell")
+include(":euphrasia")
