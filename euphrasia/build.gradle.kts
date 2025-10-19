@@ -34,7 +34,7 @@ kotlin {
         iosSimulatorArm64()
     ).forEach { iosTarget ->
         iosTarget.binaries.framework {
-            baseName = "composeApp"
+            baseName = "euphrasia"
             isStatic = true
             binaryOption("bundleId", "com.micrantha.eyespie")
         }

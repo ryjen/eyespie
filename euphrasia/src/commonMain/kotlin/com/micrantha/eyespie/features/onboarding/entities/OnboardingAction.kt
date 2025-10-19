@@ -2,6 +2,7 @@ package com.micrantha.eyespie.features.onboarding.entities
 
 sealed interface OnboardingAction {
     data object Init : OnboardingAction
+    data object SkipDownload: OnboardingAction
     data class Loaded(val models: OnboardingModels) : OnboardingAction
     data object NextPage : OnboardingAction
     data object Done : OnboardingAction

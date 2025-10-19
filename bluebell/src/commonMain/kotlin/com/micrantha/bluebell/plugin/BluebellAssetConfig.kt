@@ -1,1 +1,0 @@
-../../../../../../../../buildSrc/src/main/kotlin/com/micrantha/bluebell/plugin/BluebellAssetConfig.kt

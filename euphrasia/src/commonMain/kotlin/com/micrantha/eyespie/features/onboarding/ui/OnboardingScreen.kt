@@ -19,12 +19,12 @@ import com.micrantha.bluebell.arch.Dispatch
 import com.micrantha.bluebell.ui.components.StateRenderer
 import com.micrantha.bluebell.ui.theme.Dimensions
 import com.micrantha.eyespie.core.ui.Screen
-import com.micrantha.eyespie.features.onboarding.entities.OnboardingAction
-import com.micrantha.eyespie.features.onboarding.entities.OnboardingPage
-import com.micrantha.eyespie.features.onboarding.entities.OnboardingUiState
 import com.micrantha.eyespie.features.onboarding.components.ClickableAnimatedPagerIndicator
 import com.micrantha.eyespie.features.onboarding.components.RenderGenAI
 import com.micrantha.eyespie.features.onboarding.components.RenderWelcome
+import com.micrantha.eyespie.features.onboarding.entities.OnboardingAction
+import com.micrantha.eyespie.features.onboarding.entities.OnboardingPage
+import com.micrantha.eyespie.features.onboarding.entities.OnboardingUiState
 import kotlinx.coroutines.delay
 
 // TODO: wizard like setup for first run

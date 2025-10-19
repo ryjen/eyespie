@@ -2,7 +2,12 @@ package com.micrantha.eyespie.features.onboarding.arch
 
 import com.micrantha.bluebell.arch.Action
 import com.micrantha.bluebell.arch.Reducer
-import com.micrantha.eyespie.features.onboarding.entities.OnboardingAction.*
+import com.micrantha.eyespie.features.onboarding.entities.OnboardingAction.Done
+import com.micrantha.eyespie.features.onboarding.entities.OnboardingAction.Error
+import com.micrantha.eyespie.features.onboarding.entities.OnboardingAction.Init
+import com.micrantha.eyespie.features.onboarding.entities.OnboardingAction.Loaded
+import com.micrantha.eyespie.features.onboarding.entities.OnboardingAction.PageChanged
+import com.micrantha.eyespie.features.onboarding.entities.OnboardingAction.SelectModel
 import com.micrantha.eyespie.features.onboarding.entities.OnboardingPage
 import com.micrantha.eyespie.features.onboarding.entities.OnboardingState
 

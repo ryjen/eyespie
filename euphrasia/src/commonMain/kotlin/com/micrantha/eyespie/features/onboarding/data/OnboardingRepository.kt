@@ -10,11 +10,13 @@ class OnboardingRepository(
 ) {
     val hasRunOnce = booleanPreferencesKey("has_run_once")
 
-    val hasGenAI = stringPreferencesKey("has_gen_ai")
+    val hasGenAI = booleanPreferencesKey("has_gen_ai")
 
-    suspend fun setHasRunOnce() {
+    val modelFile = stringPreferencesKey("model")
+
+    suspend fun setHasRunOnce(value: Boolean = true) {
         localSource.dataStore.edit { prefs ->
-            prefs[hasRunOnce] = true
+            prefs[hasRunOnce] = value
         }
     }
 
@@ -23,19 +25,26 @@ class OnboardingRepository(
         return prefs[hasRunOnce] ?: false
     }
 
-    suspend fun setHasGenAI(model: String) {
+    suspend fun setModelFile(model: String) {
         localSource.dataStore.edit { prefs ->
-            prefs[hasGenAI] = model
+            prefs[modelFile] = model
         }
     }
 
-    suspend fun genAiModel(): String? {
-        val prefs = localSource.dataStore.data.first()
-        return prefs[hasGenAI]
+    suspend fun setHasGenAI(value: Boolean = true) {
+        localSource.dataStore.edit { prefs ->
+            prefs[hasGenAI] = value
+        }
     }
 
     suspend fun hasGenAI(): Boolean {
         val prefs = localSource.dataStore.data.first()
-        return prefs[hasGenAI].isNullOrBlank().not()
+        return prefs[hasGenAI] ?: false
     }
+
+    suspend fun modelFile(): String? {
+        val prefs = localSource.dataStore.data.first()
+        return prefs[modelFile]
+    }
+
 }

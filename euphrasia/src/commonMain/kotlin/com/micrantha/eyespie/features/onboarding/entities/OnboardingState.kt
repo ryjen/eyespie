@@ -1,8 +1,7 @@
 package com.micrantha.eyespie.features.onboarding.entities
 
-import com.micrantha.bluebell.plugin.BluebellAssetConfig
 
-typealias OnboardingModels = Map<String, BluebellAssetConfig.Download>
+typealias OnboardingModels = Map<String, AiModel>
 
 data class OnboardingState(
     val page: OnboardingPage = OnboardingPage.Welcome,

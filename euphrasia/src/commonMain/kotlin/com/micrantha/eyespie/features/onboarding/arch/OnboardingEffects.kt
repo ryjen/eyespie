@@ -3,22 +3,29 @@ package com.micrantha.eyespie.features.onboarding.arch
 import com.micrantha.bluebell.arch.Action
 import com.micrantha.bluebell.arch.Dispatcher
 import com.micrantha.bluebell.arch.Effect
-import com.micrantha.bluebell.domain.security.sha256
+import com.micrantha.bluebell.ext.getIf
 import com.micrantha.bluebell.ui.screen.ScreenContext
-import com.micrantha.eyespie.app.ui.usecase.LoadMainUseCase
+import com.micrantha.eyespie.app.usecase.LoadMainUseCase
 import com.micrantha.eyespie.features.onboarding.data.OnboardingRepository
-import com.micrantha.eyespie.features.onboarding.entities.OnboardingAction.*
+import com.micrantha.eyespie.features.onboarding.entities.OnboardingAction.Done
+import com.micrantha.eyespie.features.onboarding.entities.OnboardingAction.Download
+import com.micrantha.eyespie.features.onboarding.entities.OnboardingAction.Error
+import com.micrantha.eyespie.features.onboarding.entities.OnboardingAction.Init
+import com.micrantha.eyespie.features.onboarding.entities.OnboardingAction.Loaded
+import com.micrantha.eyespie.features.onboarding.entities.OnboardingAction.NextPage
+import com.micrantha.eyespie.features.onboarding.entities.OnboardingAction.PageChanged
+import com.micrantha.eyespie.features.onboarding.entities.OnboardingAction.SkipDownload
 import com.micrantha.eyespie.features.onboarding.entities.OnboardingPage
 import com.micrantha.eyespie.features.onboarding.entities.OnboardingState
-import com.micrantha.eyespie.features.onboarding.usecase.DownloadModelUseCase
-import com.micrantha.eyespie.features.onboarding.usecase.LoadModelConfigUseCase
+import com.micrantha.eyespie.features.onboarding.usecase.LoadModelConfig
+import com.micrantha.eyespie.features.onboarding.usecase.StartModelDownload
 
 class OnboardingEffects(
     private val context: ScreenContext,
     private val onboardingRepository: OnboardingRepository,
     private val loadMainUseCase: LoadMainUseCase,
-    private val loadModelConfig: LoadModelConfigUseCase,
-    private val downloadModelUseCase: DownloadModelUseCase
+    private val loadModelConfig: LoadModelConfig,
+    private val startModelDownload: StartModelDownload
 ) : Effect<OnboardingState>, Dispatcher by context.dispatcher {
 
     override suspend fun invoke(
@@ -34,11 +41,16 @@ class OnboardingEffects(
                 }
             }
 
-            is Download -> state.selectedModel?.let { model ->
-                val download = state.models?.get(model)!!
-                downloadModelUseCase(model, download)
+            is SkipDownload -> {
+                onboardingRepository.setHasGenAI(false)
+                dispatch(NextPage)
+            }
+
+            is Download -> getIf(state.models, state.selectedModel)?.let { (model, download) ->
+                onboardingRepository.setHasGenAI(true)
+                startModelDownload(model, download)
                     .onSuccess {
-                        onboardingRepository.setHasGenAI(sha256(download.url))
+                        onboardingRepository.setModelFile(it)
                         dispatch(NextPage)
                     }.onFailure {
                         dispatch(Error(it))

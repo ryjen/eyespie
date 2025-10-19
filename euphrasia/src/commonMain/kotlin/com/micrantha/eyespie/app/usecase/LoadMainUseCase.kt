@@ -1,6 +1,7 @@
-package com.micrantha.eyespie.app.ui.usecase
+package com.micrantha.eyespie.app.usecase
 
 import com.micrantha.bluebell.app.Log
+import com.micrantha.bluebell.ext.then
 import com.micrantha.bluebell.ui.components.Router
 import com.micrantha.bluebell.ui.screen.ScreenContext
 import com.micrantha.bluebell.ui.screen.navigate
@@ -17,17 +18,6 @@ import kotlin.contracts.ExperimentalContracts
 import kotlin.contracts.InvocationKind
 import kotlin.contracts.contract
 
-@OptIn(ExperimentalContracts::class)
-suspend inline fun <T, R> Result<T>.then(transform: suspend (T) -> Result<R>): Result<R> {
-    contract {
-        callsInPlace(transform, InvocationKind.AT_MOST_ONCE)
-    }
-    return try {
-        transform(getOrThrow())
-    } catch (err: Throwable) {
-        Result.failure(err)
-    }
-}
 class LoadMainUseCase(
     private val context: ScreenContext,
     private val accountRepository: AccountRepository,
@@ -47,7 +37,10 @@ class LoadMainUseCase(
     }
 
     private suspend fun onboarding(input: Player): Result<Player> {
-        return if (onboardingRepository.hasRunOnce().not()) {
+        return if (
+            onboardingRepository.hasRunOnce().not() ||
+            (onboardingRepository.hasGenAI() && onboardingRepository.modelFile().isNullOrBlank())
+            ) {
             context.navigate<OnboardingScreen>(Router.Options.Replace)
             Result.failure(IllegalStateException())
         } else {

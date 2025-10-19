@@ -6,7 +6,7 @@ import com.micrantha.bluebell.arch.Effect
 import com.micrantha.bluebell.ui.components.Router
 import com.micrantha.bluebell.ui.screen.ScreenContext
 import com.micrantha.bluebell.ui.screen.navigate
-import com.micrantha.eyespie.app.ui.usecase.LoadMainUseCase
+import com.micrantha.eyespie.app.usecase.LoadMainUseCase
 import com.micrantha.eyespie.domain.repository.AccountRepository
 import com.micrantha.eyespie.features.login.entities.LoginState
 import com.micrantha.eyespie.features.login.entities.LoginAction.*

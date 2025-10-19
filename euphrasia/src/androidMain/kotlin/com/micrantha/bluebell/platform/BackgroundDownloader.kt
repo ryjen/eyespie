@@ -12,6 +12,13 @@ import com.tonyodev.fetch2.FetchConfiguration
 import com.tonyodev.fetch2.Priority
 import com.tonyodev.fetch2.Request
 import com.tonyodev.fetch2core.Extras
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.launch
 import okio.source
 import java.io.File
 
@@ -22,6 +29,12 @@ actual class BackgroundDownloader(
 ) : AbstractFetchListener() {
 
     private val notificationManager by lazy { NotificationManager() }
+
+    private val completed by lazy { MutableSharedFlow<DownloadData>() }
+
+    private val scope by lazy { CoroutineScope(SupervisorJob() + Dispatchers.Default) }
+
+    actual fun completed(): Flow<DownloadData> = completed
 
     private val fetchConfig by lazy {
         FetchConfiguration.Builder(context)
@@ -43,13 +56,16 @@ actual class BackgroundDownloader(
         name: String,
         url: String,
         checksum: String?
-    ) {
+    ): String {
         val data = mutableMapOf(
             KEY_NAME to name,
         )
+
         checksum?.let { data[KEY_CHECKSUM] = it }
 
-        val filePath = platform.filesPath().resolve(sha256(url))
+        val fileName = sha256(url)
+
+        val filePath = platform.filesPath().resolve(fileName)
 
         val request = Request(
             url = url,
@@ -66,9 +82,19 @@ actual class BackgroundDownloader(
         }) {
             Log.e(TAG, "Download failed $it ❌", it.throwable)
         }
+        return fileName
     }
 
     override fun onCompleted(download: Download) {
+
+        scope.launch {
+            completed.emit(DownloadData(
+                download.tag!!,
+                download.extras.map[KEY_NAME]!!,
+                download.file
+            ))
+        }
+
         // If configuration provided a checksum, validate it
         // using sha-256 hash.  Fetch already validates md5 if the server supports
         val expectedChecksum = download.extras.map[KEY_CHECKSUM] ?: return
@@ -114,5 +140,6 @@ actual class BackgroundDownloader(
         private const val TAG = "BackgroundDownloadManager"
         private const val KEY_CHECKSUM = "checksum"
         private const val KEY_NAME = "name"
+        private const val KEY_GZIP = "gzip"
     }
 }
