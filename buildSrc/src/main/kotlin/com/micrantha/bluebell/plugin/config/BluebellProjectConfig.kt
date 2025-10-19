@@ -1,7 +1,8 @@
-package com.micrantha.bluebell.plugin
+package com.micrantha.bluebell.plugin.config
 
 import com.github.gmazzo.buildconfig.BuildConfigExtension
 import com.github.gmazzo.buildconfig.BuildConfigTask
+import com.micrantha.bluebell.plugin.bluebell
 import org.gradle.api.Project
 import java.io.File
 import java.io.FileInputStream
@@ -117,3 +118,19 @@ internal fun ${config.className}.get(key: String): String? {
 internal operator fun ${config.className}.getValue(thisRef: Any?, property: KProperty<*>): String =
     map[property.name] ?: ""
 """.trimIndent()
+
+
+internal fun Project.configureGraphql(graphql: BluebellGraphqlConfig, config: BluebellConfig) {
+
+    if (graphql.endpoint.isBlank()) {
+        config.properties["SUPABASE_URL"]?.let {
+            graphql.endpoint = "$it/graphql/v1"
+        }
+    }
+
+    config.properties["SUPABASE_KEY"]?.let { key ->
+        graphql.headers = graphql.headers.toMutableMap().apply {
+            put("apikey", key)
+        }
+    }
+}
