@@ -113,7 +113,7 @@ fun BoxScope.RenderGenAI(state: OnboardingUiState, dispatch: Dispatch) {
             OutlinedButton(
                 enabled = state.isBusy.not(),
                 onClick = {
-                    dispatch(OnboardingAction.NextPage)
+                    dispatch(OnboardingAction.SkipDownload)
                 }) {
                 Text(stringResource(S.no))
             }

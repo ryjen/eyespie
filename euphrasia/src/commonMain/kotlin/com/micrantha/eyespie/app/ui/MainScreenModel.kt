@@ -6,7 +6,7 @@ import com.micrantha.bluebell.arch.Action
 import com.micrantha.bluebell.ui.screen.ContextualScreenModel
 import com.micrantha.bluebell.ui.screen.ScreenContext
 import com.micrantha.eyespie.app.ui.MainAction.Load
-import com.micrantha.eyespie.app.ui.usecase.LoadMainUseCase
+import com.micrantha.eyespie.app.usecase.LoadMainUseCase
 import kotlinx.coroutines.launch
 
 class MainScreenModel(

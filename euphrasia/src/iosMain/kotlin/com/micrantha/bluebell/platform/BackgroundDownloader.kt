@@ -35,8 +35,9 @@ actual class BackgroundDownloader {
         )
     }
 
-    actual fun startDownload(tag: String, name: String, url: String, checksum: String?) {
+    actual fun startDownload(tag: String, name: String, url: String, checksum: String?): String {
         val taskId = NSUUID().UUIDString
 
+        return taskId
     }
 }
