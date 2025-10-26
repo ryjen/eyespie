@@ -9,9 +9,10 @@ import com.micrantha.bluebell.platform.FileSystem
 import com.micrantha.bluebell.ui.components.Router
 import com.micrantha.bluebell.ui.screen.ScreenContext
 import com.micrantha.eyespie.domain.entities.Location
-import com.micrantha.eyespie.features.scan.ui.capture.ScanAction.Back
-import com.micrantha.eyespie.features.scan.ui.capture.ScanAction.ScanError
-import com.micrantha.eyespie.features.scan.ui.edit.ScanEditParams
+import com.micrantha.eyespie.features.scan.entities.ScanAction.Back
+import com.micrantha.eyespie.features.scan.entities.ScanAction.ScanError
+import com.micrantha.eyespie.features.scan.entities.ScanEditParams
+import com.micrantha.eyespie.features.scan.entities.ScanState
 import com.micrantha.eyespie.features.scan.ui.edit.ScanEditScreen
 import okio.Path
 
@@ -27,7 +28,7 @@ class ScanCaptureEnvironment(
         when (action) {
             is Path -> try {
                 navigate(
-                    ScanEditScreen(context, ScanEditParams(action, state.location!!)),
+                    ScanEditScreen(ScanEditParams(action, state.location!!)),
                     Router.Options.Replace
                 )
             } catch (_: Throwable) {

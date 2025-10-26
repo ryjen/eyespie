@@ -1,17 +1,10 @@
 package com.micrantha.bluebell.platform
 
 import platform.Foundation.NSOperationQueue
-import platform.Foundation.NSSearchPathForDirectoriesInDomains
-import platform.Foundation.NSURL
 import platform.Foundation.NSURLSession
 import platform.Foundation.NSURLSessionConfiguration
-import platform.Foundation.NSURLSessionDownloadDelegateProtocol
 import platform.Foundation.NSURLSessionDownloadTask
-import platform.Foundation.NSURLSessionTask
 import platform.Foundation.NSUUID
-import platform.Foundation.NSUserDomainMask
-import platform.Foundation.create
-import platform.darwin.NSObject
 
 actual class BackgroundDownloader {
     companion object {

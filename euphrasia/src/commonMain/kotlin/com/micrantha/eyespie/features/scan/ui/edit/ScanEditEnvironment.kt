@@ -10,25 +10,17 @@ import com.micrantha.bluebell.arch.StateMapper
 import com.micrantha.bluebell.ui.components.Router
 import com.micrantha.bluebell.ui.screen.ScreenContext
 import com.micrantha.eyespie.core.data.account.model.CurrentSession
-import com.micrantha.eyespie.core.ui.component.Choice
-import com.micrantha.eyespie.core.ui.component.updateKey
 import com.micrantha.eyespie.domain.entities.Clues
-import com.micrantha.eyespie.domain.entities.LabelClue
 import com.micrantha.eyespie.domain.entities.LocationClue
 import com.micrantha.eyespie.domain.entities.Proof
 import com.micrantha.eyespie.domain.repository.ClueRepository
-import com.micrantha.eyespie.features.scan.ui.edit.ScanEditAction.ClearColor
-import com.micrantha.eyespie.features.scan.ui.edit.ScanEditAction.ClearLabel
-import com.micrantha.eyespie.features.scan.ui.edit.ScanEditAction.ColorChanged
-import com.micrantha.eyespie.features.scan.ui.edit.ScanEditAction.CustomColorChanged
-import com.micrantha.eyespie.features.scan.ui.edit.ScanEditAction.CustomDetectionChanged
-import com.micrantha.eyespie.features.scan.ui.edit.ScanEditAction.CustomLabelChanged
-import com.micrantha.eyespie.features.scan.ui.edit.ScanEditAction.Init
-import com.micrantha.eyespie.features.scan.ui.edit.ScanEditAction.LabelChanged
-import com.micrantha.eyespie.features.scan.ui.edit.ScanEditAction.LoadError
-import com.micrantha.eyespie.features.scan.ui.edit.ScanEditAction.NameChanged
-import com.micrantha.eyespie.features.scan.ui.edit.ScanEditAction.SaveScanEdit
-import com.micrantha.eyespie.features.scan.ui.edit.ScanEditAction.SaveThingError
+import com.micrantha.eyespie.features.scan.entities.ScanEditAction
+import com.micrantha.eyespie.features.scan.entities.ScanEditAction.Init
+import com.micrantha.eyespie.features.scan.entities.ScanEditAction.LoadError
+import com.micrantha.eyespie.features.scan.entities.ScanEditAction.SaveScanEdit
+import com.micrantha.eyespie.features.scan.entities.ScanEditAction.SaveThingError
+import com.micrantha.eyespie.features.scan.entities.ScanEditState
+import com.micrantha.eyespie.features.scan.entities.ScanEditUiState
 import com.micrantha.eyespie.features.scan.usecase.UploadCaptureUseCase
 import com.micrantha.eyespie.platform.scan.CameraImage
 import com.micrantha.eyespie.platform.scan.LoadCameraImageUseCase
@@ -48,56 +40,28 @@ class ScanEditEnvironment(
         is Init -> state.copy(
             path = action.params.image,
             location = action.params.location,
-            hasAI = true //aiRepository.isReady()
         )
 
         is CameraImage -> state.copy(
-            image = action
+            image = action,
+            isBusy = true,
         )
 
-        is LabelClue -> state.copy(
-            labels = state.labels?.updateKey(action.display()) { clue ->
-                clue.copy(data = action.data, confidence = action.confidence)
-            }
-        )
-
-        is LabelChanged -> state.copy(
-            customLabel = null,
-            labels = state.labels?.updateKey(action.data.key) { clue ->
-                clue.copy(data = action.data.tag)
-            }
-        )
-
-        is ColorChanged -> state.copy(
-            colors = state.colors?.updateKey(action.data.key) { clue ->
-                clue.copy(data = action.data.tag)
-            }
-        )
-
-        is NameChanged -> state.copy(
-            name = action.data
-        )
-
-        is ClearLabel -> state.copy(
-            customLabel = ""
-        )
-
-        is ClearColor -> state.copy(
-            customColor = ""
+        is ScanEditAction.SelectClue -> state.copy(
+            selected = state.selected?.apply { add(action.index) } ?: mutableSetOf(action.index)
         )
 
         is ScanEditAction.AnalyzedClues -> state.copy(
-            labels = action.clues.labels?.associateBy { it.data }?.toMutableMap(),
-            colors = action.clues.colors?.associateBy { it.data }?.toMutableMap(),
-            detections = action.clues.detections?.associateBy { it.data }?.toMutableMap(),
+            clues = action.proof.toMutableSet(),
+            isBusy = false,
         )
 
-        is CustomLabelChanged -> state.copy(customLabel = action.data)
-        is CustomColorChanged -> state.copy(customColor = action.data)
-        is CustomDetectionChanged -> state.copy(customDetection = action.data)
         is SaveScanEdit -> state.copy(disabled = true)
         is SaveThingError -> state.copy(disabled = false)
-        is LoadError -> state.copy(disabled = false)
+        is LoadError -> state.copy(
+            disabled = false,
+            isBusy = false,
+        )
         else -> state
     }
 
@@ -112,9 +76,10 @@ class ScanEditEnvironment(
             }
 
             is CameraImage ->
-                clueRepository.generate(state.path!!).onSuccess {
+                clueRepository.clues(state.path!!).onSuccess {
                     dispatch(ScanEditAction.AnalyzedClues(it))
                 }.onFailure {
+                    Log.e("ScanEdit", it)
                     dispatch(LoadError)
                 }
 
@@ -130,46 +95,21 @@ class ScanEditEnvironment(
     }
 
     override fun map(state: ScanEditState) = ScanEditUiState(
-        labels = state.labels?.map {
-            Choice(
-                label = it.value.display(),
-                tag = it.value.data,
-                key = it.key
-            )
-        } ?: emptyList(),
-        customLabel = state.customLabel,
-        showLabels = state.labels?.isNotEmpty() ?: state.customLabel?.isNotBlank()
-        ?: state.hasAI.not(),
-        colors = state.colors?.map {
-            Choice(
-                label = it.value.display(),
-                tag = it.value.data,
-                key = it.key
-            )
-        } ?: emptyList(),
-        customColor = state.customColor,
-        showColors = state.colors?.isNotEmpty() ?: state.customColor?.isNotBlank()
-        ?: state.hasAI.not(),
-        detections = state.detections?.map {
-            Choice(
-                label = it.value.display(),
-                key = it.value.data,
-                tag = it.key
-            )
-        } ?: emptyList(),
-        customDetection = state.customDetection,
-        showDetections = state.detections?.isNotEmpty() ?: state.customDetection?.isNotBlank()
-        ?: state.hasAI.not(),
-        name = state.name ?: "",
         image = state.image?.let { BitmapPainter(it.toImageBitmap()) },
-        enabled = state.disabled.not()
+        enabled = state.disabled.not() && state.selected.isNullOrEmpty().not(),
+        clues = state.clues?.mapIndexed { index, clue ->
+            ScanEditUiState.Clue(
+                answer = clue.answer,
+                clue = clue.data,
+                isSelected = state.selected?.contains(index) ?: false
+            )
+        } ?: emptyList(),
+        isBusy = state.isBusy,
     )
 
     private fun ScanEditState.asProof() = Proof(
         clues = Clues(
-            labels = labels?.values?.toSet(),
-            colors = colors?.values?.toSet(),
-            detections = detections?.values?.toSet(),
+            clues = clues?.toSet(),
             location = location?.data?.let { LocationClue(it) }
         ),
         name = name,

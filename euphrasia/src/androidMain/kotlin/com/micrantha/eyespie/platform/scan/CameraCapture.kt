@@ -12,10 +12,13 @@ import android.view.ScaleGestureDetector.SimpleOnScaleGestureListener
 import android.view.WindowManager
 import androidx.camera.core.Camera
 import androidx.camera.core.CameraSelector
+import androidx.camera.core.FocusMeteringAction
+import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageCapture
 import androidx.camera.core.ImageCaptureException
 import androidx.camera.core.Preview
 import androidx.camera.core.Preview.SurfaceProvider
+import androidx.camera.core.SurfaceOrientedMeteringPointFactory
 import androidx.camera.core.UseCaseGroup
 import androidx.camera.core.resolutionselector.AspectRatioStrategy
 import androidx.camera.core.resolutionselector.ResolutionSelector
@@ -42,6 +45,7 @@ import okio.Path.Companion.toPath
 import java.io.File
 import java.io.FileOutputStream
 import java.util.concurrent.Executors
+import java.util.concurrent.TimeUnit
 
 @Composable
 actual fun CameraCapture(
@@ -70,7 +74,7 @@ actual fun CameraCapture(
         ImageCapture.Builder()
             .setResolutionSelector(resolutionSelector)
             .setTargetRotation(context.getDisplayRotation())
-            .setCaptureMode(ImageCapture.CAPTURE_MODE_MINIMIZE_LATENCY)
+            .setCaptureMode(ImageCapture.CAPTURE_MODE_MAXIMIZE_QUALITY)
             .setFlashMode(ImageCapture.FLASH_MODE_AUTO)
             .build()
     }
@@ -86,7 +90,7 @@ actual fun CameraCapture(
             ContentValues()
         ).build()
     }
-
+    var camera by remember { mutableStateOf<Camera?>(null) }
     val rotation = remember { mutableIntStateOf(context.getDisplayRotation()) }
 
     DisposableEffect(Unit) {
@@ -126,7 +130,7 @@ actual fun CameraCapture(
                 addListener({
                     cameraProvider = get().apply {
                         unbindAll()
-                        bindToLifecycle(
+                        camera = bindToLifecycle(
                             lifecycleOwner,
                             cameraSelector,
                             createCameraUseCases(
@@ -145,19 +149,29 @@ actual fun CameraCapture(
     )
 
     captureButton {
-        imageCapture.takePicture(
-            outputOptions,
-            Executors.newSingleThreadExecutor(),
-            object : ImageCapture.OnImageSavedCallback {
-                override fun onError(exception: ImageCaptureException) {
-                    onCameraError(exception)
-                }
+        val meteringPointFactory = SurfaceOrientedMeteringPointFactory(1f, 1f)
+        val centerPoint = meteringPointFactory.createPoint(0.5f, 0.5f)
 
-                override fun onImageSaved(outputFileResults: ImageCapture.OutputFileResults) {
-                    onCameraImage(context.saveImageToPath(outputFileResults.savedUri!!))
+        val focusAction = FocusMeteringAction.Builder(centerPoint, FocusMeteringAction.FLAG_AF)
+            .setAutoCancelDuration(3, TimeUnit.SECONDS)
+            .build()
+
+        camera?.cameraControl?.startFocusAndMetering(focusAction)?.addListener({
+            val executor = Executors.newSingleThreadExecutor()
+            imageCapture.takePicture(
+                outputOptions,
+                executor,
+                object : ImageCapture.OnImageSavedCallback {
+                    override fun onError(exception: ImageCaptureException) {
+                        onCameraError(exception)
+                    }
+
+                    override fun onImageSaved(outputFileResults: ImageCapture.OutputFileResults) {
+                        onCameraImage(context.saveImageToPath(outputFileResults.savedUri!!))
+                    }
                 }
-            }
-        )
+            )
+        }, ContextCompat.getMainExecutor(context))
     }
 }
 
@@ -207,6 +221,9 @@ private fun createCameraUseCases(
         .also { it.surfaceProvider = surfaceProvider }
 
     useCases.addUseCase(previewUseCase)
+
+    val analysisUseCase = ImageAnalysis.Builder().setResolutionSelector(resolutionSelector).build()
+    useCases.addUseCase(analysisUseCase)
 
     return useCases.build()
 }

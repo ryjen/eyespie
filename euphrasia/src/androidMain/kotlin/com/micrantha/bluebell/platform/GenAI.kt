@@ -30,14 +30,14 @@ actual class GenAI(
         if (config.modelPath.isBlank()) throw InvalidModelPathException()
 
         val options = LlmInference.LlmInferenceOptions.builder()
-            .setModelPath(context.copyAssetToFile(config.modelPath).absolutePath).apply {
+            .setModelPath(config.modelPath).apply {
                 this.setVisionModelOptions(
                     VisionModelOptions.builder().apply {
                         config.visionEncoderPath?.let {
-                            setEncoderPath(context.copyAssetToFile(it).absolutePath)
+                            setEncoderPath(it)
                         }
                         config.visionAdapterPath?.let {
-                            setAdapterPath(context.copyAssetToFile(it).absolutePath)
+                            setAdapterPath(it)
                         }
                     }.build()
                 )

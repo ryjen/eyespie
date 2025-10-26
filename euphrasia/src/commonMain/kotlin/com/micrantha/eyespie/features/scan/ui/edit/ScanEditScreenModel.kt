@@ -7,6 +7,8 @@ import com.micrantha.bluebell.history.historyReducerOf
 import com.micrantha.bluebell.history.historyStateOf
 import com.micrantha.bluebell.ui.screen.MappedScreenModel
 import com.micrantha.bluebell.ui.screen.ScreenContext
+import com.micrantha.eyespie.features.scan.entities.ScanEditState
+import com.micrantha.eyespie.features.scan.entities.ScanEditUiState
 
 class ScanEditScreenModel(
     context: ScreenContext,

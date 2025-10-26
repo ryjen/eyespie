@@ -66,6 +66,12 @@ class PreviewContext(
             fs.createDirectories(path)
             return path
         }
+
+        override fun sharedFilesPath(): Path {
+            return "/sharedFiles".toPath().also {
+                fs.createDirectories(it)
+            }
+        }
     }
 
     override val di: DI = androidDependencies(context)

@@ -1,4 +1,4 @@
-package com.micrantha.eyespie.features.scan.ui.components
+package com.micrantha.eyespie.features.scan.components
 
 import androidx.compose.animation.animateContentSize
 import androidx.compose.foundation.background

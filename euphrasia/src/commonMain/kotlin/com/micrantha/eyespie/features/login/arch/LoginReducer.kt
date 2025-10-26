@@ -6,7 +6,15 @@ import com.micrantha.bluebell.ui.model.UiResult.Busy
 import com.micrantha.bluebell.ui.model.UiResult.Default
 import com.micrantha.bluebell.ui.model.UiResult.Failure
 import com.micrantha.eyespie.app.S
-import com.micrantha.eyespie.features.login.entities.LoginAction.*
+import com.micrantha.eyespie.features.login.entities.LoginAction.ChangedEmail
+import com.micrantha.eyespie.features.login.entities.LoginAction.ChangedPassword
+import com.micrantha.eyespie.features.login.entities.LoginAction.OnError
+import com.micrantha.eyespie.features.login.entities.LoginAction.OnLogin
+import com.micrantha.eyespie.features.login.entities.LoginAction.OnLoginWithGoogle
+import com.micrantha.eyespie.features.login.entities.LoginAction.OnSuccess
+import com.micrantha.eyespie.features.login.entities.LoginAction.ResetStatus
+import com.micrantha.eyespie.features.login.entities.LoginAction.ToggleEmailMask
+import com.micrantha.eyespie.features.login.entities.LoginAction.TogglePasswordMask
 import com.micrantha.eyespie.features.login.entities.LoginState
 import eyespie.euphrasia.generated.resources.logging_in
 import eyespie.euphrasia.generated.resources.login_failed

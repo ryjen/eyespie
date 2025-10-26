@@ -2,25 +2,29 @@ package com.micrantha.bluebell.platform
 
 import android.content.Context
 import android.util.Log
+import com.micrantha.bluebell.data.DownloadState
 import com.micrantha.bluebell.domain.security.sha256
 import com.micrantha.eyespie.BuildConfig
 import com.tonyodev.fetch2.AbstractFetchListener
 import com.tonyodev.fetch2.DefaultFetchNotificationManager
 import com.tonyodev.fetch2.Download
+import com.tonyodev.fetch2.DownloadNotification
+import com.tonyodev.fetch2.Error
 import com.tonyodev.fetch2.Fetch
 import com.tonyodev.fetch2.FetchConfiguration
 import com.tonyodev.fetch2.Priority
 import com.tonyodev.fetch2.Request
+import com.tonyodev.fetch2core.DownloadBlock
 import com.tonyodev.fetch2core.Extras
-import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.SupervisorJob
+import kotlinx.coroutines.DelicateCoroutinesApi
+import kotlinx.coroutines.GlobalScope
+import kotlinx.coroutines.channels.awaitClose
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.MutableSharedFlow
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.launch
-import okio.source
-import java.io.File
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.callbackFlow
+import kotlinx.coroutines.flow.shareIn
+import kotlinx.coroutines.suspendCancellableCoroutine
+import okio.Path
 
 actual class BackgroundDownloader(
     private val context: Context,
@@ -30,16 +34,12 @@ actual class BackgroundDownloader(
 
     private val notificationManager by lazy { NotificationManager() }
 
-    private val completed by lazy { MutableSharedFlow<DownloadData>() }
-
-    private val scope by lazy { CoroutineScope(SupervisorJob() + Dispatchers.Default) }
-
-    actual fun completed(): Flow<DownloadData> = completed
-
     private val fetchConfig by lazy {
         FetchConfiguration.Builder(context)
             .setDownloadConcurrentLimit(3)
             .setNamespace(namespace)
+            .enableFileExistChecks(true)
+            .enableHashCheck(true)
             .setNotificationManager(notificationManager)
             .enableLogging(BuildConfig.DEBUG)
             .build()
@@ -51,71 +51,125 @@ actual class BackgroundDownloader(
         }
     }
 
-    actual fun startDownload(
-        tag: String,
-        name: String,
+    actual suspend fun startDownload(
+        id: Long,
+        name: String?,
         url: String,
-        checksum: String?
-    ): String {
+        filePath: Path,
+        tag: String?,
+    ): Result<Unit> {
+
         val data = mutableMapOf(
-            KEY_NAME to name,
+            KEY_FILE to filePath.toString(),
         )
 
-        checksum?.let { data[KEY_CHECKSUM] = it }
-
-        val fileName = sha256(url)
-
-        val filePath = platform.filesPath().resolve(fileName)
+        name?.let { data[KEY_NAME] = it }
 
         val request = Request(
             url = url,
-            file = filePath.toString()
+            file = filePath.toString(),
         ).apply {
             this.tag = tag
+            this.identifier = id
             priority = Priority.HIGH
-            groupId = tag.hashCode()
             extras = Extras(data)
+
+            if (name == null) {
+                addHeader("Fetch-Notification", "false")
+            }
         }
 
-        fetch.enqueue(request = request, func = {
-            Log.d(TAG, "Download enqueued ✅")
-        }) {
-            Log.e(TAG, "Download failed $it ❌", it.throwable)
-        }
-        return fileName
-    }
+        fetch.addListener(this)
 
-    override fun onCompleted(download: Download) {
-
-        scope.launch {
-            completed.emit(DownloadData(
-                download.tag!!,
-                download.extras.map[KEY_NAME]!!,
-                download.file
-            ))
-        }
-
-        // If configuration provided a checksum, validate it
-        // using sha-256 hash.  Fetch already validates md5 if the server supports
-        val expectedChecksum = download.extras.map[KEY_CHECKSUM] ?: return
-        val isValid = validateChecksum(download.file, expectedChecksum)
-        if (!isValid) {
-            Log.e(TAG, "Checksum mismatch ❌")
-            fetch.retry(download.id)
-        } else {
-            notificationManager.cancelNotification(download.id)
+        return suspendCancellableCoroutine { cont ->
+            fetch.enqueue(request = request, func = {
+                Log.d(TAG, "Download enqueued ✅")
+                cont.resume(Result.success(Unit)) { cause, _, _ ->
+                    cont.cancel(cause)
+                }
+            }) {
+                Log.e(TAG, "Download failed $it ❌", it.throwable)
+                cont.cancel(it.throwable)
+            }
         }
     }
 
-    private fun validateChecksum(file: String, checksum: String): Boolean {
-        val file = File(file)
+    @OptIn(DelicateCoroutinesApi::class)
+    actual fun observe(): Flow<DownloadState> = callbackFlow {
+        val listener = object : AbstractFetchListener() {
+            override fun onQueued(download: Download, waitingOnNetwork: Boolean) {
+                trySend(DownloadState.Queued(download.identifier))
+            }
 
-        if (!file.exists()) return false
+            override fun onStarted(
+                download: Download,
+                downloadBlocks: List<DownloadBlock>,
+                totalBlocks: Int
+            ) {
+                trySend(DownloadState.Started(download.identifier))
+            }
 
-        val actualChecksum = sha256(file.source())
+            override fun onCompleted(download: Download) {
+                trySend(DownloadState.Completed(download.identifier))
+            }
 
-        return actualChecksum.equals(checksum, ignoreCase = true)
-    }
+            override fun onProgress(
+                download: Download,
+                etaInMilliSeconds: Long,
+                downloadedBytesPerSecond: Long
+            ) {
+                trySend(DownloadState.Progress(
+                    download.identifier,
+                    download.progress,
+                    download.downloaded,
+                    download.total,
+                    etaInMilliSeconds,
+                    downloadedBytesPerSecond
+                ))
+            }
+
+            override fun onError(download: Download, error: com.tonyodev.fetch2.Error, throwable: Throwable?) {
+                trySend(DownloadState.Failed(download.identifier, Error(error.name, error.throwable), throwable))
+            }
+
+            override fun onPaused(download: Download) {
+                trySend(DownloadState.Paused(download.identifier))
+            }
+
+            override fun onResumed(download: Download) {
+                trySend(DownloadState.Resumed(download.identifier))
+            }
+
+            override fun onCancelled(download: Download) {
+                trySend(DownloadState.Cancelled(download.identifier))
+            }
+
+            override fun onRemoved(download: Download) {
+                trySend(DownloadState.Removed(download.identifier))
+            }
+
+            override fun onWaitingNetwork(download: Download) {
+                trySend(DownloadState.WaitingNetwork(download.identifier))
+            }
+
+            override fun onDeleted(download: Download) {
+                trySend(DownloadState.Deleted(download.identifier))
+            }
+
+            override fun onAdded(download: Download) {
+                trySend(DownloadState.Added(download.identifier))
+            }
+        }
+        fetch.addListener(listener)
+
+        awaitClose {
+            fetch.removeListener(listener)
+        }
+    }.shareIn(
+        scope = GlobalScope,
+        started = SharingStarted.Lazily,
+        replay = 0
+    )
 
     private inner class NotificationManager : DefaultFetchNotificationManager(context) {
 
@@ -139,7 +193,8 @@ actual class BackgroundDownloader(
     companion object {
         private const val TAG = "BackgroundDownloadManager"
         private const val KEY_CHECKSUM = "checksum"
+        private const val KEY_VALID = "valid"
         private const val KEY_NAME = "name"
-        private const val KEY_GZIP = "gzip"
+        private const val KEY_FILE = "file"
     }
 }

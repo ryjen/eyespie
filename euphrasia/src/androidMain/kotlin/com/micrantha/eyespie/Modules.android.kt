@@ -7,9 +7,6 @@ import com.micrantha.bluebell.platform.BackgroundDownloader
 import com.micrantha.bluebell.platform.GenAI
 import com.micrantha.bluebell.platform.Platform
 import com.micrantha.eyespie.platform.scan.LoadCameraImageUseCase
-import com.micrantha.eyespie.platform.scan.analyzer.DetectCaptureAnalyzer
-import com.micrantha.eyespie.platform.scan.analyzer.DominantColorCaptureAnalyzer
-import com.micrantha.eyespie.platform.scan.analyzer.LabelCaptureAnalyzer
 import org.kodein.di.DI
 import org.kodein.di.bindFactory
 import org.kodein.di.bindInstance
@@ -24,10 +21,6 @@ fun androidDependencies(
     bindSingletonOf(::Platform)
 
     bindProviderOf(::AndroidNetworkMonitor)
-
-    bindProviderOf(::LabelCaptureAnalyzer)
-    bindProviderOf(::DominantColorCaptureAnalyzer)
-    bindProviderOf(::DetectCaptureAnalyzer)
 
     bindProviderOf(::LoadCameraImageUseCase)
 

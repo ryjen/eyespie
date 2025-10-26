@@ -1,47 +1,77 @@
 package com.micrantha.eyespie.core.data.ai
 
+import androidx.compose.ui.graphics.ColorProducer
+import com.micrantha.bluebell.app.Log
+import com.micrantha.bluebell.app.d
 import com.micrantha.bluebell.platform.GenAI
 import com.micrantha.bluebell.platform.GenAIRequest
 import com.micrantha.eyespie.core.data.ai.source.CluePromptSource
-import com.micrantha.eyespie.domain.entities.Clues
+import com.micrantha.eyespie.domain.entities.AiClue
+import com.micrantha.eyespie.domain.entities.AiProof
+import com.micrantha.eyespie.domain.entities.GuessClue
 import com.micrantha.eyespie.domain.repository.ClueRepository
-import com.micrantha.eyespie.domain.repository.LocationRepository
-import com.micrantha.eyespie.features.scan.data.analyzer.ColorCaptureAnalyzer
-import com.micrantha.eyespie.platform.scan.analyzer.DetectCaptureAnalyzer
-import com.micrantha.eyespie.platform.scan.analyzer.LabelCaptureAnalyzer
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onEach
 import kotlinx.serialization.json.Json
 import okio.Path
 
 class ClueDataRepository(
     private val llm: GenAI,
     private val cluePromptSource: CluePromptSource,
-    private val locationRepository: LocationRepository,
-    private val colorCaptureAnalyzer: ColorCaptureAnalyzer,
-    private val labelCaptureAnalyzer: LabelCaptureAnalyzer,
-    private val detectCaptureAnalyzer: DetectCaptureAnalyzer
 ) : ClueRepository {
 
-    override fun generate(image: Path): Result<Clues> {
-        val prompt = cluePromptSource.cluesPrompt()
+    private val images = mutableSetOf<String>()
+
+    private fun imageParam(image: Path) = if (images.contains(image.toString()))
+        emptyList() // already added
+    else
+        images.apply { add("file://$image") }.toList()
+
+    override fun guess(image: Path, clue: GuessClue): Result<String> {
         return llm.generate(
             GenAIRequest(
-                prompt = prompt.prompt,
-                images = listOf(image.toString())
+                prompt = cluePromptSource.guess(clue.data),
+                images = imageParam(image)
             )
-        ).map {
-            Json.decodeFromString(it)
+        ).onSuccess {
+            Log.d(tag = "Clues", message = it)
+        }.onFailure {
+            Log.e(tag = "Clues", throwable = it, messageString = "unable to infer")
         }
     }
 
-    override fun infer(image: Path): Flow<Clues> {
-        val prompt = cluePromptSource.cluesPrompt()
+    override fun clues(image: Path): Result<AiProof> {
+        return llm.generate(
+            GenAIRequest(
+                prompt = cluePromptSource.clues(),
+                images = imageParam(image)
+            )
+        ).onSuccess {
+            Log.d(tag = "Clues", message = it)
+        }.onFailure {
+            Log.e(tag = "Clues", throwable = it, messageString = "unable to infer")
+        }.map(::toProof)
+    }
+
+
+     fun infer(image: Path): Flow<AiProof> {
         return llm.generateFlow(
             GenAIRequest(
-                prompt = prompt.prompt,
-                images = listOf(image.toString())
+                prompt = cluePromptSource.clues(),
+                images = imageParam(image)
             )
-        ).map { Json.decodeFromString(it) }
+        ).onEach {
+            Log.d(tag = "Clues", message = it)
+        }.catch {
+            Log.e(tag = "Clues", throwable = it, messageString = "unable to infer")
+        }.map(::toProof)
     }
+
+    private fun toProof(output: String) = output.lines().chunked(3).map { (clue, answer, confidence) ->
+        AiClue(
+            clue, confidence.toFloat(), answer
+        )
+    }.toSet()
 }
