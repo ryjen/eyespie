@@ -60,7 +60,7 @@ class ScanEditScreen(
         ) {
             state.image?.let {
                 Image(
-                    contentScale = ContentScale.FillBounds,
+                    contentScale = ContentScale.FillHeight,
                     modifier = Modifier.align(Alignment.Center).fillMaxSize(),
                     painter = it,
                     contentDescription = null,
