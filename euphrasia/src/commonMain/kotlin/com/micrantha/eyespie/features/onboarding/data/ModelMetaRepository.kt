@@ -2,13 +2,8 @@ package com.micrantha.eyespie.features.onboarding.data
 
 import com.micrantha.bluebell.domain.usecase.dispatchUseCase
 import com.micrantha.eyespie.core.data.client.createHttpClient
-import io.ktor.client.call.body
-import io.ktor.client.plugins.DataConversion.install
-import io.ktor.client.plugins.DefaultRequest
 import io.ktor.client.request.get
 import io.ktor.client.statement.bodyAsText
-import io.ktor.http.HttpHeaders.ContentEncoding
-import io.ktor.util.ContentEncoder
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 
@@ -20,8 +15,6 @@ class ModelMetaRepository {
             url(MODEL_REPO_URL)
         }
     }
-
-    private fun DefaultRequest.DefaultRequestBuilder.install(plugin: Any, scope: () -> Unit) {}
 
     suspend fun listModels(): Result<List<String>> =
         dispatchUseCase(Dispatchers.IO) {

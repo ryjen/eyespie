@@ -38,15 +38,15 @@ import cafe.adriel.voyager.kodein.rememberScreenModel
 import com.micrantha.bluebell.arch.Dispatch
 import com.micrantha.bluebell.ui.components.EmailVisualTransformation
 import com.micrantha.bluebell.ui.components.StateRenderer
-import com.micrantha.bluebell.ui.model.enabled
+import com.micrantha.bluebell.ui.model.isEnabled
 import com.micrantha.bluebell.ui.model.isFailure
 import com.micrantha.bluebell.ui.theme.Dimensions
 import com.micrantha.eyespie.app.EyesPie
 import com.micrantha.eyespie.app.S
 import com.micrantha.eyespie.core.ui.Screen
+import com.micrantha.eyespie.features.login.components.Messages
 import com.micrantha.eyespie.features.login.entities.LoginAction
 import com.micrantha.eyespie.features.login.entities.LoginUiState
-import com.micrantha.eyespie.features.login.components.Messages
 import eyespie.euphrasia.generated.resources.app_title
 import eyespie.euphrasia.generated.resources.email
 import eyespie.euphrasia.generated.resources.login
@@ -96,7 +96,7 @@ class LoginScreen : Screen, StateRenderer<LoginUiState> {
 
                 TextField(
                     value = state.email,
-                    enabled = state.status.enabled(),
+                    enabled = state.status.isEnabled,
                     modifier = Modifier.fillMaxWidth(),
                     visualTransformation = if (state.isEmailMasked)
                         EmailVisualTransformation()
@@ -132,7 +132,7 @@ class LoginScreen : Screen, StateRenderer<LoginUiState> {
                             )
                         }
                     },
-                    enabled = state.status.enabled(),
+                    enabled = state.status.isEnabled,
                     visualTransformation = if (state.isPasswordMasked)
                         PasswordVisualTransformation()
                     else VisualTransformation.None,
@@ -147,11 +147,11 @@ class LoginScreen : Screen, StateRenderer<LoginUiState> {
                 Spacer(modifier = Modifier.heightIn(Dimensions.screen))
 
                 ElevatedButton(
-                    enabled = state.status.enabled(),
+                    enabled = state.status.isEnabled,
                     modifier = Modifier.fillMaxWidth(),
                     contentPadding = PaddingValues(Dimensions.content),
                     onClick = { dispatch(LoginAction.OnLogin) }) {
-                    if (state.status.enabled()) {
+                    if (state.status.isEnabled) {
                         Text(stringResource(S.login))
                     } else {
                         CircularProgressIndicator(
@@ -163,7 +163,7 @@ class LoginScreen : Screen, StateRenderer<LoginUiState> {
                 Spacer(modifier = Modifier.heightIn(Dimensions.screen))
 
                 ElevatedButton(
-                    enabled = state.status.enabled(),
+                    enabled = state.status.isEnabled,
                     modifier = Modifier.fillMaxWidth(),
                     contentPadding = PaddingValues(Dimensions.content),
                     onClick = { dispatch(LoginAction.OnLoginWithGoogle) }) {
@@ -177,7 +177,7 @@ class LoginScreen : Screen, StateRenderer<LoginUiState> {
                 Spacer(modifier = Modifier.heightIn(Dimensions.screen * 2))
 
                 TextButton(
-                    enabled = state.status.enabled(),
+                    enabled = state.status.isEnabled,
                     modifier = Modifier.fillMaxWidth(),
                     contentPadding = PaddingValues(Dimensions.content),
                     onClick = { dispatch(LoginAction.OnRegister) }) {

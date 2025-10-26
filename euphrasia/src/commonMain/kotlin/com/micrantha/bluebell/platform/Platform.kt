@@ -19,9 +19,13 @@ expect class Platform : LocalizedRepository, FileSystem {
 
     fun asset(path: Path): BufferedSource
 
+    fun checksum(path: Path): String?
+
     fun resource(path: Path): BufferedSource
 
     override fun format(format: String, vararg args: Any): String
 
     override fun filesPath(): Path
+
+    override fun sharedFilesPath(): Path
 }

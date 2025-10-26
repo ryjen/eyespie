@@ -73,4 +73,6 @@ fun <T, V> UiResult<T>.mapNotNull(block: (T) -> V?): UiResult<V> = when (this) {
 
 fun <T> List<T>.status() = if (isEmpty()) Empty() else Ready(this)
 
-fun <T> UiResult<T>.enabled(): Boolean = this !is Busy
+val <T> UiResult<T>.isEnabled: Boolean get() = this !is Busy
+
+val <T> UiResult<T>.isBusy: Boolean get() = this is Busy

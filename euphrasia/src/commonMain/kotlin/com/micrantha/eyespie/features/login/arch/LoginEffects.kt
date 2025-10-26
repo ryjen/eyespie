@@ -8,8 +8,12 @@ import com.micrantha.bluebell.ui.screen.ScreenContext
 import com.micrantha.bluebell.ui.screen.navigate
 import com.micrantha.eyespie.app.usecase.LoadMainUseCase
 import com.micrantha.eyespie.domain.repository.AccountRepository
+import com.micrantha.eyespie.features.login.entities.LoginAction.OnError
+import com.micrantha.eyespie.features.login.entities.LoginAction.OnLogin
+import com.micrantha.eyespie.features.login.entities.LoginAction.OnLoginWithGoogle
+import com.micrantha.eyespie.features.login.entities.LoginAction.OnRegister
+import com.micrantha.eyespie.features.login.entities.LoginAction.OnSuccess
 import com.micrantha.eyespie.features.login.entities.LoginState
-import com.micrantha.eyespie.features.login.entities.LoginAction.*
 import com.micrantha.eyespie.features.register.ui.RegisterScreen
 
 class LoginEffects(

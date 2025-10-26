@@ -9,18 +9,6 @@ import com.micrantha.bluebell.app.Log
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
-internal fun baseOptions(model: String, block: BaseOptions.Builder.() -> Unit = {}) =
-    BaseOptions.builder()
-        .setModelAssetPath(model)
-        .apply(block)
-        .build()
-
-interface CameraAnalyzerConfig<Value, Options, Client, Result> {
-    fun map(result: Result): Value
-
-    fun client(block: Options.() -> Unit): Client
-}
-
 class CameraAnalyzer(
     private val regionOfInterest: RectF? = null,
     private val callback: CameraScannerDispatch,

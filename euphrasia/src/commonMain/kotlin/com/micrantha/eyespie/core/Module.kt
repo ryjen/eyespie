@@ -4,7 +4,6 @@ import com.micrantha.eyespie.core.data.account.AccountDataRepository
 import com.micrantha.eyespie.core.data.account.model.CurrentSession
 import com.micrantha.eyespie.core.data.account.source.AccountRemoteSource
 import com.micrantha.eyespie.core.data.ai.ClueDataRepository
-import com.micrantha.eyespie.core.data.ai.mapping.ClueDataMapper
 import com.micrantha.eyespie.core.data.ai.source.CluePromptSource
 import com.micrantha.eyespie.core.data.client.SupaClient
 import com.micrantha.eyespie.core.data.client.SupaRealtimeClient
@@ -46,7 +45,6 @@ internal fun module() = DI.Module("Core Feature") {
     bindProviderOf(::RealtimeDomainMapper)
 
     bindProviderOf(::ClueDataRepository)
-    bindProviderOf(::ClueDataMapper)
     bindProviderOf(::CluePromptSource)
 
     delegate<LocationLocalSource>().to<LocationTracker>()

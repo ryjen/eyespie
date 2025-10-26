@@ -22,8 +22,8 @@ import cafe.adriel.voyager.kodein.rememberScreenModel
 import com.micrantha.bluebell.arch.Dispatch
 import com.micrantha.bluebell.ui.components.StateRenderer
 import com.micrantha.bluebell.ui.model.UiResult
-import com.micrantha.bluebell.ui.model.enabled
 import com.micrantha.bluebell.ui.model.error
+import com.micrantha.bluebell.ui.model.isEnabled
 import com.micrantha.bluebell.ui.model.isFailure
 import com.micrantha.bluebell.ui.theme.Dimensions
 import com.micrantha.eyespie.core.ui.Screen
@@ -55,7 +55,7 @@ class NewPlayerScreen : Screen, StateRenderer<NewPlayerUiState> {
             TextField(
                 singleLine = true,
                 maxLines = 1,
-                enabled = state.status.enabled(),
+                enabled = state.status.isEnabled,
                 isError = state.firstName.isError,
                 value = state.firstName.value,
                 onValueChange = {
@@ -74,7 +74,7 @@ class NewPlayerScreen : Screen, StateRenderer<NewPlayerUiState> {
             TextField(
                 singleLine = true,
                 maxLines = 1,
-                enabled = state.status.enabled(),
+                enabled = state.status.isEnabled,
                 value = state.lastName.value,
                 isError = state.lastName.isError,
                 onValueChange = {
@@ -92,7 +92,7 @@ class NewPlayerScreen : Screen, StateRenderer<NewPlayerUiState> {
             TextField(
                 singleLine = true,
                 maxLines = 1,
-                enabled = state.status.enabled(),
+                enabled = state.status.isEnabled,
                 value = state.nickName.value,
                 isError = state.nickName.isError,
                 supportingText = {

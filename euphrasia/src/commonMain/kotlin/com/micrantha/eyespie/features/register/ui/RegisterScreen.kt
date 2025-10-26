@@ -34,7 +34,7 @@ import cafe.adriel.voyager.core.screen.Screen
 import cafe.adriel.voyager.kodein.rememberScreenModel
 import com.micrantha.bluebell.arch.Dispatch
 import com.micrantha.bluebell.ui.components.StateRenderer
-import com.micrantha.bluebell.ui.model.enabled
+import com.micrantha.bluebell.ui.model.isEnabled
 import com.micrantha.bluebell.ui.model.isFailure
 import com.micrantha.bluebell.ui.theme.Dimensions
 import com.micrantha.eyespie.app.EyesPie
@@ -95,7 +95,7 @@ class RegisterScreen : Screen, StateRenderer<RegisterUiState> {
 
                 TextField(
                     value = state.email,
-                    enabled = state.status.enabled(),
+                    enabled = state.status.isEnabled,
                     maxLines = 1,
                     label = { Text(stringResource(S.email)) },
                     onValueChange = { dispatch(RegisterAction.ChangedEmail(it)) },
@@ -107,7 +107,7 @@ class RegisterScreen : Screen, StateRenderer<RegisterUiState> {
 
                 TextField(
                     value = state.password,
-                    enabled = state.status.enabled(),
+                    enabled = state.status.isEnabled,
                     visualTransformation = PasswordVisualTransformation(),
                     maxLines = 1,
                     label = { Text(stringResource(S.password)) },
@@ -120,7 +120,7 @@ class RegisterScreen : Screen, StateRenderer<RegisterUiState> {
 
                 TextField(
                     value = state.confirmPassword,
-                    enabled = state.status.enabled(),
+                    enabled = state.status.isEnabled,
                     visualTransformation = PasswordVisualTransformation(),
                     maxLines = 1,
                     label = { Text(stringResource(S.confirm_password)) }, // Add this string resource
@@ -133,11 +133,11 @@ class RegisterScreen : Screen, StateRenderer<RegisterUiState> {
                 Spacer(modifier = Modifier.height(Dimensions.screen))
 
                 ElevatedButton(
-                    enabled = state.status.enabled() && state.isValid, // Consider isValid for button enablement
+                    enabled = state.status.isEnabled && state.isValid, // Consider isValid for button enablement
                     modifier = Modifier.fillMaxWidth(),
                     contentPadding = PaddingValues(Dimensions.content),
                     onClick = { dispatch(RegisterAction.OnRegister) }) {
-                    if (state.status.enabled()) {
+                    if (state.status.isEnabled) {
                         Text(stringResource(S.register)) // Add this string resource
                     } else {
                         CircularProgressIndicator(
@@ -148,7 +148,7 @@ class RegisterScreen : Screen, StateRenderer<RegisterUiState> {
 
                 Spacer(modifier = Modifier.height(Dimensions.content))
                 ElevatedButton(
-                    enabled = state.status.enabled(),
+                    enabled = state.status.isEnabled,
                     modifier = Modifier.fillMaxWidth(),
                     contentPadding = PaddingValues(Dimensions.content),
                     onClick = { dispatch(RegisterAction.OnRegisterWithGoogle) }) {

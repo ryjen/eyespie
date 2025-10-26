@@ -18,14 +18,12 @@ import com.micrantha.eyespie.features.onboarding.entities.OnboardingAction.SkipD
 import com.micrantha.eyespie.features.onboarding.entities.OnboardingPage
 import com.micrantha.eyespie.features.onboarding.entities.OnboardingState
 import com.micrantha.eyespie.features.onboarding.usecase.LoadModelConfig
-import com.micrantha.eyespie.features.onboarding.usecase.StartModelDownload
 
 class OnboardingEffects(
     private val context: ScreenContext,
     private val onboardingRepository: OnboardingRepository,
     private val loadMainUseCase: LoadMainUseCase,
     private val loadModelConfig: LoadModelConfig,
-    private val startModelDownload: StartModelDownload
 ) : Effect<OnboardingState>, Dispatcher by context.dispatcher {
 
     override suspend fun invoke(
@@ -42,19 +40,12 @@ class OnboardingEffects(
             }
 
             is SkipDownload -> {
-                onboardingRepository.setHasGenAI(false)
                 dispatch(NextPage)
             }
 
             is Download -> getIf(state.models, state.selectedModel)?.let { (model, download) ->
-                onboardingRepository.setHasGenAI(true)
-                startModelDownload(model, download)
-                    .onSuccess {
-                        onboardingRepository.setModelFile(it)
-                        dispatch(NextPage)
-                    }.onFailure {
-                        dispatch(Error(it))
-                    }
+                onboardingRepository.setGenAiModel(model)
+                dispatch(Done)
             }
 
             is Done -> {

@@ -50,6 +50,8 @@
     <string name="ok">OK</string>
     <string name="yes">Yes</string>
     <string name="no">No</string>
+    <string name="done">Done</string>
+    <string name="skip">Skip</string>
     <string name="onboarding_genai_text">Download artificial intelligence models?\n\nModels will download in the background and help improve gameplay experience and privacy.</string>
     <string name="onboarding_genai_title">On Device Models</string>
     <string name="onboarding_welcome_title">Welcome to EyesPie</string>

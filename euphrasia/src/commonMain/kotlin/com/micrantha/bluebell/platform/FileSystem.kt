@@ -10,6 +10,8 @@ interface FileSystem {
 
     fun filesPath(): Path
 
+    fun sharedFilesPath(): Path
+
     fun fileWrite(path: Path, data: ByteArray) {
         FileSystem.SYSTEM.sink(path).use { sink ->
             sink.buffer().use { buf ->

@@ -30,6 +30,8 @@ import com.micrantha.bluebell.ui.components.StateRenderer
 import com.micrantha.bluebell.ui.components.status.LoadingContent
 import com.micrantha.bluebell.ui.theme.Dimensions
 import com.micrantha.eyespie.core.ui.component.LocationEnabledEffect
+import com.micrantha.eyespie.features.scan.entities.ScanAction
+import com.micrantha.eyespie.features.scan.entities.ScanUiState
 import com.micrantha.eyespie.platform.scan.CameraCapture
 import dev.icerock.moko.permissions.Permission
 import dev.icerock.moko.permissions.PermissionsController

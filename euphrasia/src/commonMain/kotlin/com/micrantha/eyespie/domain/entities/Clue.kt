@@ -1,13 +1,12 @@
 package com.micrantha.eyespie.domain.entities
 
+import kotlinx.serialization.Serializable
 import okio.ByteString
 import okio.Path
 
 data class Clues(
-    val labels: LabelProof? = null,
-    val location: LocationProof? = null, // TODO: Geofence
-    val colors: ColorProof? = null,
-    val detections: DetectProof? = null
+    val clues: AiProof? = null,
+    val location: LocationProof? = null,
 )
 
 data class Proof(
@@ -19,17 +18,14 @@ data class Proof(
     val playerID: String
 )
 
-typealias LabelProof = Set<LabelClue>
+typealias AiProof = Set<AiClue>
 
-typealias ColorProof = Set<ColorClue>
+typealias GuessProof = Set<GuessClue>
 
 typealias LocationProof = LocationClue
 
-typealias DetectProof = Set<DetectClue>
-
 sealed interface Clue<T> {
     val data: T
-
     fun display() = data.toString()
 }
 
@@ -54,15 +50,17 @@ abstract class EquatableClue<T> : Clue<T> {
     }
 }
 
-data class DataClue(
+@Serializable
+data class AiClue(
     override val data: String,
-    override val confidence: Float
+    override val confidence: Float,
+    val answer: String,
 ) : EquatableClue<String>(), RankedClue<String>
 
-typealias LabelClue = DataClue
-typealias ColorClue = DataClue
-typealias RhymeClue = DataClue
-typealias DetectClue = DataClue
+@Serializable
+data class GuessClue(
+    override val data: String
+) : EquatableClue<String>()
 
 data class LocationClue(
     override val data: Location.Data, // TODO: make a geofence area

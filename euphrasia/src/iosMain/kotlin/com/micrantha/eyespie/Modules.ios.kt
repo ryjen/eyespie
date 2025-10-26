@@ -1,8 +1,8 @@
 package com.micrantha.eyespie
 
 import com.micrantha.bluebell.platform.Platform
-import com.micrantha.eyespie.platform.scan.analyzer.DominantColorCaptureAnalyzer
 import com.micrantha.eyespie.platform.scan.analyzer.DetectCaptureAnalyzer
+import com.micrantha.eyespie.platform.scan.analyzer.DominantColorCaptureAnalyzer
 import com.micrantha.eyespie.platform.scan.analyzer.LabelCaptureAnalyzer
 import com.micrantha.eyespie.platform.scan.generator.ImageObfuscator
 import com.micrantha.eyespie.platform.scan.generator.ImageStyler

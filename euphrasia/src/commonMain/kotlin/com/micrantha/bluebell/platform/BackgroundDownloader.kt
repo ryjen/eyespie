@@ -1,21 +1,22 @@
 package com.micrantha.bluebell.platform
 
+import com.micrantha.bluebell.data.DownloadState
 import kotlinx.coroutines.flow.Flow
-
-data class DownloadData(
-    val tag: String,
-    val name: String,
-    val fileName: String,
-)
+import kotlinx.coroutines.flow.filter
+import okio.Path
 
 expect class BackgroundDownloader {
-    fun startDownload(
-        tag: String,
-        name: String,
+    suspend fun startDownload(
+        id: Long,
+        name: String?,
         url: String,
-        checksum: String? = null
-    ): String
+        filePath: Path,
+        tag: String? = null,
+    ): Result<Unit>
 
-    fun completed(): Flow<DownloadData>
+    fun observe(): Flow<DownloadState>
+}
 
+fun Flow<DownloadState>.filterById(id: Long): Flow<DownloadState> = filter {
+    it.id == id
 }

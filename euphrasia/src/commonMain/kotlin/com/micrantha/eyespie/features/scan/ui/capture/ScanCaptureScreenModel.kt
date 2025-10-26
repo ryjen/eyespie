@@ -2,6 +2,8 @@ package com.micrantha.eyespie.features.scan.ui.capture
 
 import com.micrantha.bluebell.ui.screen.MappedScreenModel
 import com.micrantha.bluebell.ui.screen.ScreenContext
+import com.micrantha.eyespie.features.scan.entities.ScanState
+import com.micrantha.eyespie.features.scan.entities.ScanUiState
 
 class ScanCaptureScreenModel(
     context: ScreenContext,
