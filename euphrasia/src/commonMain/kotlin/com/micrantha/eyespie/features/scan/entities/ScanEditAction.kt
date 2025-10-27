@@ -11,7 +11,9 @@ sealed interface ScanEditAction {
 
     data object LoadError : ScanEditAction
 
-    data class SelectClue(val index: Int): ScanEditAction
+    data object Retry : ScanEditAction
 
-    data class AnalyzedClues(val proof: AiProof) : ScanEditAction
+    data class SelectClue(val id: Int) : ScanEditAction
+
+    data class AnalyzedClues(val value: AiProof) : ScanEditAction
 }

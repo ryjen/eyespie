@@ -8,7 +8,7 @@ import cafe.adriel.voyager.core.screen.Screen
 import com.micrantha.bluebell.arch.Action
 import com.micrantha.bluebell.arch.Dispatch
 import com.micrantha.bluebell.arch.Dispatcher
-import com.micrantha.bluebell.domain.repository.LocalizedRepository
+import com.micrantha.bluebell.i18n.repository.LocalizedRepository
 import com.micrantha.bluebell.platform.FileSystem
 import com.micrantha.bluebell.ui.components.Router
 import com.micrantha.bluebell.ui.components.Router.Options

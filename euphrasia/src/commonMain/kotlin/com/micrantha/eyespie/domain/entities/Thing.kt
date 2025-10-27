@@ -9,7 +9,6 @@ data class Thing(
     override val id: String,
     override val createdAt: Instant,
     val createdBy: Player.Ref,
-    val name: String?,
     val guessed: Boolean,
     val guesses: List<Guess>,
     val imageUrl: ImagePath,
@@ -26,7 +25,6 @@ data class Thing(
         override val id: String,
         val nodeId: String,
         override val createdAt: Instant,
-        val name: String?,
         val guessed: Boolean,
         val imageUrl: ImagePath,
     ) : Entity, Creatable

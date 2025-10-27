@@ -3,13 +3,10 @@ package com.micrantha.bluebell.platform
 import android.content.Context
 import android.util.Log
 import com.micrantha.bluebell.data.DownloadState
-import com.micrantha.bluebell.domain.security.sha256
 import com.micrantha.eyespie.BuildConfig
 import com.tonyodev.fetch2.AbstractFetchListener
 import com.tonyodev.fetch2.DefaultFetchNotificationManager
 import com.tonyodev.fetch2.Download
-import com.tonyodev.fetch2.DownloadNotification
-import com.tonyodev.fetch2.Error
 import com.tonyodev.fetch2.Fetch
 import com.tonyodev.fetch2.FetchConfiguration
 import com.tonyodev.fetch2.Priority

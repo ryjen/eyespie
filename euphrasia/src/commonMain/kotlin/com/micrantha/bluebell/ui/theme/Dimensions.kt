@@ -11,6 +11,8 @@ object Dimensions {
 
     val content = 12.dp
 
+    val progress = 60.dp
+
     object Padding {
         val large = 48.dp
 

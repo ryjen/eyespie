@@ -37,4 +37,8 @@ object CurrentSession {
     fun requirePlayer() = player!!
 
     fun asStateFlow() = data.asStateFlow()
+
+    val userId: String? = data.value?.userId
+
+    val sessionId: String? = data.value?.id
 }

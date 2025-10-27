@@ -27,12 +27,6 @@ class CluePromptSource {
             I spy with my little eye, something round and red.
             An apple
             0.95
-            I spy with my little eye something that is shiny, fast, and zooms down the street.
-            A car
-            0.85
-            I spy with my little eye something that is green, leafy, and rustles in the wind.
-            A tree
-            0.75
        """
 
     fun guess(clue: String) = """

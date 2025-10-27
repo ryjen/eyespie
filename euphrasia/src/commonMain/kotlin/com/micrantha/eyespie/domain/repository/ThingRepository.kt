@@ -6,6 +6,7 @@ import com.micrantha.eyespie.domain.entities.Proof
 import com.micrantha.eyespie.domain.entities.Thing
 import com.micrantha.eyespie.domain.entities.ThingList
 import com.micrantha.eyespie.domain.entities.ThingMatches
+import com.micrantha.eyespie.graphql.type.Player
 
 interface ThingRepository {
 
@@ -16,7 +17,9 @@ interface ThingRepository {
     suspend fun match(embedding: Embedding): Result<ThingMatches>
 
     suspend fun create(
-        proof: Proof
+        proof: Proof,
+        imageUrl: String,
+        playerID: String,
     ): Result<Thing>
 
     suspend fun nearby(

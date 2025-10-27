@@ -8,6 +8,7 @@ import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.tooling.preview.Preview
 import com.micrantha.eyespie.core.PreviewContext
 import com.micrantha.eyespie.domain.entities.Location
+import com.micrantha.eyespie.features.scan.entities.ScanClue
 import com.micrantha.eyespie.features.scan.entities.ScanEditParams
 import com.micrantha.eyespie.features.scan.entities.ScanEditUiState
 import okio.Path.Companion.toPath
@@ -24,16 +25,19 @@ fun ScanEditPreview() = PreviewContext(
         },
         enabled = true,
         isBusy = false,
+        isError = false,
         clues = listOf(
-            ScanEditUiState.Clue(
+            ScanClue(
+                id = 0,
                 answer = "An apple",
                 clue = "I spy something that is round and red.",
                 isSelected = false
             ),
-            ScanEditUiState.Clue(
+            ScanClue(
+                id = 1,
                 answer = "A tree",
                 clue = "I spy something that is tall and green.",
-                isSelected = false
+                isSelected = true
             )
         )
     )

@@ -1,11 +1,11 @@
 package com.micrantha.eyespie.platform.scan
 
 import android.graphics.RectF
+import android.util.Log
 import androidx.camera.core.ExperimentalGetImage
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageProxy
-import com.google.mediapipe.tasks.core.BaseOptions
-import com.micrantha.bluebell.app.Log
+import com.micrantha.bluebell.observability.logger
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
@@ -16,6 +16,7 @@ class CameraAnalyzer(
     private val scope: CoroutineScope
 ) : ImageAnalysis.Analyzer {
     private lateinit var current: CameraImage
+    private val log by logger()
 
     @androidx.annotation.OptIn(ExperimentalGetImage::class)
     override fun analyze(image: ImageProxy) {
@@ -39,7 +40,7 @@ class CameraAnalyzer(
             }
         } catch (err: Throwable) {
             errorCallback(err)
-            Log.e("analyzer", err) { "unable to analyze camera image" }
+            log.error(err) { "unable to analyze camera image" }
         }
     }
 

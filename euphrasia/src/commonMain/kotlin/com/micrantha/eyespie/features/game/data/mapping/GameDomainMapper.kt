@@ -61,7 +61,6 @@ class GameDomainMapper {
             id = data.id,
             nodeId = data.nodeId,
             createdAt = Instant.parse(data.created_at),
-            name = data.name,
             guessed = data.guessed == true,
             imageUrl = data.imageUrl
         )

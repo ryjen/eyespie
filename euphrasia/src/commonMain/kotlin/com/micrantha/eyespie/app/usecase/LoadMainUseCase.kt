@@ -1,6 +1,6 @@
 package com.micrantha.eyespie.app.usecase
 
-import com.micrantha.bluebell.app.Log
+import com.micrantha.bluebell.observability.logger
 import com.micrantha.bluebell.ext.then
 import com.micrantha.bluebell.ui.components.Router
 import com.micrantha.bluebell.ui.screen.ScreenContext
@@ -24,6 +24,7 @@ class LoadMainUseCase(
     private val onboardingRepository: OnboardingRepository,
     private val initGenAIUseCase: InitGenAIUseCase
 ) {
+    private val log by logger()
 
     suspend operator fun invoke(): Result<Unit> = try {
         session()
@@ -33,7 +34,7 @@ class LoadMainUseCase(
             .then(::initGenAI)
             .then(::dashboard)
     } catch (err: Throwable) {
-        Log.e("main", err) { "unexpected error" }
+        log.error(err) { "unexpected error" }
         Result.failure(err)
     }
 
@@ -43,6 +44,7 @@ class LoadMainUseCase(
             (onboardingRepository.hasGenAI() && onboardingRepository.genAiModel().isNullOrBlank())
             ) {
             context.navigate<OnboardingScreen>(Router.Options.Replace)
+            log.debug { "onboarding new user" }
             Result.failure(IllegalStateException())
         } else {
             Result.success(input)
@@ -51,18 +53,21 @@ class LoadMainUseCase(
 
     private suspend fun session(): Result<Session> {
         return accountRepository.session().onFailure {
+            log.debug { "no existing session" }
             context.navigate<LoginScreen>(Router.Options.Replace)
         }
     }
 
     private suspend fun account(session: Session): Result<Player?> {
         return loadSessionPlayerUseCase(session).onFailure {
+            log.debug { "not logged in"}
             context.navigate<LoginScreen>(Router.Options.Replace)
         }
     }
 
     private fun newPlayer(player: Player?): Result<Player> {
         if (player == null) {
+            log.debug { "new player" }
             context.navigate<NewPlayerScreen>(Router.Options.Replace)
             return Result.failure(IllegalStateException())
         }
@@ -75,8 +80,8 @@ class LoadMainUseCase(
     }
 
     private suspend fun initGenAI(input: Player): Result<Unit> {
-        // TODO: validate model file with checksum file
         return initGenAIUseCase().onFailure {
+            log.debug { "ai model not available" }
             context.navigate<GenAIDownloadScreen>(Router.Options.Replace)
         }
     }

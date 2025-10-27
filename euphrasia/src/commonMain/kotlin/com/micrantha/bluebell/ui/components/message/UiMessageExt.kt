@@ -6,7 +6,7 @@ import androidx.compose.material.icons.filled.Error
 import androidx.compose.material.icons.filled.Info
 import androidx.compose.material.icons.filled.Warning
 import androidx.compose.ui.graphics.vector.ImageVector
-import com.micrantha.bluebell.domain.entities.LocalizedString
+import com.micrantha.bluebell.i18n.entity.LocalizedString
 import com.micrantha.bluebell.ui.model.UiMessage
 import com.micrantha.bluebell.ui.model.UiMessage.Action
 import com.micrantha.bluebell.ui.model.UiMessage.Category

@@ -1,7 +1,7 @@
 package com.micrantha.eyespie.features.onboarding.arch
 
 import com.micrantha.bluebell.arch.StateMapper
-import com.micrantha.bluebell.domain.repository.LocalizedRepository
+import com.micrantha.bluebell.i18n.repository.LocalizedRepository
 import com.micrantha.bluebell.ui.screen.ScreenContext
 import com.micrantha.eyespie.features.onboarding.entities.OnboardingState
 import com.micrantha.eyespie.features.onboarding.entities.OnboardingUiState

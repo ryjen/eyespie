@@ -4,18 +4,22 @@ import com.micrantha.eyespie.core.data.account.model.CurrentSession
 import com.micrantha.eyespie.core.data.account.source.AccountRemoteSource
 import com.micrantha.eyespie.domain.entities.Session
 import com.micrantha.eyespie.domain.repository.AccountRepository
+import kotlin.uuid.ExperimentalUuidApi
+import kotlin.uuid.Uuid
 
 class AccountDataRepository(
     private val remoteSource: AccountRemoteSource,
     private val currentSession: CurrentSession,
 ) : AccountRepository {
 
+    @OptIn(ExperimentalUuidApi::class)
     override suspend fun session() = remoteSource.account()
         .map{ data ->
             Session(
                 accessToken = data.accessToken,
                 refreshToken = data.refreshToken,
-                userId = data.userId
+                userId = data.userId,
+                id = Uuid.random().toString()
             )
         }.onSuccess {
             currentSession.update(it)

@@ -4,14 +4,16 @@ import android.content.Context
 import android.net.ConnectivityManager
 import android.net.Network
 import android.net.NetworkCapabilities
-import com.micrantha.bluebell.app.Log
-import com.micrantha.bluebell.app.d
+import android.util.Log
+import com.micrantha.bluebell.observability.logger
 
 class AndroidNetworkMonitor(context: Context) : NetworkMonitor {
     private var connectivityManager: ConnectivityManager =
         context.getSystemService(Context.CONNECTIVITY_SERVICE) as ConnectivityManager
 
     private var networkCallback: Callback? = null
+
+    private val logger by logger()
 
     inner class Callback(private var onUpdate: (Boolean) -> Unit) :
         ConnectivityManager.NetworkCallback() {
@@ -22,12 +24,12 @@ class AndroidNetworkMonitor(context: Context) : NetworkMonitor {
         }
 
         override fun onAvailable(network: Network) {
-            Log.d("Connectivity status", "Network available")
+            logger.debug("Network available")
             onUpdate(true)
         }
 
         override fun onLost(network: Network) {
-            Log.d("Connectivity status", "Network lost")
+            logger.debug("Network lost")
             onUpdate(false)
         }
 
@@ -42,8 +44,7 @@ class AndroidNetworkMonitor(context: Context) : NetworkMonitor {
                         networkCapabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_RESTRICTED) &&
                         networkCapabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
 
-            Log.d(
-                "Connectivity status", "Network status: ${
+            logger.debug("Network status: ${
                     if (isConnected) {
                         "Connected"
                     } else {
@@ -73,13 +74,9 @@ class AndroidNetworkMonitor(context: Context) : NetworkMonitor {
                 Log.d("Connectivity status", "Disconnected")
             }
 
-            Log.d("Connectivity status", "Started")
+            logger.debug("Started")
         } catch (e: Exception) {
-            Log.d(
-                tag = "Connectivity status",
-                throwable = e,
-                messageString = "Failed to start: ${e.message.toString()}"
-            )
+            logger.error("Failed to start", e)
             onUpdate(false)
         }
     }
@@ -87,6 +84,6 @@ class AndroidNetworkMonitor(context: Context) : NetworkMonitor {
     override fun stopMonitoring() {
         networkCallback?.let { connectivityManager.unregisterNetworkCallback(it) }
         networkCallback = null
-        Log.d("Connectivity status", "Stopped")
+        logger.debug("Stopped")
     }
 }

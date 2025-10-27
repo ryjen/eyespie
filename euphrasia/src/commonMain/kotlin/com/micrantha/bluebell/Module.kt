@@ -2,7 +2,7 @@ package com.micrantha.bluebell
 
 import com.micrantha.bluebell.data.bluebellData
 import com.micrantha.bluebell.domain.bluebellDomain
-import com.micrantha.bluebell.domain.repository.LocalizedRepository
+import com.micrantha.bluebell.i18n.repository.LocalizedRepository
 import com.micrantha.bluebell.flux.bluebellFlux
 import com.micrantha.bluebell.platform.ConnectivityStatus
 import com.micrantha.bluebell.platform.FileSystem

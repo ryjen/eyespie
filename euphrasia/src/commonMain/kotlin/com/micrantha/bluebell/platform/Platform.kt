@@ -1,6 +1,6 @@
 package com.micrantha.bluebell.platform
 
-import com.micrantha.bluebell.domain.repository.LocalizedRepository
+import com.micrantha.bluebell.i18n.repository.LocalizedRepository
 import okio.BufferedSource
 import okio.Path
 

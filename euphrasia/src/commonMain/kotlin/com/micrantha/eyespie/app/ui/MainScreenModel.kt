@@ -1,8 +1,8 @@
 package com.micrantha.eyespie.app.ui
 
-import com.micrantha.bluebell.app.Log
-import com.micrantha.bluebell.app.d
+import com.micrantha.bluebell.observability.logger
 import com.micrantha.bluebell.arch.Action
+import com.micrantha.bluebell.observability.debug
 import com.micrantha.bluebell.ui.screen.ContextualScreenModel
 import com.micrantha.bluebell.ui.screen.ScreenContext
 import com.micrantha.eyespie.app.ui.MainAction.Load
@@ -14,6 +14,7 @@ class MainScreenModel(
     private val loadMainUseCase: LoadMainUseCase
 ) : ContextualScreenModel(context) {
 
+    private val log by logger()
 
     override fun dispatch(action: Action) {
         dispatchScope.launch {
@@ -24,7 +25,7 @@ class MainScreenModel(
     override suspend fun send(action: Action) {
         when (action) {
             is Load -> loadMainUseCase()
-            else -> Log.d(tag = "main", "unknown action $action")
+            else -> log.debug("unknown action $action")
         }
     }
 }

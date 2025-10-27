@@ -4,7 +4,7 @@ import com.micrantha.bluebell.arch.Dispatcher
 import com.micrantha.bluebell.arch.Effect
 import com.micrantha.bluebell.arch.Reducer
 import com.micrantha.bluebell.arch.StateMapper
-import com.micrantha.bluebell.domain.repository.LocalizedRepository
+import com.micrantha.bluebell.i18n.repository.LocalizedRepository
 import com.micrantha.bluebell.ui.components.Router
 import com.micrantha.bluebell.ui.model.TextEntryState
 import com.micrantha.bluebell.ui.model.UiResult

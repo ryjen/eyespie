@@ -1,6 +1,5 @@
 package com.micrantha.eyespie.features.scan.usecase
 
-import com.micrantha.bluebell.app.Log
 import com.micrantha.bluebell.domain.usecase.dispatchUseCase
 import com.micrantha.eyespie.domain.entities.Embedding
 import com.micrantha.eyespie.domain.entities.Thing
@@ -21,8 +20,6 @@ class MatchCaptureUseCase(
             val embedding = Embedding.EMPTY
 
             val result = similarity(match.toByteArray(), embedding.toByteArray())
-
-            Log.i("image match similarity: $result")
 
             // TODO: Game configurable
             result >= 0.70000000

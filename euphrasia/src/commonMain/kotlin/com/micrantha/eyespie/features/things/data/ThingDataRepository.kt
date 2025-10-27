@@ -21,9 +21,11 @@ class ThingDataRepository(
         .map(mapper::map)
 
     override suspend fun create(
-        proof: Proof
+        proof: Proof,
+        imageUrl: String,
+        playerID: String,
     ): Result<Thing> =
-        remoteSource.save(mapper.new(proof)).map(mapper::map)
+        remoteSource.save(mapper.new(proof, imageUrl, playerID)).map(mapper::map)
 
     override suspend fun nearby(
         location: Point,

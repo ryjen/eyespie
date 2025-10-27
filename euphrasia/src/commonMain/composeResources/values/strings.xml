@@ -52,6 +52,7 @@
     <string name="no">No</string>
     <string name="done">Done</string>
     <string name="skip">Skip</string>
+    <string name="retry">Retry</string>
     <string name="onboarding_genai_text">Download artificial intelligence models?\n\nModels will download in the background and help improve gameplay experience and privacy.</string>
     <string name="onboarding_genai_title">On Device Models</string>
     <string name="onboarding_welcome_title">Welcome to EyesPie</string>
@@ -62,4 +63,5 @@
     <string name="downloading">Downloading…</string>
     <string name="download_failed">Download failed</string>
     <string name="download_completed">Download completed</string>
+    <string name="loading_error">Unable to load data, please try again later.</string>
 </resources>
