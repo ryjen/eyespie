@@ -1,6 +1,6 @@
 package com.micrantha.eyespie.core.data.client
 
-import com.micrantha.bluebell.app.Log
+import com.micrantha.bluebell.observability.logger
 import com.micrantha.eyespie.platform.httpClientEngine
 import io.ktor.client.HttpClient
 import io.ktor.client.plugins.DefaultRequest.DefaultRequestBuilder
@@ -23,9 +23,8 @@ fun createHttpClient(block: DefaultRequestBuilder.() -> Unit) = HttpClient(httpC
     }
     install(Logging) {
         logger = object : Logger {
-            override fun log(message: String) {
-                Log.d("ImageLoader") { message }
-            }
+            val log by logger()
+            override fun log(message: String) = log.debug { message }
         }
         level = LogLevel.HEADERS
     }

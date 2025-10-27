@@ -1,8 +1,9 @@
 package com.micrantha.bluebell.flux
 
-import com.micrantha.bluebell.app.Log
+import com.micrantha.bluebell.observability.logger
 import com.micrantha.bluebell.arch.Action
 import com.micrantha.bluebell.arch.Dispatcher
+import com.micrantha.bluebell.observability.debug
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -18,16 +19,16 @@ class FluxDispatcher internal constructor(
     override val dispatchScope: CoroutineScope = CoroutineScope(Dispatchers.Default) + Job()
 ) : Dispatcher, Dispatcher.Registry {
     private val actions = MutableSharedFlow<Action>()
+    private val log by logger()
 
     override fun register(dispatcher: Dispatcher) {
         actions.onEach(dispatcher::send)
-            .catch { log.e { "registered dispatch failed: ${it.message}" } }
+            .onEach(log::debug)
+            .catch { log.error(it) { "registered dispatch failed" } }
             .launchIn(dispatchScope)
     }
 
     override fun dispatch(action: Action) {
-        log.d { "action: $action" }
-
         dispatchScope.launch {
             actions.emit(action)
         }
@@ -39,9 +40,5 @@ class FluxDispatcher internal constructor(
 
     override suspend fun send(action: Action) {
         actions.emit(action)
-    }
-
-    companion object {
-        private val log = Log.withTag("dispatcher")
     }
 }

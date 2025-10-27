@@ -1,6 +1,6 @@
 package com.micrantha.eyespie.features.guess.ui
 
-import com.micrantha.bluebell.app.Log
+import com.micrantha.bluebell.observability.logger
 import com.micrantha.bluebell.arch.Action
 import com.micrantha.bluebell.arch.Dispatcher
 import com.micrantha.bluebell.ui.components.Router
@@ -57,14 +57,10 @@ class ScanGuessEnvironment(
                         // TODO: display warmer/colder
                     }
                 }.onFailure {
-                    Log.e("unable to match", it)
+                    dispatch(ThingNotFound)
                 }
             }
 
-            is UiMessage -> Log.d(getString(action.message))
-
-            is ThingMatched -> Log.d("Thing found") // Show animation
-            is ThingNotFound -> Log.d("Thing not found") // Launch listing view
         }
     }
 }

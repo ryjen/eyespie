@@ -8,6 +8,6 @@ import kotlinx.coroutines.flow.Flow
 import okio.Path
 
 interface ClueRepository {
-    fun clues(image: Path): Result<AiProof>
-    fun guess(image: Path, clue: GuessClue): Result<String>
+    suspend fun clues(image: Path): Result<AiProof>
+    suspend fun guess(image: Path, clue: GuessClue): Result<String>
 }

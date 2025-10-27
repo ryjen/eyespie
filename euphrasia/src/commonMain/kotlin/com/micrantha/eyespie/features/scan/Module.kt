@@ -1,6 +1,5 @@
 package com.micrantha.eyespie.features.scan
 
-import com.micrantha.bluebell.get
 import com.micrantha.eyespie.features.scan.entities.ScanEditParams
 import com.micrantha.eyespie.features.scan.ui.capture.ScanCaptureEnvironment
 import com.micrantha.eyespie.features.scan.ui.capture.ScanCaptureScreen

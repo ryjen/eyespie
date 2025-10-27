@@ -3,7 +3,7 @@ package com.micrantha.bluebell.ui.components
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.State
 import androidx.compose.runtime.produceState
-import com.micrantha.bluebell.domain.entities.LocalizedString
+import com.micrantha.bluebell.i18n.entity.LocalizedString
 import com.micrantha.bluebell.domain.usecase.LocaleFormatUseCase
 import com.micrantha.bluebell.ui.screen.LocalScreenContext
 import org.jetbrains.compose.resources.getString

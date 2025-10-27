@@ -1,6 +1,6 @@
 package com.micrantha.bluebell.ui.model
 
-import com.micrantha.bluebell.domain.entities.LocalizedString
+import com.micrantha.bluebell.i18n.entity.LocalizedString
 import com.micrantha.bluebell.ui.model.UiResult.Busy
 import com.micrantha.bluebell.ui.model.UiResult.Default
 import com.micrantha.bluebell.ui.model.UiResult.Empty

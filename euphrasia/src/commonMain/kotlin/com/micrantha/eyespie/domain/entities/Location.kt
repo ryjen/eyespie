@@ -1,13 +1,15 @@
 package com.micrantha.eyespie.domain.entities
 
 import com.micrantha.eyespie.domain.logic.distanceTo
+import kotlinx.serialization.Serializable
 
-
+@Serializable
 data class Location(
     val point: Point = Point(),
     val data: Data? = null,
 ) : Comparable<Location> {
 
+    @Serializable
     data class Point(
         val latitude: Double = Double.NaN,
         val longitude: Double = Double.NaN
@@ -24,6 +26,7 @@ data class Location(
         }
     }
 
+    @Serializable
     data class Data(
         val name: String? = null,
         val city: String? = null,

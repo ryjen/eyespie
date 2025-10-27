@@ -1,6 +1,6 @@
 package com.micrantha.eyespie.core.data.storage.source
 
-import com.micrantha.bluebell.app.Log
+import com.micrantha.bluebell.observability.logger
 import com.micrantha.eyespie.core.data.client.SupaClient
 import kotlin.time.Duration.Companion.days
 
@@ -20,7 +20,6 @@ class StorageRemoteSource(
             .downloadAuthenticated(path)
         Result.success(result)
     } catch (err: Throwable) {
-        Log.e("image", err)
         Result.failure(err)
     }
 
@@ -35,7 +34,6 @@ class StorageRemoteSource(
             Result.success(Pair(key, url))
         }
     } catch (err: Throwable) {
-        Log.e("upload", err)
         Result.failure(err)
     }
 }

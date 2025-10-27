@@ -58,6 +58,7 @@ kotlin {
             implementation(libs.kodein.di.conf)
 
             implementation(libs.okio)
+            implementation(libs.kotlin.logging)
 
             implementation(libs.cache4k)
 
@@ -108,11 +109,8 @@ kotlin {
         androidMain.dependencies {
             implementation(libs.androidx.appcompat)
             implementation(libs.androidx.core.ktx)
-
             implementation(libs.androidx.lifecycle.viewmodel.ktx)
-
             implementation(libs.androidx.lifecycle.runtime.ktx)
-
             implementation(libs.androidx.activity.compose)
             implementation(libs.androidx.fragment.ktx)
             implementation(libs.androidx.work.runtime.ktx)
@@ -129,8 +127,10 @@ kotlin {
 
             implementation(libs.kotlinx.coroutines.android)
             implementation(libs.fetch)
+
             implementation(libs.mediapipe.tasks.vision)
             implementation(libs.mediapipe.tasks.genai)
+
             implementation(libs.compose.ui.tooling)
             implementation(libs.compose.ui.tooling.preview)
         }
@@ -159,7 +159,6 @@ android {
         versionCode = 10
         versionName = "1.0.0"
     }
-    sourceSets["main"].manifest.srcFile("src/androidMain/AndroidManifest.xml")
     sourceSets["main"].res.srcDirs("src/androidMain/res")
     sourceSets["main"].resources.srcDirs("src/commonMain/resources")
 

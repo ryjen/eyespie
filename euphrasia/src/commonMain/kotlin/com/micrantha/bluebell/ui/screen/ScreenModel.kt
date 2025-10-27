@@ -8,7 +8,7 @@ import com.micrantha.bluebell.arch.Dispatcher
 import com.micrantha.bluebell.arch.StateMapper
 import com.micrantha.bluebell.arch.Stateful
 import com.micrantha.bluebell.arch.Store
-import com.micrantha.bluebell.domain.repository.LocalizedRepository
+import com.micrantha.bluebell.i18n.repository.LocalizedRepository
 import com.micrantha.bluebell.flux.Flux
 import com.micrantha.bluebell.ui.components.Router
 import com.micrantha.bluebell.ui.components.mapIn

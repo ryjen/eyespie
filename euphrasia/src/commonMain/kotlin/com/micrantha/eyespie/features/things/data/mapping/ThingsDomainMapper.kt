@@ -23,20 +23,17 @@ class ThingsDomainMapper(
     private val locationMapper: LocationDomainMapper,
 ) {
 
-    fun new(proof: Proof) =
+    fun new(proof: Proof, imageUrl: String, playerId: String) =
         ThingRequest(
-            name = proof.name,
-            imageUrl = proof.image.toString(),
-            createdBy = proof.playerID,
+            imageUrl = imageUrl,
+            createdBy = playerId,
             location = proof.location.toString(),
         )
 
     fun map(thing: Thing) = ThingRequest(
         id = thing.id,
         createdAt = thing.createdAt.toString(),
-        name = thing.name,
         imageUrl = thing.imageUrl,
-        guessed = thing.guessed,
         createdBy = thing.createdBy.id,
         location = thing.location.toString(),
     )
@@ -47,9 +44,8 @@ class ThingsDomainMapper(
         return Thing(
             id = data.id!!,
             createdAt = data.createdAt?.let { Instant.parse(it) } ?: System.now(),
-            name = data.name,
             imageUrl = data.imageUrl,
-            guessed = data.guessed == true,
+            guessed = data.game?.guessed ?: false,
             createdBy = Player.Ref(
                 id = data.createdBy,
                 name = "" // TODO: graphql
@@ -61,10 +57,9 @@ class ThingsDomainMapper(
 
     fun list(data: ThingListing) = Thing.Listing(
         id = data.id!!,
-        name = data.name,
         createdAt = data.createdAt?.let { Instant.parse(it) } ?: System.now(),
         nodeId = data.id,
-        guessed = data.guessed == true,
+        guessed = data.game?.guessed == true,
         imageUrl = data.imageUrl
     )
 

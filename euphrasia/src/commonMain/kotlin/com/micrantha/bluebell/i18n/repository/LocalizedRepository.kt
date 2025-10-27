@@ -1,6 +1,6 @@
-package com.micrantha.bluebell.domain.repository
+package com.micrantha.bluebell.i18n.repository
 
-import com.micrantha.bluebell.domain.entities.LocalizedString
+import com.micrantha.bluebell.i18n.entity.LocalizedString
 import kotlinx.coroutines.runBlocking
 import org.jetbrains.compose.resources.getString
 

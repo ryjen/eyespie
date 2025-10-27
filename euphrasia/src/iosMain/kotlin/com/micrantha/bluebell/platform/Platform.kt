@@ -1,6 +1,6 @@
 package com.micrantha.bluebell.platform
 
-import com.micrantha.bluebell.domain.repository.LocalizedRepository
+import com.micrantha.bluebell.i18n.repository.LocalizedRepository
 import com.micrantha.eyespie.AppDelegate
 import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.addressOf

@@ -1,13 +1,14 @@
 package com.micrantha.eyespie.features.things.data.source
 
-import com.micrantha.bluebell.app.Log
 import com.micrantha.eyespie.core.data.client.SupaClient
 import com.micrantha.eyespie.features.things.data.model.MatchRequest
 import com.micrantha.eyespie.features.things.data.model.MatchResponse
 import com.micrantha.eyespie.features.things.data.model.NearbyRequest
+import com.micrantha.eyespie.features.things.data.model.ThingData
 import com.micrantha.eyespie.features.things.data.model.ThingListing
 import com.micrantha.eyespie.features.things.data.model.ThingRequest
 import com.micrantha.eyespie.features.things.data.model.ThingResponse
+import io.github.jan.supabase.postgrest.query.Columns
 
 class ThingsRemoteSource(
     private val supaClient: SupaClient,
@@ -17,12 +18,13 @@ class ThingsRemoteSource(
         val result = supaClient.things().insert(data).decodeList<ThingResponse>()
         Result.success(result.first())
     } catch (err: Throwable) {
-        Log.e("save thing", err)
         Result.failure(err)
     }
 
     suspend fun things(playerID: String) = try {
-        val result = supaClient.things().select {
+        val result = supaClient.things().select(
+            Columns.type<ThingData>()
+        ) {
             filter {
                 eq("created_by", playerID)
             }
@@ -33,7 +35,9 @@ class ThingsRemoteSource(
     }
 
     suspend fun thing(thingID: String) = try {
-        val result = supaClient.things().select {
+        val result = supaClient.things().select(
+            Columns.type<ThingData>()
+        ) {
             filter {
                 eq("id", thingID)
             }

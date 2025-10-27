@@ -4,19 +4,12 @@ import kotlinx.serialization.Serializable
 import okio.ByteString
 import okio.Path
 
-data class Clues(
-    val clues: AiProof? = null,
-    val location: LocationProof? = null,
+data class Proof(
+    val clues: AiProof?,
+    val location: Location?,
 )
 
-data class Proof(
-    val clues: Clues?,
-    val location: Location.Point?,
-    val match: Embedding?,
-    val image: Path,
-    val name: String?,
-    val playerID: String
-)
+typealias Clues = Set<AiClue>
 
 typealias AiProof = Set<AiClue>
 

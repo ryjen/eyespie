@@ -1,5 +1,6 @@
 package com.micrantha.eyespie.core
 
+import com.micrantha.bluebell.get
 import com.micrantha.eyespie.core.data.account.AccountDataRepository
 import com.micrantha.eyespie.core.data.account.model.CurrentSession
 import com.micrantha.eyespie.core.data.account.source.AccountRemoteSource
@@ -19,6 +20,7 @@ import com.micrantha.eyespie.core.data.system.source.LocationLocalSource
 import com.micrantha.eyespie.core.data.system.source.RealtimeRemoteSource
 import dev.icerock.moko.geo.LocationTracker
 import org.kodein.di.DI
+import org.kodein.di.bindProvider
 import org.kodein.di.bindProviderOf
 import org.kodein.di.bindSingleton
 import org.kodein.di.bindSingletonOf
@@ -44,7 +46,7 @@ internal fun module() = DI.Module("Core Feature") {
     bindProviderOf(::RealtimeRemoteSource)
     bindProviderOf(::RealtimeDomainMapper)
 
-    bindProviderOf(::ClueDataRepository)
+    bindProvider { ClueDataRepository(get(), get()) }
     bindProviderOf(::CluePromptSource)
 
     delegate<LocationLocalSource>().to<LocationTracker>()
