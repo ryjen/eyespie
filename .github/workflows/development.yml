@@ -52,6 +52,12 @@ jobs:
           login_email: ${{ inputs.login_email }}
           login_password: ${{ inputs.login_password }}
 
+      - name: Debug env file shape
+        run: |
+          echo "env lines: $(wc -l < .env.local)"
+          echo "keys:"
+          awk -F= '{print $1}' .env.local
+
       - uses: maierj/fastlane-action@v3.1.0
         with:
           lane: "test"
