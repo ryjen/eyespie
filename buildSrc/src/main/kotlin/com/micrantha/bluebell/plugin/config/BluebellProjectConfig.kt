@@ -32,12 +32,7 @@ internal fun Project.configureBuilds(config: BluebellConfig, manifestName: Strin
     config.properties = config.loadConfigFromEnvironment(manifestName).getOrDefault(emptyMap())
     if (config.properties.isEmpty()) {
         logger.bluebell("No config properties loaded from ${config.envFile}", logger::warn)
-    } else {
-        logger.bluebell(
-            "Loaded ${config.properties.size} keys from ${config.envFile}: " +
-                config.properties.keys.sorted().joinToString(", ")
-        )
-    }
+    } 
 
     val requiredKeyError = { key: String ->
         logger.bluebell("Missing '$key' in ${config.envFile}", logger::error)
