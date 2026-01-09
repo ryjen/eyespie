@@ -1,7 +1,7 @@
 package com.micrantha.eyespie.app
 
-import com.micrantha.bluebell.platform.AppConfigDelegate
-import com.micrantha.bluebell.platform.DefaultAppConfigDelegate
+import com.micrantha.eyespie.config.AppConfigDelegate
+import com.micrantha.eyespie.config.DefaultAppConfigDelegate
 import com.micrantha.eyespie.config.getValue
 
 object AppConfig {

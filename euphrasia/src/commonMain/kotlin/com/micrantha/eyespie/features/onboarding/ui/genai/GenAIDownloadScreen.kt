@@ -24,7 +24,7 @@ import cafe.adriel.voyager.kodein.rememberScreenModel
 import com.micrantha.bluebell.arch.Dispatch
 import com.micrantha.bluebell.ui.components.StateRenderer
 import com.micrantha.bluebell.ui.model.isBusy
-import com.micrantha.bluebell.ui.model.isReady
+import com.micrantha.bluebell.ui.model.isFailure
 import com.micrantha.bluebell.ui.theme.Dimensions
 import com.micrantha.eyespie.app.S
 import com.micrantha.eyespie.core.ui.Screen
@@ -71,11 +71,11 @@ class GenAIDownloadScreen : Screen, StateRenderer<GenAiDownloadUiState> {
 
                 LinearProgressIndicator(
                     progress = {
-                        state.progress.toFloat()
+                        (state.progress / 100f).coerceIn(0f, 1f)
                     }
                 )
 
-                if (state.status.isReady) {
+                if (state.status.isFailure) {
                     Text(
                         color = MaterialTheme.colorScheme.error,
                         textAlign = TextAlign.Center,

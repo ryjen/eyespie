@@ -13,7 +13,7 @@ import org.kodein.di.bindSingleton
 
 fun iosModules(app: AppDelegate) = DI {
 
-    bindSingleton { Platform(app) }
+    bindSingleton { Platform(app.networkMonitor) }
 
     bindProvider { app.networkMonitor }
 
