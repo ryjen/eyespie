@@ -63,11 +63,5 @@ runs:
         INPUT_CONFIG: ${{ inputs.config }}
       shell: bash
 
-    - if: inputs.config == ''
-      run: |
-        echo "APP_CONFIG is empty; skipping config append."
-        exit 1
-      shell: bash
-
     - run: echo "env_file=${{ github.workspace }}/.env.local" >> $GITHUB_OUTPUT
       shell: bash

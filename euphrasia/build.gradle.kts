@@ -226,6 +226,12 @@ bluebell {
         className = "EnvConfig"
         envFile = ".env.local"
 
+        defaultedKeys = listOf(
+            "SUPABASE_URL",
+            "SUPABASE_KEY",
+            "LOGIN_EMAIL",
+            "LOGIN_PASSWORD",
+        )
         expectedKeys = listOf(
             "SUPABASE_URL",
             "SUPABASE_KEY",
