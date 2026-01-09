@@ -56,6 +56,7 @@ runs:
 
     - if: inputs.config != ''
       run: |
+        printf '\n' >> "${{ github.workspace }}/.env.local"
         echo -n "${{ inputs.config }}" | base64 -d >> "${{ github.workspace }}/.env.local"
       shell: bash
 
