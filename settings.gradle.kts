@@ -20,9 +20,13 @@ dependencyResolutionManagement {
         maven {
             name = "GitHubPackagesCactus"
             url = uri("https://maven.pkg.github.com/cactus-compute/cactus-kotlin")
-            credentials {
-                username = providers.gradleProperty("GITHUB_USER").orNull ?: throw IllegalStateException("GITHUB_USER not set")
-                password = providers.gradleProperty("GITHUB_TOKEN").orNull ?: throw IllegalStateException("GITHUB_TOKEN not set")
+            val githubUser = providers.gradleProperty("GITHUB_USER").orNull
+            val githubToken = providers.gradleProperty("GITHUB_TOKEN").orNull
+            if (githubUser != null && githubToken != null) {
+                credentials {
+                    username = githubUser
+                    password = githubToken
+                }
             }
         }
     }
