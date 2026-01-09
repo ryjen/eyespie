@@ -6,7 +6,6 @@ class AiDataRepository(
 ) {
 
     fun downloadModel(model: AiModel) {
-        TODO("not implemented")
     }
 
     fun validateModel(model: AiModel) {

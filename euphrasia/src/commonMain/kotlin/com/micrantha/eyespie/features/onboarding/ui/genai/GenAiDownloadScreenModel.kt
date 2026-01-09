@@ -4,7 +4,6 @@ import com.micrantha.bluebell.arch.Action
 import com.micrantha.bluebell.arch.Effect
 import com.micrantha.bluebell.arch.Reducer
 import com.micrantha.bluebell.data.DownloadState
-import com.micrantha.bluebell.domain.security.sha256
 import com.micrantha.bluebell.platform.BackgroundDownloader
 import com.micrantha.bluebell.platform.Platform
 import com.micrantha.bluebell.platform.filterById
@@ -15,11 +14,11 @@ import com.micrantha.eyespie.app.usecase.LoadMainUseCase
 import com.micrantha.eyespie.features.onboarding.data.OnboardingRepository
 import com.micrantha.eyespie.features.onboarding.entities.GenAiDownloadAction.Done
 import com.micrantha.eyespie.features.onboarding.entities.GenAiDownloadAction.Download
+import com.micrantha.eyespie.features.onboarding.entities.GenAiDownloadAction.Error
 import com.micrantha.eyespie.features.onboarding.entities.GenAiDownloadAction.Init
 import com.micrantha.eyespie.features.onboarding.entities.GenAiDownloadState
 import com.micrantha.eyespie.features.onboarding.entities.GenAiDownloadUiState
 import com.micrantha.eyespie.features.onboarding.usecase.LoadModelConfig
-import okio.Path.Companion.toPath
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
@@ -39,7 +38,10 @@ class GenAiDownloadScreenModel(
     override fun reduce(state: GenAiDownloadState, action: Action): GenAiDownloadState {
         return when(action) {
             is DownloadState.Progress -> state.copy(progress = action.progress)
-            is Download -> state.copy(name = action.name)
+            is DownloadState.Started -> state.copy(progress = 0, error = null)
+            is DownloadState.Completed -> state.copy(progress = 100)
+            is DownloadState.Failed -> state.copy(error = action.throwable ?: action.error)
+            is Download -> state.copy(model = action.model, name = action.name, error = null, progress = 0)
             is Error -> state.copy(error = action.cause)
             else -> state
         }
@@ -56,9 +58,16 @@ class GenAiDownloadScreenModel(
                 }
             }
             is Download -> {
+                action.model.checksum?.let { checksum ->
+                    val expected = action.model.fileName()
+                    if (!checksum.trim().equals(expected, ignoreCase = true)) {
+                        dispatch(Error(IllegalStateException("invalid checksum")))
+                        return
+                    }
+                }
                 val id = action.model.url.hashCode().toLong()
                 val tag = Uuid.random().toString()
-                val filePath = platform.sharedFilesPath().resolve(sha256(action.model.url))
+                val filePath = platform.sharedFilesPath().resolve("${action.model.fileName()}.litertlm")
                 backgroundDownloader.startDownload(
                     id = id,
                     name = action.name,
@@ -66,15 +75,6 @@ class GenAiDownloadScreenModel(
                     filePath = filePath,
                     tag = tag
                 )
-                action.model.checksum?.let { checksum ->
-                    backgroundDownloader.startDownload(
-                        id = action.model.checksum.hashCode().toLong(),
-                        name = null,
-                        url = checksum,
-                        filePath = "${filePath}.sha256".toPath(),
-                        tag = tag
-                    )
-                }
                 backgroundDownloader.observe().filterById(id).collect {
                     dispatch(it)
                 }
@@ -91,7 +91,12 @@ class GenAiDownloadScreenModel(
         fun map(state: GenAiDownloadState)= GenAiDownloadUiState(
             state.progress,
             state.name,
-            UiResult.Default
+            when {
+                state.error != null -> UiResult.Failure()
+                state.progress in 1..99 -> UiResult.Busy()
+                state.progress >= 100 -> UiResult.Ready(Unit)
+                else -> UiResult.Default
+            }
         )
     }
 }

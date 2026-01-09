@@ -17,7 +17,7 @@ import com.micrantha.eyespie.features.guess.ui.ScanGuessAction.ThingMatched
 import com.micrantha.eyespie.features.guess.ui.ScanGuessAction.ThingNotFound
 import com.micrantha.eyespie.features.scan.usecase.MatchCaptureUseCase
 import eyespie.euphrasia.generated.resources.no_data_found
-import org.jetbrains.compose.resources.getString
+import eyespie.euphrasia.generated.resources.ok
 
 class ScanGuessEnvironment(
     private val args: ScanGuessArgs,
@@ -38,7 +38,7 @@ class ScanGuessEnvironment(
             is Load -> thingRepository.thing(args.id).onSuccess {
                 dispatch(Loaded(it))
             }.onFailure {
-                dispatch(context.popup(S.no_data_found) {
+                dispatch(context.popup(S.no_data_found, S.ok) {
                     navigateBack()
                 })
             }

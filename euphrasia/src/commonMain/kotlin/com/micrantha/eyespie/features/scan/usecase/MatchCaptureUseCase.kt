@@ -16,8 +16,11 @@ class MatchCaptureUseCase(
         dispatchUseCase(coroutineContext) {
             // TODO: get embeddings from supabase or run remote function instead
             val match: Embedding = Embedding.EMPTY
-
             val embedding = Embedding.EMPTY
+
+            if (match == Embedding.EMPTY || embedding == Embedding.EMPTY) {
+                throw UnsupportedOperationException("match embeddings not available")
+            }
 
             val result = similarity(match.toByteArray(), embedding.toByteArray())
 
