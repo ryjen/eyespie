@@ -5,7 +5,7 @@
 
 > A game of "eye spy" with machine vision for clues and proof.
 
-![App screenshot](screenshot.png)
+<img src="screenshot.png" alt="App screenshot" width="360">
 
 See the [project phases and sprints](https://github.com/orgs/hackelia-micrantha/projects/3/views/2).
 
