@@ -1,5 +1,5 @@
 import SwiftUI
-import composeApp
+import euphrasia
 
 @main
 struct iOSApp: App {

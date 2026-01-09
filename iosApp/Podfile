@@ -8,5 +8,5 @@ target 'iosApp' do
   pod 'MediaPipeTasksVision'
   pod 'MediaPipeTasksGenAI'
 
-  pod 'composeApp', :path => '../composeApp'
+  pod 'euphrasia', :path => '../euphrasia'
 end

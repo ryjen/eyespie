@@ -1,5 +1,5 @@
 import SwiftUI
-import composeApp
+import euphrasia
 
 enum ConfigError: Error {
     case general(reason: String)
