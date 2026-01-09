@@ -1,0 +1,109 @@
+name: Codex Code Review
+
+on:
+  pull_request:
+    types: [opened, synchronize, reopened, ready_for_review]
+
+jobs:
+  codex:
+    if: ${{ !github.event.pull_request.draft }}
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pull-requests: write
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Build diff
+        id: diff
+        shell: bash
+        run: |
+          git fetch --no-tags --prune origin "${{ github.base_ref }}"
+          diff="$(git diff --unified=3 "origin/${{ github.base_ref }}"...HEAD)"
+          if [ -z "$diff" ]; then
+            echo "empty=true" >> "$GITHUB_OUTPUT"
+            exit 0
+          fi
+          {
+            echo "diff<<'EOF'"
+            echo "$diff"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Request Codex review
+        id: review
+        if: steps.diff.outputs.empty != 'true'
+        shell: bash
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          OPENAI_MODEL: gpt-4.1
+          PR_TITLE: ${{ github.event.pull_request.title }}
+          PR_BODY: ${{ github.event.pull_request.body }}
+        run: |
+          if [ -z "$OPENAI_API_KEY" ]; then
+            echo "Missing OPENAI_API_KEY secret." >&2
+            exit 1
+          fi
+          prompt=$(
+            cat <<'EOF'
+You are Codex, a senior code review assistant. Review the pull request diff and provide:
+- High-risk issues or bugs
+- Security or data risks
+- Tests that should be added or updated
+- Suggested improvements (if any)
+
+Be concise, focus on actionable feedback, and avoid rewriting large chunks of code.
+EOF
+          )
+          request="$(
+            jq -n \
+              --arg model "$OPENAI_MODEL" \
+              --arg system "$prompt" \
+              --arg title "$PR_TITLE" \
+              --arg body "$PR_BODY" \
+              --arg diff "${{ steps.diff.outputs.diff }}" \
+              '{
+                model: $model,
+                messages: [
+                  {role: "system", content: $system},
+                  {role: "user", content: ("PR Title: " + $title + "\nPR Body:\n" + $body + "\n\nDiff:\n" + $diff)}
+                ],
+                temperature: 0.2
+              }'
+          )"
+          response="$(
+            curl -sS https://api.openai.com/v1/chat/completions \
+              -H "Authorization: Bearer ${OPENAI_API_KEY}" \
+              -H "Content-Type: application/json" \
+              -d "$request"
+          )"
+          review="$(echo "$response" | jq -r '.choices[0].message.content // empty')"
+          if [ -z "$review" ]; then
+            echo "Empty response from OpenAI API." >&2
+            echo "$response" >&2
+            exit 1
+          fi
+          {
+            echo "body<<'EOF'"
+            echo "$review"
+            echo "EOF"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Post review comment
+        if: steps.review.outputs.body != ''
+        uses: actions/github-script@v7
+        env:
+          REVIEW_BODY: ${{ steps.review.outputs.body }}
+        with:
+          script: |
+            const body = process.env.REVIEW_BODY;
+            await github.rest.pulls.createReview({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              pull_number: context.payload.pull_request.number,
+              body,
+              event: "COMMENT",
+            });

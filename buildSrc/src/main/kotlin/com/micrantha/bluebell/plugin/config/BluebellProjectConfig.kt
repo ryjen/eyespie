@@ -90,14 +90,18 @@ internal fun Project.configureBuilds(config: BluebellConfig, manifestName: Strin
 
         generateTask.get().dependsOn(configTask)
 
-        tasks.register("generateBluebellConfigExtensions") {
+        val generateExtensionsTask = tasks.register("generateBluebellConfigExtensions") {
             group = "Bluebell"
             description = "Generates the local build config extensions"
 
             dependsOn(configTask)
 
-            generateSource(generateTask.get())
+            doLast {
+                generateSource(generateTask.get())
+            }
         }
+
+        generateTask.get().dependsOn(generateExtensionsTask)
     }
 }
 
