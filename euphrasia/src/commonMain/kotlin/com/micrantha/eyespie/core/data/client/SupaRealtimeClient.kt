@@ -1,7 +1,6 @@
 package com.micrantha.eyespie.core.data.client
 
 import com.benasher44.uuid.uuid4
-import com.micrantha.eyespie.app.AppConfig
 import io.github.jan.supabase.createSupabaseClient
 import io.github.jan.supabase.realtime.PostgresAction
 import io.github.jan.supabase.realtime.channel
@@ -13,7 +12,8 @@ import kotlinx.coroutines.flow.onStart
 
 class SupaRealtimeClient {
     private val realtime by lazy {
-        createSupabaseClient(AppConfig.SUPABASE_URL, AppConfig.SUPABASE_KEY) {
+        val (url, key) = requireSupabaseConfig()
+        createSupabaseClient(url, key) {
             install(RealtimeClient)
         }.realtime
     }

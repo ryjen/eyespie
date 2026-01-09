@@ -1,7 +1,6 @@
 package com.micrantha.eyespie.core.data.client
 
 import com.apollographql.apollo.ApolloCall
-import com.micrantha.eyespie.app.AppConfig
 import com.micrantha.eyespie.features.things.data.model.MatchRequest
 import com.micrantha.eyespie.features.things.data.model.NearbyRequest
 import com.micrantha.eyespie.graphql.GameListQuery
@@ -34,7 +33,8 @@ typealias AuthCall = Auth
 
 class SupaClient {
     private val supabase by lazy {
-        createSupabaseClient(AppConfig.SUPABASE_URL, AppConfig.SUPABASE_KEY) {
+        val (url, key) = requireSupabaseConfig()
+        createSupabaseClient(url, key) {
             install(GraphClient)
 
             install(DatabaseClient)

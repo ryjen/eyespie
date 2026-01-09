@@ -43,6 +43,11 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
+      - name: Forked PR notice
+        if: ${{ github.event_name == 'pull_request' && github.event.pull_request.head.repo.fork }}
+        run: |
+          echo "Forked PR detected; secrets are not available."
+
       - name: Create build config
         uses: ./.github/actions/configure-build
         id: build-config
@@ -51,12 +56,6 @@ jobs:
           config: ${{ secrets.APP_CONFIG }}
           login_email: ${{ inputs.login_email }}
           login_password: ${{ inputs.login_password }}
-
-      - name: Debug env file shape
-        run: |
-          echo "env lines: $(wc -l < .env.local)"
-          echo "keys:"
-          awk -F= '{print $1}' .env.local
 
       - uses: maierj/fastlane-action@v3.1.0
         with:

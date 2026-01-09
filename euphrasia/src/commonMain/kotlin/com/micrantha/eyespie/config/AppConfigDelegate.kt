@@ -10,15 +10,8 @@ internal class DefaultAppConfigDelegate(
 }
 
 internal object AppConfigDelegate {
-    private val configMap = mapOf(
-        "LOGIN_EMAIL" to EnvConfig.LOGIN_EMAIL,
-        "LOGIN_PASSWORD" to EnvConfig.LOGIN_PASSWORD,
-        "SUPABASE_URL" to EnvConfig.SUPABASE_URL,
-        "SUPABASE_KEY" to EnvConfig.SUPABASE_KEY
-    )
-
-    fun get(key: String): String? = configMap[key]
+    fun get(key: String): String? = EnvConfig.get(key)
 
     operator fun getValue(thisRef: Any?, property: KProperty<*>): String =
-        configMap[property.name] ?: ""
+        EnvConfig.get(property.name) ?: ""
 }
