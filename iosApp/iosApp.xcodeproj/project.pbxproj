@@ -266,7 +266,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "if [ -f \"${PROJECT_DIR}/.xcode-env.local\" ]; then\n    source \"${PROJECT_DIR}/.xcode-env.local\"\nfi\ncd \"$SRCROOT/..\"\n./gradlew :composeApp:embedAndSignAppleFrameworkForXcode\n";
+			shellScript = "if [ -f \"${PROJECT_DIR}/.xcode-env.local\" ]; then\n    source \"${PROJECT_DIR}/.xcode-env.local\"\nfi\ncd \"$SRCROOT/..\"\n./gradlew :euphrasia:embedAndSignAppleFrameworkForXcode\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 
@@ -420,7 +420,7 @@
 				ENABLE_PREVIEWS = YES;
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
-					"$(SRCROOT)/../composeApp/build/xcode-frameworks/$(CONFIGURATION)/$(SDK_NAME)",
+					"$(SRCROOT)/../euphrasia/build/xcode-frameworks/$(CONFIGURATION)/$(SDK_NAME)",
 					"$(PROJECT_DIR)/iosApp",
 				);
 				INFOPLIST_FILE = iosApp/Info.plist;
@@ -438,7 +438,7 @@
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					"-framework",
-					composeApp,
+					euphrasia,
 				);
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";
@@ -460,7 +460,7 @@
 				ENABLE_PREVIEWS = YES;
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
-					"$(SRCROOT)/../composeApp/build/xcode-frameworks/$(CONFIGURATION)/$(SDK_NAME)",
+					"$(SRCROOT)/../euphrasia/build/xcode-frameworks/$(CONFIGURATION)/$(SDK_NAME)",
 					"$(PROJECT_DIR)/iosApp",
 				);
 				INFOPLIST_FILE = iosApp/Info.plist;
@@ -478,7 +478,7 @@
 				OTHER_LDFLAGS = (
 					"$(inherited)",
 					"-framework",
-					composeApp,
+					euphrasia,
 				);
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				PROVISIONING_PROFILE_SPECIFIER = "";

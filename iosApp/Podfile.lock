@@ -1,5 +1,5 @@
 PODS:
-  - composeApp (1.0):
+  - euphrasia (1.0):
     - MediaPipeTasksGenAI
     - MediaPipeTasksVision
   - MediaPipeTasksCommon (0.10.21)
@@ -10,7 +10,7 @@ PODS:
     - MediaPipeTasksCommon (= 0.10.21)
 
 DEPENDENCIES:
-  - composeApp (from `../composeApp`)
+  - euphrasia (from `../euphrasia`)
   - MediaPipeTasksGenAI
   - MediaPipeTasksVision
 
@@ -22,11 +22,11 @@ SPEC REPOS:
     - MediaPipeTasksVision
 
 EXTERNAL SOURCES:
-  composeApp:
-    :path: "../composeApp"
+  euphrasia:
+    :path: "../euphrasia"
 
 SPEC CHECKSUMS:
-  composeApp: fa3624f9d25c09f416174b06dc9000186f4fe383
+  euphrasia: fa3624f9d25c09f416174b06dc9000186f4fe383
   MediaPipeTasksCommon: 6cfa29170d4900f04d250ad95ec058f14a741f38
   MediaPipeTasksGenAI: 076ba7032a6e9da16db9c7cf0c3b67c751c18bc1
   MediaPipeTasksGenAIC: ec35d9f431f6a6b651a0bc9f67a4ed149ffa575c

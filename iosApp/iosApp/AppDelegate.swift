@@ -1,6 +1,7 @@
 import UIKit
+import euphrasia
 
-private let app = composeApp.AppDelegate(
+private let app = euphrasia.AppDelegate(
     networkMonitor: iOSNetworkMonitor(),
     packageId: "com.micrantha.eyespie"
 )
