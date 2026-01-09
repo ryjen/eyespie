@@ -97,14 +97,14 @@ internal fun Project.configureBuilds(config: BluebellConfig, manifestName: Strin
             group = "Bluebell"
             description = "Generates the local build config extensions"
 
-            dependsOn(configTask)
+            dependsOn(generateTask)
 
             doLast {
                 generateSource(generateTask.get())
             }
         }
 
-        generateTask.get().dependsOn(generateExtensionsTask)
+        generateTask.get().finalizedBy(generateExtensionsTask)
     }
 }
 
