@@ -16,15 +16,18 @@ import com.micrantha.bluebell.observability.repository.InMemorySchemaRegistry
 import com.micrantha.bluebell.observability.repository.MemoryCache
 import com.micrantha.bluebell.observability.repository.MultiTierEventCache
 import com.micrantha.bluebell.observability.repository.ObservabilityDataRepository
-import com.micrantha.bluebell.observability.repository.SQLiteEventCache
 import com.micrantha.bluebell.observability.repository.destination.FirebaseDestination
 import com.micrantha.bluebell.observability.repository.destination.LocalDatabaseDestination
 import com.micrantha.bluebell.observability.repository.destination.NewRelicClient
 import com.micrantha.bluebell.observability.repository.destination.NewRelicDestination
+import com.micrantha.bluebell.observability.repository.OkioJsonLinesDiskCache
+import okio.FileSystem
+import okio.Path.Companion.toPath
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.runBlocking
+import okio.SYSTEM
 
 // Setting up the observability system
 class ObservabilitySetup(
@@ -90,7 +93,13 @@ class ObservabilitySetup(
 
         // 2. Setup Cache
         val memoryCache = MemoryCache()
-        val diskCache = SQLiteEventCache(database)
+
+        // NOTE: The SQLite cache is currently a stub. For offline-first usage tracking,
+        // we default to a simple JSONL disk cache.
+        val diskCache = OkioJsonLinesDiskCache(
+            fileSystem = FileSystem.SYSTEM,
+            filePath = "./observability-events.jsonl".toPath(),
+        )
         val cache = MultiTierEventCache(
             memoryCache = memoryCache,
             diskCache = diskCache,

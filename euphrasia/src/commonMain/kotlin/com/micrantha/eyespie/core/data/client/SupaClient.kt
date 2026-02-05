@@ -32,7 +32,7 @@ typealias StorageCall = BucketApi
 typealias AuthCall = Auth
 
 class SupaClient {
-    private val supabase by lazy {
+    val supabase by lazy {
         val (url, key) = requireSupabaseConfig()
         createSupabaseClient(url, key) {
             install(GraphClient)

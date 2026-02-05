@@ -111,7 +111,7 @@ class MultiTierEventCache(
     private fun TelemetryEvent.isPersistable(): Boolean = when (this) {
         is AuditEvent -> true  // Always persist for non-repudiation
         is SystemEvent.Crash -> true  // Important for debugging
-        is AnalyticsEvent -> false  // Can be lost if not synced
+        is AnalyticsEvent -> true  // Persist so usage tracking works offline
         else -> false
     }
 }
