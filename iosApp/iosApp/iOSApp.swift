@@ -1,5 +1,5 @@
 import SwiftUI
-import euphrasia
+import eyespie
 
 @main
 struct iOSApp: App {

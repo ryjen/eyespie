@@ -1,12 +1,12 @@
 # Repository Guidelines
 
 ## Project Structure & Module Organization
-- `euphrasia/`: Kotlin Multiplatform app module (Compose UI, shared logic, platform glue).
-  - Shared code: `euphrasia/src/commonMain`
-  - Android-specific: `euphrasia/src/androidMain`
-  - iOS-specific: `euphrasia/src/iosMain`
-  - Tests: `euphrasia/src/commonTest`
-  - Assets: `euphrasia/bluebellAssets`
+- `eyespie/`: Kotlin Multiplatform app module (Compose UI, shared logic, platform glue).
+  - Shared code: `eyespie/src/commonMain`
+  - Android-specific: `eyespie/src/androidMain`
+  - iOS-specific: `eyespie/src/iosMain`
+  - Tests: `eyespie/src/commonTest`
+  - Assets: `eyespie/bluebellAssets`
 - `bluebell/`: Shared framework code used by the app.
 - `iosApp/`: iOS wrapper app and CocoaPods integration.
 - `supabase/`: Database schema and migrations.
@@ -40,7 +40,7 @@ fastlane test
 - No repo-wide formatter detected; match the local style in the file you edit.
 
 ## Testing Guidelines
-- Framework: Kotlin `kotlin("test")` in `euphrasia/src/commonTest`.
+- Framework: Kotlin `kotlin("test")` in `eyespie/src/commonTest`.
 - Naming: use `*Test.kt` (e.g., `LabelDataRepositoryTest.kt`).
 - Run tests with `./gradlew test` or `./gradlew testDebugUnitTest` for Android unit tests.
 

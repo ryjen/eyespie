@@ -34,4 +34,4 @@ dependencyResolutionManagement {
 
 rootProject.name = "EyesPie"
 include(":bluebell")
-include(":euphrasia")
+include(":eyespie")

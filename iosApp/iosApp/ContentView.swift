@@ -1,5 +1,5 @@
 import SwiftUI
-import euphrasia
+import eyespie
 
 enum ConfigError: Error {
     case general(reason: String)

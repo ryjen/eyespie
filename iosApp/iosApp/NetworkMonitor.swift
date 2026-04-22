@@ -6,7 +6,7 @@
 //  Copyright © 2024 orgName. All rights reserved.
 //
 import Network
-import euphrasia
+import eyespie
 
 class iOSNetworkMonitor: NetworkMonitor {
     private let monitor = NWPathMonitor()
