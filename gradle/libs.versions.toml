@@ -2,8 +2,8 @@
 
 cache4k = "0.14.0"
 cameraExtensions = "1.5.1"
-compose = "1.9.4"
-compose-plugin = "1.9.1"
+compose = "1.10.3"
+compose-plugin = "1.10.3"
 agp = "8.13.0"
 android-minSdk = "29"
 android-compileSdk = "36"
