@@ -20,12 +20,12 @@ kotlin {
 
     sourceSets {
         commonMain.dependencies {
-            implementation(compose.runtime)
-            implementation(compose.ui)
-            implementation(compose.foundation)
-            implementation(compose.components.resources)
-            implementation(compose.material3)
-            implementation(compose.materialIconsExtended)
+            implementation(libs.compose.runtime)
+            implementation(libs.compose.ui)
+            implementation(libs.compose.foundation)
+            implementation(libs.compose.components.resources)
+            implementation(libs.compose.material3)
+            implementation(libs.compose.materialIconsExtended)
 
             implementation(libs.kodein.di)
             implementation(libs.kodein.di.framework.compose)

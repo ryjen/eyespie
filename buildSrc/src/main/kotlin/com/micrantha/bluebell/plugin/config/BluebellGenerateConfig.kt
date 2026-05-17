@@ -40,12 +40,10 @@ internal fun Project.generateIosConfig(
 ) {
 
     val destFile = projectDir.resolve(defaultIosDestination).resolve(manifest)
-
     val iosDownloads = mapDownloadsToConfig(BluebellDownload.IosDownload::class, downloads)
+    val configModels = mapModelsToConfig(BluebellAsset.IosAsset::class, models)
 
-    val models = mapModelsToConfig(BluebellAsset.IosAsset::class, models)
-
-    generateAssetConfig(manifest, destFile, iosDownloads, models)
+    generateAssetConfig(manifest, destFile, iosDownloads, configModels)
 }
 
 
@@ -59,9 +57,9 @@ internal fun Project.generateAndroidConfig(
 
     val androidDownloads = mapDownloadsToConfig(BluebellDownload.AndroidDownload::class, downloads)
 
-    val models = mapModelsToConfig(BluebellAsset.AndroidAsset::class, models)
+    val configModels = mapModelsToConfig(BluebellAsset.AndroidAsset::class, models)
 
-    generateAssetConfig(manifest, destFile, androidDownloads, models)
+    generateAssetConfig(manifest, destFile, androidDownloads, configModels)
 }
 
 
@@ -75,9 +73,9 @@ internal fun Project.generateSharedConfig(
 
     val sharedDownloads = mapDownloadsToConfig(BluebellDownload.DefaultDownload::class, downloads)
 
-    val models = mapModelsToConfig(BluebellAsset.SharedAsset::class, models)
+    val configModels = mapModelsToConfig(BluebellAsset.SharedAsset::class, models)
 
-    generateAssetConfig(manifest, destFile, sharedDownloads, models)
+    generateAssetConfig(manifest, destFile, sharedDownloads, configModels)
 }
 
 @OptIn(ExperimentalSerializationApi::class)

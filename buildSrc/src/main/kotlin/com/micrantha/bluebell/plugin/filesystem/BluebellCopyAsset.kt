@@ -20,11 +20,11 @@ internal fun Project.copyBuildAssets(assets: BluebellAssets, downloads: Bluebell
 
     val srcDest = validateSrcDir() ?: return
 
-    val downloads = assets.copies
+    val assetDownloads = assets.copies
         .filterNot { srcDest.resolve(it.name).exists() }
         .mapNotNull { downloads.findByName(it.name) }
 
-    downloadBuildAssets(downloads, srcDest)
+    downloadBuildAssets(assetDownloads, srcDest)
 
     val copies = forBuildAssets(assets.copies, srcDest) { from, to ->
         copyBuildAsset(from, to)
