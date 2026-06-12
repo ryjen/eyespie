@@ -12,6 +12,7 @@ class BluebellDownloadBuilder(
 
     fun ios(name: String, configure: BluebellDownloadBuilder.() -> Unit) {
         configure.invoke(this)
+        val url = this.url ?: throw IllegalArgumentException("url is required")
         val download =
             objectFactory.newInstance(BluebellDownload.IosDownload::class.java, name, url).also {
                 it.checksum = checksum
@@ -21,6 +22,7 @@ class BluebellDownloadBuilder(
 
     fun android(name: String, configure: BluebellDownloadBuilder.() -> Unit) {
         configure.invoke(this)
+        val url = this.url ?: throw IllegalArgumentException("url is required")
         val download =
             objectFactory.newInstance(BluebellDownload.AndroidDownload::class.java, name, url)
                 .also {
@@ -31,6 +33,7 @@ class BluebellDownloadBuilder(
 
     fun create(name: String, configure: BluebellDownloadBuilder.() -> Unit) {
         configure(this)
+        val url = this.url ?: throw IllegalArgumentException("url is required")
         val download =
             objectFactory.newInstance(BluebellDownload.DefaultDownload::class.java, name, url)
                 .also {
