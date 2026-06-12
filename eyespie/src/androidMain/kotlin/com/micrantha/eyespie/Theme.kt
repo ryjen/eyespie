@@ -48,17 +48,6 @@ fun EyesPieTheme(
             onSurface = Color.Black
         )
     }
-    val view = LocalView.current
-    if (!view.isInEditMode) {
-        SideEffect {
-            with(view.context as Activity) {
-                WindowCompat.getInsetsController(this.window, view).apply {
-                    isAppearanceLightStatusBars = darkTheme.not()
-                    isAppearanceLightNavigationBars = darkTheme.not()
-                }
-            }
-        }
-    }
 
     MaterialTheme(
         colorScheme = colorScheme,

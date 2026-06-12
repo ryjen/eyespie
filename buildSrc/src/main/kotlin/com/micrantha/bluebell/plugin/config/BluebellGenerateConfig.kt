@@ -1,5 +1,11 @@
-package com.micrantha.bluebell.plugin.asset
+package com.micrantha.bluebell.plugin.config
 
+import com.micrantha.bluebell.plugin.asset.BluebellAsset
+import com.micrantha.bluebell.plugin.asset.BluebellAssetConfig
+import com.micrantha.bluebell.plugin.asset.BluebellModels
+import com.micrantha.bluebell.plugin.asset.defaultAndroidDestination
+import com.micrantha.bluebell.plugin.asset.defaultIosDestination
+import com.micrantha.bluebell.plugin.asset.defaultSharedDestination
 import com.micrantha.bluebell.plugin.bluebell
 import com.micrantha.bluebell.plugin.download.BluebellDownload
 import com.micrantha.bluebell.plugin.download.BluebellDownloads
