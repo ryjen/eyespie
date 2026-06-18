@@ -8,16 +8,22 @@ import com.micrantha.eyespie.features.scan.ui.capture.ScanCaptureStateMapper
 import com.micrantha.eyespie.features.scan.ui.edit.ScanEditEnvironment
 import com.micrantha.eyespie.features.scan.ui.edit.ScanEditScreen
 import com.micrantha.eyespie.features.scan.ui.edit.ScanEditScreenModel
+import com.micrantha.eyespie.features.scan.usecase.DeterministicImageEmbeddingGenerator
+import com.micrantha.eyespie.features.scan.usecase.ImageEmbeddingGenerator
 import com.micrantha.eyespie.features.scan.usecase.LoadImageUseCase
+import com.micrantha.eyespie.features.scan.usecase.MatchCaptureUseCase
 import com.micrantha.eyespie.features.scan.usecase.TakeCaptureUseCase
 import com.micrantha.eyespie.features.scan.usecase.UploadCaptureUseCase
 import org.kodein.di.DI
 import org.kodein.di.bindFactory
+import org.kodein.di.bindProvider
 import org.kodein.di.bindProviderOf
 
 
 internal fun module() = DI.Module("Scan") {
 
+    bindProvider<ImageEmbeddingGenerator> { DeterministicImageEmbeddingGenerator() }
+    bindProviderOf(::MatchCaptureUseCase)
     bindProviderOf(::UploadCaptureUseCase)
     bindProviderOf(::LoadImageUseCase)
     bindProviderOf(::TakeCaptureUseCase)
