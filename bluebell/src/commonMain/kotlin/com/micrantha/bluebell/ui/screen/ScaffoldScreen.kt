@@ -21,9 +21,9 @@ import cafe.adriel.voyager.core.screen.Screen
 import cafe.adriel.voyager.kodein.rememberScreenModel
 import com.micrantha.bluebell.app.ScaffoldingState
 import com.micrantha.bluebell.app.navi.NavAction
+import com.micrantha.bluebell.ui.components.NavigationAction
 import com.micrantha.bluebell.ui.components.rememberConnectivityStatus
 import com.micrantha.bluebell.ui.theme.Dimensions
-import com.micrantha.bluebell.ui.components.NavigationAction
 import org.kodein.di.DIAware
 
 internal fun defaultBackAction() = NavAction(

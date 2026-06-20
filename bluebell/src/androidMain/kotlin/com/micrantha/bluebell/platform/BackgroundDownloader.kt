@@ -2,8 +2,8 @@ package com.micrantha.bluebell.platform
 
 import android.content.Context
 import android.util.Log
-import com.micrantha.bluebell.data.DownloadState
 import com.micrantha.bluebell.BuildConfig
+import com.micrantha.bluebell.data.DownloadState
 import com.tonyodev.fetch2.AbstractFetchListener
 import com.tonyodev.fetch2.DefaultFetchNotificationManager
 import com.tonyodev.fetch2.Download

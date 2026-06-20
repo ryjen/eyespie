@@ -1,6 +1,5 @@
 package com.micrantha.bluebell.observability.repository
 
-import com.micrantha.bluebell.observability.domain.DiskCache
 import com.micrantha.bluebell.observability.domain.EventCache
 import com.micrantha.bluebell.observability.entity.AnalyticsEvent
 import com.micrantha.bluebell.observability.entity.AuditEvent
@@ -13,7 +12,7 @@ import kotlin.time.Instant
 
 class MultiTierEventCache(
     private val memoryCache: MemoryCache,
-    private val diskCache: DiskCache,
+    private val diskCache: EventCache,
     private val config: CacheConfig
 ) : EventCache {
 
@@ -23,7 +22,7 @@ class MultiTierEventCache(
 
         // Persist to disk if memory is full or event is important
         if (memoryCache.size() >= config.maxMemoryEvents || event.isPersistable()) {
-            diskCache.write(event)
+            diskCache.store(event)
         }
 
         // Evict old events if necessary
@@ -40,7 +39,7 @@ class MultiTierEventCache(
         // Write persistable events to disk in batch
         val persistable = events.filter { it.isPersistable() }
         if (persistable.isNotEmpty()) {
-            diskCache.writeBatch(persistable)
+            diskCache.storeBatch(persistable)
         }
     }
 
@@ -50,7 +49,7 @@ class MultiTierEventCache(
         return if (memoryEvents.size < limit) {
             // Need more events from disk
             val remaining = limit - memoryEvents.size
-            val diskEvents = diskCache.readOldest(remaining)
+            val diskEvents = diskCache.retrieve(remaining)
             memoryEvents + diskEvents
         } else {
             memoryEvents.take(limit)
@@ -65,7 +64,7 @@ class MultiTierEventCache(
 
         return if (memoryResults.size < limit) {
             val remaining = limit - memoryResults.size
-            val diskResults = diskCache.query(filter, remaining)
+            val diskResults = diskCache.retrieveByFilter(filter, remaining)
             memoryResults + diskResults
         } else {
             memoryResults
@@ -80,7 +79,7 @@ class MultiTierEventCache(
     @OptIn(ExperimentalTime::class)
     override suspend fun deleteOlderThan(timestamp: Instant): Result<Int> = runCatching {
         val memoryDeleted = memoryCache.removeOlderThan(timestamp)
-        val diskDeleted = diskCache.deleteOlderThan(timestamp)
+        val diskDeleted = diskCache.deleteOlderThan(timestamp).getOrThrow()
         memoryDeleted + diskDeleted
     }
 
@@ -90,7 +89,7 @@ class MultiTierEventCache(
 
     override suspend fun flush(): Result<Unit> = runCatching {
         val allEvents = memoryCache.getAll()
-        diskCache.writeBatch(allEvents)
+        diskCache.storeBatch(allEvents)
         memoryCache.clear()
     }
 
@@ -102,11 +101,12 @@ class MultiTierEventCache(
         val toEvict = memoryCache.getLRU(config.evictionBatchSize)
         toEvict.forEach { event ->
             if (event.isPersistable()) {
-                diskCache.write(event)
+                diskCache.store(event)
             }
             memoryCache.remove(listOf(event.eventId))
         }
     }
+
 
     private fun TelemetryEvent.isPersistable(): Boolean = when (this) {
         is AuditEvent -> true  // Always persist for non-repudiation

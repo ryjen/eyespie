@@ -12,6 +12,10 @@ plugins {
 kotlin {
     jvmToolchain(21)
 
+    compilerOptions {
+        freeCompilerArgs.add("-Xexpect-actual-classes")
+    }
+
     cocoapods {
         version = "1.0"
         summary = "Native dependencies for ${project.name}"

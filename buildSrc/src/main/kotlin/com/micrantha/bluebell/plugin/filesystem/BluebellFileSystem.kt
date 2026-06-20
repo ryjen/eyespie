@@ -12,7 +12,7 @@ import org.gradle.api.NamedDomainObjectContainer
 import org.gradle.api.Project
 import java.io.File
 
-private fun BluebellAsset.destination(baseDir: File): List<File> = when (this) {
+internal fun BluebellAsset.destination(baseDir: File): List<File> = when (this) {
     is BluebellAsset.IosAsset -> listOf(baseDir.resolve(defaultIosDestination))
     is BluebellAsset.AndroidAsset -> listOf(baseDir.resolve(defaultAndroidDestination))
     is BluebellAsset.SharedAsset -> listOf(baseDir.resolve(defaultSharedDestination))
@@ -22,8 +22,10 @@ private fun BluebellAsset.destination(baseDir: File): List<File> = when (this) {
     )
 }
 
-internal fun Project.forBuildAssets(
-    assets: NamedDomainObjectContainer<BluebellAsset>,
+internal fun forBuildAssets(
+    projectDir: File,
+    logger: org.gradle.api.logging.Logger,
+    assets: List<BluebellAsset>,
     srcDest: File,
     action: suspend (File, File) -> Unit
 ) = runBlocking {
@@ -42,6 +44,12 @@ internal fun Project.forBuildAssets(
     }
 }
 
+internal fun Project.forBuildAssets(
+    assets: NamedDomainObjectContainer<BluebellAsset>,
+    srcDest: File,
+    action: suspend (File, File) -> Unit
+) = forBuildAssets(projectDir, logger, assets.toList(), srcDest, action)
+
 internal fun File.validateParentDir(): Boolean {
 
     if (parentFile.exists()) {
@@ -52,7 +60,7 @@ internal fun File.validateParentDir(): Boolean {
     }
 }
 
-internal fun Project.validateSrcDir(): File? {
+internal fun validateSrcDir(projectDir: File, logger: org.gradle.api.logging.Logger): File? {
 
     val srcDest = projectDir.resolve(defaultAssetSource)
 
@@ -66,3 +74,5 @@ internal fun Project.validateSrcDir(): File? {
 
     return srcDest
 }
+
+internal fun Project.validateSrcDir(): File? = validateSrcDir(projectDir, logger)

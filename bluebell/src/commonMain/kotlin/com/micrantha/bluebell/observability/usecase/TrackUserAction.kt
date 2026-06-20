@@ -13,6 +13,7 @@ import kotlin.time.ExperimentalTime
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
+
 class TrackUserAction(private val observability: ObservabilityRepository) {
     private val logger by logger()
 

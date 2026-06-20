@@ -1,11 +1,11 @@
 package com.micrantha.bluebell.ui.model
 
 import androidx.compose.ui.graphics.vector.ImageVector
-import kotlin.uuid.ExperimentalUuidApi
-import kotlin.uuid.Uuid
 import com.micrantha.bluebell.ui.model.UiMessage.Category.Default
 import com.micrantha.bluebell.ui.model.UiMessage.Type.Timed
 import org.jetbrains.compose.resources.StringResource
+import kotlin.uuid.ExperimentalUuidApi
+import kotlin.uuid.Uuid
 
 @OptIn(ExperimentalUuidApi::class)
 data class UiMessage(

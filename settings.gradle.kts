@@ -23,6 +23,6 @@ dependencyResolutionManagement {
     }
 }
 
-rootProject.name = "eyespie-root"
+rootProject.name = "eyespie"
 include(":bluebell")
 include(":eyespie")

@@ -1,9 +1,15 @@
 package com.micrantha.bluebell.plugin.config
 
 import com.github.gmazzo.buildconfig.BuildConfigExtension
-import com.github.gmazzo.buildconfig.BuildConfigTask
 import com.micrantha.bluebell.plugin.bluebell
+import org.gradle.api.DefaultTask
 import org.gradle.api.Project
+import org.gradle.api.file.DirectoryProperty
+import org.gradle.api.provider.MapProperty
+import org.gradle.api.provider.Property
+import org.gradle.api.tasks.Input
+import org.gradle.api.tasks.OutputDirectory
+import org.gradle.api.tasks.TaskAction
 import java.io.File
 import java.io.FileInputStream
 import java.util.Properties
@@ -27,6 +33,37 @@ internal fun BluebellConfig.loadConfigFromEnvironment(manifestName: String?): Re
     }
 }
 
+abstract class BluebellConfigExtensionsTask : DefaultTask() {
+    @get:Input
+    abstract val packageName: Property<String>
+
+    @get:Input
+    abstract val className: Property<String>
+
+    @get:Input
+    abstract val properties: MapProperty<String, String>
+
+    @get:OutputDirectory
+    abstract val outputDir: DirectoryProperty
+
+    @TaskAction
+    fun generate() {
+        val pName = packageName.get()
+        val cName = className.get()
+        val props = properties.get()
+
+        val entries = props.entries.map { "\"${it.key}\" to $cName.${it.key}" }
+
+        val targetDir = outputDir.dir(pName.replace(".", File.separator)).get().asFile
+        targetDir.mkdirs()
+
+        val sourceFile = File(targetDir, "${cName}Ext.kt")
+
+        sourceFile.writeText(generatedExtensionSourceCode(pName, cName, props.isEmpty(), entries))
+        logger.bluebell("Generated config extensions")
+    }
+}
+
 internal fun Project.configureBuilds(config: BluebellConfig, manifestName: String?) {
 
     config.properties = config.loadConfigFromEnvironment(manifestName).getOrDefault(emptyMap())
@@ -41,88 +78,71 @@ internal fun Project.configureBuilds(config: BluebellConfig, manifestName: Strin
         error("missing key '$key' in ${config.envFile}")
     }
 
-    fun generateSource(task: BuildConfigTask) {
-        val entries =
-            config.properties.entries.map { "\"${it.key}\" to ${config.className}.${it.key}" }
-                .toMutableList()
-
-        val outputDir = task.outputDir.dir(
-            config.packageName.replace(".", File.separator)
-        ).get().also {
-            it.asFile.mkdirs()
-        }
-
-        val sourceFile = outputDir.file("${config.className}Ext.kt").asFile
-
-        // Example code generation logic
-        sourceFile.writeText(generatedExtensionSourceCode(config, entries))
-        logger.bluebell("Generated config extensions")
-    }
-
     extensions.configure(BuildConfigExtension::class.java) {
         packageName(config.packageName)
         className(config.className)
         useKotlinOutput { topLevelConstants = false }
 
-        val configureBuild = {
-            config.expectedKeys.forEach { key ->
-                if (config.properties.containsKey(key).not()) {
-                    logger.bluebell("Missing key '$key' in ${config.envFile}", logger::warn)
-                }
+        config.expectedKeys.forEach { key ->
+            if (config.properties.containsKey(key).not()) {
+                logger.bluebell("Missing key '$key' in ${config.envFile}", logger::warn)
             }
-
-            config.requiredKeys.forEach { key ->
-                if (config.properties.containsKey(key).not()) {
-                    requiredKeyError(key)
-                }
-            }
-
-            config.properties.forEach { (key, value) ->
-                buildConfigField(if (value == "null") "String?" else "String", key, value)
-            }
-
-            logger.bluebell("Generated ${config.packageName}.${config.className}")
         }
 
-        val configTask = tasks.register("generateBluebellConfig") {
-            group = "Bluebell"
-            description = "Generates the local build config"
-
-            configureBuild()
+        config.requiredKeys.forEach { key ->
+            if (config.properties.containsKey(key).not()) {
+                requiredKeyError(key)
+            }
         }
 
-        generateTask.get().dependsOn(configTask)
+        config.properties.forEach { (key, value) ->
+            buildConfigField(if (value == "null") "String?" else "String", key, value)
+        }
 
-        val generateExtensionsTask = tasks.register("generateBluebellConfigExtensions") {
+        logger.bluebell("Generated ${config.packageName}.${config.className}")
+
+        val generateExtensionsTask = tasks.register("generateBluebellConfigExtensions", BluebellConfigExtensionsTask::class.java) {
             group = "Bluebell"
             description = "Generates the local build config extensions"
 
-            dependsOn(generateTask)
+            packageName.set(config.packageName)
+            className.set(config.className)
+            properties.set(config.properties)
+            outputDir.set(generateTask.flatMap { it.outputDir })
 
-            doLast {
-                generateSource(generateTask.get())
-            }
+            dependsOn(generateTask)
         }
 
-        generateTask.get().finalizedBy(generateExtensionsTask)
+        tasks.matching { it.name.startsWith("compile") && it.name.contains("Kotlin") }.configureEach {
+            dependsOn(generateExtensionsTask)
+        }
+
+        generateTask.configure {
+            finalizedBy(generateExtensionsTask)
+        }
     }
 }
 
-private fun generatedExtensionSourceCode(config: BluebellConfig, entries: List<String>) = """
-package ${config.packageName}
+private fun generatedExtensionSourceCode(
+    packageName: String,
+    className: String,
+    isEmpty: Boolean,
+    entries: List<String>
+) = """
+package $packageName
 import kotlin.reflect.KProperty
 
-${if (config.properties.isEmpty()) "object ${config.className}" else ""}
+${if (isEmpty) "object $className" else ""}
 
 private val map = mapOf<String, String?>(
     ${entries.joinToString(",\n    ")}
 )
 
-internal fun ${config.className}.get(key: String): String? {
+internal fun $className.get(key: String): String? {
     return map[key]
 }    
 
-internal operator fun ${config.className}.getValue(thisRef: Any?, property: KProperty<*>): String =
+internal operator fun $className.getValue(thisRef: Any?, property: KProperty<*>): String =
     map[property.name] ?: ""
 """.trimIndent()
 

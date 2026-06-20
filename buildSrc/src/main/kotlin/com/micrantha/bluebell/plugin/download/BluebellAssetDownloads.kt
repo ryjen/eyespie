@@ -14,7 +14,9 @@ import java.net.URL
 
 typealias BluebellDownloads = NamedDomainObjectContainer<BluebellDownload>
 
-internal suspend fun Project.downloadBuildAsset(
+internal suspend fun downloadBuildAsset(
+    logger: org.gradle.api.logging.Logger,
+    propertyResolver: (String) -> Any?,
     fileName: String,
     url: String,
     tempDir: File
@@ -31,7 +33,7 @@ internal suspend fun Project.downloadBuildAsset(
 
     logger.bluebell("Downloading $fileName from $url")
 
-    val uri = buildAssetUrl(url)
+    val uri = buildAssetUrl(url, propertyResolver)
 
     withContext(Dispatchers.IO) {
         uri.openStream().use { input ->
@@ -42,21 +44,35 @@ internal suspend fun Project.downloadBuildAsset(
     }
 }
 
-internal fun Project.downloadBuildAssets(downloads: List<BluebellDownload>, destDir: File): Unit =
+internal suspend fun Project.downloadBuildAsset(
+    fileName: String,
+    url: String,
+    tempDir: File
+) = downloadBuildAsset(logger, ::findProperty, fileName, url, tempDir)
+
+internal fun downloadBuildAssets(
+    logger: org.gradle.api.logging.Logger,
+    propertyResolver: (String) -> Any?,
+    downloads: List<BluebellDownload>,
+    destDir: File
+): Unit =
     runBlocking {
         awaitAll(*downloads.map { file ->
-            async { downloadBuildAsset(file.name, file.url, destDir) }
+            async { downloadBuildAsset(logger, propertyResolver, file.name, file.url, destDir) }
         }.toTypedArray())
     }
 
-internal fun Project.buildAssetUrl(url: String): URL {
+internal fun Project.downloadBuildAssets(downloads: List<BluebellDownload>, destDir: File) =
+    downloadBuildAssets(logger, ::findProperty, downloads, destDir)
+
+internal fun buildAssetUrl(url: String, propertyResolver: (String) -> Any?): URL {
 
     val uri = URI(url)
 
     val (userKey, passKey) = uri.userInfo.split(":", limit = 2)
 
-    val user = System.getenv(userKey) ?: findProperty(userKey) ?: userKey
-    val pass = System.getenv(passKey) ?: findProperty(passKey) ?: passKey
+    val user = System.getenv(userKey) ?: propertyResolver(userKey) ?: userKey
+    val pass = System.getenv(passKey) ?: propertyResolver(passKey) ?: passKey
 
     return URI(
         uri.scheme,
@@ -68,3 +84,5 @@ internal fun Project.buildAssetUrl(url: String): URL {
         uri.fragment
     ).toURL()
 }
+
+internal fun Project.buildAssetUrl(url: String): URL = buildAssetUrl(url, ::findProperty)

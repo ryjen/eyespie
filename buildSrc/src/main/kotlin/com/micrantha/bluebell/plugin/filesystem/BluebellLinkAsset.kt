@@ -1,7 +1,9 @@
 package com.micrantha.bluebell.plugin.filesystem
 
+import com.micrantha.bluebell.plugin.asset.BluebellAsset
 import com.micrantha.bluebell.plugin.asset.BluebellAssets
 import com.micrantha.bluebell.plugin.bluebell
+import com.micrantha.bluebell.plugin.download.BluebellDownload
 import com.micrantha.bluebell.plugin.download.BluebellDownloads
 import com.micrantha.bluebell.plugin.download.downloadBuildAssets
 import kotlinx.coroutines.Dispatchers
@@ -12,32 +14,42 @@ import org.gradle.api.Project
 import java.io.File
 import java.nio.file.Files
 
-internal fun Project.linkBuildAssets(assets: BluebellAssets, downloads: BluebellDownloads) {
+internal fun linkBuildAssets(
+    projectDir: File,
+    logger: org.gradle.api.logging.Logger,
+    propertyResolver: (String) -> Any?,
+    manifest: String?,
+    links: List<BluebellAsset>,
+    downloads: List<BluebellDownload>
+) {
 
-    if (assets.links.isEmpty()) {
+    if (links.isEmpty()) {
         return
     }
 
     logger.bluebell("Linking assets")
 
-    val srcDest = validateSrcDir() ?: return
+    val srcDest = validateSrcDir(projectDir, logger) ?: return
 
-    val linkDownloads = assets.links
+    val linkDownloads = links
         .filterNot { srcDest.resolve(it.name).exists() }
-        .mapNotNull { downloads.findByName(it.name) }
+        .mapNotNull { name -> downloads.find { it.name == name.name } }
 
-    downloadBuildAssets(linkDownloads, srcDest)
+    downloadBuildAssets(logger, propertyResolver, linkDownloads, srcDest)
 
-    val links = forBuildAssets(assets.links, srcDest) { from, to ->
-        linkBuildAsset(from, to)
+    val runLinks = forBuildAssets(projectDir, logger, links, srcDest) { from, to ->
+        linkBuildAsset(logger, from, to)
     }
 
     runBlocking {
-        awaitAll(*links.toTypedArray())
+        awaitAll(*runLinks.toTypedArray())
     }
 }
 
-internal suspend fun Project.linkBuildAsset(from: File, to: File) {
+internal fun Project.linkBuildAssets(assets: BluebellAssets, downloads: BluebellDownloads) =
+    linkBuildAssets(projectDir, logger, ::findProperty, assets.manifest, assets.links.toList(), downloads.toList())
+
+internal suspend fun linkBuildAsset(logger: org.gradle.api.logging.Logger, from: File, to: File) {
     if (from.exists().not()) {
         logger.bluebell("Asset to link ${from.path} does not exist, skipping", logger::warn)
         return
@@ -55,3 +67,5 @@ internal suspend fun Project.linkBuildAsset(from: File, to: File) {
         Files.createSymbolicLink(to.toPath(), from.toPath())
     }
 }
+
+internal suspend fun Project.linkBuildAsset(from: File, to: File) = linkBuildAsset(logger, from, to)

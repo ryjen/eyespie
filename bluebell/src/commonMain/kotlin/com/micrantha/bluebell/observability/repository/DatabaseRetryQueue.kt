@@ -10,27 +10,44 @@ class DatabaseRetryQueue(
 //    private val database: EventDatabase
 ) : PersistentRetryQueue {
 
-    override suspend fun add(event: RetryableEvent): Unit = withContext(Dispatchers.IO) {
+    override suspend fun add(event: RetryableEvent): Result<Unit> = withContext(Dispatchers.IO) {
 //        database.retryQueueDao().insert(event.toEntity())
+        Result.success(Unit)
     }
 
-    override suspend fun update(event: RetryableEvent): Unit = withContext(Dispatchers.IO) {
+    override suspend fun addBatch(events: List<RetryableEvent>): Result<Unit> = withContext(Dispatchers.IO) {
+        Result.success(Unit)
+    }
+
+    override suspend fun update(event: RetryableEvent): Result<Unit> = withContext(Dispatchers.IO) {
 //        database.retryQueueDao().update(event.toEntity())
+        Result.success(Unit)
     }
 
-    override suspend fun remove(eventIds: List<String>): Unit = withContext(Dispatchers.IO) {
+    override suspend fun remove(eventIds: List<String>): Result<Unit> = withContext(Dispatchers.IO) {
 //        database.retryQueueDao().deleteByIds(eventIds)
+        Result.success(Unit)
     }
 
-    override suspend fun getAll(): List<RetryableEvent> = withContext(Dispatchers.IO) {
+    override suspend fun getReady(): List<RetryableEvent> = withContext(Dispatchers.IO) {
 //        database.retryQueueDao().getAll().map { it.toRetryableEvent() }
         emptyList()
     }
 
-    override suspend fun clear(): Unit = withContext(Dispatchers.IO) {
-//        database.retryQueueDao().deleteAll()
+    override suspend fun markFailed(eventId: String, error: Throwable): Result<Unit> = withContext(Dispatchers.IO) {
+        Result.success(Unit)
     }
+
+    override suspend fun clear(): Result<Unit> = withContext(Dispatchers.IO) {
+//        database.retryQueueDao().deleteAll()
+        Result.success(Unit)
+    }
+
+    override suspend fun size(): Int = 0
+
+    override suspend fun isEmpty(): Boolean = true
 }
+
 
 
 /*

@@ -14,10 +14,10 @@ import com.micrantha.bluebell.observability.domain.NetworkException
 import com.micrantha.bluebell.observability.domain.ObservabilityRepository
 import com.micrantha.bluebell.observability.domain.RateLimitException
 import com.micrantha.bluebell.observability.domain.RetryQueue
-import com.micrantha.bluebell.observability.domain.SessionInfo
-import com.micrantha.bluebell.observability.domain.SessionInfoProvider
 import com.micrantha.bluebell.observability.domain.SchemaRegistry
 import com.micrantha.bluebell.observability.domain.SchemaValidationException
+import com.micrantha.bluebell.observability.domain.SessionInfo
+import com.micrantha.bluebell.observability.domain.SessionInfoProvider
 import com.micrantha.bluebell.observability.domain.SpanAlreadyEndedException
 import com.micrantha.bluebell.observability.domain.SpanNotFoundException
 import com.micrantha.bluebell.observability.domain.getRetryDelay

@@ -12,7 +12,6 @@ import com.micrantha.bluebell.observability.entity.FirebaseConfig
 import com.micrantha.bluebell.observability.entity.FlushResult
 import com.micrantha.bluebell.observability.entity.HealthStatus
 import com.micrantha.bluebell.observability.entity.RejectedEvent
-import com.micrantha.bluebell.observability.entity.RejectionReason
 import com.micrantha.bluebell.observability.entity.SendResult
 import com.micrantha.bluebell.observability.entity.TelemetryEvent
 import kotlinx.coroutines.Dispatchers
@@ -42,7 +41,7 @@ class FirebaseDestination(
     ): Result<SendResult> = withContext(Dispatchers.IO) {
         if (!isEnabled) {
             return@withContext Result.failure(
-                DestinationUnavailableException(destination, "Destination is disabled")
+                DestinationUnavailableException(destination)
             )
         }
 
@@ -60,7 +59,6 @@ class FirebaseDestination(
                     SendResult(
                         eventId = event.eventId,
                         accepted = true,
-                        destination = destination,
                         latencyMs = latency
                     )
                 }
@@ -74,7 +72,6 @@ class FirebaseDestination(
                     SendResult(
                         eventId = event.eventId,
                         accepted = false,
-                        destination = destination,
                         latencyMs = 0,
                         metadata = mapOf("status" to "queued")
                     )
@@ -92,12 +89,17 @@ class FirebaseDestination(
         // Firebase doesn't have native batching, send individually
         val results = events.map { send(it, context) }
 
-        val accepted = results.count { it.isSuccess }
+        val accepted = results.all { it.isSuccess && it.getOrNull()?.accepted == true }
+        
+        val successfulIds = results.mapIndexedNotNull { index, result ->
+            if (result.isSuccess) events[index].eventId else null
+        }
+
         val rejected = results.mapIndexedNotNull { index, result ->
             result.exceptionOrNull()?.let {
                 RejectedEvent(
                     eventId = events[index].eventId,
-                    reason = RejectionReason.Other("send_failed"),
+                    reason = "send_failed",
                     message = it.message ?: "Unknown error"
                 )
             }
@@ -105,9 +107,9 @@ class FirebaseDestination(
 
         return Result.success(
             BatchSendResult(
-                totalEvents = events.size,
-                acceptedEvents = accepted,
-                rejectedEvents = rejected,
+                accepted = accepted,
+                successfulIds = successfulIds,
+                failedEvents = rejected,
                 latencyMs = 0
             )
         )
@@ -123,9 +125,8 @@ class FirebaseDestination(
 
             Result.success(
                 FlushResult(
-                    flushedCount = flushed,
-                    failedCount = 0,
-                    durationMs = 0
+                    eventsProcessed = flushed,
+                    success = true
                 )
             )
         } catch (e: Exception) {
@@ -137,16 +138,10 @@ class FirebaseDestination(
     override suspend fun healthCheck(): HealthStatus {
         return HealthStatus(
             isHealthy = config.analyticsCollectionEnabled,
-            status = if (config.analyticsCollectionEnabled)
-                HealthStatus.Status.HEALTHY
-            else
-                HealthStatus.Status.DEGRADED,
-            lastSuccessfulSend = Clock.System.now(),
-            lastError = null,
-            consecutiveFailures = 0,
+            lastCheck = Clock.System.now(),
             details = mapOf(
                 "project_id" to config.projectId,
-                "queue_size" to eventQueue.size
+                "queue_size" to eventQueue.size.toString()
             )
         )
     }
@@ -173,3 +168,4 @@ class FirebaseDestination(
 //        analytics.setAnalyticsCollectionEnabled(false)
     }
 }
+

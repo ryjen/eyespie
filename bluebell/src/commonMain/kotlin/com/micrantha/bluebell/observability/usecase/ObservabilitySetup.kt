@@ -16,17 +16,17 @@ import com.micrantha.bluebell.observability.repository.InMemorySchemaRegistry
 import com.micrantha.bluebell.observability.repository.MemoryCache
 import com.micrantha.bluebell.observability.repository.MultiTierEventCache
 import com.micrantha.bluebell.observability.repository.ObservabilityDataRepository
+import com.micrantha.bluebell.observability.repository.OkioJsonLinesDiskCache
 import com.micrantha.bluebell.observability.repository.destination.FirebaseDestination
 import com.micrantha.bluebell.observability.repository.destination.LocalDatabaseDestination
 import com.micrantha.bluebell.observability.repository.destination.NewRelicClient
 import com.micrantha.bluebell.observability.repository.destination.NewRelicDestination
-import com.micrantha.bluebell.observability.repository.OkioJsonLinesDiskCache
-import okio.FileSystem
-import okio.Path.Companion.toPath
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.runBlocking
+import okio.FileSystem
+import okio.Path.Companion.toPath
 import okio.SYSTEM
 
 // Setting up the observability system
@@ -46,9 +46,9 @@ class ObservabilitySetup(
                     name = "user_action",
                     version = 1,
                     properties = mapOf(
-                        "action" to PropertyType.Enum(setOf("login", "logout", "signup")),
-                        "user_id" to PropertyType.String,
-                        "timestamp" to PropertyType.Number
+                        "action" to PropertyType.STRING,
+                        "user_id" to PropertyType.STRING,
+                        "timestamp" to PropertyType.NUMBER
                     ),
                     required = setOf("action", "user_id"),
                     description = "User authentication actions"
@@ -61,16 +61,10 @@ class ObservabilitySetup(
                     name = "user_action",
                     version = 2,
                     properties = mapOf(
-                        "action_type" to PropertyType.Enum(
-                            setOf(
-                                "login",
-                                "logout",
-                                "signup"
-                            )
-                        ),  // renamed
-                        "user_id" to PropertyType.String,
-                        "timestamp" to PropertyType.Number,
-                        "ip_address" to PropertyType.String  // new field
+                        "action_type" to PropertyType.STRING,
+                        "user_id" to PropertyType.STRING,
+                        "timestamp" to PropertyType.NUMBER,
+                        "ip_address" to PropertyType.STRING  // new field
                     ),
                     required = setOf("action_type", "user_id"),
                     deprecatedFields = setOf("action"),
@@ -82,6 +76,8 @@ class ObservabilitySetup(
                 from = SchemaVersion("user_action", 1),
                 to = SchemaVersion("user_action", 2),
                 migration = object : SchemaMigration {
+                    override val sourceVersion = SchemaVersion("user_action", 1)
+                    override val targetVersion = SchemaVersion("user_action", 2)
                     override fun migrate(event: TelemetryEvent): TelemetryEvent {
                         val newProperties = event.properties.toMutableMap()
                         newProperties["action_type"] = newProperties.remove("action")!!
@@ -105,7 +101,6 @@ class ObservabilitySetup(
             diskCache = diskCache,
             config = CacheConfig(
                 maxMemoryEvents = 500,
-                maxDiskEvents = 5000,
                 evictionBatchSize = 50
             )
         )
@@ -122,7 +117,6 @@ class ObservabilitySetup(
 
             Destination.FIREBASE to FirebaseDestination(
                 firebaseAnalytics, FirebaseConfig(
-                    appId = "",
                     apiKey = "",
                     projectId = ""
                 )
@@ -142,3 +136,4 @@ class ObservabilitySetup(
         )
     }
 }
+

@@ -5,6 +5,7 @@ import com.micrantha.bluebell.observability.domain.UsageObservability
 import com.micrantha.bluebell.observability.entity.AnalyticsEvent
 import com.micrantha.bluebell.observability.entity.DestinationContext
 import com.micrantha.bluebell.observability.usecase.FlushOfflineUsageToSupabase
+import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 
 /**
@@ -25,7 +26,7 @@ class OfflineSupabaseUsageObservability(
                 putAll(event.properties)
             }
         )
-        return diskCache.write(telemetry)
+        return diskCache.store(telemetry)
     }
 
     @OptIn(ExperimentalTime::class)
@@ -43,5 +44,9 @@ fun interface DestinationContextProvider {
 
 object DefaultDestinationContextProvider {
     @OptIn(ExperimentalTime::class)
-    fun create(): DestinationContextProvider = DestinationContextProvider { DestinationContext() }
+    fun create(): DestinationContextProvider = DestinationContextProvider { 
+        DestinationContext(timestamp = Clock.System.now()) 
+    }
 }
+
+

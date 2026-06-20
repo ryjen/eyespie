@@ -3,6 +3,7 @@ package com.micrantha.bluebell.observability.repository.destination
 import com.micrantha.bluebell.observability.domain.DestinationRejectionException
 import com.micrantha.bluebell.observability.domain.DestinationUnavailableException
 import com.micrantha.bluebell.observability.domain.EventDestination
+import com.micrantha.bluebell.observability.domain.SupabaseInsertClient
 import com.micrantha.bluebell.observability.entity.AnalyticsEvent
 import com.micrantha.bluebell.observability.entity.BatchSendResult
 import com.micrantha.bluebell.observability.entity.Destination
@@ -12,7 +13,6 @@ import com.micrantha.bluebell.observability.entity.DestinationMetrics
 import com.micrantha.bluebell.observability.entity.FlushResult
 import com.micrantha.bluebell.observability.entity.HealthStatus
 import com.micrantha.bluebell.observability.entity.RejectedEvent
-import com.micrantha.bluebell.observability.entity.RejectionReason
 import com.micrantha.bluebell.observability.entity.SendResult
 import com.micrantha.bluebell.observability.entity.SupabaseConfig
 import com.micrantha.bluebell.observability.entity.TelemetryEvent
@@ -26,17 +26,14 @@ import kotlin.time.ExperimentalTime
 
 /**
  * Sends analytics/usage events to Supabase via a thin insert function.
- *
- * The app layer passes an implementation of [SupabaseInsertClient] so this stays KMP-friendly
- * and avoids depending on Supabase-KT inside :bluebell.
  */
 class SupabaseDestination(
     private val client: SupabaseInsertClient,
-    private var config: SupabaseConfig = SupabaseConfig(),
+    private var config: SupabaseConfig = SupabaseConfig(url = "", key = ""),
     private val json: Json = Json { encodeDefaults = true },
 ) : EventDestination {
 
-    override val destination: Destination = Destination.CLOUD_STORAGE
+    override val destination: Destination = Destination.SUPABASE
     override var isEnabled: Boolean = config.enabled
 
     private val metrics = AtomicDestinationMetrics()
@@ -48,7 +45,7 @@ class SupabaseDestination(
     ): Result<SendResult> = withContext(Dispatchers.IO) {
         if (!isEnabled) {
             return@withContext Result.failure(
-                DestinationUnavailableException(destination, "Destination is disabled")
+                DestinationUnavailableException(destination)
             )
         }
 
@@ -74,7 +71,6 @@ class SupabaseDestination(
             SendResult(
                 eventId = event.eventId,
                 accepted = true,
-                destination = destination,
                 latencyMs = latency
             )
         }.onFailure { err ->
@@ -92,7 +88,7 @@ class SupabaseDestination(
     ): Result<BatchSendResult> = withContext(Dispatchers.IO) {
         if (!isEnabled) {
             return@withContext Result.failure(
-                DestinationUnavailableException(destination, "Destination is disabled")
+                DestinationUnavailableException(destination)
             )
         }
 
@@ -102,7 +98,7 @@ class SupabaseDestination(
         val rejectedEvents = rejected.map {
             RejectedEvent(
                 eventId = it.eventId,
-                reason = RejectionReason.Other("unsupported_type"),
+                reason = "unsupported_type",
                 message = "Supabase destination only accepts AnalyticsEvent"
             )
         }
@@ -117,9 +113,9 @@ class SupabaseDestination(
             metrics.recordBatchSuccess(analytics.size, latency)
 
             BatchSendResult(
-                totalEvents = events.size,
-                acceptedEvents = analytics.size,
-                rejectedEvents = rejectedEvents,
+                accepted = rejectedEvents.isEmpty() && analytics.isNotEmpty(),
+                successfulIds = analytics.map { it.eventId },
+                failedEvents = rejectedEvents,
                 latencyMs = latency
             )
         }.onFailure { err ->
@@ -130,19 +126,14 @@ class SupabaseDestination(
     }
 
     override suspend fun flush(): Result<FlushResult> {
-        // Supabase PostgREST doesn't require a flush.
-        return Result.success(FlushResult(flushedCount = 0, failedCount = 0, durationMs = 0))
+        return Result.success(FlushResult(eventsProcessed = 0, success = true))
     }
 
     @OptIn(ExperimentalTime::class)
     override suspend fun healthCheck(): HealthStatus {
-        // Keep it cheap: assume healthy if enabled.
         return HealthStatus(
             isHealthy = isEnabled,
-            status = if (isEnabled) HealthStatus.Status.HEALTHY else HealthStatus.Status.DEGRADED,
-            lastSuccessfulSend = Clock.System.now(),
-            lastError = null,
-            consecutiveFailures = 0,
+            lastCheck = Clock.System.now(),
             details = mapOf("table" to config.table)
         )
     }
@@ -164,17 +155,9 @@ class SupabaseDestination(
     }
 }
 
-/**
- * Minimal interface so :bluebell doesn’t need to depend on Supabase-KT.
- *
- * App layer can implement this using Supabase-KT PostgREST insert into the configured table.
- */
-fun interface SupabaseInsertClient {
-    suspend fun insert(table: String, rows: List<Map<String, Any?>>)
-}
-
 @Serializable
 private data class UsageEventRow(
+
     val event_id: String,
     val schema_name: String,
     val schema_version: Int,

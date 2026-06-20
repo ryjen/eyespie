@@ -3,7 +3,7 @@ package com.micrantha.bluebell.observability.repository
 import com.micrantha.bluebell.domain.MutableThreadSafeMap
 import com.micrantha.bluebell.observability.domain.IncompatibleSchemaException
 import com.micrantha.bluebell.observability.domain.MigrationNotFoundException
-import com.micrantha.bluebell.observability.domain.SchemaAlreadyExistsException
+import com.micrantha.bluebell.observability.domain.ObservabilityException
 import com.micrantha.bluebell.observability.domain.SchemaMigration
 import com.micrantha.bluebell.observability.domain.SchemaNotFoundException
 import com.micrantha.bluebell.observability.domain.SchemaRegistry
@@ -72,7 +72,7 @@ class InMemorySchemaRegistry : SchemaRegistry {
                 errors = listOf(
                     ValidationError(
                         field = "schema",
-                        reason = ValidationErrorReason.SchemaNotFound,
+                        reason = ValidationErrorReason.SCHEMA_NOT_FOUND,
                         message = "Schema ${event.schema} not found in registry"
                     )
                 )
@@ -110,7 +110,7 @@ class InMemorySchemaRegistry : SchemaRegistry {
                 errors.add(
                     ValidationError(
                         field = requiredField,
-                        reason = ValidationErrorReason.MissingRequiredField,
+                        reason = ValidationErrorReason.MISSING_REQUIRED_FIELD,
                         message = "Required field '$requiredField' is missing"
                     )
                 )
@@ -124,7 +124,7 @@ class InMemorySchemaRegistry : SchemaRegistry {
                 errors.add(
                     ValidationError(
                         field = field,
-                        reason = ValidationErrorReason.InvalidType,
+                        reason = ValidationErrorReason.INVALID_TYPE,
                         message = "Field '$field' has invalid type"
                     )
                 )
@@ -132,13 +132,13 @@ class InMemorySchemaRegistry : SchemaRegistry {
         }
 
         // Check for deprecated fields
-        schema.deprecatedFields?.forEach { deprecatedField ->
+        schema.deprecatedFields.forEach { deprecatedField ->
             if (event.properties.containsKey(deprecatedField)) {
                 warnings.add(
                     ValidationWarning(
                         field = deprecatedField,
                         message = "Field '$deprecatedField' is deprecated",
-                        suggestion = schema.fieldReplacements?.get(deprecatedField)
+                        suggestion = schema.fieldReplacements[deprecatedField]
                     )
                 )
             }
@@ -154,20 +154,18 @@ class InMemorySchemaRegistry : SchemaRegistry {
     private fun validateBackwardCompatibility(old: EventSchema, new: EventSchema) {
         old.required.forEach { requiredField ->
             if (!new.properties.containsKey(requiredField)) {
-                throw IncompatibleSchemaException(
-                    oldVersion = SchemaVersion(old.name, old.version),
-                    newVersion = SchemaVersion(new.name, new.version),
-                    incompatibilities = listOf("New schema removes required field '$requiredField'")
-                )
+                throw IncompatibleSchemaException("New schema removes required field '$requiredField'")
             }
         }
     }
 
     private fun PropertyType.matches(value: Any): Boolean = when (this) {
-        is PropertyType.String -> value is String
-        is PropertyType.Number -> value is Number
-        is PropertyType.Boolean -> value is Boolean
-        is PropertyType.Enum -> value is String && value in this.values
-        is PropertyType.Object -> true
+        PropertyType.STRING -> value is String
+        PropertyType.NUMBER -> value is Number
+        PropertyType.BOOLEAN -> value is Boolean
+        PropertyType.OBJECT -> true
+        PropertyType.ARRAY -> value is List<*>
     }
 }
+class SchemaAlreadyExistsException(val version: SchemaVersion) : ObservabilityException("Schema $version already exists")
+

@@ -8,7 +8,7 @@ import kotlin.uuid.Uuid
 
 @OptIn(ExperimentalTime::class, ExperimentalUuidApi::class)
 sealed class AnalyticsEvent(
-    override val eventId: String,
+    override val eventId: String = Uuid.random().toString(),
     override val properties: Map<String, Any> = emptyMap(),
     override val timestamp: Instant = Clock.System.now(),
     override val userId: String? = null,
@@ -20,25 +20,15 @@ sealed class AnalyticsEvent(
         override val eventId: String = Uuid.random().toString(),
         override val properties: Map<String, Any> = emptyMap(),
         override val schema: SchemaVersion = SchemaVersion("analytics.feature_usage", 1)
-    ) : AnalyticsEvent(
-        eventId = eventId,
-        properties = properties,
-        schema = schema
-    )
+    ) : AnalyticsEvent(eventId = eventId, properties = properties, schema = schema)
 
     data class UserFlow(
         override val eventId: String = Uuid.random().toString(),
         override val schema: SchemaVersion = SchemaVersion("analytics.user_flow", 1)
-    ) : AnalyticsEvent(
-        eventId = eventId,
-        schema = schema
-    )
+    ) : AnalyticsEvent(eventId = eventId, schema = schema)
 
     data class BusinessMetric(
         override val eventId: String = Uuid.random().toString(),
         override val schema: SchemaVersion = SchemaVersion("analytics.business_metric", 1)
-    ) : AnalyticsEvent(
-        eventId = eventId,
-        schema = schema
-    )
+    ) : AnalyticsEvent(eventId = eventId, schema = schema)
 }

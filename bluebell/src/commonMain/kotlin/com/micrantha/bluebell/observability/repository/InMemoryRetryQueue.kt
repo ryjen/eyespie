@@ -3,6 +3,9 @@ package com.micrantha.bluebell.observability.repository
 import com.micrantha.bluebell.domain.MutableThreadSafeMap
 import com.micrantha.bluebell.observability.domain.PersistentRetryQueue
 import com.micrantha.bluebell.observability.domain.RetryQueue
+import com.micrantha.bluebell.observability.domain.canRetry
+import com.micrantha.bluebell.observability.domain.isReady
+import com.micrantha.bluebell.observability.domain.withRetry
 import com.micrantha.bluebell.observability.entity.AuditEvent
 import com.micrantha.bluebell.observability.entity.RetryableEvent
 import com.micrantha.bluebell.observability.entity.SystemEvent
@@ -32,25 +35,29 @@ class InMemoryRetryQueue(
     private val lock = Mutex()
     private val logger by logger()
 
-    override suspend fun add(event: RetryableEvent) = lock.withLock {
-        if (queue.size() >= maxQueueSize) {
-            evictOldest()
-        }
+    override suspend fun add(event: RetryableEvent): Result<Unit> = runCatching {
+        lock.withLock {
+            if (queue.size() >= maxQueueSize) {
+                evictOldest()
+            }
 
-        queue[event.event.eventId] = event
+            queue[event.event.eventId] = event
 
-        if (event.event.isPersistable()) {
-            persistQueue?.add(event)
+            if (event.event.isPersistable()) {
+                persistQueue?.add(event)
+            }
         }
     }
 
-    override suspend fun addBatch(events: List<RetryableEvent>) = lock.withLock {
-        events.forEach { event ->
-            if (queue.size() < maxQueueSize) {
-                queue[event.event.eventId] = event
+    suspend fun addBatch(events: List<RetryableEvent>): Result<Unit> = runCatching {
+        lock.withLock {
+            events.forEach { event ->
+                if (queue.size() < maxQueueSize) {
+                    queue[event.event.eventId] = event
 
-                if (event.event.isPersistable()) {
-                    persistQueue?.add(event)
+                    if (event.event.isPersistable()) {
+                        persistQueue?.add(event)
+                    }
                 }
             }
         }
@@ -63,34 +70,40 @@ class InMemoryRetryQueue(
             .sortedBy { it.retryAfter }
     }
 
-    override suspend fun remove(eventIds: List<String>) = lock.withLock {
-        eventIds.forEach { eventId ->
-            queue.remove(eventId)
-            persistQueue?.remove(listOf(eventId))
-        }
-    }
-
-    override suspend fun markFailed(eventId: String, error: Throwable) = lock.withLock {
-        val event = queue[eventId] ?: return@withLock
-
-        if (!event.canRetry()) {
-            queue.remove(eventId)
-            persistQueue?.remove(listOf(eventId))
-            logPermanentFailure(event, error)
-        } else {
-            val delay = calculateBackoff(event.attempts)
-            val updated = event.withRetry(error, delay)
-            queue[eventId] = updated
-
-            if (event.event.isPersistable()) {
-                persistQueue?.update(updated)
+    override suspend fun remove(eventIds: List<String>): Result<Unit> = runCatching {
+        lock.withLock {
+            eventIds.forEach { eventId ->
+                queue.remove(eventId)
+                persistQueue?.remove(listOf(eventId))
             }
         }
     }
 
-    override suspend fun clear(): Unit = lock.withLock {
-        queue.clear()
-        persistQueue?.clear()
+    override suspend fun markFailed(eventId: String, error: Throwable): Result<Unit> = runCatching {
+        lock.withLock {
+            val event = queue[eventId] ?: return@withLock
+
+            if (!event.canRetry()) {
+                queue.remove(eventId)
+                persistQueue?.remove(listOf(eventId))
+                logPermanentFailure(event, error)
+            } else {
+                val delay = calculateBackoff(event.attempts)
+                val updated = event.withRetry(error, delay)
+                queue[eventId] = updated
+
+                if (event.event.isPersistable()) {
+                    persistQueue?.update(updated)
+                }
+            }
+        }
+    }
+
+    override suspend fun clear(): Result<Unit> = runCatching {
+        lock.withLock {
+            queue.clear()
+            persistQueue?.clear()
+        }
     }
 
     override suspend fun size(): Int = queue.size()
@@ -105,6 +118,7 @@ class InMemoryRetryQueue(
 
         toEvict?.let { queue.remove(it.event.eventId) }
     }
+
 
     private fun calculateBackoff(attempts: Int): Duration {
         val baseDelay = 5.seconds

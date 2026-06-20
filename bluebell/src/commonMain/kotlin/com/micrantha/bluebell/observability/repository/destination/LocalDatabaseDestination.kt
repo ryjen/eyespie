@@ -11,6 +11,7 @@ import com.micrantha.bluebell.observability.entity.HealthStatus
 import com.micrantha.bluebell.observability.entity.LocalDatabaseConfig
 import com.micrantha.bluebell.observability.entity.SendResult
 import com.micrantha.bluebell.observability.entity.TelemetryEvent
+import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 
 @OptIn(ExperimentalTime::class)
@@ -30,7 +31,6 @@ class LocalDatabaseDestination(
             SendResult(
                 eventId = event.eventId,
                 accepted = false,
-                destination = destination,
                 latencyMs = 0,
                 metadata = mapOf("reason" to "not_implemented")
             )
@@ -43,41 +43,33 @@ class LocalDatabaseDestination(
     ): Result<BatchSendResult> {
         return Result.success(
             BatchSendResult(
-                totalEvents = events.size,
-                acceptedEvents = 0,
-                rejectedEvents = emptyList(),
-                latencyMs = 0,
-                metadata = mapOf("reason" to "not_implemented")
+                accepted = false,
+                successfulIds = emptyList(),
+                failedEvents = emptyList(),
+                latencyMs = 0
             )
         )
     }
 
     override suspend fun flush(): Result<FlushResult> {
-        return Result.success(FlushResult(flushedCount = 0, failedCount = 0, durationMs = 0))
+        return Result.success(FlushResult(eventsProcessed = 0, success = true))
     }
 
     override suspend fun healthCheck(): HealthStatus {
         return HealthStatus(
             isHealthy = false,
-            status = HealthStatus.Status.UNKNOWN,
-            lastSuccessfulSend = null,
-            lastError = "not_implemented",
-            consecutiveFailures = 0,
+            lastCheck = Clock.System.now(),
             details = mapOf("reason" to "not_implemented")
         )
     }
 
     override fun getMetrics(): DestinationMetrics {
         return DestinationMetrics(
-            totalEventsSent = 0,
-            totalEventsAccepted = 0,
-            totalEventsRejected = 0,
-            totalBatchesSent = 0,
-            averageLatencyMs = 0.0,
-            errorRate = 0.0,
-            lastSendTime = null,
+            totalSent = 0,
+            totalFailed = 0,
             queueSize = 0,
-            bytesTransferred = 0
+            lastSendTime = null,
+            avgLatencyMs = 0.0
         )
     }
 
@@ -93,3 +85,4 @@ class LocalDatabaseDestination(
         isEnabled = false
     }
 }
+

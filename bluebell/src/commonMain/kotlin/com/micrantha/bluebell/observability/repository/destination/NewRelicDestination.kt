@@ -12,7 +12,6 @@ import com.micrantha.bluebell.observability.entity.FlushResult
 import com.micrantha.bluebell.observability.entity.HealthStatus
 import com.micrantha.bluebell.observability.entity.NewRelicConfig
 import com.micrantha.bluebell.observability.entity.RejectedEvent
-import com.micrantha.bluebell.observability.entity.RejectionReason
 import com.micrantha.bluebell.observability.entity.SendResult
 import com.micrantha.bluebell.observability.entity.SystemEvent
 import com.micrantha.bluebell.observability.entity.TelemetryEvent
@@ -46,7 +45,7 @@ class NewRelicDestination(
     ): Result<SendResult> = withContext(Dispatchers.IO) {
         if (!isEnabled) {
             return@withContext Result.failure(
-                DestinationUnavailableException(destination, "Destination is disabled")
+                DestinationUnavailableException(destination)
             )
         }
 
@@ -80,9 +79,7 @@ class NewRelicDestination(
             SendResult(
                 eventId = event.eventId,
                 accepted = true,
-                destination = destination,
-                latencyMs = latency,
-                metadata = mapOf("nr_event_type" to nrEvent.eventType)
+                latencyMs = latency
             )
         }.onFailure { error ->
             val latency = Clock.System.now().toEpochMilliseconds() - startTime
@@ -99,7 +96,7 @@ class NewRelicDestination(
     ): Result<BatchSendResult> = withContext(Dispatchers.IO) {
         if (!isEnabled) {
             return@withContext Result.failure(
-                DestinationUnavailableException(destination, "Destination is disabled")
+                DestinationUnavailableException(destination)
             )
         }
 
@@ -118,7 +115,7 @@ class NewRelicDestination(
                             rejected.add(
                                 RejectedEvent(
                                     eventId = event.eventId,
-                                    reason = RejectionReason.Other("unsupported_type"),
+                                    reason = "unsupported_type",
                                     message = "Event type not supported"
                                 )
                             )
@@ -129,12 +126,8 @@ class NewRelicDestination(
                     rejected.add(
                         RejectedEvent(
                             eventId = event.eventId,
-                            reason = RejectionReason.ValidationFailed(
-                                listOf(
-                                    e.message ?: "Unknown"
-                                )
-                            ),
-                            message = "Conversion failed"
+                            reason = "conversion_failed",
+                            message = e.message ?: "Unknown"
                         )
                     )
                     null
@@ -153,10 +146,13 @@ class NewRelicDestination(
             lastSuccessfulSend = Clock.System.now()
             consecutiveFailures = 0
 
+            val success = rejected.isEmpty() && accepted > 0
+            val rejectedIds = rejected.map { it.eventId }.toSet()
+
             BatchSendResult(
-                totalEvents = events.size,
-                acceptedEvents = accepted,
-                rejectedEvents = rejected,
+                accepted = success,
+                successfulIds = events.map { it.eventId }.filter { it !in rejectedIds },
+                failedEvents = rejected,
                 latencyMs = latency
             )
         }.onFailure { error ->
@@ -168,8 +164,7 @@ class NewRelicDestination(
     }
 
     override suspend fun flush(): Result<FlushResult> {
-        // NewRelic typically doesn't require explicit flushing
-        return Result.success(FlushResult(0, 0, 0))
+        return Result.success(FlushResult(eventsProcessed = 0, success = true))
     }
 
     @OptIn(ExperimentalTime::class)
@@ -178,14 +173,7 @@ class NewRelicDestination(
             val pingResult = client.ping()
             HealthStatus(
                 isHealthy = pingResult,
-                status = when {
-                    !pingResult -> HealthStatus.Status.UNHEALTHY
-                    consecutiveFailures > 5 -> HealthStatus.Status.DEGRADED
-                    else -> HealthStatus.Status.HEALTHY
-                },
-                lastSuccessfulSend = lastSuccessfulSend,
-                lastError = lastError,
-                consecutiveFailures = consecutiveFailures,
+                lastCheck = Clock.System.now(),
                 details = mapOf(
                     "account_id" to config.accountId,
                     "region" to config.region
@@ -194,10 +182,8 @@ class NewRelicDestination(
         } catch (e: Exception) {
             HealthStatus(
                 isHealthy = false,
-                status = HealthStatus.Status.UNHEALTHY,
-                lastSuccessfulSend = lastSuccessfulSend,
-                lastError = e.message,
-                consecutiveFailures = consecutiveFailures
+                lastCheck = Clock.System.now(),
+                details = mapOf("error" to (e.message ?: "ping failed"))
             )
         }
     }

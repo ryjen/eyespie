@@ -1,7 +1,9 @@
 package com.micrantha.bluebell.plugin.filesystem
 
+import com.micrantha.bluebell.plugin.asset.BluebellAsset
 import com.micrantha.bluebell.plugin.asset.BluebellAssets
 import com.micrantha.bluebell.plugin.bluebell
+import com.micrantha.bluebell.plugin.download.BluebellDownload
 import com.micrantha.bluebell.plugin.download.BluebellDownloads
 import com.micrantha.bluebell.plugin.download.downloadBuildAssets
 import kotlinx.coroutines.Dispatchers
@@ -11,31 +13,41 @@ import kotlinx.coroutines.withContext
 import org.gradle.api.Project
 import java.io.File
 
-internal fun Project.copyBuildAssets(assets: BluebellAssets, downloads: BluebellDownloads) {
+internal fun copyBuildAssets(
+    projectDir: File,
+    logger: org.gradle.api.logging.Logger,
+    propertyResolver: (String) -> Any?,
+    manifest: String?,
+    copies: List<BluebellAsset>,
+    downloads: List<BluebellDownload>
+) {
 
-    if (assets.copies.isEmpty()) {
+    if (copies.isEmpty()) {
         return
     }
     logger.bluebell("Copying assets")
 
-    val srcDest = validateSrcDir() ?: return
+    val srcDest = validateSrcDir(projectDir, logger) ?: return
 
-    val assetDownloads = assets.copies
+    val assetDownloads = copies
         .filterNot { srcDest.resolve(it.name).exists() }
-        .mapNotNull { downloads.findByName(it.name) }
+        .mapNotNull { name -> downloads.find { it.name == name.name } }
 
-    downloadBuildAssets(assetDownloads, srcDest)
+    downloadBuildAssets(logger, propertyResolver, assetDownloads, srcDest)
 
-    val copies = forBuildAssets(assets.copies, srcDest) { from, to ->
-        copyBuildAsset(from, to)
+    val runCopies = forBuildAssets(projectDir, logger, copies, srcDest) { from, to ->
+        copyBuildAsset(logger, from, to)
     }
 
     runBlocking {
-        awaitAll(*copies.toTypedArray())
+        awaitAll(*runCopies.toTypedArray())
     }
 }
 
-internal suspend fun Project.copyBuildAsset(from: File, to: File) {
+internal fun Project.copyBuildAssets(assets: BluebellAssets, downloads: BluebellDownloads) =
+    copyBuildAssets(projectDir, logger, ::findProperty, assets.manifest, assets.copies.toList(), downloads.toList())
+
+internal suspend fun copyBuildAsset(logger: org.gradle.api.logging.Logger, from: File, to: File) {
     if (from.exists().not()) {
         logger.bluebell("Asset to copy ${from.path} does not exist, skipping", logger::warn)
         return
@@ -52,3 +64,5 @@ internal suspend fun Project.copyBuildAsset(from: File, to: File) {
         from.copyTo(to, true)
     }
 }
+
+internal suspend fun Project.copyBuildAsset(from: File, to: File) = copyBuildAsset(logger, from, to)

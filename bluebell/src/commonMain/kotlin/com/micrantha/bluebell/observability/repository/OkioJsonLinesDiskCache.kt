@@ -1,6 +1,6 @@
 package com.micrantha.bluebell.observability.repository
 
-import com.micrantha.bluebell.observability.domain.DiskCache
+import com.micrantha.bluebell.observability.domain.EventCache
 import com.micrantha.bluebell.observability.entity.AnalyticsEvent
 import com.micrantha.bluebell.observability.entity.EventFilter
 import com.micrantha.bluebell.observability.entity.SchemaVersion
@@ -23,11 +23,6 @@ import kotlin.time.Instant
 
 /**
  * A simple disk cache that persists events as JSON Lines (one event per line).
- *
- * Notes:
- * - This is optimized for reliability + simplicity, not for high throughput.
- * - It supports filtering by a subset of fields/properties.
- * - It’s safe to use from multiple coroutines via a mutex.
  */
 class OkioJsonLinesDiskCache(
     private val fileSystem: FileSystem,
@@ -36,14 +31,11 @@ class OkioJsonLinesDiskCache(
         ignoreUnknownKeys = true
         encodeDefaults = true
     },
-) : DiskCache {
+) : EventCache {
 
     private val lock = Mutex()
 
-    /** Convenience wrapper around [delete] to match common naming. */
-    suspend fun deleteByIds(eventIds: List<String>): Result<Unit> = delete(eventIds)
-
-    override suspend fun write(event: TelemetryEvent): Result<Unit> = runCatching {
+    override suspend fun store(event: TelemetryEvent): Result<Unit> = runCatching {
         withContext(Dispatchers.IO) {
             lock.withLock {
                 ensureParentDirExists()
@@ -56,7 +48,7 @@ class OkioJsonLinesDiskCache(
         }
     }
 
-    override suspend fun writeBatch(events: List<TelemetryEvent>): Result<Unit> = runCatching {
+    override suspend fun storeBatch(events: List<TelemetryEvent>): Result<Unit> = runCatching {
         if (events.isEmpty()) return@runCatching Unit
         withContext(Dispatchers.IO) {
             lock.withLock {
@@ -72,14 +64,14 @@ class OkioJsonLinesDiskCache(
         }
     }
 
-    override suspend fun readOldest(limit: Int): List<TelemetryEvent> = withContext(Dispatchers.IO) {
+    override suspend fun retrieve(limit: Int): List<TelemetryEvent> = withContext(Dispatchers.IO) {
         if (limit <= 0) return@withContext emptyList()
         lock.withLock {
             readAllLocked().take(limit)
         }
     }
 
-    override suspend fun query(filter: EventFilter, limit: Int): List<TelemetryEvent> = withContext(Dispatchers.IO) {
+    override suspend fun retrieveByFilter(filter: EventFilter, limit: Int): List<TelemetryEvent> = withContext(Dispatchers.IO) {
         if (limit <= 0) return@withContext emptyList()
         lock.withLock {
             readAllLocked().asSequence()
@@ -100,14 +92,16 @@ class OkioJsonLinesDiskCache(
     }
 
     @OptIn(ExperimentalTime::class)
-    override suspend fun deleteOlderThan(timestamp: Instant): Int = withContext(Dispatchers.IO) {
-        lock.withLock {
-            val events = readAllLocked()
-            val (kept, removed) = events.partition { it.timestamp >= timestamp }
-            if (removed.isNotEmpty()) {
-                rewriteLocked(kept)
+    override suspend fun deleteOlderThan(timestamp: Instant): Result<Int> = withContext(Dispatchers.IO) {
+        runCatching {
+            lock.withLock {
+                val events = readAllLocked()
+                val (kept, removed) = events.partition { it.timestamp >= timestamp }
+                if (removed.isNotEmpty()) {
+                    rewriteLocked(kept)
+                }
+                removed.size
             }
-            removed.size
         }
     }
 
@@ -115,7 +109,16 @@ class OkioJsonLinesDiskCache(
         lock.withLock { readAllLocked().size }
     }
 
+    override suspend fun flush(): Result<Unit> = runCatching {
+        lock.withLock {
+            if (fileSystem.exists(filePath)) {
+                fileSystem.delete(filePath)
+            }
+        }
+    }
+
     override suspend fun isEmpty(): Boolean = count() == 0
+
 
     // ------------------------------------------------------------------------
     // Internals

@@ -1,21 +1,17 @@
 package com.micrantha.bluebell.observability.usecase
 
+import com.micrantha.bluebell.observability.domain.SupabaseInsertClient
 import com.micrantha.bluebell.observability.entity.AnalyticsEvent
 import com.micrantha.bluebell.observability.entity.DestinationContext
 import com.micrantha.bluebell.observability.repository.OkioJsonLinesDiskCache
-import com.micrantha.bluebell.observability.repository.destination.SupabaseInsertClient
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 import kotlinx.coroutines.withContext
 import kotlin.time.ExperimentalTime
 
+
 /**
  * Drain offline-captured [AnalyticsEvent]s from an [OkioJsonLinesDiskCache] into Supabase.
- *
- * Contract:
- * - Reads up to `batchSize` oldest events
- * - Inserts them into Supabase via [SupabaseInsertClient]
- * - Deletes them from disk *only if* the insert succeeds
  */
 class FlushOfflineUsageToSupabase(
     private val diskCache: OkioJsonLinesDiskCache,
@@ -32,7 +28,7 @@ class FlushOfflineUsageToSupabase(
             require(batchSize > 0) { "batchSize must be > 0" }
 
             // Read a raw batch (may contain other event types)
-            val batch = diskCache.readOldest(batchSize)
+            val batch = diskCache.retrieve(batchSize)
             if (batch.isEmpty()) return@runCatching 0
 
             val analytics = batch.filterIsInstance<AnalyticsEvent>()
@@ -64,3 +60,4 @@ class FlushOfflineUsageToSupabase(
         }
     }
 }
+

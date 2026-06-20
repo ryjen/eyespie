@@ -22,6 +22,8 @@ class MemoryCache {
         )
     }
 
+
+
     suspend fun getAll(limit: Int = Int.MAX_VALUE): List<TelemetryEvent> = lock.withLock {
         cache.values.take(limit).map { it.event }
     }
@@ -67,10 +69,11 @@ private fun TelemetryEvent.matchesFilter(filter: EventFilter): Boolean {
     if (filter.userId != null && this.userId != filter.userId) {
         return false
     }
-    filter.properties?.forEach { (key, value) ->
+    filter.properties.forEach { (key, value) ->
         if (this.properties[key] != value) {
             return false
         }
     }
     return true
 }
+

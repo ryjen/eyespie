@@ -1,6 +1,6 @@
 package com.micrantha.eyespie.core.data.observability
 
-import com.micrantha.bluebell.observability.repository.destination.SupabaseInsertClient
+import com.micrantha.bluebell.observability.domain.SupabaseInsertClient
 import com.micrantha.eyespie.core.data.client.SupaClient
 import io.github.jan.supabase.postgrest.postgrest
 

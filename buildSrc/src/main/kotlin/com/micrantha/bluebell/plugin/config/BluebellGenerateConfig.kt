@@ -18,20 +18,26 @@ import java.io.File
 import java.util.Base64
 import kotlin.reflect.KClass
 
-internal fun <T : BluebellDownload> Project.mapDownloadsToConfig(
+internal fun <T : BluebellDownload> coreMapDownloadsToConfig(
+    propertyResolver: (String) -> Any?,
     type: KClass<T>,
-    downloads: BluebellDownloads
+    downloads: List<BluebellDownload>
 ) = downloads
     .filterNot { type.isInstance(it) }.associate {
         it.name to BluebellAssetConfig.Download(
-            url = buildAssetUrl(it.url).toString(),
+            url = buildAssetUrl(it.url, propertyResolver).toString(),
             checksum = it.checksum
         )
     }
 
-internal fun <T : BluebellAsset> Project.mapModelsToConfig(
+internal fun <T : BluebellDownload> Project.mapDownloadsToConfig(
     type: KClass<T>,
-    models: BluebellModels
+    downloads: BluebellDownloads
+) = coreMapDownloadsToConfig(::findProperty, type, downloads.toList())
+
+internal fun <T : BluebellAsset> coreMapModelsToConfig(
+    type: KClass<T>,
+    models: List<BluebellAsset>
 ) =
     models.filterNot { type.isInstance(it) }.associate { asset ->
         asset.name to BluebellAssetConfig.Model(
@@ -39,53 +45,86 @@ internal fun <T : BluebellAsset> Project.mapModelsToConfig(
         )
     }
 
+internal fun <T : BluebellAsset> Project.mapModelsToConfig(
+    type: KClass<T>,
+    models: BluebellModels
+) = coreMapModelsToConfig(type, models.toList())
+
+internal fun coreGenerateIosConfig(
+    projectDir: File,
+    logger: org.gradle.api.logging.Logger,
+    propertyResolver: (String) -> Any?,
+    manifest: String,
+    models: List<BluebellAsset>,
+    downloads: List<BluebellDownload>
+) {
+
+    val destFile = projectDir.resolve(defaultIosDestination).resolve(manifest)
+    val iosDownloads = coreMapDownloadsToConfig(propertyResolver, BluebellDownload.IosDownload::class, downloads)
+    val configModels = coreMapModelsToConfig(BluebellAsset.IosAsset::class, models)
+
+    coreGenerateAssetConfig(logger, manifest, destFile, iosDownloads, configModels)
+}
+
 internal fun Project.generateIosConfig(
     manifest: String,
     models: BluebellModels,
     downloads: BluebellDownloads
+) = coreGenerateIosConfig(projectDir, logger, ::findProperty, manifest, models.toList(), downloads.toList())
+
+
+internal fun coreGenerateAndroidConfig(
+    projectDir: File,
+    logger: org.gradle.api.logging.Logger,
+    propertyResolver: (String) -> Any?,
+    manifest: String,
+    models: List<BluebellAsset>,
+    downloads: List<BluebellDownload>
 ) {
 
-    val destFile = projectDir.resolve(defaultIosDestination).resolve(manifest)
-    val iosDownloads = mapDownloadsToConfig(BluebellDownload.IosDownload::class, downloads)
-    val configModels = mapModelsToConfig(BluebellAsset.IosAsset::class, models)
+    val destFile = projectDir.resolve(defaultAndroidDestination).resolve(manifest)
 
-    generateAssetConfig(manifest, destFile, iosDownloads, configModels)
+    val androidDownloads = coreMapDownloadsToConfig(propertyResolver, BluebellDownload.AndroidDownload::class, downloads)
+
+    val configModels = coreMapModelsToConfig(BluebellAsset.AndroidAsset::class, models)
+
+    coreGenerateAssetConfig(logger, manifest, destFile, androidDownloads, configModels)
 }
-
 
 internal fun Project.generateAndroidConfig(
     manifest: String,
     models: BluebellModels,
     downloads: BluebellDownloads
+) = coreGenerateAndroidConfig(projectDir, logger, ::findProperty, manifest, models.toList(), downloads.toList())
+
+
+internal fun coreGenerateSharedConfig(
+    projectDir: File,
+    logger: org.gradle.api.logging.Logger,
+    propertyResolver: (String) -> Any?,
+    manifest: String,
+    models: List<BluebellAsset>,
+    downloads: List<BluebellDownload>
 ) {
 
-    val destFile = projectDir.resolve(defaultAndroidDestination).resolve(manifest)
+    val destFile = projectDir.resolve(defaultSharedDestination).resolve(manifest)
 
-    val androidDownloads = mapDownloadsToConfig(BluebellDownload.AndroidDownload::class, downloads)
+    val sharedDownloads = coreMapDownloadsToConfig(propertyResolver, BluebellDownload.DefaultDownload::class, downloads)
 
-    val configModels = mapModelsToConfig(BluebellAsset.AndroidAsset::class, models)
+    val configModels = coreMapModelsToConfig(BluebellAsset.SharedAsset::class, models)
 
-    generateAssetConfig(manifest, destFile, androidDownloads, configModels)
+    coreGenerateAssetConfig(logger, manifest, destFile, sharedDownloads, configModels)
 }
-
 
 internal fun Project.generateSharedConfig(
     manifest: String,
     models: BluebellModels,
     downloads: BluebellDownloads
-) {
-
-    val destFile = projectDir.resolve(defaultSharedDestination).resolve(manifest)
-
-    val sharedDownloads = mapDownloadsToConfig(BluebellDownload.DefaultDownload::class, downloads)
-
-    val configModels = mapModelsToConfig(BluebellAsset.SharedAsset::class, models)
-
-    generateAssetConfig(manifest, destFile, sharedDownloads, configModels)
-}
+) = coreGenerateSharedConfig(projectDir, logger, ::findProperty, manifest, models.toList(), downloads.toList())
 
 @OptIn(ExperimentalSerializationApi::class)
-internal fun Project.generateAssetConfig(
+internal fun coreGenerateAssetConfig(
+    logger: org.gradle.api.logging.Logger,
     manifest: String,
     destFile: File,
     downloads: Map<String, BluebellAssetConfig.Download>,
@@ -106,3 +145,11 @@ internal fun Project.generateAssetConfig(
 
     logger.bluebell("Generated asset manifest")
 }
+
+@OptIn(ExperimentalSerializationApi::class)
+internal fun Project.generateAssetConfig(
+    manifest: String,
+    destFile: File,
+    downloads: Map<String, BluebellAssetConfig.Download>,
+    models: Map<String, BluebellAssetConfig.Model>
+) = coreGenerateAssetConfig(logger, manifest, destFile, downloads, models)
