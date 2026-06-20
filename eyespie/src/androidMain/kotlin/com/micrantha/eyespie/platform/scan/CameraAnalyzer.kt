@@ -1,7 +1,6 @@
 package com.micrantha.eyespie.platform.scan
 
 import android.graphics.RectF
-import android.util.Log
 import androidx.camera.core.ExperimentalGetImage
 import androidx.camera.core.ImageAnalysis
 import androidx.camera.core.ImageProxy
@@ -15,33 +14,28 @@ class CameraAnalyzer(
     private val errorCallback: (Throwable) -> Unit,
     private val scope: CoroutineScope
 ) : ImageAnalysis.Analyzer {
-    private lateinit var current: CameraImage
     private val log by logger()
 
     @androidx.annotation.OptIn(ExperimentalGetImage::class)
     override fun analyze(image: ImageProxy) {
-        try {
-            if (!::current.isInitialized) {
-                current = CameraImage(
-                    _image = image.image,
-                    _width = image.width,
-                    _height = image.height,
-                    _rotation = image.imageInfo.rotationDegrees,
-                    _timestamp = image.imageInfo.timestamp,
-                    regionOfInterest = regionOfInterest
-                )
-            } else {
-                current.copy(image, regionOfInterest)
-            }
+        val frame = CameraImage(
+            _image = image.image,
+            _width = image.width,
+            _height = image.height,
+            _rotation = image.imageInfo.rotationDegrees,
+            _timestamp = image.imageInfo.timestamp,
+            regionOfInterest = regionOfInterest
+        )
 
-            scope.launch {
-                callback(current)
-                //image.close()
+        scope.launch {
+            try {
+                callback(frame)
+            } catch (err: Throwable) {
+                errorCallback(err)
+                log.error(err) { "unable to analyze camera image" }
+            } finally {
+                image.close()
             }
-        } catch (err: Throwable) {
-            errorCallback(err)
-            log.error(err) { "unable to analyze camera image" }
         }
     }
-
 }
