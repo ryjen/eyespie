@@ -1,24 +1,24 @@
 Pod::Spec.new do |spec|
-    spec.name                     = 'eyespie'
+    spec.name                     = 'app'
     spec.version                  = '1.0'
     spec.homepage                 = 'https://github.com/hackelia-micrantha/eyespie'
     spec.source                   = { :http=> ''}
     spec.authors                  = ''
     spec.license                  = 'GPLv3'
-    spec.summary                  = 'Native dependencies for eyespie'
-    spec.vendored_frameworks      = 'build/cocoapods/framework/eyespie.framework'
+    spec.summary                  = 'Native dependencies for app'
+    spec.vendored_frameworks      = 'build/cocoapods/framework/app.framework'
     spec.libraries                = 'c++'
     spec.ios.deployment_target    = '15.0'
     spec.dependency 'MediaPipeTasksGenAI'
     spec.dependency 'MediaPipeTasksVision'
                 
-    if !Dir.exist?('build/cocoapods/framework/eyespie.framework') || Dir.empty?('build/cocoapods/framework/eyespie.framework')
+    if !Dir.exist?('build/cocoapods/framework/app.framework') || Dir.empty?('build/cocoapods/framework/app.framework')
         raise "
 
-        Kotlin framework 'eyespie' doesn't exist yet, so a proper Xcode project can't be generated.
+        Kotlin framework 'app' doesn't exist yet, so a proper Xcode project can't be generated.
         'pod install' should be executed after running ':generateDummyFramework' Gradle task:
 
-            ./gradlew :eyespie:generateDummyFramework
+            ./gradlew :app:generateDummyFramework
 
         Alternatively, proper pod installation is performed during Gradle sync in the IDE (if Podfile location is set)"
     end
@@ -28,13 +28,13 @@ Pod::Spec.new do |spec|
     }
                 
     spec.pod_target_xcconfig = {
-        'KOTLIN_PROJECT_PATH' => ':eyespie',
-        'PRODUCT_MODULE_NAME' => 'eyespie',
+        'KOTLIN_PROJECT_PATH' => ':app',
+        'PRODUCT_MODULE_NAME' => 'app',
     }
                 
     spec.script_phases = [
         {
-            :name => 'Build eyespie',
+            :name => 'Build app',
             :execution_position => :before_compile,
             :shell_path => '/bin/sh',
             :script => <<-SCRIPT

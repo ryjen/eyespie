@@ -17,7 +17,7 @@ import com.micrantha.eyespie.domain.repository.GameRepository
 import com.micrantha.eyespie.features.game.ui.component.GameAction.Error
 import com.micrantha.eyespie.features.game.ui.detail.GameDetailsAction.Load
 import com.micrantha.eyespie.features.game.ui.detail.GameDetailsAction.Loaded
-import eyespie.eyespie.generated.resources.loading_game
+import eyespie.app.generated.resources.loading_game
 
 class GameDetailsEnvironment(
     private val context: ScreenContext,

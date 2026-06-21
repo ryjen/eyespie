@@ -69,7 +69,11 @@ internal fun Project.configureBuilds(config: BluebellConfig, manifestName: Strin
     config.properties = config.loadConfigFromEnvironment(manifestName).getOrDefault(emptyMap())
     if (config.properties.isEmpty()) {
         logger.bluebell("No config properties loaded from ${config.envFile}", logger::warn)
-    } 
+    }
+
+    val isProduction = gradle.startParameter.taskNames.any {
+        it.contains("release", ignoreCase = true) || it.contains("bundle", ignoreCase = true)
+    } || hasProperty("production")
 
     val requiredKeyError = { key: String ->
         logger.bluebell("Missing '$key' in ${config.envFile}", logger::error)
@@ -85,13 +89,17 @@ internal fun Project.configureBuilds(config: BluebellConfig, manifestName: Strin
 
         config.expectedKeys.forEach { key ->
             if (config.properties.containsKey(key).not()) {
-                logger.bluebell("Missing key '$key' in ${config.envFile}", logger::warn)
+                logger.bluebell("Missing expected key '$key' in ${config.envFile}", logger::warn)
             }
         }
 
         config.requiredKeys.forEach { key ->
             if (config.properties.containsKey(key).not()) {
-                requiredKeyError(key)
+                if (isProduction) {
+                    requiredKeyError(key)
+                } else {
+                    logger.bluebell("Missing required key '$key' in ${config.envFile} (Required for production builds)", logger::warn)
+                }
             }
         }
 

@@ -25,10 +25,11 @@ import com.micrantha.eyespie.features.dashboard.ui.usecase.DashboardLoadUseCase
 import com.micrantha.eyespie.features.game.ui.component.GameAction
 import com.micrantha.eyespie.features.game.ui.detail.GameDetailScreenArg
 import com.micrantha.eyespie.features.game.ui.detail.GameDetailsScreen
+import com.micrantha.eyespie.features.guess.ui.ScanGuessArgs
 import com.micrantha.eyespie.features.guess.ui.ScanGuessScreen
 import com.micrantha.eyespie.features.scan.ui.capture.ScanCaptureScreen
-import eyespie.eyespie.generated.resources.loading_dashboard
-import eyespie.eyespie.generated.resources.network_failure
+import eyespie.app.generated.resources.loading_dashboard
+import eyespie.app.generated.resources.network_failure
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 
@@ -95,10 +96,8 @@ class DashboardEnvironment(
 
             is ScanNewThing -> context.navigate<ScanCaptureScreen>()
 
-            is GuessThing -> context.router.navigate(
-                ScanGuessScreen(
-                    action.thing.id
-                )
+            is GuessThing -> context.navigate<ScanGuessScreen, ScanGuessArgs>(
+                arg = ScanGuessArgs(action.thing.id)
             )
         }
     }

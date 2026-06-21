@@ -16,8 +16,8 @@ import com.micrantha.eyespie.features.guess.ui.ScanGuessAction.Loaded
 import com.micrantha.eyespie.features.guess.ui.ScanGuessAction.ThingMatched
 import com.micrantha.eyespie.features.guess.ui.ScanGuessAction.ThingNotFound
 import com.micrantha.eyespie.features.scan.usecase.MatchCaptureUseCase
-import eyespie.eyespie.generated.resources.no_data_found
-import eyespie.eyespie.generated.resources.ok
+import eyespie.app.generated.resources.no_data_found
+import eyespie.app.generated.resources.ok
 
 class ScanGuessEnvironment(
     private val args: ScanGuessArgs,

@@ -43,11 +43,13 @@ buildConfig = "6.0.10"
 mokoMedia = "0.12.0"
 datastore = "1.2.1"
 fetch = "3.4.1"
-mediapipe = "0.10.29"
-mediapipeGenAI = "0.10.29"
+mediapipe = "0.10.35"
+mediapipeGenAI = "0.10.35"
 exifinterface = "1.4.1"
 jetbrainsKotlinJvm = "2.2.21"
 kotlinLogging = "8.0.4"
+turbine = "1.2.0"
+mockk = "1.13.13"
 
 [plugins]
 
@@ -141,3 +143,5 @@ androidx-exifinterface = { group = "androidx.exifinterface", name = "exifinterfa
 android-build-tools = { group = "com.android.tools.build", name = "gradle", version.ref = "agp"}
 kotlin-gradle-plugin  = { group = "org.jetbrains.kotlin", name = "kotlin-gradle-plugin", version.ref = "kotlin"}
 kotlin-logging = { module = "io.github.oshai:kotlin-logging", version.ref = "kotlinLogging" }
+turbine = { module = "app.cash.turbine:turbine", version.ref = "turbine" }
+mockk = { module = "io.mockk:mockk", version.ref = "mockk" }

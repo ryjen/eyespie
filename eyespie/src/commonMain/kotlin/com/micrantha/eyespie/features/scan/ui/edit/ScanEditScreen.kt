@@ -43,9 +43,9 @@ import com.micrantha.eyespie.features.scan.entities.ScanEditAction.Retry
 import com.micrantha.eyespie.features.scan.entities.ScanEditAction.SaveScanEdit
 import com.micrantha.eyespie.features.scan.entities.ScanEditParams
 import com.micrantha.eyespie.features.scan.entities.ScanEditUiState
-import eyespie.eyespie.generated.resources.done
-import eyespie.eyespie.generated.resources.loading_error
-import eyespie.eyespie.generated.resources.new_thing
+import eyespie.app.generated.resources.done
+import eyespie.app.generated.resources.loading_error
+import eyespie.app.generated.resources.new_thing
 import org.jetbrains.compose.resources.stringResource
 
 class ScanEditScreen(

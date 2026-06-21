@@ -8,6 +8,7 @@ import com.micrantha.bluebell.i18n.repository.LocalizedRepository
 import com.micrantha.bluebell.platform.FileSystem
 import com.micrantha.bluebell.ui.components.Router
 import com.micrantha.bluebell.ui.screen.ScreenContext
+import com.micrantha.bluebell.ui.screen.navigate
 import com.micrantha.eyespie.domain.entities.Location
 import com.micrantha.eyespie.features.scan.entities.ScanAction.Back
 import com.micrantha.eyespie.features.scan.entities.ScanAction.ScanError
@@ -27,9 +28,9 @@ class ScanCaptureEnvironment(
     override suspend fun invoke(action: Action, state: ScanState) {
         when (action) {
             is Path -> try {
-                navigate(
-                    ScanEditScreen(ScanEditParams(action, state.location!!)),
-                    Router.Options.Replace
+                context.navigate<ScanEditScreen, ScanEditParams>(
+                    options = Router.Options.Replace,
+                    arg = ScanEditParams(action, state.location!!)
                 )
             } catch (_: Throwable) {
                 dispatch(ScanError)

@@ -10,12 +10,16 @@ import com.micrantha.eyespie.features.players.domain.repository.PlayerRepository
 import kotlinx.coroutines.flow.combine
 import kotlinx.coroutines.flow.flow
 
-class DashboardLoadUseCase(
+interface DashboardLoadUseCase {
+    operator fun invoke(): kotlinx.coroutines.flow.Flow<Result<Loaded>>
+}
+
+class DashboardLoadUseCaseImpl(
     private val thingsRepository: ThingRepository,
     private val playerRepository: PlayerRepository,
     private val currentSession: CurrentSession
-) {
-    operator fun invoke() = flowUseCase {
+) : DashboardLoadUseCase {
+    override operator fun invoke() = flowUseCase {
         val player = currentSession.requirePlayer()
         val location = player.location?.point
 

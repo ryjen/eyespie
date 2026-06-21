@@ -12,7 +12,7 @@ import com.micrantha.bluebell.ui.components.status.EmptyContent
 import com.micrantha.eyespie.app.S
 import com.micrantha.eyespie.domain.entities.Game
 import com.micrantha.eyespie.features.game.ui.list.GameListAction.NewGame
-import eyespie.eyespie.generated.resources.no_games_found
+import eyespie.app.generated.resources.no_games_found
 
 @Composable
 fun GameListContent(games: List<Game.Listing>, dispatch: Dispatch) {

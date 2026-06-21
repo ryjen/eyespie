@@ -10,18 +10,26 @@ import com.micrantha.eyespie.features.things.data.model.ThingRequest
 import com.micrantha.eyespie.features.things.data.model.ThingResponse
 import io.github.jan.supabase.postgrest.query.Columns
 
-class ThingsRemoteSource(
-    private val supaClient: SupaClient,
-) {
+interface ThingsRemoteSource {
+    suspend fun save(data: ThingRequest): Result<ThingResponse>
+    suspend fun things(playerID: String): Result<List<ThingListing>>
+    suspend fun thing(thingID: String): Result<ThingResponse>
+    suspend fun nearby(request: NearbyRequest): Result<List<ThingResponse>>
+    suspend fun match(request: MatchRequest): Result<List<MatchResponse>>
+}
 
-    suspend fun save(data: ThingRequest) = try {
+class ThingsRemoteSourceImpl(
+    private val supaClient: SupaClient,
+) : ThingsRemoteSource {
+
+    override suspend fun save(data: ThingRequest) = try {
         val result = supaClient.things().insert(data).decodeList<ThingResponse>()
         Result.success(result.first())
     } catch (err: Throwable) {
         Result.failure(err)
     }
 
-    suspend fun things(playerID: String) = try {
+    override suspend fun things(playerID: String) = try {
         val result = supaClient.things().select(
             Columns.type<ThingData>()
         ) {
@@ -34,7 +42,7 @@ class ThingsRemoteSource(
         Result.failure(err)
     }
 
-    suspend fun thing(thingID: String) = try {
+    override suspend fun thing(thingID: String) = try {
         val result = supaClient.things().select(
             Columns.type<ThingData>()
         ) {
@@ -47,14 +55,14 @@ class ThingsRemoteSource(
         Result.failure(err)
     }
 
-    suspend fun nearby(request: NearbyRequest) = try {
+    override suspend fun nearby(request: NearbyRequest) = try {
         val res = supaClient.nearby(request).decodeList<ThingResponse>()
         Result.success(res)
     } catch (err: Throwable) {
         Result.failure(err)
     }
 
-    suspend fun match(request: MatchRequest) = try {
+    override suspend fun match(request: MatchRequest) = try {
         val res = supaClient.match(request).decodeList<MatchResponse>()
         Result.success(res)
     } catch (err: Throwable) {

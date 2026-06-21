@@ -23,7 +23,7 @@ import com.micrantha.eyespie.features.game.ui.detail.GameDetailsScreen
 import com.micrantha.eyespie.features.game.ui.list.GameListAction.Load
 import com.micrantha.eyespie.features.game.ui.list.GameListAction.Loaded
 import com.micrantha.eyespie.features.game.ui.list.GameListAction.NewGame
-import eyespie.eyespie.generated.resources.loading_games
+import eyespie.app.generated.resources.loading_games
 
 class GameListEnvironment(
     private val context: ScreenContext,

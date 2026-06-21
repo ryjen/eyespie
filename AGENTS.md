@@ -50,3 +50,15 @@ fastlane test
 
 ## Configuration & Secrets
 - Copy `env.example` to `.env.local` and set required keys (e.g., Supabase credentials). Keep secrets out of version control.
+
+## Common Anti-patterns to Avoid
+- **Nested Scrolling**: Never nest a `LazyColumn` inside a scrollable `Column`. Use `Modifier.weight(1f)` on the container or a single `LazyColumn` with multiple `item {}` blocks.
+- **Manual Navigation**: Prefer `context.navigate<Screen>()` (with type safety and DI) over `context.router.navigate(Screen())`.
+
+## Navigation Strategy
+- Side-effects in `Environment` classes should use `ScreenContext.navigate<T>()` to resolve screens via DI.
+- Use `Router.Options.Replace` for non-linear flows (like moving from capture to edit).
+
+## Offline Support Strategy
+- Use `okio` for persistent file-based caching in `commonMain`.
+- Data repositories should follow the "Network first, Cache fallback" pattern for remote areas.

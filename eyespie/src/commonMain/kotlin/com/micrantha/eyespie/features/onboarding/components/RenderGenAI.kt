@@ -29,12 +29,12 @@ import com.micrantha.bluebell.ui.theme.Dimensions
 import com.micrantha.eyespie.app.S
 import com.micrantha.eyespie.features.onboarding.entities.OnboardingAction
 import com.micrantha.eyespie.features.onboarding.entities.OnboardingUiState
-import eyespie.eyespie.generated.resources.download_failed
-import eyespie.eyespie.generated.resources.downloading
-import eyespie.eyespie.generated.resources.no
-import eyespie.eyespie.generated.resources.onboarding_genai_text
-import eyespie.eyespie.generated.resources.onboarding_genai_title
-import eyespie.eyespie.generated.resources.yes
+import eyespie.app.generated.resources.download_failed
+import eyespie.app.generated.resources.downloading
+import eyespie.app.generated.resources.no
+import eyespie.app.generated.resources.onboarding_genai_text
+import eyespie.app.generated.resources.onboarding_genai_title
+import eyespie.app.generated.resources.yes
 import org.jetbrains.compose.resources.stringResource
 
 @Composable

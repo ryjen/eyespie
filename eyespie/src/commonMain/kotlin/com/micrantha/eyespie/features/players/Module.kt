@@ -4,6 +4,7 @@ import com.micrantha.bluebell.get
 import com.micrantha.eyespie.features.players.data.PlayerDataRepository
 import com.micrantha.eyespie.features.players.data.mapping.PlayerDomainMapper
 import com.micrantha.eyespie.features.players.data.source.PlayerRemoteSource
+import com.micrantha.eyespie.features.players.data.source.PlayersLocalSource
 import com.micrantha.eyespie.features.players.domain.usecase.LoadSessionPlayerUseCase
 import com.micrantha.eyespie.features.players.ui.create.NewPlayerEnvironment
 import com.micrantha.eyespie.features.players.ui.create.NewPlayerScreen
@@ -17,6 +18,7 @@ internal fun module() = DI.Module("Players") {
     bindProviderOf(::PlayerDomainMapper)
     bindProviderOf(::PlayerDataRepository)
     bindProviderOf(::PlayerRemoteSource)
+    bindProviderOf(::PlayersLocalSource)
     bindProviderOf(::LoadSessionPlayerUseCase)
     bindProviderOf(::NewPlayerEnvironment)
     bindProvider { NewPlayerScreenModel(get(), get()) }
