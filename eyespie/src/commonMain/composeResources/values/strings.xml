@@ -64,4 +64,8 @@
     <string name="download_failed">Download failed</string>
     <string name="download_completed">Download completed</string>
     <string name="loading_error">Unable to load data, please try again later.</string>
+    <string name="scan_hot">Hot!</string>
+    <string name="scan_warm">Warmer…</string>
+    <string name="scan_cold">Colder…</string>
+    <string name="scan_ice_cold">Try looking elsewhere</string>
 </resources>

@@ -3,24 +3,33 @@ package com.micrantha.eyespie.features.scan.usecase
 import com.micrantha.bluebell.domain.usecase.dispatchUseCase
 import com.micrantha.eyespie.domain.entities.Embedding
 import com.micrantha.eyespie.domain.entities.Thing
+import com.micrantha.eyespie.domain.repository.ThingRepository
 import com.micrantha.eyespie.platform.scan.CameraImage
 import kotlin.coroutines.coroutineContext
 
+data class MatchResult(
+    val matched: Boolean,
+    val bestSimilarity: Float? = null
+)
+
 class MatchCaptureUseCase(
     private val imageEmbeddingGenerator: ImageEmbeddingGenerator,
+    private val thingRepository: ThingRepository,
 ) {
     suspend operator fun invoke(
         image: CameraImage,
         thing: Thing,
-    ): Result<Boolean> =
+    ): Result<MatchResult> =
         dispatchUseCase(coroutineContext) {
             val embedding = imageEmbeddingGenerator.generate(image)
             require(embedding != Embedding.EMPTY) { "capture embedding must not be empty" }
 
-            // Semantic matching is intentionally not routed to ThingRepository.match yet.
-            // The current Supabase migrations do not define a compatible match_things RPC
-            // and the checked-in schema uses 1536-dimensional vectors. Keep the provider
-            // seam here until the model dimensions, RPC, and threshold policy are landed.
-            throw UnsupportedOperationException("semantic capture matching is not available")
+            thingRepository.match(embedding).map { matches ->
+                val matched = matches.any { it.id == thing.id }
+                val bestSimilarity = matches.find { it.id == thing.id }?.similarity
+                    ?: matches.maxByOrNull { it.similarity }?.similarity
+                
+                MatchResult(matched, bestSimilarity)
+            }.getOrThrow()
         }
 }

@@ -1,8 +1,12 @@
 package com.micrantha.bluebell.plugin.asset
 
+import org.gradle.api.tasks.Input
+import org.gradle.api.tasks.Optional
 import javax.inject.Inject
 
-sealed class BluebellAsset(val name: String) {
+sealed class BluebellAsset(@get:Input val name: String) {
+    @get:Input
+    @get:Optional
     var filename: String? = null
 
     open class IosAsset @Inject constructor(name: String) : BluebellAsset(name)

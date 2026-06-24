@@ -4,6 +4,7 @@ class ScanGuessMapper {
 
     operator fun invoke(state: ScanGuessState) = ScanGuessUiState(
         guessed = state.thing?.guessed == true,
-        enabled = state.thing != null
+        enabled = state.thing != null,
+        similarity = state.bestSimilarity
     )
 }

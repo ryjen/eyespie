@@ -13,6 +13,7 @@ import com.micrantha.eyespie.domain.repository.ThingRepository
 import com.micrantha.eyespie.features.guess.ui.ScanGuessAction.ImageCaptured
 import com.micrantha.eyespie.features.guess.ui.ScanGuessAction.Load
 import com.micrantha.eyespie.features.guess.ui.ScanGuessAction.Loaded
+import com.micrantha.eyespie.features.guess.ui.ScanGuessAction.SimilarityUpdated
 import com.micrantha.eyespie.features.guess.ui.ScanGuessAction.ThingMatched
 import com.micrantha.eyespie.features.guess.ui.ScanGuessAction.ThingNotFound
 import com.micrantha.eyespie.features.scan.usecase.MatchCaptureUseCase
@@ -30,6 +31,7 @@ class ScanGuessEnvironment(
 
     override fun reduce(state: ScanGuessState, action: Action) = when (action) {
         is Loaded -> state.copy(thing = action.thing)
+        is SimilarityUpdated -> state.copy(bestSimilarity = action.similarity)
         else -> state
     }
 
@@ -47,11 +49,12 @@ class ScanGuessEnvironment(
                 matchCaptureUseCase(
                     action.image,
                     state.thing
-                ).onSuccess { matched ->
-                    if (matched) {
+                ).onSuccess { result ->
+                    if (result.matched) {
                         dispatch(ThingMatched)
                         navigateBack()
                     } else {
+                        dispatch(SimilarityUpdated(result.bestSimilarity))
                         dispatch(ThingNotFound)
                         // keep trying!
                         // TODO: display warmer/colder

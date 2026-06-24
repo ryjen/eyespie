@@ -13,13 +13,16 @@ import org.gradle.api.DefaultTask
 import org.gradle.api.NamedDomainObjectContainer
 import org.gradle.api.Project
 import org.gradle.api.file.ConfigurableFileCollection
+import org.gradle.api.file.DirectoryProperty
 import org.gradle.api.file.ProjectLayout
 import org.gradle.api.provider.ListProperty
 import org.gradle.api.provider.Property
 import org.gradle.api.provider.ProviderFactory
 import org.gradle.api.tasks.Input
 import org.gradle.api.tasks.Internal
+import org.gradle.api.tasks.Nested
 import org.gradle.api.tasks.Optional
+import org.gradle.api.tasks.OutputDirectory
 import org.gradle.api.tasks.OutputFiles
 import org.gradle.api.tasks.TaskAction
 import java.io.File
@@ -71,20 +74,23 @@ abstract class ConfigureBluebellAssetsTask : DefaultTask() {
     @get:Optional
     abstract val manifest: Property<String>
 
-    @get:Internal
+    @get:Nested
     abstract val models: ListProperty<BluebellAsset>
 
-    @get:Internal
+    @get:Nested
     abstract val copies: ListProperty<BluebellAsset>
 
-    @get:Internal
+    @get:Nested
     abstract val links: ListProperty<BluebellAsset>
 
-    @get:Internal
+    @get:Nested
     abstract val downloads: ListProperty<BluebellDownload>
 
     @get:OutputFiles
     abstract val outputFiles: ConfigurableFileCollection
+
+    @get:OutputDirectory
+    abstract val outputDir: DirectoryProperty
 
     @get:Inject
     abstract val providers: ProviderFactory
@@ -123,6 +129,8 @@ internal fun Project.configureAssets(assets: BluebellAssets, downloads: Bluebell
         links.set(assets.links.toList())
         this.downloads.set(downloads.toList())
 
+        outputDir.set(projectDir.resolve(defaultAssetSource))
+
         outputFiles.from(provider {
             val m = manifest.getOrNull()
             val result = mutableListOf<File>()
@@ -131,8 +139,6 @@ internal fun Project.configureAssets(assets: BluebellAssets, downloads: Bluebell
                 result.add(projectDir.resolve(defaultIosDestination).resolve(m))
                 result.add(projectDir.resolve(defaultAndroidDestination).resolve(m))
             }
-
-            result.add(projectDir.resolve(defaultAssetSource))
 
             copies.get().forEach { asset ->
                 asset.destination(projectDir).forEach { result.add(it.resolve(asset.name)) }
