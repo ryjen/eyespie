@@ -30,11 +30,11 @@ import com.micrantha.eyespie.app.S
 import com.micrantha.eyespie.core.ui.Screen
 import com.micrantha.eyespie.features.onboarding.entities.GenAiDownloadAction.Done
 import com.micrantha.eyespie.features.onboarding.entities.GenAiDownloadUiState
-import eyespie.eyespie.generated.resources.done
-import eyespie.eyespie.generated.resources.download_failed
-import eyespie.eyespie.generated.resources.downloading
-import eyespie.eyespie.generated.resources.onboarding_genai_text
-import eyespie.eyespie.generated.resources.onboarding_genai_title
+import eyespie.app.generated.resources.done
+import eyespie.app.generated.resources.download_failed
+import eyespie.app.generated.resources.downloading
+import eyespie.app.generated.resources.onboarding_genai_text
+import eyespie.app.generated.resources.onboarding_genai_title
 import org.jetbrains.compose.resources.stringResource
 
 class GenAIDownloadScreen : Screen, StateRenderer<GenAiDownloadUiState> {

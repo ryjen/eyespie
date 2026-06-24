@@ -47,14 +47,14 @@ import com.micrantha.eyespie.core.ui.Screen
 import com.micrantha.eyespie.features.login.components.Messages
 import com.micrantha.eyespie.features.login.entities.LoginAction
 import com.micrantha.eyespie.features.login.entities.LoginUiState
-import eyespie.eyespie.generated.resources.app_title
-import eyespie.eyespie.generated.resources.email
-import eyespie.eyespie.generated.resources.login
-import eyespie.eyespie.generated.resources.login_email_placeholder
-import eyespie.eyespie.generated.resources.login_password_placeholder
-import eyespie.eyespie.generated.resources.login_with_google
-import eyespie.eyespie.generated.resources.password
-import eyespie.eyespie.generated.resources.register
+import eyespie.app.generated.resources.app_title
+import eyespie.app.generated.resources.email
+import eyespie.app.generated.resources.login
+import eyespie.app.generated.resources.login_email_placeholder
+import eyespie.app.generated.resources.login_password_placeholder
+import eyespie.app.generated.resources.login_with_google
+import eyespie.app.generated.resources.password
+import eyespie.app.generated.resources.register
 import org.jetbrains.compose.resources.stringResource
 
 class LoginScreen : Screen, StateRenderer<LoginUiState> {

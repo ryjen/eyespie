@@ -25,4 +25,5 @@ dependencyResolutionManagement {
 
 rootProject.name = "eyespie"
 include(":bluebell")
-include(":eyespie")
+include(":app")
+project(":app").projectDir = file("eyespie")

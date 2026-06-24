@@ -109,6 +109,9 @@ kotlin {
             implementation(kotlin("test"))
 
             implementation(libs.permissions.test)
+            implementation(libs.kotlinx.coroutines.test)
+            implementation(libs.turbine)
+            implementation(libs.okio.fakefilesystem)
         }
         androidMain.dependencies {
             implementation(libs.androidx.appcompat)
@@ -137,6 +140,9 @@ kotlin {
 
             implementation(libs.compose.ui.tooling)
             implementation(libs.compose.ui.tooling.preview)
+
+            // Test
+            implementation(libs.mockk)
         }
 
         iosMain.dependencies {
@@ -236,7 +242,7 @@ bluebell {
             "LOGIN_EMAIL",
             "LOGIN_PASSWORD",
         )
-        expectedKeys = listOf(
+        requiredKeys = listOf(
             "SUPABASE_URL",
             "SUPABASE_KEY",
         )

@@ -1,6 +1,6 @@
 package com.micrantha.eyespie.app
 
-import eyespie.eyespie.generated.resources.Res
+import eyespie.app.generated.resources.Res
 
 internal val S = Res.string
 

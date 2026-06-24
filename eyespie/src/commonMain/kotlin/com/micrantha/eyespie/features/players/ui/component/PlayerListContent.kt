@@ -9,7 +9,7 @@ import com.micrantha.bluebell.arch.Dispatch
 import com.micrantha.bluebell.ui.components.status.EmptyContent
 import com.micrantha.eyespie.app.S
 import com.micrantha.eyespie.features.players.domain.entities.PlayerList
-import eyespie.eyespie.generated.resources.no_players_found
+import eyespie.app.generated.resources.no_players_found
 
 @Composable
 fun PlayerListContent(players: PlayerList, dispatch: Dispatch) {

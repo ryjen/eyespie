@@ -1,10 +1,8 @@
 package com.micrantha.eyespie.features.dashboard.ui
 
-import androidx.compose.foundation.gestures.Orientation.Vertical
-import androidx.compose.foundation.gestures.scrollable
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
@@ -26,9 +24,9 @@ import com.micrantha.eyespie.features.dashboard.ui.DashboardAction.ScanNewThing
 import com.micrantha.eyespie.features.dashboard.ui.component.FriendsTabContent
 import com.micrantha.eyespie.features.dashboard.ui.component.NearbyTabContent
 import com.micrantha.eyespie.features.dashboard.ui.component.ScanNewThingCard
-import eyespie.eyespie.generated.resources.friends
-import eyespie.eyespie.generated.resources.loading_dashboard
-import eyespie.eyespie.generated.resources.nearby
+import eyespie.app.generated.resources.friends
+import eyespie.app.generated.resources.loading_dashboard
+import eyespie.app.generated.resources.nearby
 import org.jetbrains.compose.resources.stringResource
 
 class DashboardScreen : Screen {
@@ -49,13 +47,13 @@ class DashboardScreen : Screen {
     @Composable
     fun Render(
         state: DashboardUiState,
-        dispatch: Dispatch
+        dispatch: Dispatch,
     ) {
 
         RealtimeDataEnabledEffect(dispatch = dispatch)
 
         Column(
-            modifier = Modifier.fillMaxWidth().scrollable(rememberScrollState(), Vertical)
+            modifier = Modifier.fillMaxSize()
         ) {
 
             AppTitle()
@@ -64,10 +62,12 @@ class DashboardScreen : Screen {
                 dispatch(ScanNewThing)
             }
 
-            when (state.status) {
-                is Ready -> ContentPager(state.status.data, dispatch)
-                is Failure -> FailureContent(state.status.message)
-                else -> LoadingContent(S.loading_dashboard)
+            Box(modifier = Modifier.weight(1f)) {
+                when (state.status) {
+                    is Ready -> ContentPager(state.status.data, dispatch)
+                    is Failure -> FailureContent(state.status.message)
+                    else -> LoadingContent(S.loading_dashboard)
+                }
             }
         }
     }

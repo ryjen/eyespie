@@ -22,10 +22,10 @@ import com.micrantha.bluebell.ui.components.longDateTime
 import com.micrantha.bluebell.ui.theme.Dimensions
 import com.micrantha.eyespie.app.S
 import com.micrantha.eyespie.domain.entities.Game
-import eyespie.eyespie.generated.resources.created_at
-import eyespie.eyespie.generated.resources.expires_at
-import eyespie.eyespie.generated.resources.players
-import eyespie.eyespie.generated.resources.things
+import eyespie.app.generated.resources.created_at
+import eyespie.app.generated.resources.expires_at
+import eyespie.app.generated.resources.players
+import eyespie.app.generated.resources.things
 import org.jetbrains.compose.resources.stringResource
 import kotlin.time.ExperimentalTime
 
