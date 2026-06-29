@@ -4,7 +4,7 @@ import com.micrantha.eyespie.core.data.client.SupaClient
 import com.micrantha.eyespie.domain.entities.Location
 import com.micrantha.eyespie.features.players.data.model.PlayerResponse
 
-class PlayerRemoteSource(
+internal open class PlayerRemoteSource(
     private val supaClient: SupaClient
 ) {
     suspend fun players() = try {

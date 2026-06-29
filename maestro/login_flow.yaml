@@ -1,0 +1,10 @@
+appId: com.micrantha.eyespie.debug
+---
+- launchApp
+- assertVisible: "EyesPie"
+- tapOn: "Email"
+- inputText: "eyespie@micrantha.test"
+- tapOn: "Password"
+- inputText: "P@ssw0rd!"
+- tapOn: "Login"
+- assertVisible: "Scan New Thing"

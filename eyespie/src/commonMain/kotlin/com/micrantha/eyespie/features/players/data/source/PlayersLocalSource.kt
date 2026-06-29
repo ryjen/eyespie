@@ -5,7 +5,7 @@ import com.micrantha.eyespie.features.players.data.model.PlayerResponse
 import kotlinx.serialization.builtins.ListSerializer
 import kotlinx.serialization.json.Json
 
-class PlayersLocalSource(
+internal open class PlayersLocalSource(
     private val fileSystem: FileSystem,
     private val json: Json
 ) {

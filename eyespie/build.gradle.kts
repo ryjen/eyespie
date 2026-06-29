@@ -6,6 +6,7 @@ plugins {
     alias(libs.plugins.apolloGraphQL)
     alias(libs.plugins.kotlinSerialization)
     alias(libs.plugins.compose.compiler)
+    alias(libs.plugins.roborazzi)
     id("com.micrantha.bluebell")
 }
 
@@ -140,12 +141,20 @@ kotlin {
 
             implementation(libs.compose.ui.tooling)
             implementation(libs.compose.ui.tooling.preview)
-
-            // Test
-            implementation(libs.mockk)
         }
 
         iosMain.dependencies {
+        }
+
+        val androidUnitTest by getting {
+            dependencies {
+                implementation(libs.mockk)
+                implementation(libs.robolectric)
+                implementation(libs.androidx.ui.test.junit4)
+                implementation(libs.roborazzi)
+                implementation(libs.roborazzi.compose)
+                implementation(libs.roborazzi.junit)
+            }
         }
 
         appleTest {
@@ -178,6 +187,12 @@ android {
         mlModelBinding = true
     }
 
+    testOptions {
+        unitTests {
+            isIncludeAndroidResources = true
+        }
+    }
+
     bundle {
         language {
             enableSplit = false
@@ -194,6 +209,11 @@ android {
         targetCompatibility = JavaVersion.VERSION_21
     }
     packaging {
+        resources {
+            excludes += "/META-INF/{AL2.0,LGPL2.1}"
+            excludes += "META-INF/LICENSE.md"
+            excludes += "META-INF/LICENSE-notice.md"
+        }
         jniLibs {
             useLegacyPackaging = false // Ensures uncompressed .so files
         }
@@ -227,6 +247,7 @@ android {
 
     dependencies {
         debugImplementation(libs.okio.fakefilesystem)
+        debugImplementation(libs.androidx.ui.test.manifest)
     }
 }
 
