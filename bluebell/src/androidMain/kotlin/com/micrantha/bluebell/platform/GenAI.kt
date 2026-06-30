@@ -20,13 +20,13 @@ import java.io.File
 import java.io.FileOutputStream
 import kotlin.coroutines.resume
 
-actual class GenAI(
+actual class PlatformGenAI(
     private val context: Context
-) {
+) : GenAI {
     private var llm: LlmInference? = null
     private var session: LlmInferenceSession? = null
 
-    actual fun initialize(config: GenAIConfig): Result<Unit> = try {
+    override fun initialize(config: GenAIConfig): Result<Unit> = try {
         if (config.modelPath.isBlank()) throw InvalidModelPathException()
 
         val options = LlmInference.LlmInferenceOptions.builder()
@@ -60,7 +60,7 @@ actual class GenAI(
         Result.failure(err)
     }
 
-    actual fun newSession(config: GenAIConfig.Session): Result<Unit> = try {
+    override fun newSession(config: GenAIConfig.Session): Result<Unit> = try {
         this.llm ?: throw NotInitializedException()
 
         val options = LlmInferenceSession.LlmInferenceSessionOptions.builder()
@@ -82,7 +82,7 @@ actual class GenAI(
         Result.failure(err)
     }
 
-    actual fun generate(request: GenAIRequest): Result<String> = try {
+    override fun generate(request: GenAIRequest): Result<String> = try {
         if (request.prompt.isBlank()) throw InvalidPromptException()
         val response = if (this.session == null) {
             val inference = this.llm ?: throw NotInitializedException()
@@ -95,7 +95,7 @@ actual class GenAI(
         Result.failure(err)
     }
 
-    actual fun generateFlow(request: GenAIRequest): Flow<String> = callbackFlow {
+    override fun generateFlow(request: GenAIRequest): Flow<String> = callbackFlow {
         if (request.prompt.isBlank()) throw InvalidPromptException()
 
         val listener = { partialResult: String?, done: Boolean ->
@@ -121,12 +121,12 @@ actual class GenAI(
         }
     }
 
-    actual fun close() {
+    override fun close() {
         this.session?.close()
         this.session = null
     }
 
-    actual fun cancel() {
+    override fun cancel() {
         this.session?.cancelGenerateResponseAsync()
     }
 

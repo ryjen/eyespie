@@ -1,9 +1,9 @@
 package com.micrantha.eyespie.core.data.ai.source
 
-class CluePromptSource {
+internal open class CluePromptSource {
 
     // TODO: remote prompts
-    fun clues() =  """
+    open fun clues() =  """
             Analyze this image for a game of 'I Spy'. Generate a maximum of 3 distinct clues.
                         
             For each clue:
@@ -29,7 +29,7 @@ class CluePromptSource {
             0.95
        """
 
-    fun guess(clue: String) = """
+    open fun guess(clue: String) = """
         You are playing a game of "I Spy." 
         
         Clue: $clue

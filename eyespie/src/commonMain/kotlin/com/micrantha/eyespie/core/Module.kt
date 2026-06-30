@@ -11,21 +11,33 @@ import com.micrantha.bluebell.observability.usecase.FlushOfflineUsageToSupabase
 import com.micrantha.eyespie.core.data.account.AccountDataRepository
 import com.micrantha.eyespie.core.data.account.model.CurrentSession
 import com.micrantha.eyespie.core.data.account.source.AccountRemoteSource
+import com.micrantha.eyespie.core.data.account.source.SupabaseAccountRemoteSource
 import com.micrantha.eyespie.core.data.ai.ClueDataRepository
 import com.micrantha.eyespie.core.data.ai.source.CluePromptSource
 import com.micrantha.eyespie.core.data.client.SupaClient
 import com.micrantha.eyespie.core.data.client.SupaRealtimeClient
+import com.micrantha.eyespie.core.data.db.DatabaseDriverFactory
+import com.micrantha.eyespie.data.EyesPieDatabase
 import com.micrantha.eyespie.core.data.observability.SupabaseInsertClientAdapter
 import com.micrantha.eyespie.core.data.storage.StorageDataRepository
 import com.micrantha.eyespie.core.data.storage.source.CacheLocalSource
+import com.micrantha.eyespie.core.data.storage.source.DefaultCacheLocalSource
 import com.micrantha.eyespie.core.data.storage.source.PreferencesLocalSource
 import com.micrantha.eyespie.core.data.storage.source.StorageRemoteSource
+import com.micrantha.eyespie.core.data.storage.source.SupabaseStorageRemoteSource
 import com.micrantha.eyespie.core.data.system.LocationDataRepository
 import com.micrantha.eyespie.core.data.system.RealtimeDataRepository
 import com.micrantha.eyespie.core.data.system.mapping.LocationDomainMapper
 import com.micrantha.eyespie.core.data.system.mapping.RealtimeDomainMapper
 import com.micrantha.eyespie.core.data.system.source.LocationLocalSource
+import com.micrantha.eyespie.core.data.system.source.MokoLocationLocalSource
 import com.micrantha.eyespie.core.data.system.source.RealtimeRemoteSource
+import com.micrantha.eyespie.core.data.system.source.SupabaseRealtimeRemoteSource
+import com.micrantha.eyespie.domain.repository.AccountRepository
+import com.micrantha.eyespie.domain.repository.ClueRepository
+import com.micrantha.eyespie.domain.repository.LocationRepository
+import com.micrantha.eyespie.domain.repository.RealtimeRepository
+import com.micrantha.eyespie.domain.repository.StorageRepository
 import dev.icerock.moko.geo.LocationTracker
 import okio.FileSystem as OkioFileSystem
 import okio.Path.Companion.toPath
@@ -42,26 +54,38 @@ internal fun module() = DI.Module("Core Feature") {
     bindSingletonOf(::SupaClient)
     bindSingletonOf(::SupaRealtimeClient)
 
-    bindProviderOf(::AccountRemoteSource)
+    bindSingleton {
+        EyesPieDatabase(instance<DatabaseDriverFactory>().createDriver())
+    }
+
+    bindProviderOf(::SupabaseAccountRemoteSource)
+    delegate<AccountRemoteSource>().to<SupabaseAccountRemoteSource>()
     bindProviderOf(::AccountDataRepository)
+    delegate<AccountRepository>().to<AccountDataRepository>()
 
     bindSingleton { CurrentSession }
 
-    bindProviderOf(::CacheLocalSource)
-    bindProviderOf(::StorageRemoteSource)
+    bindProviderOf(::DefaultCacheLocalSource)
+    delegate<CacheLocalSource>().to<DefaultCacheLocalSource>()
+    bindProviderOf(::SupabaseStorageRemoteSource)
+    delegate<StorageRemoteSource>().to<SupabaseStorageRemoteSource>()
     bindProviderOf(::StorageDataRepository)
+    delegate<StorageRepository>().to<StorageDataRepository>()
     bindSingletonOf(::PreferencesLocalSource)
 
     bindProviderOf(::LocationDomainMapper)
+    bindProvider { MokoLocationLocalSource(instance<LocationTracker>()) }
+    delegate<LocationLocalSource>().to<MokoLocationLocalSource>()
     bindProviderOf(::LocationDataRepository)
+    delegate<LocationRepository>().to<LocationDataRepository>()
+    bindProviderOf(::SupabaseRealtimeRemoteSource)
+    delegate<RealtimeRemoteSource>().to<SupabaseRealtimeRemoteSource>()
     bindProviderOf(::RealtimeDataRepository)
-    bindProviderOf(::RealtimeRemoteSource)
     bindProviderOf(::RealtimeDomainMapper)
 
     bindProvider { ClueDataRepository(get(), get()) }
+    delegate<ClueRepository>().to<ClueDataRepository>()
     bindProviderOf(::CluePromptSource)
-
-    delegate<LocationLocalSource>().to<LocationTracker>()
 
     bindSingletonOf(::SupabaseInsertClientAdapter)
     bindSingleton<SupabaseInsertClient> { instance<SupabaseInsertClientAdapter>() }

@@ -4,10 +4,20 @@ import com.micrantha.eyespie.core.data.client.SupaClient
 import com.micrantha.eyespie.domain.entities.Location
 import com.micrantha.eyespie.features.players.data.model.PlayerResponse
 
-internal open class PlayerRemoteSource(
+internal interface PlayerRemoteSource {
+    suspend fun players(): Result<List<PlayerResponse>>
+
+    suspend fun player(id: String): Result<PlayerResponse>
+
+    suspend fun create(userId: String, firstName: String, lastName: String, nickName: String): Result<Unit>
+
+    suspend fun nearby(location: Location.Point): Result<List<PlayerResponse>>
+}
+
+internal class SupabasePlayerRemoteSource(
     private val supaClient: SupaClient
-) {
-    suspend fun players() = try {
+) : PlayerRemoteSource {
+    override suspend fun players() = try {
         val result = supaClient.players().select()
             .decodeList<PlayerResponse>()
         Result.success(result)
@@ -15,7 +25,7 @@ internal open class PlayerRemoteSource(
         Result.failure(err)
     }
 
-    suspend fun player(id: String) = try {
+    override suspend fun player(id: String) = try {
         val player = supaClient.players().select {
             filter {
                 eq("user_id", id)
@@ -27,7 +37,7 @@ internal open class PlayerRemoteSource(
         Result.failure(err)
     }
 
-    suspend fun create(userId: String, firstName: String, lastName: String, nickName: String) =
+    override suspend fun create(userId: String, firstName: String, lastName: String, nickName: String) =
         try {
             supaClient.players().insert(
                 mapOf(
@@ -42,7 +52,7 @@ internal open class PlayerRemoteSource(
             Result.failure(err)
         }
 
-    suspend fun nearby(location: Location.Point) = try {
+    override suspend fun nearby(location: Location.Point) = try {
         val result = supaClient.players().select {
             filter {
                 eq("location", location)

@@ -26,7 +26,7 @@ object CurrentSession {
         player = player?.copy(location = value)
     }
 
-    val isValid = data.value != null
+    val isValid: Boolean get() = data.value != null
 
     fun requireAccessToken() = data.value!!.accessToken
 
@@ -38,7 +38,7 @@ object CurrentSession {
 
     fun asStateFlow() = data.asStateFlow()
 
-    val userId: String? = data.value?.userId
+    val userId: String? get() = data.value?.userId
 
-    val sessionId: String? = data.value?.id
+    val sessionId: String? get() = data.value?.id
 }

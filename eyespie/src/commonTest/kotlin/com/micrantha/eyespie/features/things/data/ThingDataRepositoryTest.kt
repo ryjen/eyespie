@@ -6,45 +6,47 @@ import com.micrantha.eyespie.features.things.data.model.MatchRequest
 import com.micrantha.eyespie.features.things.data.model.MatchResponse
 import com.micrantha.eyespie.features.things.data.model.NearbyRequest
 import com.micrantha.eyespie.features.things.data.model.ThingData
+import com.micrantha.eyespie.features.things.data.model.ThingListing
 import com.micrantha.eyespie.features.things.data.model.ThingRequest
 import com.micrantha.eyespie.features.things.data.model.ThingResponse
 import com.micrantha.eyespie.features.things.data.source.ThingsLocalSource
 import com.micrantha.eyespie.features.things.data.source.ThingsRemoteSource
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
 class ThingDataRepositoryTest {
 
-    private class FakeRemoteSource : ThingsRemoteSource {
-        var thingsResult: Result<List<ThingData>> = Result.success(emptyList())
-        var thingsCalled = 0
+    private class FakeThingsRemoteSource : ThingsRemoteSource {
+        var thingsResult: Result<List<ThingListing>> = Result.success(emptyList())
+        var saveResult: Result<ThingResponse> = Result.failure(Exception("Not implemented"))
+        var thingResult: Result<ThingResponse> = Result.failure(Exception("Not found"))
+        var nearbyResult: Result<List<ThingResponse>> = Result.success(emptyList())
+        var matchResult: Result<List<MatchResponse>> = Result.success(emptyList())
 
-        override suspend fun things(playerID: String): Result<List<ThingData>> {
-            thingsCalled++
-            return thingsResult
-        }
-
-        override suspend fun save(data: ThingRequest): Result<ThingResponse> = TODO()
-        override suspend fun thing(thingID: String): Result<ThingResponse> = TODO()
-        override suspend fun nearby(request: NearbyRequest): Result<List<ThingResponse>> = TODO()
-        override suspend fun match(request: MatchRequest): Result<List<MatchResponse>> = TODO()
+        override suspend fun save(data: ThingRequest) = saveResult
+        override suspend fun things(playerID: String) = thingsResult
+        override suspend fun thing(thingID: String) = thingResult
+        override suspend fun nearby(request: NearbyRequest) = nearbyResult
+        override suspend fun match(request: MatchRequest) = matchResult
     }
 
-    private class FakeLocalSource : ThingsLocalSource {
-        var savedThings: List<ThingData>? = null
-        var getAllResult: Result<List<ThingData>> = Result.success(emptyList())
+    private class FakeThingsLocalSource : ThingsLocalSource {
+        var things: List<ThingData> = emptyList()
+        var saveAllCalledWith: List<ThingData>? = null
+
+        override fun getAll(): Result<List<ThingData>> = Result.success(things)
 
         override fun saveAll(things: List<ThingData>): Result<Unit> {
-            savedThings = things
+            saveAllCalledWith = things
+            this.things = things
             return Result.success(Unit)
         }
-
-        override fun getAll(): Result<List<ThingData>> = getAllResult
     }
 
-    private val remoteSource = FakeRemoteSource()
-    private val localSource = FakeLocalSource()
+    private val remoteSource = FakeThingsRemoteSource()
+    private val localSource = FakeThingsLocalSource()
     private val mapper = ThingsDomainMapper(LocationDomainMapper())
     private val repository = ThingDataRepository(remoteSource, localSource, mapper)
 
@@ -56,22 +58,19 @@ class ThingDataRepositoryTest {
 
         repository.things(playerID)
 
-        assertTrue(remoteSource.thingsCalled == 1)
-        assertTrue(localSource.savedThings == remoteThings)
+        assertEquals(remoteThings, localSource.saveAllCalledWith)
     }
 
     @Test
     fun `things should fallback to local when remote fails`() = runTest {
         val playerID = "user123"
         val localThings = listOf(ThingData(id = "1", imageUrl = "", createdBy = playerID))
-
+        localSource.things = localThings
         remoteSource.thingsResult = Result.failure(Exception("Network error"))
-        localSource.getAllResult = Result.success(localThings)
 
         val result = repository.things(playerID)
 
-        assertTrue(remoteSource.thingsCalled == 1)
         assertTrue(result.isSuccess)
-        assertTrue(result.getOrNull()?.size == 1)
+        assertEquals(1, result.getOrNull()?.size)
     }
 }

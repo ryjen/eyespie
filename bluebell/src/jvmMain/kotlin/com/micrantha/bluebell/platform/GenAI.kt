@@ -3,19 +3,19 @@ package com.micrantha.bluebell.platform
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.emptyFlow
 
-actual class GenAI {
-    actual fun initialize(config: GenAIConfig): Result<Unit> =
+actual class PlatformGenAI : GenAI {
+    override fun initialize(config: GenAIConfig): Result<Unit> =
         Result.failure(UnsupportedOperationException("GenAI not available on JVM"))
 
-    actual fun newSession(config: GenAIConfig.Session): Result<Unit> =
+    override fun newSession(config: GenAIConfig.Session): Result<Unit> =
         Result.failure(UnsupportedOperationException("GenAI not available on JVM"))
 
-    actual fun generate(request: GenAIRequest): Result<String> =
+    override fun generate(request: GenAIRequest): Result<String> =
         Result.failure(UnsupportedOperationException("GenAI not available on JVM"))
 
-    actual fun generateFlow(request: GenAIRequest): Flow<String> = emptyFlow()
+    override fun generateFlow(request: GenAIRequest): Flow<String> = emptyFlow()
 
-    actual fun close() = Unit
+    override fun close() = Unit
 
-    actual fun cancel() = Unit
+    override fun cancel() = Unit
 }

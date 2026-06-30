@@ -5,13 +5,19 @@ import com.micrantha.bluebell.get
 import com.micrantha.bluebell.platform.AndroidNetworkMonitor
 import com.micrantha.bluebell.platform.BackgroundDownloader
 import com.micrantha.bluebell.platform.GenAI
+import com.micrantha.bluebell.platform.PlatformGenAI
 import com.micrantha.bluebell.platform.Platform
+import com.micrantha.eyespie.core.data.db.DatabaseDriverFactory
 import com.micrantha.eyespie.platform.scan.LoadCameraImageUseCase
 import org.kodein.di.DI
 import org.kodein.di.bindFactory
 import org.kodein.di.bindInstance
 import org.kodein.di.bindProviderOf
+import org.kodein.di.bindSingleton
 import org.kodein.di.bindSingletonOf
+import org.kodein.di.delegate
+import org.kodein.di.instance
+import org.kodein.di.instance
 
 fun androidDependencies(
     context: Context,
@@ -20,11 +26,14 @@ fun androidDependencies(
 
     bindSingletonOf(::Platform)
 
+    bindSingleton { DatabaseDriverFactory(instance()) }
+
     bindProviderOf(::AndroidNetworkMonitor)
 
     bindProviderOf(::LoadCameraImageUseCase)
 
-    bindSingletonOf(::GenAI)
+    bindSingleton { PlatformGenAI(instance()) }
+    delegate<GenAI>().to<PlatformGenAI>()
 
     bindFactory { namespace: String ->
         BackgroundDownloader(

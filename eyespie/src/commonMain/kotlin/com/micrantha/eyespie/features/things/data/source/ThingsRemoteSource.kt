@@ -10,18 +10,21 @@ import com.micrantha.eyespie.features.things.data.model.ThingRequest
 import com.micrantha.eyespie.features.things.data.model.ThingResponse
 import io.github.jan.supabase.postgrest.query.Columns
 
-interface ThingsRemoteSource {
+internal interface ThingsRemoteSource {
     suspend fun save(data: ThingRequest): Result<ThingResponse>
+
     suspend fun things(playerID: String): Result<List<ThingListing>>
+
     suspend fun thing(thingID: String): Result<ThingResponse>
+
     suspend fun nearby(request: NearbyRequest): Result<List<ThingResponse>>
+
     suspend fun match(request: MatchRequest): Result<List<MatchResponse>>
 }
 
-class ThingsRemoteSourceImpl(
+internal class SupabaseThingsRemoteSource(
     private val supaClient: SupaClient,
 ) : ThingsRemoteSource {
-
     override suspend fun save(data: ThingRequest) = try {
         val result = supaClient.things().insert(data).decodeList<ThingResponse>()
         Result.success(result.first())

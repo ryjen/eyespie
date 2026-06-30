@@ -29,7 +29,7 @@ data class GenAIRequest(
     val images: List<String>
 )
 
-expect class GenAI {
+interface GenAI {
 
     fun initialize(config: GenAIConfig): Result<Unit>
 
@@ -43,3 +43,5 @@ expect class GenAI {
 
     fun cancel()
 }
+
+expect class PlatformGenAI : GenAI

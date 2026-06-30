@@ -13,7 +13,7 @@ sealed class SystemEvent(
     override val timestamp: Instant = Clock.System.now(),
     override val userId: String? = null,
     override val sessionId: String? = null,
-    override val schema: SchemaVersion = SchemaVersion("eyespie.system", 1)
+    override val schema: SchemaVersion = SchemaVersion("bluebell.system", 1)
 ) : TelemetryEvent {
 
     data class Crash(override val eventId: String = Uuid.random().toString()) : SystemEvent(eventId = eventId)

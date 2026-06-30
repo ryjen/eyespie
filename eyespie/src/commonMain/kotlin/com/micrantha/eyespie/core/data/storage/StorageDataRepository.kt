@@ -6,7 +6,7 @@ import com.micrantha.eyespie.domain.repository.StorageRepository
 
 private const val imagesBucketID = "images"
 
-class StorageDataRepository(
+internal class StorageDataRepository(
     private val remoteSource: StorageRemoteSource,
     private val localSource: CacheLocalSource
 ) : StorageRepository {

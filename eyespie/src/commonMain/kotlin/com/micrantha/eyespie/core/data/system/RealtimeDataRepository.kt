@@ -5,7 +5,7 @@ import com.micrantha.eyespie.core.data.system.source.RealtimeRemoteSource
 import com.micrantha.eyespie.domain.repository.RealtimeRepository
 import kotlinx.coroutines.flow.map
 
-class RealtimeDataRepository(
+internal class RealtimeDataRepository(
     private val remoteSource: RealtimeRemoteSource,
     private val mapper: RealtimeDomainMapper
 ) : RealtimeRepository {

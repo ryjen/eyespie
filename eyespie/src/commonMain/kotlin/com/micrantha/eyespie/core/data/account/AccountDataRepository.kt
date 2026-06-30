@@ -7,7 +7,7 @@ import com.micrantha.eyespie.domain.repository.AccountRepository
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
-class AccountDataRepository(
+internal class AccountDataRepository(
     private val remoteSource: AccountRemoteSource,
     private val currentSession: CurrentSession,
 ) : AccountRepository {

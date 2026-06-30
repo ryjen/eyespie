@@ -7,6 +7,7 @@ plugins {
     alias(libs.plugins.kotlinSerialization)
     alias(libs.plugins.compose.compiler)
     alias(libs.plugins.roborazzi)
+    alias(libs.plugins.sqldelight)
     id("com.micrantha.bluebell")
 }
 
@@ -102,6 +103,8 @@ kotlin {
             implementation(libs.datastore)
             implementation(libs.datastore.preferences)
 
+            implementation(libs.sqldelight.coroutines)
+
             //implementation("ca.rmen:rhymer:1.2.0")
 
             //implementation("org.hashids:hashids:1.0.3")
@@ -141,9 +144,12 @@ kotlin {
 
             implementation(libs.compose.ui.tooling)
             implementation(libs.compose.ui.tooling.preview)
+
+            implementation(libs.sqldelight.android.driver)
         }
 
         iosMain.dependencies {
+            implementation(libs.sqldelight.native.driver)
         }
 
         val androidUnitTest by getting {
@@ -226,6 +232,15 @@ android {
             keyPassword = System.getenv("ANDROID_KEY_PASSWORD")
         }
     }
+
+    sqldelight {
+        databases {
+            create("EyesPieDatabase") {
+                packageName.set("com.micrantha.eyespie.data")
+            }
+        }
+    }
+
     buildTypes {
         debug {
             applicationIdSuffix = ".debug"

@@ -9,7 +9,7 @@ import com.micrantha.eyespie.features.things.data.source.ThingsLocalSource
 import com.micrantha.eyespie.features.things.data.source.ThingsRemoteSource
 import com.micrantha.eyespie.domain.repository.ThingRepository as DomainRepository
 
-class ThingDataRepository(
+internal class ThingDataRepository(
     private val remoteSource: ThingsRemoteSource,
     private val localSource: ThingsLocalSource,
     private val mapper: ThingsDomainMapper

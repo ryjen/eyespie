@@ -18,7 +18,7 @@ import okio.Path
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.minutes
 
-class ClueDataRepository(
+internal class ClueDataRepository(
     private val llm: GenAI,
     private val cluePromptSource: CluePromptSource,
     private val timeout: Duration = 1.minutes

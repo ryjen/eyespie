@@ -13,7 +13,7 @@ sealed class AuditEvent(
     override val timestamp: Instant = Clock.System.now(),
     override val userId: String? = null,
     override val sessionId: String? = null,
-    override val schema: SchemaVersion = SchemaVersion("eyespie.audit", 1)
+    override val schema: SchemaVersion = SchemaVersion("bluebell.audit", 1)
 ) : TelemetryEvent {
     data class UserAction(override val eventId: String = Uuid.random().toString()) : AuditEvent(eventId = eventId)
     data class DataAccess(override val eventId: String = Uuid.random().toString()) : AuditEvent(eventId = eventId)

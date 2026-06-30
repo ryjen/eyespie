@@ -15,7 +15,7 @@ import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.updateAndGet
 
-class LocationDataRepository(
+internal class LocationDataRepository(
     private val localSource: LocationLocalSource,
     private val currentSession: CurrentSession,
     //private val geocodeSource: GeoCodeSource,

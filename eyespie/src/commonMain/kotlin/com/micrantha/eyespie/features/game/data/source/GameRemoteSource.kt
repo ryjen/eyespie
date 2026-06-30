@@ -1,13 +1,19 @@
 package com.micrantha.eyespie.features.game.data.source
 
-import com.micrantha.bluebell.observability.logger
 import com.micrantha.eyespie.core.data.client.SupaClient
+import com.micrantha.eyespie.graphql.GameListQuery
+import com.micrantha.eyespie.graphql.GameNodeQuery
 
-class GameRemoteSource(
+internal interface GameRemoteSource {
+    suspend fun games(): Result<List<GameListQuery.Node>>
+    suspend fun game(id: String): Result<GameNodeQuery.GameNode>
+}
+
+internal class SupabaseGameRemoteSource(
     private val client: SupaClient
-) {
+) : GameRemoteSource {
 
-    suspend fun games() = try {
+    override suspend fun games() = try {
         val games = client.games().execute()
             .dataAssertNoErrors.games!!.edges!!.filterNotNull()
             .map { it.node }
@@ -16,7 +22,7 @@ class GameRemoteSource(
         Result.failure(e)
     }
 
-    suspend fun game(id: String) = try {
+    override suspend fun game(id: String) = try {
         val game = with(client.game(id).execute()) {
             dataAssertNoErrors.gameNode!!
         }

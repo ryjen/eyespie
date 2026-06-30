@@ -4,7 +4,7 @@ import com.micrantha.eyespie.features.game.data.mapping.GameDomainMapper
 import com.micrantha.eyespie.features.game.data.source.GameRemoteSource
 import com.micrantha.eyespie.domain.repository.GameRepository as DomainRepository
 
-class GameDataRepository(
+internal class GameDataRepository(
     private val remoteSource: GameRemoteSource,
     private val mapper: GameDomainMapper
 ) : DomainRepository {
