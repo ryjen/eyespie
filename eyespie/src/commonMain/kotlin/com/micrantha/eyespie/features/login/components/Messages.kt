@@ -14,16 +14,16 @@ import org.jetbrains.compose.resources.stringResource
 
 @Composable
 fun Messages(state: LoginUiState, dispatch: Dispatch) {
-        state.status.error?.let {
-            Text(
-                text = stringResource(it),
-                fontStyle = FontStyle.Italic,
-                color = MaterialTheme.colorScheme.error
-            )
+    state.status.error?.let {
+        Text(
+            text = stringResource(it),
+            fontStyle = FontStyle.Italic,
+            color = MaterialTheme.colorScheme.error
+        )
 
-            LaunchedEffect(Unit) {
-                delay(5000)
-                dispatch(LoginAction.ResetStatus)
-            }
+        LaunchedEffect(Unit) {
+            delay(5000)
+            dispatch(LoginAction.ResetStatus)
         }
     }
+}

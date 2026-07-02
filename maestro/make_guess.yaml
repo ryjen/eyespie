@@ -1,0 +1,8 @@
+appId: com.micrantha.eyespie.debug
+---
+- runScript: login_flow.yaml
+- tapOn: "Games"
+- tapOn: "Test Game" # Assuming a game with this title exists
+- tapOn: "Things"
+- tapOn: "2023-01-01 00:00:00" # Assuming a thing with this date exists
+- assertVisible: "Camera"

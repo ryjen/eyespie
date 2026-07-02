@@ -1,13 +1,14 @@
 package com.micrantha.eyespie.core
 
+
 import com.micrantha.bluebell.get
-import com.micrantha.bluebell.observability.domain.*
-import com.micrantha.bluebell.observability.entity.*
-import com.micrantha.bluebell.observability.repository.*
-import com.micrantha.bluebell.platform.Platform
+import com.micrantha.bluebell.observability.domain.SupabaseInsertClient
+import com.micrantha.bluebell.observability.domain.UsageObservability
+import com.micrantha.bluebell.observability.repository.DefaultDestinationContextProvider
+import com.micrantha.bluebell.observability.repository.OfflineSupabaseUsageObservability
+import com.micrantha.bluebell.observability.repository.OkioJsonLinesDiskCache
 import com.micrantha.bluebell.observability.usecase.FlushOfflineUsageToSupabase
-
-
+import com.micrantha.bluebell.platform.Platform
 import com.micrantha.eyespie.core.data.account.AccountDataRepository
 import com.micrantha.eyespie.core.data.account.model.CurrentSession
 import com.micrantha.eyespie.core.data.account.source.AccountRemoteSource
@@ -17,7 +18,6 @@ import com.micrantha.eyespie.core.data.ai.source.CluePromptSource
 import com.micrantha.eyespie.core.data.client.SupaClient
 import com.micrantha.eyespie.core.data.client.SupaRealtimeClient
 import com.micrantha.eyespie.core.data.db.DatabaseDriverFactory
-import com.micrantha.eyespie.data.EyesPieDatabase
 import com.micrantha.eyespie.core.data.observability.SupabaseInsertClientAdapter
 import com.micrantha.eyespie.core.data.storage.StorageDataRepository
 import com.micrantha.eyespie.core.data.storage.source.CacheLocalSource
@@ -33,13 +33,12 @@ import com.micrantha.eyespie.core.data.system.source.LocationLocalSource
 import com.micrantha.eyespie.core.data.system.source.MokoLocationLocalSource
 import com.micrantha.eyespie.core.data.system.source.RealtimeRemoteSource
 import com.micrantha.eyespie.core.data.system.source.SupabaseRealtimeRemoteSource
+import com.micrantha.eyespie.data.EyesPieDatabase
 import com.micrantha.eyespie.domain.repository.AccountRepository
 import com.micrantha.eyespie.domain.repository.ClueRepository
 import com.micrantha.eyespie.domain.repository.LocationRepository
-import com.micrantha.eyespie.domain.repository.RealtimeRepository
 import com.micrantha.eyespie.domain.repository.StorageRepository
 import dev.icerock.moko.geo.LocationTracker
-import okio.FileSystem as OkioFileSystem
 import okio.Path.Companion.toPath
 import okio.SYSTEM
 import org.kodein.di.DI
@@ -49,6 +48,7 @@ import org.kodein.di.bindSingleton
 import org.kodein.di.bindSingletonOf
 import org.kodein.di.delegate
 import org.kodein.di.instance
+import okio.FileSystem as OkioFileSystem
 
 internal fun module() = DI.Module("Core Feature") {
     bindSingletonOf(::SupaClient)

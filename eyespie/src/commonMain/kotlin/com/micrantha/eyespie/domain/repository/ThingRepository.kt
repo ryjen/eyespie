@@ -6,7 +6,6 @@ import com.micrantha.eyespie.domain.entities.Proof
 import com.micrantha.eyespie.domain.entities.Thing
 import com.micrantha.eyespie.domain.entities.ThingList
 import com.micrantha.eyespie.domain.entities.ThingMatches
-import com.micrantha.eyespie.graphql.type.Player
 
 interface ThingRepository {
 

@@ -4,7 +4,7 @@ import com.micrantha.bluebell.arch.StateMapper
 import com.micrantha.eyespie.features.login.entities.LoginState
 import com.micrantha.eyespie.features.login.entities.LoginUiState
 
-class LoginMapper: StateMapper<LoginState, LoginUiState> {
+class LoginMapper : StateMapper<LoginState, LoginUiState> {
 
     companion object : StateMapper<LoginState, LoginUiState> {
         private var uiState: LoginUiState? = null

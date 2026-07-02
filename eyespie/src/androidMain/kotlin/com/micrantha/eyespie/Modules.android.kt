@@ -5,8 +5,9 @@ import com.micrantha.bluebell.get
 import com.micrantha.bluebell.platform.AndroidNetworkMonitor
 import com.micrantha.bluebell.platform.BackgroundDownloader
 import com.micrantha.bluebell.platform.GenAI
-import com.micrantha.bluebell.platform.PlatformGenAI
 import com.micrantha.bluebell.platform.Platform
+import com.micrantha.bluebell.platform.PlatformImpl
+import com.micrantha.bluebell.platform.PlatformGenAI
 import com.micrantha.eyespie.core.data.db.DatabaseDriverFactory
 import com.micrantha.eyespie.platform.scan.LoadCameraImageUseCase
 import org.kodein.di.DI
@@ -17,14 +18,14 @@ import org.kodein.di.bindSingleton
 import org.kodein.di.bindSingletonOf
 import org.kodein.di.delegate
 import org.kodein.di.instance
-import org.kodein.di.instance
 
 fun androidDependencies(
     context: Context,
 ) = DI {
     bindInstance { context }
 
-    bindSingletonOf(::Platform)
+    bindSingletonOf(::PlatformImpl)
+    delegate<Platform>().to<PlatformImpl>()
 
     bindSingleton { DatabaseDriverFactory(instance()) }
 

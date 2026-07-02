@@ -15,28 +15,31 @@ class DatabaseRetryQueue(
         Result.success(Unit)
     }
 
-    override suspend fun addBatch(events: List<RetryableEvent>): Result<Unit> = withContext(Dispatchers.IO) {
-        Result.success(Unit)
-    }
+    override suspend fun addBatch(events: List<RetryableEvent>): Result<Unit> =
+        withContext(Dispatchers.IO) {
+            Result.success(Unit)
+        }
 
     override suspend fun update(event: RetryableEvent): Result<Unit> = withContext(Dispatchers.IO) {
 //        database.retryQueueDao().update(event.toEntity())
         Result.success(Unit)
     }
 
-    override suspend fun remove(eventIds: List<String>): Result<Unit> = withContext(Dispatchers.IO) {
+    override suspend fun remove(eventIds: List<String>): Result<Unit> =
+        withContext(Dispatchers.IO) {
 //        database.retryQueueDao().deleteByIds(eventIds)
-        Result.success(Unit)
-    }
+            Result.success(Unit)
+        }
 
     override suspend fun getReady(): List<RetryableEvent> = withContext(Dispatchers.IO) {
 //        database.retryQueueDao().getAll().map { it.toRetryableEvent() }
         emptyList()
     }
 
-    override suspend fun markFailed(eventId: String, error: Throwable): Result<Unit> = withContext(Dispatchers.IO) {
-        Result.success(Unit)
-    }
+    override suspend fun markFailed(eventId: String, error: Throwable): Result<Unit> =
+        withContext(Dispatchers.IO) {
+            Result.success(Unit)
+        }
 
     override suspend fun clear(): Result<Unit> = withContext(Dispatchers.IO) {
 //        database.retryQueueDao().deleteAll()
@@ -47,7 +50,6 @@ class DatabaseRetryQueue(
 
     override suspend fun isEmpty(): Boolean = true
 }
-
 
 
 /*

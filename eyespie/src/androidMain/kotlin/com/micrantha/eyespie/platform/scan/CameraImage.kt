@@ -18,7 +18,7 @@ import com.micrantha.bluebell.platform.toByteArray
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 
-actual class CameraImage @kotlin.OptIn(ExperimentalTime::class) constructor(
+actual class PlatformCameraImage @kotlin.OptIn(ExperimentalTime::class) constructor(
     private var _image: Image? = null,
     private var _bitmap: Bitmap? = null,
     private var _width: Int,
@@ -26,13 +26,13 @@ actual class CameraImage @kotlin.OptIn(ExperimentalTime::class) constructor(
     private var _rotation: Int? = null,
     private var _timestamp: Long = Clock.System.now().epochSeconds,
     private var regionOfInterest: RectF? = null,
-) {
+) : CameraImage {
 
     private var imageBitmapBuffer: Bitmap? = null
     private var mediaImage: MPImage? = null
 
-    actual val width get() = _width
-    actual val height get() = _height
+    override val width get() = _width
+    override val height get() = _height
 
     val timestamp get() = _timestamp
     val rotation get() = _rotation
@@ -68,9 +68,9 @@ actual class CameraImage @kotlin.OptIn(ExperimentalTime::class) constructor(
         mediaImage = null
     }
 
-    actual fun toImageBitmap() = toBitmap().asImageBitmap()
+    override fun toImageBitmap() = toBitmap().asImageBitmap()
 
-    actual fun toByteArray() = toBitmap().toByteArray()
+    override fun toByteArray() = toBitmap().toByteArray()
 
     val processingOptions: ImageProcessingOptions by lazy {
         ImageProcessingOptions.builder().apply {
@@ -112,7 +112,7 @@ actual class CameraImage @kotlin.OptIn(ExperimentalTime::class) constructor(
         return rotate(imageBitmapBuffer!!, rotation!!)
     }
 
-    fun resize(width: Int, height: Int): CameraImage {
+    fun resize(width: Int, height: Int): PlatformCameraImage {
         _width = width
         _height = height
         imageBitmapBuffer = toBitmap().scale(_width, _height, false)

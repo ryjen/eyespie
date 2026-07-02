@@ -23,7 +23,6 @@ class MemoryCache {
     }
 
 
-
     suspend fun getAll(limit: Int = Int.MAX_VALUE): List<TelemetryEvent> = lock.withLock {
         cache.values.take(limit).map { it.event }
     }

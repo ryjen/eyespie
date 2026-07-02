@@ -14,23 +14,23 @@ open class MutexMap<K, V> {
     suspend fun values(): List<V> = mutex.withLock {
         map.values.toList()
     }
-    
+
     suspend fun keys(): Set<K> = mutex.withLock {
         map.keys.toSet()
     }
-    
+
     suspend fun size(): Int = mutex.withLock {
         map.size
     }
-    
+
     suspend fun clear() = mutex.withLock {
         map.clear()
     }
-    
+
     suspend fun isEmpty(): Boolean = mutex.withLock {
         map.isEmpty()
     }
-    
+
     suspend fun containsKey(key: K): Boolean = mutex.withLock {
         map.containsKey(key)
     }

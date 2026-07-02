@@ -21,11 +21,11 @@ class LocationDataRepositoryTest {
         var stopTrackingCalled = false
 
         override fun getLocationsFlow(): Flow<LatLng> = flow.filterNotNull()
-        
+
         override suspend fun startTracking() {
             startTrackingCalled = true
         }
-        
+
         override fun stopTracking() {
             stopTrackingCalled = true
         }
@@ -38,7 +38,7 @@ class LocationDataRepositoryTest {
     @Test
     fun `start should track locations and update currentSession`() = runTest {
         val latLng = LatLng(1.0, 2.0)
-        
+
         val job = launch {
             repository.start()
         }
@@ -50,9 +50,9 @@ class LocationDataRepositoryTest {
             assertEquals(1.0, loc.point.latitude)
             assertEquals(2.0, loc.point.longitude)
         }
-        
+
         assertTrue(localSource.startTrackingCalled)
-        
+
         job.cancel()
     }
 }

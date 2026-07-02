@@ -24,8 +24,10 @@ class FlushOfflineUsageToSupabaseTest {
         val cache = OkioJsonLinesDiskCache(fs, path)
 
         // Two events to upload
-        cache.write(AnalyticsEvent.FeatureUsage(properties = mapOf("action" to "open"))).getOrThrow()
-        cache.write(AnalyticsEvent.FeatureUsage(properties = mapOf("action" to "close"))).getOrThrow()
+        cache.write(AnalyticsEvent.FeatureUsage(properties = mapOf("action" to "open")))
+            .getOrThrow()
+        cache.write(AnalyticsEvent.FeatureUsage(properties = mapOf("action" to "close")))
+            .getOrThrow()
 
         var inserted = 0
         val fakeSupabase = SupabaseInsertClient { _, rows ->

@@ -167,5 +167,7 @@ class InMemorySchemaRegistry : SchemaRegistry {
         PropertyType.ARRAY -> value is List<*>
     }
 }
-class SchemaAlreadyExistsException(val version: SchemaVersion) : ObservabilityException("Schema $version already exists")
+
+class SchemaAlreadyExistsException(val version: SchemaVersion) :
+    ObservabilityException("Schema $version already exists")
 

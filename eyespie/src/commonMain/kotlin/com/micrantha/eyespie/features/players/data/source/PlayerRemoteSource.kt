@@ -9,7 +9,12 @@ internal interface PlayerRemoteSource {
 
     suspend fun player(id: String): Result<PlayerResponse>
 
-    suspend fun create(userId: String, firstName: String, lastName: String, nickName: String): Result<Unit>
+    suspend fun create(
+        userId: String,
+        firstName: String,
+        lastName: String,
+        nickName: String
+    ): Result<Unit>
 
     suspend fun nearby(location: Location.Point): Result<List<PlayerResponse>>
 }
@@ -37,7 +42,12 @@ internal class SupabasePlayerRemoteSource(
         Result.failure(err)
     }
 
-    override suspend fun create(userId: String, firstName: String, lastName: String, nickName: String) =
+    override suspend fun create(
+        userId: String,
+        firstName: String,
+        lastName: String,
+        nickName: String
+    ) =
         try {
             supaClient.players().insert(
                 mapOf(

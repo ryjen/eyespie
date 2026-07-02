@@ -44,8 +44,8 @@ fun interface DestinationContextProvider {
 
 object DefaultDestinationContextProvider {
     @OptIn(ExperimentalTime::class)
-    fun create(): DestinationContextProvider = DestinationContextProvider { 
-        DestinationContext(timestamp = Clock.System.now()) 
+    fun create(): DestinationContextProvider = DestinationContextProvider {
+        DestinationContext(timestamp = Clock.System.now())
     }
 }
 

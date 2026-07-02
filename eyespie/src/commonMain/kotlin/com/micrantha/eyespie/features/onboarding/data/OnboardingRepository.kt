@@ -5,38 +5,44 @@ import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.stringPreferencesKey
 import kotlinx.coroutines.flow.first
 
-class OnboardingRepository(
+interface OnboardingRepository {
+    suspend fun setHasRunOnce(value: Boolean = true)
+    suspend fun hasRunOnce(): Boolean
+    suspend fun setGenAiModel(model: String)
+    suspend fun hasGenAI(): Boolean
+    suspend fun genAiModel(): String?
+}
+
+internal class DataOnboardingRepository(
     private val localSource: OnboardingLocalSource
-) {
-    val hasRunOnce = booleanPreferencesKey("has_run_once")
+) : OnboardingRepository {
+    private val hasRunOnceKey = booleanPreferencesKey("has_run_once")
+    private val genAiModelKey = stringPreferencesKey("model")
 
-    val genAiModel = stringPreferencesKey("model")
-
-    suspend fun setHasRunOnce(value: Boolean = true) {
+    override suspend fun setHasRunOnce(value: Boolean) {
         localSource.dataStore.edit { prefs ->
-            prefs[hasRunOnce] = value
+            prefs[hasRunOnceKey] = value
         }
     }
 
-    suspend fun hasRunOnce(): Boolean {
+    override suspend fun hasRunOnce(): Boolean {
         val prefs = localSource.dataStore.data.first()
-        return prefs[hasRunOnce] ?: false
+        return prefs[hasRunOnceKey] ?: false
     }
 
-    suspend fun setGenAiModel(model: String) {
+    override suspend fun setGenAiModel(model: String) {
         localSource.dataStore.edit { prefs ->
-            prefs[genAiModel] = model
+            prefs[genAiModelKey] = model
         }
     }
 
-    suspend fun hasGenAI(): Boolean {
+    override suspend fun hasGenAI(): Boolean {
         val prefs = localSource.dataStore.data.first()
-        return prefs[genAiModel].isNullOrBlank().not()
+        return prefs[genAiModelKey].isNullOrBlank().not()
     }
 
-    suspend fun genAiModel(): String? {
+    override suspend fun genAiModel(): String? {
         val prefs = localSource.dataStore.data.first()
-        return prefs[genAiModel]
+        return prefs[genAiModelKey]
     }
-
 }

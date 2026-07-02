@@ -16,12 +16,21 @@ sealed class SystemEvent(
     override val schema: SchemaVersion = SchemaVersion("bluebell.system", 1)
 ) : TelemetryEvent {
 
-    data class Crash(override val eventId: String = Uuid.random().toString()) : SystemEvent(eventId = eventId)
-    data class Error(override val eventId: String = Uuid.random().toString()) : SystemEvent(eventId = eventId)
+    data class Crash(override val eventId: String = Uuid.random().toString()) :
+        SystemEvent(eventId = eventId)
+
+    data class Error(override val eventId: String = Uuid.random().toString()) :
+        SystemEvent(eventId = eventId)
+
     data class Performance(
         override val eventId: String = Uuid.random().toString(),
         override val timestamp: Instant = Clock.System.now(),
         override val properties: Map<String, Any> = emptyMap(),
         override val schema: SchemaVersion = SchemaVersion("system.performance", 1)
-    ) : SystemEvent(eventId = eventId, timestamp = timestamp, properties = properties, schema = schema)
+    ) : SystemEvent(
+        eventId = eventId,
+        timestamp = timestamp,
+        properties = properties,
+        schema = schema
+    )
 }

@@ -18,16 +18,16 @@ import com.micrantha.bluebell.platform.FileSystem as BluebellFileSystem
 import com.micrantha.bluebell.platform.Locale as BluebellLocale
 
 
-actual class Platform(
+actual class PlatformImpl(
     private val context: Context,
-    actual val networkMonitor: NetworkMonitor,
-) : LocalizedRepository, BluebellFileSystem {
+    override val networkMonitor: NetworkMonitor,
+) : Platform {
 
-    actual val locale by lazy { BluebellLocale(context) }
+    override val locale by lazy { BluebellLocale(context) }
 
-    actual val name: String = "Android ${android.os.Build.VERSION.SDK_INT}"
+    override val name: String = "Android ${android.os.Build.VERSION.SDK_INT}"
 
-    actual override fun format(
+    override fun format(
         epochSeconds: Long,
         format: String,
         timeZone: String
@@ -40,17 +40,17 @@ actual class Platform(
         return date.format(formatter)
     }
 
-    actual override fun format(format: String, vararg args: Any): String {
+    override fun format(format: String, vararg args: Any): String {
         return String.format(locale.systemLocale, format, *args)
     }
 
-    actual fun resource(path: Path): BufferedSource {
+    override fun resource(path: Path): BufferedSource {
         val inputStream = object {}.javaClass.getResourceAsStream("/$path")
             ?: throw FileNotFoundException("Resource not found: $path")
         return inputStream.source().buffer()
     }
 
-    actual fun checksum(path: Path): String? {
+    override fun checksum(path: Path): String? {
 
         val file = path.toFile()
 
@@ -59,15 +59,15 @@ actual class Platform(
         return sha256(file.source())
     }
 
-    actual fun asset(path: Path): BufferedSource {
+    override fun asset(path: Path): BufferedSource {
         return context.assets.open(path.toString()).source().buffer()
     }
 
-    actual override fun filesPath(): Path {
+    override fun filesPath(): Path {
         return context.applicationContext.filesDir.absolutePath.toPath()
     }
 
-    actual override fun sharedFilesPath(): Path {
+    override fun sharedFilesPath(): Path {
         return context.applicationContext.getExternalFilesDir(null)!!.toOkioPath()
     }
 }

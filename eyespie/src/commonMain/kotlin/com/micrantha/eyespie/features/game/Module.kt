@@ -5,6 +5,8 @@ import com.micrantha.eyespie.domain.repository.GameRepository
 import com.micrantha.eyespie.features.game.data.GameDataRepository
 import com.micrantha.eyespie.features.game.data.mapping.GameDomainMapper
 import com.micrantha.eyespie.features.game.data.source.GameRemoteSource
+import com.micrantha.eyespie.features.game.data.source.GamesLocalSource
+import com.micrantha.eyespie.features.game.data.source.SqlGamesLocalSource
 import com.micrantha.eyespie.features.game.data.source.SupabaseGameRemoteSource
 import com.micrantha.eyespie.features.game.ui.create.GameCreateScreen
 import com.micrantha.eyespie.features.game.ui.create.GameCreateScreenModel
@@ -25,6 +27,8 @@ internal fun module() = DI.Module("Game") {
     bindProviderOf(::GameDomainMapper)
     bindProviderOf(::SupabaseGameRemoteSource)
     delegate<GameRemoteSource>().to<SupabaseGameRemoteSource>()
+    bindProviderOf(::SqlGamesLocalSource)
+    delegate<GamesLocalSource>().to<SqlGamesLocalSource>()
     bindProviderOf(::GameDataRepository)
     delegate<GameRepository>().to<GameDataRepository>()
 

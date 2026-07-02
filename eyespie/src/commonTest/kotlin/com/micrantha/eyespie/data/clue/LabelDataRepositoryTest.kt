@@ -65,7 +65,7 @@ class LabelDataRepositoryTest {
         assertTrue(
             actual = parsed.any { (clue, answer) ->
                 clue.contains("round", ignoreCase = true) &&
-                answer.equals("Apple", ignoreCase = true)
+                        answer.equals("Apple", ignoreCase = true)
             },
             message = "Parsed clue and answer should match input triple",
         )

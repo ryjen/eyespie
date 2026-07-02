@@ -1,7 +1,7 @@
 package com.micrantha.eyespie.app.usecase
 
-import com.micrantha.bluebell.observability.logger
 import com.micrantha.bluebell.ext.then
+import com.micrantha.bluebell.observability.logger
 import com.micrantha.bluebell.ui.components.Router
 import com.micrantha.bluebell.ui.screen.ScreenContext
 import com.micrantha.bluebell.ui.screen.navigate
@@ -28,11 +28,14 @@ class LoadMainUseCase(
 
     suspend operator fun invoke(): Result<Unit> = try {
         session()
-            .then(::account)
-            .then(::newPlayer)
-            .then(::onboarding)
-            .then(::initGenAI)
-            .then(::dashboard)
+            .then { session -> account(session) }
+            .then { player -> newPlayer(player) }
+            .then { player -> onboarding(player) }
+            .then { player -> initGenAI(player) }
+            .then { dashboard(Unit) }
+            .recover { 
+                if (it is HandledException) Result.success(Unit) else Result.failure(it)
+            }.map { }
     } catch (err: Throwable) {
         log.error(err) { "unexpected error" }
         Result.failure(err)
@@ -42,10 +45,10 @@ class LoadMainUseCase(
         return if (
             onboardingRepository.hasRunOnce().not() ||
             (onboardingRepository.hasGenAI() && onboardingRepository.genAiModel().isNullOrBlank())
-            ) {
+        ) {
             context.navigate<OnboardingScreen>(Router.Options.Replace)
             log.debug { "onboarding new user" }
-            Result.failure(IllegalStateException())
+            Result.failure(HandledException("onboarding required"))
         } else {
             Result.success(input)
         }
@@ -55,21 +58,21 @@ class LoadMainUseCase(
         return accountRepository.session().onFailure {
             log.debug { "no existing session" }
             context.navigate<LoginScreen>(Router.Options.Replace)
-        }
+        }.mapCatching { it }.recover { throw HandledException("no session", it) }
     }
 
     private suspend fun account(session: Session): Result<Player?> {
         return loadSessionPlayerUseCase(session).onFailure {
-            log.debug { "not logged in"}
+            log.debug { "not logged in" }
             context.navigate<LoginScreen>(Router.Options.Replace)
-        }
+        }.recover { throw HandledException("account error", it) }
     }
 
     private fun newPlayer(player: Player?): Result<Player> {
         if (player == null) {
             log.debug { "new player" }
             context.navigate<NewPlayerScreen>(Router.Options.Replace)
-            return Result.failure(IllegalStateException())
+            return Result.failure(HandledException("new player required"))
         }
         return Result.success(player)
     }
@@ -83,6 +86,8 @@ class LoadMainUseCase(
         return initGenAIUseCase().onFailure {
             log.debug { "ai model not available" }
             context.navigate<GenAIDownloadScreen>(Router.Options.Replace)
-        }
+        }.recover { throw HandledException("genai error", it) }
     }
+
+    private class HandledException(message: String, cause: Throwable? = null) : Exception(message, cause)
 }

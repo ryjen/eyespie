@@ -20,7 +20,7 @@ class LoginEffects(
     private val context: ScreenContext,
     private val accountRepository: AccountRepository,
     private val loadMainUseCase: LoadMainUseCase,
-    ) : Effect<LoginState>,
+) : Effect<LoginState>,
     Dispatcher by context.dispatcher, Router by context.router {
 
     override suspend fun invoke(action: Action, state: LoginState) {

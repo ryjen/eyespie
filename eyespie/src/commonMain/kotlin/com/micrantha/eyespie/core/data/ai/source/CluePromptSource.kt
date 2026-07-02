@@ -3,7 +3,7 @@ package com.micrantha.eyespie.core.data.ai.source
 internal open class CluePromptSource {
 
     // TODO: remote prompts
-    open fun clues() =  """
+    open fun clues() = """
             Analyze this image for a game of 'I Spy'. Generate a maximum of 3 distinct clues.
                         
             For each clue:

@@ -6,7 +6,11 @@ import kotlin.time.Duration.Companion.days
 internal interface StorageRemoteSource {
     fun url(bucketID: String, path: String): Result<String>
     suspend fun download(bucketID: String, path: String): Result<ByteArray>
-    suspend fun upload(bucketId: String, path: String, data: ByteArray): Result<Pair<String, String>>
+    suspend fun upload(
+        bucketId: String,
+        path: String,
+        data: ByteArray
+    ): Result<Pair<String, String>>
 }
 
 internal class SupabaseStorageRemoteSource(

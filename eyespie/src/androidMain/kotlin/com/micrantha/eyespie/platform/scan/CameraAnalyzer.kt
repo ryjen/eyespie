@@ -18,7 +18,7 @@ class CameraAnalyzer(
 
     @androidx.annotation.OptIn(ExperimentalGetImage::class)
     override fun analyze(image: ImageProxy) {
-        val frame = CameraImage(
+        val frame = PlatformCameraImage(
             _image = image.image,
             _width = image.width,
             _height = image.height,

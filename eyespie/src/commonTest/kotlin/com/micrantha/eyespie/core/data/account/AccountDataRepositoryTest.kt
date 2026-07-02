@@ -41,9 +41,9 @@ class AccountDataRepositoryTest {
     @Test
     fun `isLoggedIn should return value from remoteSource`() = runTest {
         remoteSource.loggedIn = true
-        
+
         val result = repository.isLoggedIn()
-        
+
         assertTrue(result)
     }
 }

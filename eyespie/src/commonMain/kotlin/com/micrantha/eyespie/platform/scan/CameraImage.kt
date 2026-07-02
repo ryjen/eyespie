@@ -2,7 +2,7 @@ package com.micrantha.eyespie.platform.scan
 
 import androidx.compose.ui.graphics.ImageBitmap
 
-expect class CameraImage {
+interface CameraImage {
 
     val width: Int
     val height: Int
@@ -11,3 +11,5 @@ expect class CameraImage {
 
     fun toImageBitmap(): ImageBitmap
 }
+
+expect class PlatformCameraImage : CameraImage

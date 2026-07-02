@@ -115,18 +115,30 @@ actual class BackgroundDownloader(
                 etaInMilliSeconds: Long,
                 downloadedBytesPerSecond: Long
             ) {
-                trySend(DownloadState.Progress(
-                    download.identifier,
-                    download.progress,
-                    download.downloaded,
-                    download.total,
-                    etaInMilliSeconds,
-                    downloadedBytesPerSecond
-                ))
+                trySend(
+                    DownloadState.Progress(
+                        download.identifier,
+                        download.progress,
+                        download.downloaded,
+                        download.total,
+                        etaInMilliSeconds,
+                        downloadedBytesPerSecond
+                    )
+                )
             }
 
-            override fun onError(download: Download, error: com.tonyodev.fetch2.Error, throwable: Throwable?) {
-                trySend(DownloadState.Failed(download.identifier, Error(error.name, error.throwable), throwable))
+            override fun onError(
+                download: Download,
+                error: com.tonyodev.fetch2.Error,
+                throwable: Throwable?
+            ) {
+                trySend(
+                    DownloadState.Failed(
+                        download.identifier,
+                        Error(error.name, error.throwable),
+                        throwable
+                    )
+                )
             }
 
             override fun onPaused(download: Download) {

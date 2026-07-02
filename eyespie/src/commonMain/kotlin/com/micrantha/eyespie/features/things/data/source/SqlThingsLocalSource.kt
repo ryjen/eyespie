@@ -12,16 +12,17 @@ internal class SqlThingsLocalSource(
     private val queries = database.eyesPieQueries
 
     override fun getAll(): Result<List<ThingData>> = try {
-        val things = queries.selectAllThings { id, created_by, image_url, created_at, location, proof ->
-            ThingData(
-                id = id,
-                createdBy = created_by,
-                imageUrl = image_url,
-                createdAt = created_at,
-                location = location,
-                proof = proof?.let { json.parseToJsonElement(it) }
-            )
-        }.executeAsList()
+        val things =
+            queries.selectAllThings { id, created_by, image_url, created_at, location, proof ->
+                ThingData(
+                    id = id,
+                    createdBy = created_by,
+                    imageUrl = image_url,
+                    createdAt = created_at,
+                    location = location,
+                    proof = proof?.let { json.parseToJsonElement(it) }
+                )
+            }.executeAsList()
         Result.success(things)
     } catch (err: Throwable) {
         Result.failure(err)

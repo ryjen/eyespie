@@ -16,7 +16,7 @@ class ClueDataRepositoryTest {
 
     private class FakeGenAI : GenAI {
         var generateResult: Result<String> = Result.failure(Exception("Not set"))
-        
+
         override fun initialize(config: GenAIConfig) = Result.success(Unit)
         override fun newSession(config: GenAIConfig.Session) = Result.success(Unit)
         override fun generate(request: GenAIRequest) = generateResult

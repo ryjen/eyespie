@@ -23,7 +23,7 @@ internal class SupabaseAccountRemoteSource(
     override suspend fun account() = try {
         val session = client.auth().apply { loadFromStorage() }.currentSessionOrNull()!!
         val user = session.user!!
-        Result.success(AccountResponse(session.accessToken, session.refreshToken, user.id, ))
+        Result.success(AccountResponse(session.accessToken, session.refreshToken, user.id))
     } catch (e: Throwable) {
         Result.failure(e)
     }

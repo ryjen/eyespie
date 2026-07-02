@@ -16,6 +16,7 @@ sealed interface DownloadState {
         val etaInMillis: Long,
         val downloadedBytesPerSecond: Long
     ) : DownloadState
+
     data class Completed(override val id: Long) : DownloadState
     data class Paused(override val id: Long) : DownloadState
     data class Cancelled(override val id: Long) : DownloadState
@@ -25,6 +26,8 @@ sealed interface DownloadState {
     data class Deleted(override val id: Long) : DownloadState
     data class Failed(
         override val id: Long,
-        val error: Error, val throwable: Throwable?) : DownloadState
+        val error: Error, val throwable: Throwable?
+    ) : DownloadState
+
     data class WaitingNetwork(override val id: Long) : DownloadState
 }

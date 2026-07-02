@@ -35,16 +35,16 @@ import platform.CoreVideo.kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange
 import platform.ImageIO.CGImagePropertyOrientation
 
 @OptIn(ExperimentalForeignApi::class)
-actual data class CameraImage(
+actual class PlatformCameraImage(
     internal val data: CVImageBufferRef,
     val orientation: CGImagePropertyOrientation
-) {
-    actual val width by lazy { CVPixelBufferGetWidth(data).toInt() }
-    actual val height by lazy { CVPixelBufferGetHeight(data).toInt() }
+) : CameraImage {
+    override val width by lazy { CVPixelBufferGetWidth(data).toInt() }
+    override val height by lazy { CVPixelBufferGetHeight(data).toInt() }
 
     private var bytes: ByteArray? = null
 
-    actual fun toByteArray(): ByteArray {
+    override fun toByteArray(): ByteArray {
         if (bytes == null) {
             try {
                 CVPixelBufferLockBaseAddress(data, 0u)
@@ -144,5 +144,5 @@ actual data class CameraImage(
         return (b and 0xFFu) or ((g and 0xFFu) shl 8) or ((r and 0xFFu) shl 16)
     }
 
-    actual fun toImageBitmap(): ImageBitmap = toByteArray().toImageBitmap()
+    override fun toImageBitmap(): ImageBitmap = toByteArray().toImageBitmap()
 }

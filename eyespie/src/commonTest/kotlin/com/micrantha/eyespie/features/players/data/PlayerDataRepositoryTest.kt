@@ -25,7 +25,12 @@ class PlayerDataRepositoryTest {
 
         override suspend fun player(id: String) = playerResult
 
-        override suspend fun create(userId: String, firstName: String, lastName: String, nickName: String): Result<Unit> {
+        override suspend fun create(
+            userId: String,
+            firstName: String,
+            lastName: String,
+            nickName: String
+        ): Result<Unit> {
             createCalledWith = listOf(userId, firstName, lastName, nickName)
             return createResult
         }
@@ -53,7 +58,20 @@ class PlayerDataRepositoryTest {
 
     @Test
     fun `players should save to local on success`() = runTest {
-        val remotePlayers = listOf(PlayerResponse(id = "1", user_id = "u1", created_at = "2023-01-01T00:00:00Z", first_name = "f", last_name = "l", total_score = 0, nodeId = null, email = null, last_location = null, nick_name = null))
+        val remotePlayers = listOf(
+            PlayerResponse(
+                id = "1",
+                user_id = "u1",
+                created_at = "2023-01-01T00:00:00Z",
+                first_name = "f",
+                last_name = "l",
+                total_score = 0,
+                nodeId = null,
+                email = null,
+                last_location = null,
+                nick_name = null
+            )
+        )
         remoteSource.playersResult = Result.success(remotePlayers)
 
         repository.players()
@@ -63,7 +81,20 @@ class PlayerDataRepositoryTest {
 
     @Test
     fun `players should fallback to local on failure`() = runTest {
-        val localPlayers = listOf(PlayerResponse(id = "1", user_id = "u1", created_at = "2023-01-01T00:00:00Z", first_name = "f", last_name = "l", total_score = 0, nodeId = null, email = null, last_location = null, nick_name = null))
+        val localPlayers = listOf(
+            PlayerResponse(
+                id = "1",
+                user_id = "u1",
+                created_at = "2023-01-01T00:00:00Z",
+                first_name = "f",
+                last_name = "l",
+                total_score = 0,
+                nodeId = null,
+                email = null,
+                last_location = null,
+                nick_name = null
+            )
+        )
         localSource.players = localPlayers
         remoteSource.playersResult = Result.failure(Exception("Network error"))
 
@@ -75,7 +106,18 @@ class PlayerDataRepositoryTest {
 
     @Test
     fun `player by id should fetch from remote`() = runTest {
-        val player = PlayerResponse(id = "1", user_id = "u1", created_at = "2023-01-01T00:00:00Z", first_name = "f", last_name = "l", total_score = 0, nodeId = null, email = null, last_location = null, nick_name = null)
+        val player = PlayerResponse(
+            id = "1",
+            user_id = "u1",
+            created_at = "2023-01-01T00:00:00Z",
+            first_name = "f",
+            last_name = "l",
+            total_score = 0,
+            nodeId = null,
+            email = null,
+            last_location = null,
+            nick_name = null
+        )
         remoteSource.playerResult = Result.success(player)
 
         val result = repository.player("u1")
@@ -86,7 +128,18 @@ class PlayerDataRepositoryTest {
 
     @Test
     fun `create player should call remote source and fetch it`() = runTest {
-        val player = PlayerResponse(id = "1", user_id = "u1", created_at = "2023-01-01T00:00:00Z", first_name = "f", last_name = "l", total_score = 0, nodeId = null, email = null, last_location = null, nick_name = null)
+        val player = PlayerResponse(
+            id = "1",
+            user_id = "u1",
+            created_at = "2023-01-01T00:00:00Z",
+            first_name = "f",
+            last_name = "l",
+            total_score = 0,
+            nodeId = null,
+            email = null,
+            last_location = null,
+            nick_name = null
+        )
         remoteSource.createResult = Result.success(Unit)
         remoteSource.playerResult = Result.success(player)
 
@@ -98,7 +151,20 @@ class PlayerDataRepositoryTest {
 
     @Test
     fun `nearby should save to local on success`() = runTest {
-        val remotePlayers = listOf(PlayerResponse(id = "1", user_id = "u1", created_at = "2023-01-01T00:00:00Z", first_name = "f", last_name = "l", total_score = 0, nodeId = null, email = null, last_location = null, nick_name = null))
+        val remotePlayers = listOf(
+            PlayerResponse(
+                id = "1",
+                user_id = "u1",
+                created_at = "2023-01-01T00:00:00Z",
+                first_name = "f",
+                last_name = "l",
+                total_score = 0,
+                nodeId = null,
+                email = null,
+                last_location = null,
+                nick_name = null
+            )
+        )
         remoteSource.nearbyResult = Result.success(remotePlayers)
 
         repository.nearby(Location.Point(0.0, 0.0))

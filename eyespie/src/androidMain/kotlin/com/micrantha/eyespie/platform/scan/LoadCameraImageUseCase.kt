@@ -18,7 +18,7 @@ actual class LoadCameraImageUseCase(
         val image = context.contentResolver.openInputStream(uri).use {
             BitmapFactory.decodeStream(it)
         }
-        val result = CameraImage(
+        val result = PlatformCameraImage(
             _bitmap = image,
             _width = image.width,
             _height = image.height,

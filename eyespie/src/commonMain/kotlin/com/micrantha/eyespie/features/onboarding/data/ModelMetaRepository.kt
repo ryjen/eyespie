@@ -19,7 +19,7 @@ class ModelMetaRepository {
     suspend fun listModels(): Result<List<String>> =
         dispatchUseCase(Dispatchers.IO) {
             client.get("/?get=list&folders=*").bodyAsText().lines()
-    }
+        }
 
     suspend fun modelUrl(name: String): Result<String> =
         dispatchUseCase(Dispatchers.IO) {

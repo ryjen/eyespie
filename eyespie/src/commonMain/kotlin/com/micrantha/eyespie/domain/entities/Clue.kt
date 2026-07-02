@@ -2,7 +2,6 @@ package com.micrantha.eyespie.domain.entities
 
 import kotlinx.serialization.Serializable
 import okio.ByteString
-import okio.Path
 
 data class Proof(
     val clues: AiProof?,

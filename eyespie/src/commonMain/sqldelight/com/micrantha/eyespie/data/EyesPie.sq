@@ -23,6 +23,28 @@ SELECT * FROM PlayerEntity WHERE user_id = ?;
 deleteAllPlayers:
 DELETE FROM PlayerEntity;
 
+CREATE TABLE GameEntity (
+    id TEXT NOT NULL PRIMARY KEY,
+    title TEXT NOT NULL,
+    created_at TEXT NOT NULL,
+    expires_at TEXT,
+    creator_id TEXT NOT NULL,
+    player_count INTEGER NOT NULL DEFAULT 0
+);
+
+insertGame:
+INSERT OR REPLACE INTO GameEntity(id, title, created_at, expires_at, creator_id, player_count)
+VALUES (?, ?, ?, ?, ?, ?);
+
+selectAllGames:
+SELECT * FROM GameEntity;
+
+selectGameById:
+SELECT * FROM GameEntity WHERE id = ?;
+
+deleteAllGames:
+DELETE FROM GameEntity;
+
 CREATE TABLE ThingEntity (
     id TEXT NOT NULL PRIMARY KEY,
     created_by TEXT NOT NULL,

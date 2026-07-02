@@ -112,7 +112,7 @@ private fun BoxWithConstraintsScope.RenderCamera(
                 Icon(
                     imageVector = Icons.Default.PhotoCamera,
                     tint = MaterialTheme.colorScheme.onSurface,
-                    contentDescription = null
+                    contentDescription = "Capture"
                 )
             }
         }

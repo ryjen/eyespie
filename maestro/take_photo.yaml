@@ -1,0 +1,8 @@
+appId: com.micrantha.eyespie.debug
+---
+- runScript: login_flow.yaml
+- tapOn: "Scan New Thing"
+- tapOn: "Capture"
+- assertVisible: "Done"
+- tapOn: "Done"
+- assertVisible: "Scan New Thing"

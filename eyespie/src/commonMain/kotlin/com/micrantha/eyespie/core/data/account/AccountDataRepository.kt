@@ -14,7 +14,7 @@ internal class AccountDataRepository(
 
     @OptIn(ExperimentalUuidApi::class)
     override suspend fun session() = remoteSource.account()
-        .map{ data ->
+        .map { data ->
             Session(
                 accessToken = data.accessToken,
                 refreshToken = data.refreshToken,

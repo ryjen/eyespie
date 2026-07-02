@@ -10,14 +10,14 @@ data class GenAiDownloadState(
 )
 
 data class GenAiDownloadUiState(
-     val progress: Int,
-     val name: String?,
-     val status: UiResult<Unit>
+    val progress: Int,
+    val name: String?,
+    val status: UiResult<Unit>
 )
 
 sealed interface GenAiDownloadAction {
     data object Init : GenAiDownloadAction
-    data class Download(val name: String, val model: AiModel): GenAiDownloadAction
+    data class Download(val name: String, val model: AiModel) : GenAiDownloadAction
     data class Error(val cause: Throwable) : GenAiDownloadAction
     data object Done : GenAiDownloadAction
 }

@@ -4,7 +4,7 @@ import com.micrantha.bluebell.i18n.repository.LocalizedRepository
 import okio.BufferedSource
 import okio.Path
 
-expect class Platform : LocalizedRepository, FileSystem {
+interface Platform : LocalizedRepository, FileSystem {
     val name: String
 
     val networkMonitor: NetworkMonitor
@@ -29,3 +29,5 @@ expect class Platform : LocalizedRepository, FileSystem {
 
     override fun sharedFilesPath(): Path
 }
+
+expect class PlatformImpl : Platform

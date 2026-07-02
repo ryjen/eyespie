@@ -1,7 +1,7 @@
 package com.micrantha.eyespie.core.data.ai
 
-import com.micrantha.bluebell.observability.logger
 import com.micrantha.bluebell.observability.debug
+import com.micrantha.bluebell.observability.logger
 import com.micrantha.bluebell.platform.GenAI
 import com.micrantha.bluebell.platform.GenAIRequest
 import com.micrantha.eyespie.core.data.ai.source.CluePromptSource
@@ -58,20 +58,21 @@ internal class ClueDataRepository(
         }
 
 
-     fun infer(image: Path): Flow<AiProof> {
+    fun infer(image: Path): Flow<AiProof> {
         return llm.generateFlow(
             GenAIRequest(
                 prompt = cluePromptSource.clues(),
                 images = imageParam(image)
             )
         ).onEach(log::debug).catch {
-            log.error(it) {"unable to infer" }
+            log.error(it) { "unable to infer" }
         }.map(::toProof)
     }
 
-    private fun toProof(output: String) = output.lines().chunked(3).map { (clue, answer, confidence) ->
-        AiClue(
-            clue, confidence.toFloat(), answer
-        )
-    }.toSet()
+    private fun toProof(output: String) =
+        output.lines().chunked(3).map { (clue, answer, confidence) ->
+            AiClue(
+                clue, confidence.toFloat(), answer
+            )
+        }.toSet()
 }

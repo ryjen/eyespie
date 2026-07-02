@@ -22,8 +22,10 @@ class OkioJsonLinesDiskCacheTest {
 
         val cache = OkioJsonLinesDiskCache(fs, path)
 
-        cache.write(AnalyticsEvent.FeatureUsage(properties = mapOf("action" to "open"))).getOrThrow()
-        cache.write(AnalyticsEvent.FeatureUsage(properties = mapOf("action" to "close"))).getOrThrow()
+        cache.write(AnalyticsEvent.FeatureUsage(properties = mapOf("action" to "open")))
+            .getOrThrow()
+        cache.write(AnalyticsEvent.FeatureUsage(properties = mapOf("action" to "close")))
+            .getOrThrow()
 
         val read = cache.readOldest(10)
         assertEquals(2, read.size)

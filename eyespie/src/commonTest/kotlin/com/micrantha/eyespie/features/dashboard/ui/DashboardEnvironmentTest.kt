@@ -19,11 +19,12 @@ class DashboardEnvironmentTest {
     private class FakeScreenContext : ScreenContext {
         override val i18n: LocalizedRepository get() = TODO()
         override val router: Router get() = TODO()
-        override val dispatcher: Dispatcher get() = object : Dispatcher {
-            override val dispatchScope: CoroutineScope get() = TODO()
-            override fun dispatch(action: Action) = Unit
-            override suspend fun send(action: Action) = Unit
-        }
+        override val dispatcher: Dispatcher
+            get() = object : Dispatcher {
+                override val dispatchScope: CoroutineScope get() = TODO()
+                override fun dispatch(action: Action) = Unit
+                override suspend fun send(action: Action) = Unit
+            }
         override val fileSystem: FileSystem get() = TODO()
         override val di: DI get() = TODO()
     }

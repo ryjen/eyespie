@@ -90,7 +90,7 @@ class FirebaseDestination(
         val results = events.map { send(it, context) }
 
         val accepted = results.all { it.isSuccess && it.getOrNull()?.accepted == true }
-        
+
         val successfulIds = results.mapIndexedNotNull { index, result ->
             if (result.isSuccess) events[index].eventId else null
         }

@@ -20,7 +20,9 @@ class StorageDataRepositoryTest {
 
     private class FakeCacheLocalSource : CacheLocalSource {
         val cache = mutableMapOf<String, ByteArray>()
-        override fun get(key: String) = cache[key]?.let { Result.success(it) } ?: Result.failure(Exception("Not found"))
+        override fun get(key: String) =
+            cache[key]?.let { Result.success(it) } ?: Result.failure(Exception("Not found"))
+
         override fun put(key: String, data: ByteArray) {
             cache[key] = data
         }

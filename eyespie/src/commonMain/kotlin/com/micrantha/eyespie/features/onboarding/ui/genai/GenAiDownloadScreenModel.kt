@@ -29,19 +29,29 @@ class GenAiDownloadScreenModel(
     private val backgroundDownloader: BackgroundDownloader,
     private val loadModelConfig: LoadModelConfig,
     private val loadMainUseCase: LoadMainUseCase,
-): MappedScreenModel<GenAiDownloadState, GenAiDownloadUiState>(context, GenAiDownloadState(), ::map), Reducer<GenAiDownloadState>, Effect<GenAiDownloadState> {
+) : MappedScreenModel<GenAiDownloadState, GenAiDownloadUiState>(
+    context,
+    GenAiDownloadState(),
+    ::map
+), Reducer<GenAiDownloadState>, Effect<GenAiDownloadState> {
 
     init {
         store.addReducer(::reduce).applyEffect(::invoke).dispatch(Init)
     }
 
     override fun reduce(state: GenAiDownloadState, action: Action): GenAiDownloadState {
-        return when(action) {
+        return when (action) {
             is DownloadState.Progress -> state.copy(progress = action.progress)
             is DownloadState.Started -> state.copy(progress = 0, error = null)
             is DownloadState.Completed -> state.copy(progress = 100)
             is DownloadState.Failed -> state.copy(error = action.throwable ?: action.error)
-            is Download -> state.copy(model = action.model, name = action.name, error = null, progress = 0)
+            is Download -> state.copy(
+                model = action.model,
+                name = action.name,
+                error = null,
+                progress = 0
+            )
+
             is Error -> state.copy(error = action.cause)
             else -> state
         }
@@ -49,7 +59,7 @@ class GenAiDownloadScreenModel(
 
     @OptIn(ExperimentalUuidApi::class)
     override suspend fun invoke(action: Action, state: GenAiDownloadState) {
-        when(action) {
+        when (action) {
             is Init -> onboardingRepository.genAiModel()?.let { model ->
                 loadModelConfig().mapCatching { models ->
                     dispatch(Download(model, models[model]!!))
@@ -57,6 +67,7 @@ class GenAiDownloadScreenModel(
                     dispatch(Error(it))
                 }
             }
+
             is Download -> {
                 action.model.checksum?.let { checksum ->
                     val expected = action.model.fileName()
@@ -67,7 +78,8 @@ class GenAiDownloadScreenModel(
                 }
                 val id = action.model.url.hashCode().toLong()
                 val tag = Uuid.random().toString()
-                val filePath = platform.sharedFilesPath().resolve("${action.model.fileName()}.litertlm")
+                val filePath =
+                    platform.sharedFilesPath().resolve("${action.model.fileName()}.litertlm")
                 backgroundDownloader.startDownload(
                     id = id,
                     name = action.name,
@@ -79,6 +91,7 @@ class GenAiDownloadScreenModel(
                     dispatch(it)
                 }
             }
+
             is Done -> {
                 loadMainUseCase().onFailure {
                     dispatch(Error(it))
@@ -88,7 +101,7 @@ class GenAiDownloadScreenModel(
     }
 
     companion object {
-        fun map(state: GenAiDownloadState)= GenAiDownloadUiState(
+        fun map(state: GenAiDownloadState) = GenAiDownloadUiState(
             state.progress,
             state.name,
             when {

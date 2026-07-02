@@ -39,7 +39,8 @@ class OkioJsonLinesDiskCache(
         withContext(Dispatchers.IO) {
             lock.withLock {
                 ensureParentDirExists()
-                val sink: BufferedSink = fileSystem.appendingSink(filePath, mustExist = false).buffer()
+                val sink: BufferedSink =
+                    fileSystem.appendingSink(filePath, mustExist = false).buffer()
                 sink.use {
                     it.writeUtf8(json.encodeToString(event.toRecord()))
                     it.writeUtf8("\n")
@@ -53,7 +54,8 @@ class OkioJsonLinesDiskCache(
         withContext(Dispatchers.IO) {
             lock.withLock {
                 ensureParentDirExists()
-                val sink: BufferedSink = fileSystem.appendingSink(filePath, mustExist = false).buffer()
+                val sink: BufferedSink =
+                    fileSystem.appendingSink(filePath, mustExist = false).buffer()
                 sink.use {
                     events.forEach { event ->
                         it.writeUtf8(json.encodeToString(event.toRecord()))
@@ -71,39 +73,42 @@ class OkioJsonLinesDiskCache(
         }
     }
 
-    override suspend fun retrieveByFilter(filter: EventFilter, limit: Int): List<TelemetryEvent> = withContext(Dispatchers.IO) {
-        if (limit <= 0) return@withContext emptyList()
-        lock.withLock {
-            readAllLocked().asSequence()
-                .filter { it.matchesFilter(filter) }
-                .take(limit)
-                .toList()
-        }
-    }
-
-    override suspend fun delete(eventIds: List<String>): Result<Unit> = withContext(Dispatchers.IO) {
-        runCatching {
-            if (eventIds.isEmpty()) return@runCatching
+    override suspend fun retrieveByFilter(filter: EventFilter, limit: Int): List<TelemetryEvent> =
+        withContext(Dispatchers.IO) {
+            if (limit <= 0) return@withContext emptyList()
             lock.withLock {
-                val remaining = readAllLocked().filterNot { it.eventId in eventIds }
-                rewriteLocked(remaining)
+                readAllLocked().asSequence()
+                    .filter { it.matchesFilter(filter) }
+                    .take(limit)
+                    .toList()
             }
         }
-    }
+
+    override suspend fun delete(eventIds: List<String>): Result<Unit> =
+        withContext(Dispatchers.IO) {
+            runCatching {
+                if (eventIds.isEmpty()) return@runCatching
+                lock.withLock {
+                    val remaining = readAllLocked().filterNot { it.eventId in eventIds }
+                    rewriteLocked(remaining)
+                }
+            }
+        }
 
     @OptIn(ExperimentalTime::class)
-    override suspend fun deleteOlderThan(timestamp: Instant): Result<Int> = withContext(Dispatchers.IO) {
-        runCatching {
-            lock.withLock {
-                val events = readAllLocked()
-                val (kept, removed) = events.partition { it.timestamp >= timestamp }
-                if (removed.isNotEmpty()) {
-                    rewriteLocked(kept)
+    override suspend fun deleteOlderThan(timestamp: Instant): Result<Int> =
+        withContext(Dispatchers.IO) {
+            runCatching {
+                lock.withLock {
+                    val events = readAllLocked()
+                    val (kept, removed) = events.partition { it.timestamp >= timestamp }
+                    if (removed.isNotEmpty()) {
+                        rewriteLocked(kept)
+                    }
+                    removed.size
                 }
-                removed.size
             }
         }
-    }
 
     override suspend fun count(): Int = withContext(Dispatchers.IO) {
         lock.withLock { readAllLocked().size }

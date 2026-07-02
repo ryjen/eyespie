@@ -39,9 +39,18 @@ data class ValidationResult(
     val warnings: List<ValidationWarning> = emptyList()
 )
 
-data class ValidationError(val message: String, val reason: ValidationErrorReason, val field: String? = null)
+data class ValidationError(
+    val message: String,
+    val reason: ValidationErrorReason,
+    val field: String? = null
+)
+
 enum class ValidationErrorReason { MISSING_PROPERTY, INVALID_TYPE, VALUE_OUT_OF_RANGE, SCHEMA_NOT_FOUND, MISSING_REQUIRED_FIELD }
-data class ValidationWarning(val message: String, val field: String? = null, val suggestion: String? = null)
+data class ValidationWarning(
+    val message: String,
+    val field: String? = null,
+    val suggestion: String? = null
+)
 
 
 @OptIn(ExperimentalTime::class)

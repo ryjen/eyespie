@@ -47,7 +47,8 @@ class AndroidNetworkMonitor(context: Context) : NetworkMonitor {
                         networkCapabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_NOT_RESTRICTED) &&
                         networkCapabilities.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED)
 
-            logger.debug("Network status: ${
+            logger.debug(
+                "Network status: ${
                     if (isConnected) {
                         "Connected"
                     } else {

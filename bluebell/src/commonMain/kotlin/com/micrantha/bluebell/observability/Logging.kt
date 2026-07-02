@@ -7,7 +7,7 @@ import kotlin.reflect.KProperty
 
 class LoggerDelegate<in R : Any> : ReadOnlyProperty<R, KLogger> {
     override fun getValue(thisRef: R, property: KProperty<*>): KLogger {
-        return KotlinLogging.logger{}
+        return KotlinLogging.logger {}
     }
 }
 
@@ -20,4 +20,5 @@ fun KLogger.error(message: Any?) = this.error { message }
 fun KLogger.error(message: Any?, throwable: Throwable?) {
     if (throwable == null) this.error { message } else this.error(throwable) { message }
 }
-fun KLogger.error(throwable: Throwable, message: Any?) = this.error(throwable) {message}
+
+fun KLogger.error(throwable: Throwable, message: Any?) = this.error(throwable) { message }

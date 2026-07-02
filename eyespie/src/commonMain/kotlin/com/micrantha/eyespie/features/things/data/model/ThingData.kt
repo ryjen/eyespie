@@ -1,10 +1,7 @@
 package com.micrantha.eyespie.features.things.data.model
 
-import com.micrantha.eyespie.domain.entities.Proof
-import com.micrantha.eyespie.graphql.type.GameThing
 import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
-import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
 
 @Serializable

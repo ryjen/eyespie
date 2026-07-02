@@ -74,6 +74,7 @@ interface EventCache {
     suspend fun retrieve(limit: Int = 100): List<TelemetryEvent>
     suspend fun retrieveByFilter(filter: EventFilter, limit: Int = 100): List<TelemetryEvent>
     suspend fun delete(eventIds: List<String>): Result<Unit>
+
     @OptIn(ExperimentalTime::class)
     suspend fun deleteOlderThan(timestamp: Instant): Result<Int>
     suspend fun count(): Int
@@ -85,7 +86,11 @@ interface EventDestination {
     val destination: Destination
     val isEnabled: Boolean
     suspend fun send(event: TelemetryEvent, context: DestinationContext): Result<SendResult>
-    suspend fun sendBatch(events: List<TelemetryEvent>, context: DestinationContext): Result<BatchSendResult>
+    suspend fun sendBatch(
+        events: List<TelemetryEvent>,
+        context: DestinationContext
+    ): Result<BatchSendResult>
+
     suspend fun flush(): Result<FlushResult>
     suspend fun healthCheck(): HealthStatus
     fun getMetrics(): DestinationMetrics
@@ -139,23 +144,50 @@ data class SessionInfo(
 )
 
 // Exceptions
-open class ObservabilityException(message: String, cause: Throwable? = null) : Exception(message, cause)
-class SchemaValidationException(val errors: List<ValidationError>) : ObservabilityException("Schema validation failed: $errors")
-class EventTooLargeException(val eventId: String, val size: Long, val maxSize: Long) : ObservabilityException("Event $eventId too large: $size > $maxSize")
-class SpanNotFoundException(val spanId: String) : ObservabilityException("Span $spanId not found")
-class SpanAlreadyEndedException(val spanId: String) : ObservabilityException("Span $spanId already ended")
-class CampaignAlreadyExistsException(val campaignId: String) : ObservabilityException("Campaign $campaignId already exists")
-class CacheFullException : ObservabilityException("Cache is full")
-class CacheWriteException(cause: Throwable) : ObservabilityException("Failed to write to cache", cause)
-class SchemaNotFoundException(val version: SchemaVersion) : ObservabilityException("Schema $version not found")
-class MigrationNotFoundException(val source: SchemaVersion, val target: SchemaVersion) : ObservabilityException("Migration from $source to $target not found")
-class IncompatibleSchemaException(override val message: String) : ObservabilityException(message)
-class DestinationUnavailableException(val destination: Destination) : ObservabilityException("Destination $destination unavailable")
+open class ObservabilityException(message: String, cause: Throwable? = null) :
+    Exception(message, cause)
 
-open class DestinationException(val destination: Destination, message: String, val temporary: Boolean = true) : ObservabilityException("[$destination] $message")
-class NetworkException(destination: Destination, message: String) : DestinationException(destination, message, true)
-class RateLimitException(destination: Destination) : DestinationException(destination, "Rate limited", true)
-class DestinationRejectionException(destination: Destination, val eventId: String, reason: String) : DestinationException(destination, "Event $eventId rejected: $reason", false)
+class SchemaValidationException(val errors: List<ValidationError>) :
+    ObservabilityException("Schema validation failed: $errors")
+
+class EventTooLargeException(val eventId: String, val size: Long, val maxSize: Long) :
+    ObservabilityException("Event $eventId too large: $size > $maxSize")
+
+class SpanNotFoundException(val spanId: String) : ObservabilityException("Span $spanId not found")
+class SpanAlreadyEndedException(val spanId: String) :
+    ObservabilityException("Span $spanId already ended")
+
+class CampaignAlreadyExistsException(val campaignId: String) :
+    ObservabilityException("Campaign $campaignId already exists")
+
+class CacheFullException : ObservabilityException("Cache is full")
+class CacheWriteException(cause: Throwable) :
+    ObservabilityException("Failed to write to cache", cause)
+
+class SchemaNotFoundException(val version: SchemaVersion) :
+    ObservabilityException("Schema $version not found")
+
+class MigrationNotFoundException(val source: SchemaVersion, val target: SchemaVersion) :
+    ObservabilityException("Migration from $source to $target not found")
+
+class IncompatibleSchemaException(override val message: String) : ObservabilityException(message)
+class DestinationUnavailableException(val destination: Destination) :
+    ObservabilityException("Destination $destination unavailable")
+
+open class DestinationException(
+    val destination: Destination,
+    message: String,
+    val temporary: Boolean = true
+) : ObservabilityException("[$destination] $message")
+
+class NetworkException(destination: Destination, message: String) :
+    DestinationException(destination, message, true)
+
+class RateLimitException(destination: Destination) :
+    DestinationException(destination, "Rate limited", true)
+
+class DestinationRejectionException(destination: Destination, val eventId: String, reason: String) :
+    DestinationException(destination, "Event $eventId rejected: $reason", false)
 
 fun Throwable.isRetryable(): Boolean = when (this) {
     is NetworkException -> true

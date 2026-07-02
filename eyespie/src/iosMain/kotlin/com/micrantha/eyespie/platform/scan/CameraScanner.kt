@@ -124,7 +124,7 @@ class CameraStream(
     private fun CMSampleBufferRef?.image(orientation: AVCaptureVideoOrientation): CameraImage? {
         val pixelBuffer = CMSampleBufferGetImageBuffer(this) ?: return null
         pixelBuffer.freeze()
-        return CameraImage(
+        return PlatformCameraImage(
             pixelBuffer, when (orientation) {
                 AVCaptureVideoOrientationPortraitUpsideDown -> kCGImagePropertyOrientationDown
                 AVCaptureVideoOrientationLandscapeLeft -> kCGImagePropertyOrientationLeft
