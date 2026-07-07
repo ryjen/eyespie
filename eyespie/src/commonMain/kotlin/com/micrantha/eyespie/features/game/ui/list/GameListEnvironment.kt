@@ -24,6 +24,8 @@ import com.micrantha.eyespie.features.game.ui.list.GameListAction.Load
 import com.micrantha.eyespie.features.game.ui.list.GameListAction.Loaded
 import com.micrantha.eyespie.features.game.ui.list.GameListAction.NewGame
 import eyespie.app.generated.resources.loading_games
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
 
 class GameListEnvironment(
     private val context: ScreenContext,
@@ -52,8 +54,10 @@ class GameListEnvironment(
     override suspend fun invoke(action: Action, state: GameListState) {
         when (action) {
             is Load -> repository.games()
-                .onFailure { dispatch(Failure(it.toI18n())) }
-                .onSuccess { dispatch(Loaded(it)) }
+                .onEach { res ->
+                    res.onFailure { dispatch(Failure(it.toI18n())) }
+                        .onSuccess { dispatch(Loaded(it)) }
+                }.launchIn(dispatchScope)
 
             is NewGame -> context.navigate<GameCreateScreen>()
             is GameClicked -> context.navigate<GameDetailsScreen, GameDetailScreenArg>(arg = action.arg)

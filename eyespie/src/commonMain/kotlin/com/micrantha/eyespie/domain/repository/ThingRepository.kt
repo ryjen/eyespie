@@ -6,12 +6,13 @@ import com.micrantha.eyespie.domain.entities.Proof
 import com.micrantha.eyespie.domain.entities.Thing
 import com.micrantha.eyespie.domain.entities.ThingList
 import com.micrantha.eyespie.domain.entities.ThingMatches
+import kotlinx.coroutines.flow.Flow
 
 interface ThingRepository {
 
-    suspend fun things(playerID: String): Result<ThingList>
+    fun things(playerID: String): Flow<Result<ThingList>>
 
-    suspend fun thing(thingID: String): Result<Thing>
+    fun thing(thingID: String): Flow<Result<Thing>>
 
     suspend fun match(embedding: Embedding): Result<ThingMatches>
 
@@ -21,8 +22,8 @@ interface ThingRepository {
         playerID: String,
     ): Result<Thing>
 
-    suspend fun nearby(
+    fun nearby(
         location: Location.Point,
         distance: Double = 10.0
-    ): Result<ThingList>
+    ): Flow<Result<ThingList>>
 }

@@ -3,14 +3,15 @@ package com.micrantha.eyespie.features.players.domain.repository
 import com.micrantha.eyespie.domain.entities.Location
 import com.micrantha.eyespie.features.players.domain.entities.Player
 import com.micrantha.eyespie.features.players.domain.entities.PlayerList
+import kotlinx.coroutines.flow.Flow
 
 interface PlayerRepository {
 
-    suspend fun players(): Result<PlayerList>
+    fun players(): Flow<Result<PlayerList>>
 
-    suspend fun nearby(location: Location.Point): Result<PlayerList>
+    fun nearby(location: Location.Point): Flow<Result<PlayerList>>
 
-    suspend fun player(userId: String): Result<Player>
+    fun player(userId: String): Flow<Result<Player>>
 
     suspend fun create(
         userId: String,

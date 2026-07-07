@@ -18,6 +18,8 @@ import com.micrantha.eyespie.features.game.ui.component.GameAction.Error
 import com.micrantha.eyespie.features.game.ui.detail.GameDetailsAction.Load
 import com.micrantha.eyespie.features.game.ui.detail.GameDetailsAction.Loaded
 import eyespie.app.generated.resources.loading_game
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
 
 class GameDetailsEnvironment(
     private val context: ScreenContext,
@@ -45,11 +47,13 @@ class GameDetailsEnvironment(
     override suspend fun invoke(action: Action, state: GameDetailsState) {
         when (action) {
             is Load -> {
-                gameRepository.game(action.id).onFailure {
-                    dispatch(Error(it))
-                }.onSuccess { game ->
-                    dispatch(Loaded(game))
-                }
+                gameRepository.game(action.id).onEach { res ->
+                    res.onFailure {
+                        dispatch(Error(it))
+                    }.onSuccess { game ->
+                        dispatch(Loaded(game))
+                    }
+                }.launchIn(dispatchScope)
             }
         }
     }

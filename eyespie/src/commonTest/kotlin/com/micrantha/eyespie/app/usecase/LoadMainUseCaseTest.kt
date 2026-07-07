@@ -43,7 +43,7 @@ class LoadMainUseCaseTest {
     private val accountRepository = FakeAccountRepository()
     private val playerRepository = FakePlayerRepository()
     private val currentSession = CurrentSession
-    private val loadSessionPlayerUseCase = LoadSessionPlayerUseCase(context, playerRepository, currentSession)
+    private val loadSessionPlayerUseCase = LoadSessionPlayerUseCase(playerRepository, currentSession)
     private val onboardingRepository = FakeOnboardingRepository()
     private val llm = FakeGenAI()
     private val loadModelConfig = object : LoadModelConfig {

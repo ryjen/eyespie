@@ -7,6 +7,8 @@ import com.micrantha.eyespie.domain.entities.Thing
 import com.micrantha.eyespie.domain.entities.ThingList
 import com.micrantha.eyespie.domain.entities.ThingMatches
 import com.micrantha.eyespie.features.players.domain.entities.Player
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flowOf
 import kotlin.time.Clock.System
 import kotlin.time.ExperimentalTime
 
@@ -32,16 +34,16 @@ class FakeThingRepository : ThingRepository {
         }
     }
 
-    override suspend fun thing(thingID: String): Result<Thing> =
-        things.find { it.id == thingID }?.let { Result.success(it) } ?: Result.failure(Exception("Not found"))
+    override fun thing(thingID: String): Flow<Result<Thing>> =
+        flowOf(things.find { it.id == thingID }?.let { Result.success(it) } ?: Result.failure(Exception("Not found")))
 
-    override suspend fun things(playerID: String): Result<ThingList> =
-        Result.success(things.filter { it.createdBy.id == playerID }.map {
+    override fun things(playerID: String): Flow<Result<ThingList>> =
+        flowOf(Result.success(things.filter { it.createdBy.id == playerID }.map {
              Thing.Listing(it.id, it.id, it.createdAt, it.guessed, it.imageUrl)
-        })
+        }))
 
-    override suspend fun nearby(location: Location.Point, distance: Double): Result<ThingList> =
-        Result.success(things.map { Thing.Listing(it.id, it.id, it.createdAt, it.guessed, it.imageUrl) })
+    override fun nearby(location: Location.Point, distance: Double): Flow<Result<ThingList>> =
+        flowOf(Result.success(things.map { Thing.Listing(it.id, it.id, it.createdAt, it.guessed, it.imageUrl) }))
 
     override suspend fun match(embedding: Embedding): Result<ThingMatches> =
         matchResult ?: Result.success(emptyList())

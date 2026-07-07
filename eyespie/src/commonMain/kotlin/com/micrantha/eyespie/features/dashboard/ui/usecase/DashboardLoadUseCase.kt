@@ -8,7 +8,8 @@ import com.micrantha.eyespie.features.dashboard.ui.DashboardAction.Loaded
 import com.micrantha.eyespie.features.players.domain.entities.Player
 import com.micrantha.eyespie.features.players.domain.repository.PlayerRepository
 import kotlinx.coroutines.flow.combine
-import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOf
+import kotlinx.coroutines.flow.map
 
 interface DashboardLoadUseCase {
     operator fun invoke(): kotlinx.coroutines.flow.Flow<Result<Loaded>>
@@ -24,33 +25,17 @@ class DashboardLoadUseCaseImpl(
         val location = player.location?.point
 
         combine(
-            flow = if (location != null) things(location) else flow { emit(emptyList()) },
-            flow2 = if (location != null) players(location) else flow { emit(emptyList()) },
+            flow = if (location != null) thingsRepository.nearby(location) else flowOf(Result.success(emptyList())),
+            flow2 = if (location != null) playerRepository.nearby(location) else flowOf(Result.success(emptyList())),
             flow3 = friends,
         ) { nearbyThings, nearbyPlayers, friends ->
-            Loaded(nearbyThings, nearbyPlayers, friends)
+            Loaded(
+                nearbyThings = nearbyThings.getOrDefault(emptyList()),
+                nearbyPlayers = nearbyPlayers.getOrDefault(emptyList()),
+                friends = friends.getOrDefault(emptyList())
+            )
         }
     }
 
-    private fun things(location: Point) = flow {
-        thingsRepository.nearby(location = location)
-            .onSuccess { emit(it) }
-            .onFailure { emit(emptyList()) }
-    }
-
-    private fun things(playerID: String) = flow {
-        thingsRepository.things(playerID)
-            .onSuccess { emit(it) }
-            .onFailure { emit(emptyList()) }
-    }
-
-    private fun players(location: Point) = flow {
-        playerRepository.nearby(location = location)
-            .onSuccess { emit(it) }
-            .onFailure { emit(emptyList()) }
-    }
-
-    private val friends = flow {
-        emit(emptyList<Player.Listing>())
-    }
+    private val friends = flowOf(Result.success(emptyList<Player.Listing>()))
 }

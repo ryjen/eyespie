@@ -11,6 +11,7 @@ import com.micrantha.eyespie.features.things.data.model.ThingRequest
 import com.micrantha.eyespie.features.things.data.model.ThingResponse
 import com.micrantha.eyespie.features.things.data.source.ThingsLocalSource
 import com.micrantha.eyespie.features.things.data.source.ThingsRemoteSource
+import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -56,7 +57,7 @@ class ThingDataRepositoryTest {
         val remoteThings = listOf(ThingData(id = "1", imageUrl = "", createdBy = playerID))
         remoteSource.thingsResult = Result.success(remoteThings)
 
-        repository.things(playerID)
+        repository.things(playerID).toList()
 
         assertEquals(remoteThings, localSource.saveAllCalledWith)
     }
@@ -68,9 +69,9 @@ class ThingDataRepositoryTest {
         localSource.things = localThings
         remoteSource.thingsResult = Result.failure(Exception("Network error"))
 
-        val result = repository.things(playerID)
+        val results = repository.things(playerID).toList()
 
-        assertTrue(result.isSuccess)
-        assertEquals(1, result.getOrNull()?.size)
+        assertTrue(results.any { it.isSuccess })
+        assertEquals(1, results.first { it.isSuccess }.getOrNull()?.size)
     }
 }

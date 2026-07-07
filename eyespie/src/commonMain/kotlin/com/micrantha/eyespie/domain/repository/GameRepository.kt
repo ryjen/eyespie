@@ -2,11 +2,12 @@ package com.micrantha.eyespie.domain.repository
 
 import com.micrantha.eyespie.domain.entities.Game
 import com.micrantha.eyespie.domain.entities.GameList
+import kotlinx.coroutines.flow.Flow
 
 interface GameRepository {
-    suspend fun games(): Result<GameList>
+    fun games(): Flow<Result<GameList>>
 
-    suspend fun game(id: String): Result<Game>
+    fun game(id: String): Flow<Result<Game>>
 
-    //suspend fun nearby(): Result<GameList>
+    //fun nearby(): Flow<Result<GameList>>
 }

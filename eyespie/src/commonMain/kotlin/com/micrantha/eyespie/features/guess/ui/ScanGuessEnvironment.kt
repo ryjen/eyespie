@@ -17,6 +17,8 @@ import com.micrantha.eyespie.features.guess.ui.ScanGuessAction.ThingNotFound
 import com.micrantha.eyespie.features.scan.usecase.MatchCaptureUseCase
 import eyespie.app.generated.resources.no_data_found
 import eyespie.app.generated.resources.ok
+import kotlinx.coroutines.flow.launchIn
+import kotlinx.coroutines.flow.onEach
 
 class ScanGuessEnvironment(
     private val args: ScanGuessArgs,
@@ -35,13 +37,15 @@ class ScanGuessEnvironment(
 
     override suspend fun invoke(action: Action, state: ScanGuessState) {
         when (action) {
-            is Load -> thingRepository.thing(args.id).onSuccess {
-                dispatch(Loaded(it))
-            }.onFailure {
-                dispatch(context.popup(S.no_data_found, S.ok) {
-                    navigateBack()
-                })
-            }
+            is Load -> thingRepository.thing(args.id).onEach { res ->
+                res.onSuccess {
+                    dispatch(Loaded(it))
+                }.onFailure {
+                    dispatch(context.popup(S.no_data_found, S.ok) {
+                        navigateBack()
+                    })
+                }
+            }.launchIn(dispatchScope)
 
             is ImageCaptured -> if (state.thing != null) {
                 matchCaptureUseCase(

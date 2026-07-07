@@ -17,6 +17,7 @@ import com.micrantha.eyespie.features.players.domain.entities.Player
 import com.micrantha.eyespie.features.players.domain.usecase.LoadSessionPlayerUseCase
 import com.micrantha.eyespie.features.players.ui.create.NewPlayerScreen
 import com.micrantha.eyespie.features.scan.data.CaptureSyncRepository
+import kotlinx.coroutines.flow.first
 
 class LoadMainUseCase(
     private val context: ScreenContext,
@@ -64,7 +65,7 @@ class LoadMainUseCase(
     }
 
     private suspend fun account(session: Session): Result<Player?> {
-        return loadSessionPlayerUseCase(session).onFailure {
+        return loadSessionPlayerUseCase(session).first().onFailure {
             log.debug { "not logged in" }
             context.navigate<LoginScreen>(Router.Options.Replace)
         }.recover { throw HandledException("account error", it) }

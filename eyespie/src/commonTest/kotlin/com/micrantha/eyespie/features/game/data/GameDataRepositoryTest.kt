@@ -6,6 +6,8 @@ import com.micrantha.eyespie.features.game.data.source.GameRemoteSource
 import com.micrantha.eyespie.features.game.data.source.GamesLocalSource
 import com.micrantha.eyespie.graphql.GameListQuery
 import com.micrantha.eyespie.graphql.GameNodeQuery
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -43,7 +45,7 @@ class GameDataRepositoryTest {
     fun `games should return success when remote returns success`() = runTest {
         remoteSource.gamesResult = Result.success(emptyList())
 
-        val result = repository.games()
+        val result = repository.games().first()
 
         assertTrue(result.isSuccess)
     }
@@ -54,10 +56,10 @@ class GameDataRepositoryTest {
         localSource.games = cachedGames
         remoteSource.gamesResult = Result.failure(Exception("Remote error"))
 
-        val result = repository.games()
+        val results = repository.games().toList()
 
-        assertTrue(result.isSuccess)
-        assertEquals(1, result.getOrThrow().size)
-        assertEquals("Cached", result.getOrThrow().first().name)
+        assertTrue(results.any { it.isSuccess })
+        assertEquals(1, results.first { it.isSuccess }.getOrThrow().size)
+        assertEquals("Cached", results.first { it.isSuccess }.getOrThrow().first().name)
     }
 }

@@ -4,6 +4,8 @@ import com.micrantha.eyespie.domain.entities.Game
 import com.micrantha.eyespie.features.game.data.mapping.GameDomainMapper
 import com.micrantha.eyespie.features.game.data.source.GameRemoteSource
 import com.micrantha.eyespie.features.game.data.source.GamesLocalSource
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
 import com.micrantha.eyespie.domain.repository.GameRepository as DomainRepository
 
 internal class GameDataRepository(
@@ -12,10 +14,30 @@ internal class GameDataRepository(
     private val mapper: GameDomainMapper
 ) : DomainRepository {
 
-    override suspend fun games(): Result<List<Game.Listing>> = remoteSource.games()
-        .onSuccess { nodes -> localSource.saveAll(nodes.map(mapper::data)) }
-        .map { nodes -> nodes.map(mapper::list) }
-        .recover { localSource.getAll().getOrThrow().map(mapper::list) }
+    override fun games(): Flow<Result<List<Game.Listing>>> = flow {
+        val cached = localSource.getAll().map { it.map(mapper::list) }
+        emit(cached)
 
-    override suspend fun game(id: String) = remoteSource.game(id).map(mapper::map)
+        remoteSource.games()
+            .onSuccess { nodes ->
+                localSource.saveAll(nodes.map(mapper::data))
+                emit(Result.success(nodes.map(mapper::list)))
+            }
+            .onFailure {
+                if (cached.isFailure) emit(Result.failure(it))
+            }
+    }
+
+    override fun game(id: String): Flow<Result<Game>> = flow {
+        val cached = localSource.getAll().mapCatching { it.first { it.id == id } }.map(mapper::map)
+        if (cached.isSuccess) {
+            emit(cached)
+        }
+
+        remoteSource.game(id).map(mapper::map)
+            .onSuccess { emit(Result.success(it)) }
+            .onFailure {
+                if (cached.isFailure) emit(Result.failure(it))
+            }
+    }
 }

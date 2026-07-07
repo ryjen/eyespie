@@ -6,6 +6,8 @@ import com.micrantha.eyespie.features.players.data.mapping.PlayerDomainMapper
 import com.micrantha.eyespie.features.players.data.model.PlayerResponse
 import com.micrantha.eyespie.features.players.data.source.PlayerRemoteSource
 import com.micrantha.eyespie.features.players.data.source.PlayersLocalSource
+import kotlinx.coroutines.flow.last
+import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -74,7 +76,7 @@ class PlayerDataRepositoryTest {
         )
         remoteSource.playersResult = Result.success(remotePlayers)
 
-        repository.players()
+        repository.players().toList()
 
         assertEquals(remotePlayers, localSource.saveAllCalledWith)
     }
@@ -98,10 +100,10 @@ class PlayerDataRepositoryTest {
         localSource.players = localPlayers
         remoteSource.playersResult = Result.failure(Exception("Network error"))
 
-        val result = repository.players()
+        val results = repository.players().toList()
 
-        assertTrue(result.isSuccess)
-        assertEquals(1, result.getOrThrow().size)
+        assertTrue(results.any { it.isSuccess })
+        assertEquals(1, results.first { it.isSuccess }.getOrThrow().size)
     }
 
     @Test
@@ -120,7 +122,7 @@ class PlayerDataRepositoryTest {
         )
         remoteSource.playerResult = Result.success(player)
 
-        val result = repository.player("u1")
+        val result = repository.player("u1").last()
 
         assertTrue(result.isSuccess)
         assertEquals("1", result.getOrThrow().id)
@@ -167,7 +169,7 @@ class PlayerDataRepositoryTest {
         )
         remoteSource.nearbyResult = Result.success(remotePlayers)
 
-        repository.nearby(Location.Point(0.0, 0.0))
+        repository.nearby(Location.Point(0.0, 0.0)).toList()
 
         assertEquals(remotePlayers, localSource.saveAllCalledWith)
     }

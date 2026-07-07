@@ -45,6 +45,17 @@ class GameDomainMapper {
         totalThings = data.things?.totalCount ?: 0
     )
 
+    fun map(data: GameData) = Game(
+        id = data.id,
+        name = data.title,
+        createdAt = Instant.parse(data.createdAt),
+        expires = data.expiresAt?.let { Instant.parse(it) } ?: Instant.DISTANT_FUTURE,
+        turnDuration = Duration.ZERO,
+        players = emptyList(),
+        things = emptyList(),
+        limits = Limits(0..0, 0..0)
+    )
+
     fun map(node: GameNodeQuery.GameNode) = node.onGame!!.let { data ->
         Game(
             id = data.id,

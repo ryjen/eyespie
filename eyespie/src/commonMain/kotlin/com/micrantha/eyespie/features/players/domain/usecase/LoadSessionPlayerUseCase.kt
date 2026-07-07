@@ -10,38 +10,24 @@ import com.micrantha.eyespie.features.login.ui.LoginScreen
 import com.micrantha.eyespie.features.players.domain.entities.Player
 import com.micrantha.eyespie.features.players.domain.repository.PlayerRepository
 import com.micrantha.eyespie.features.players.ui.create.NewPlayerScreen
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.emitAll
+import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onEach
 
 class LoadSessionPlayerUseCase(
-    private val context: ScreenContext,
     private val playerRepository: PlayerRepository,
     private val currentSession: CurrentSession
 ) {
-    suspend operator fun invoke(session: Session): Result<Player?> {
-        try {
-            currentSession.update(session)
-            val player = playerRepository.player(session.userId).getOrNull()
-            if (player != null) {
+    operator fun invoke(session: Session): Flow<Result<Player?>> = flow {
+        currentSession.update(session)
+        emitAll(playerRepository.player(session.userId).onEach { res ->
+            res.onSuccess { player ->
                 currentSession.update(player)
             }
-            return Result.success(player)
-        } catch (e: Throwable) {
-            return Result.failure(e)
-        }
-    }
-
-    suspend fun withNavigation(
-        session: Session, onError: (Throwable) -> Unit = {
-            context.navigate<LoginScreen>(Router.Options.Replace)
-        }
-    ): Result<Player?> {
-        return invoke(session).onFailure {
-            onError(it)
-        }.onSuccess {
-            if (it == null) {
-                context.navigate<NewPlayerScreen>(Router.Options.Replace)
-            } else {
-                context.navigate<DashboardScreen>(Router.Options.Replace)
-            }
-        }
+        }.map { res ->
+            Result.success(res.getOrNull())
+        })
     }
 }

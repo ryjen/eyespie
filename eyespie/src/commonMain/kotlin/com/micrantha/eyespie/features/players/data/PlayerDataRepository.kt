@@ -5,6 +5,8 @@ import com.micrantha.eyespie.features.players.data.mapping.PlayerDomainMapper
 import com.micrantha.eyespie.features.players.data.source.PlayerRemoteSource
 import com.micrantha.eyespie.features.players.data.source.PlayersLocalSource
 import com.micrantha.eyespie.features.players.domain.repository.PlayerRepository
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
 
 internal class PlayerDataRepository(
     private val remoteSource: PlayerRemoteSource,
@@ -12,21 +14,42 @@ internal class PlayerDataRepository(
     private val mapper: PlayerDomainMapper
 ) : PlayerRepository {
 
-    override suspend fun players() = remoteSource.players()
-        .onSuccess { localSource.saveAll(it) }
-        .recover { localSource.getAll().getOrThrow() }
-        .map { it.map(mapper::list) }
+    override fun players(): Flow<Result<List<com.micrantha.eyespie.features.players.domain.entities.Player.Listing>>> = flow {
+        val cached = localSource.getAll().map { it.map(mapper::list) }
+        emit(cached)
 
-    override suspend fun nearby(location: Location.Point) = remoteSource.nearby(location)
-        .onSuccess { localSource.saveAll(it) }
-        .recover { localSource.getAll().getOrThrow() }
-        .map { it.map(mapper::list) }
-
-    override suspend fun player(userId: String) = remoteSource.player(userId)
-        .recover {
-            localSource.getAll().getOrThrow().first { it.user_id == userId }
+        remoteSource.players().onSuccess {
+            localSource.saveAll(it)
+            emit(Result.success(it.map(mapper::list)))
+        }.onFailure {
+            if (cached.isFailure) emit(Result.failure(it))
         }
-        .map(mapper::map)
+    }
+
+    override fun nearby(location: Location.Point): Flow<Result<List<com.micrantha.eyespie.features.players.domain.entities.Player.Listing>>> = flow {
+        val cached = localSource.getAll().map { it.map(mapper::list) }
+        emit(cached)
+
+        remoteSource.nearby(location).onSuccess {
+            localSource.saveAll(it)
+            emit(Result.success(it.map(mapper::list)))
+        }.onFailure {
+            if (cached.isFailure) emit(Result.failure(it))
+        }
+    }
+
+    override fun player(userId: String): Flow<Result<com.micrantha.eyespie.features.players.domain.entities.Player>> = flow {
+        val cached = localSource.getAll().mapCatching { it.first { it.user_id == userId } }.map(mapper::map)
+        if (cached.isSuccess) {
+            emit(cached)
+        }
+
+        remoteSource.player(userId).map(mapper::map).onSuccess {
+            emit(Result.success(it))
+        }.onFailure {
+            if (cached.isFailure) emit(Result.failure(it))
+        }
+    }
 
     override suspend fun create(
         userId: String,
