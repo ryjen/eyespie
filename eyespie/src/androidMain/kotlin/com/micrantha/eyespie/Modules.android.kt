@@ -10,6 +10,7 @@ import com.micrantha.bluebell.platform.PlatformImpl
 import com.micrantha.bluebell.platform.PlatformGenAI
 import com.micrantha.eyespie.core.data.db.DatabaseDriverFactory
 import com.micrantha.eyespie.platform.scan.LoadCameraImageUseCase
+import com.micrantha.eyespie.platform.scan.LoadCameraImageUseCaseImpl
 import org.kodein.di.DI
 import org.kodein.di.bindFactory
 import org.kodein.di.bindInstance
@@ -31,7 +32,8 @@ fun androidDependencies(
 
     bindProviderOf(::AndroidNetworkMonitor)
 
-    bindProviderOf(::LoadCameraImageUseCase)
+    bindSingleton { LoadCameraImageUseCaseImpl(instance()) }
+    delegate<LoadCameraImageUseCase>().to<LoadCameraImageUseCaseImpl>()
 
     bindSingleton { PlatformGenAI(instance()) }
     delegate<GenAI>().to<PlatformGenAI>()

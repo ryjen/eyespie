@@ -15,13 +15,17 @@ import org.kodein.di.DI
 class FakeRouter : Router {
     var lastNavigatedTo: Screen? = null
     var lastOptions: Options? = null
+    var navigateBackCalled = false
 
     override fun <T : Screen> navigate(screen: T, options: Options) {
         lastNavigatedTo = screen
         lastOptions = options
     }
 
-    override fun navigateBack(): Boolean = true
+    override fun navigateBack(): Boolean {
+        navigateBackCalled = true
+        return true
+    }
     override val canGoBack: Boolean = false
     override val screen: Screen get() = lastNavigatedTo!!
 }

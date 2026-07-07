@@ -66,3 +66,23 @@ SELECT * FROM ThingEntity WHERE created_by = ?;
 
 deleteAllThings:
 DELETE FROM ThingEntity;
+
+CREATE TABLE PendingCapture (
+    id TEXT NOT NULL PRIMARY KEY,
+    image_path TEXT NOT NULL,
+    player_id TEXT NOT NULL,
+    latitude REAL,
+    longitude REAL,
+    clues TEXT,
+    created_at TEXT NOT NULL
+);
+
+insertPendingCapture:
+INSERT INTO PendingCapture(id, image_path, player_id, latitude, longitude, clues, created_at)
+VALUES (?, ?, ?, ?, ?, ?, ?);
+
+selectAllPendingCaptures:
+SELECT * FROM PendingCapture;
+
+deletePendingCapture:
+DELETE FROM PendingCapture WHERE id = ?;

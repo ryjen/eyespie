@@ -114,6 +114,7 @@ kotlin {
 
             implementation(libs.permissions.test)
             implementation(libs.kotlinx.coroutines.test)
+            implementation(libs.kotlinx.datetime)
             implementation(libs.turbine)
             implementation(libs.okio.fakefilesystem)
         }

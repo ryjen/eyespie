@@ -4,6 +4,7 @@ import com.micrantha.bluebell.domain.usecase.dispatchUseCase
 import com.micrantha.bluebell.platform.FileSystem
 import com.micrantha.eyespie.core.data.account.model.CurrentSession
 import com.micrantha.eyespie.domain.entities.Proof
+import com.micrantha.eyespie.domain.entities.Thing
 import com.micrantha.eyespie.domain.repository.StorageRepository
 import com.micrantha.eyespie.domain.repository.ThingRepository
 import kotlinx.coroutines.Dispatchers
@@ -25,8 +26,8 @@ class UploadCaptureUseCase(
     suspend operator fun invoke(
         proof: Proof,
         image: Path
-    ) = dispatchUseCase(coroutineContext) {
-        val image = withContext(Dispatchers.IO) {
+    ): Result<Thing> = dispatchUseCase(coroutineContext) {
+        val imageData = withContext(Dispatchers.IO) {
             fileSystem.fileRead(image)
         }
 
@@ -36,9 +37,9 @@ class UploadCaptureUseCase(
 
         storageRepository.upload(
             "${playerID}/${imageID}.jpg",
-            image
+            imageData
         ).map { url ->
             thingRepository.create(proof, url, playerID).getOrThrow()
-        }
+        }.getOrThrow()
     }
 }

@@ -16,13 +16,15 @@ import com.micrantha.eyespie.features.onboarding.ui.genai.GenAIDownloadScreen
 import com.micrantha.eyespie.features.players.domain.entities.Player
 import com.micrantha.eyespie.features.players.domain.usecase.LoadSessionPlayerUseCase
 import com.micrantha.eyespie.features.players.ui.create.NewPlayerScreen
+import com.micrantha.eyespie.features.scan.data.CaptureSyncRepository
 
 class LoadMainUseCase(
     private val context: ScreenContext,
     private val accountRepository: AccountRepository,
     private val loadSessionPlayerUseCase: LoadSessionPlayerUseCase,
     private val onboardingRepository: OnboardingRepository,
-    private val initGenAIUseCase: InitGenAIUseCase
+    private val initGenAIUseCase: InitGenAIUseCase,
+    private val captureSyncRepository: CaptureSyncRepository
 ) {
     private val log by logger()
 

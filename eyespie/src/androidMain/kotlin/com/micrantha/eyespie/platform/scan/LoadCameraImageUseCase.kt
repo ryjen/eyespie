@@ -9,10 +9,10 @@ import androidx.core.net.toUri
 import androidx.exifinterface.media.ExifInterface
 import okio.Path
 
-actual class LoadCameraImageUseCase(
+actual class LoadCameraImageUseCaseImpl(
     private val context: Context
-) {
-    actual operator fun invoke(path: Path, regionOfInterest: Rect?): Result<CameraImage> = try {
+) : LoadCameraImageUseCase {
+    override operator fun invoke(path: Path, regionOfInterest: Rect?): Result<CameraImage> = try {
         val uri = path.toFile().toUri()
         val rotation = getCameraImageRotation(uri)
         val image = context.contentResolver.openInputStream(uri).use {

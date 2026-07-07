@@ -18,6 +18,7 @@ import com.micrantha.eyespie.features.players.domain.entities.Player
 import com.micrantha.eyespie.features.players.domain.repository.FakePlayerRepository
 import com.micrantha.eyespie.features.players.domain.usecase.LoadSessionPlayerUseCase
 import com.micrantha.eyespie.features.players.ui.create.NewPlayerScreen
+import com.micrantha.eyespie.features.scan.data.FakeCaptureSyncRepository
 import kotlinx.coroutines.test.runTest
 import okio.Path.Companion.toPath
 import org.kodein.di.DI
@@ -68,13 +69,15 @@ class LoadMainUseCaseTest {
         override fun fileRead(path: okio.Path) = byteArrayOf()
     }
     private val initGenAIUseCase = InitGenAIUseCase(llm, onboardingRepository, loadModelConfig, platform)
+    private val captureSyncRepository = FakeCaptureSyncRepository()
 
     private val useCase = LoadMainUseCase(
         context,
         accountRepository,
         loadSessionPlayerUseCase,
         onboardingRepository,
-        initGenAIUseCase
+        initGenAIUseCase,
+        captureSyncRepository
     )
 
     @Test

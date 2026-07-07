@@ -12,6 +12,7 @@ import com.micrantha.bluebell.ui.screen.ScreenContext
 import com.micrantha.eyespie.domain.entities.AiClue
 import com.micrantha.eyespie.domain.entities.Proof
 import com.micrantha.eyespie.domain.repository.ClueRepository
+import com.micrantha.eyespie.features.scan.data.CaptureSyncRepository
 import com.micrantha.eyespie.features.scan.entities.ScanClue
 import com.micrantha.eyespie.features.scan.entities.ScanEditAction.AnalyzedClues
 import com.micrantha.eyespie.features.scan.entities.ScanEditAction.Init
@@ -22,13 +23,13 @@ import com.micrantha.eyespie.features.scan.entities.ScanEditAction.SaveThingErro
 import com.micrantha.eyespie.features.scan.entities.ScanEditAction.SelectClue
 import com.micrantha.eyespie.features.scan.entities.ScanEditState
 import com.micrantha.eyespie.features.scan.entities.ScanEditUiState
-import com.micrantha.eyespie.features.scan.usecase.UploadCaptureUseCase
 import com.micrantha.eyespie.platform.scan.CameraImage
 import com.micrantha.eyespie.platform.scan.LoadCameraImageUseCase
+import com.micrantha.eyespie.core.data.account.model.CurrentSession
 
 class ScanEditEnvironment(
     private val context: ScreenContext,
-    private val uploadCaptureUseCase: UploadCaptureUseCase,
+    private val captureSyncRepository: CaptureSyncRepository,
     private val clueRepository: ClueRepository,
     private val loadCameraImageUseCase: LoadCameraImageUseCase
 ) : Reducer<ScanEditState>, Effect<ScanEditState>,
@@ -91,9 +92,10 @@ class ScanEditEnvironment(
                     dispatch(LoadError)
                 }
 
-            is SaveScanEdit -> uploadCaptureUseCase(
+            is SaveScanEdit -> captureSyncRepository.queue(
                 proof = state.asProof(),
-                image = state.path!!
+                imagePath = state.path!!,
+                playerID = CurrentSession.requirePlayer().id
             ).onSuccess {
                 navigateBack()
             }.onFailure {

@@ -38,6 +38,9 @@ import com.micrantha.eyespie.domain.repository.AccountRepository
 import com.micrantha.eyespie.domain.repository.ClueRepository
 import com.micrantha.eyespie.domain.repository.LocationRepository
 import com.micrantha.eyespie.domain.repository.StorageRepository
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.SupervisorJob
 import kotlinx.serialization.json.Json
 import dev.icerock.moko.geo.LocationTracker
 import okio.Path.Companion.toPath
@@ -56,6 +59,8 @@ internal fun module() = DI.Module("Core Feature") {
     bindSingletonOf(::SupaRealtimeClient)
 
     bindSingleton { Json { ignoreUnknownKeys = true } }
+
+    bindSingleton { CoroutineScope(SupervisorJob() + Dispatchers.Default) }
 
     bindSingleton {
         EyesPieDatabase(instance<DatabaseDriverFactory>().createDriver())
