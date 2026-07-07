@@ -38,6 +38,7 @@ import com.micrantha.eyespie.domain.repository.AccountRepository
 import com.micrantha.eyespie.domain.repository.ClueRepository
 import com.micrantha.eyespie.domain.repository.LocationRepository
 import com.micrantha.eyespie.domain.repository.StorageRepository
+import kotlinx.serialization.json.Json
 import dev.icerock.moko.geo.LocationTracker
 import okio.Path.Companion.toPath
 import okio.SYSTEM
@@ -53,6 +54,8 @@ import okio.FileSystem as OkioFileSystem
 internal fun module() = DI.Module("Core Feature") {
     bindSingletonOf(::SupaClient)
     bindSingletonOf(::SupaRealtimeClient)
+
+    bindSingleton { Json { ignoreUnknownKeys = true } }
 
     bindSingleton {
         EyesPieDatabase(instance<DatabaseDriverFactory>().createDriver())

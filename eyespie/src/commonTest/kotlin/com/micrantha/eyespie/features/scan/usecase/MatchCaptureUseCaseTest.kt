@@ -2,12 +2,14 @@ package com.micrantha.eyespie.features.scan.usecase
 
 import com.micrantha.eyespie.domain.entities.Embedding
 import com.micrantha.eyespie.domain.entities.Thing
+import com.micrantha.eyespie.domain.repository.FakeThingRepository
 import com.micrantha.eyespie.features.players.domain.entities.Player
 import com.micrantha.eyespie.platform.scan.CameraImage
 import kotlinx.coroutines.test.runTest
 import okio.ByteString.Companion.toByteString
 import kotlin.test.Test
-import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
+import kotlin.test.assertNotNull
 import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
 
@@ -19,10 +21,11 @@ class MatchCaptureUseCaseTest {
     }
 
     private val generator = FakeImageEmbeddingGenerator()
-    private val useCase = MatchCaptureUseCase(generator)
+    private val repository = FakeThingRepository()
+    private val useCase = MatchCaptureUseCase(generator, repository)
 
     @Test
-    fun `invoke should throw UnsupportedOperationException`() = runTest {
+    fun `invoke should return match result`() = runTest {
         val image = object : CameraImage {
             override val width = 0
             override val height = 0
@@ -39,8 +42,10 @@ class MatchCaptureUseCaseTest {
             location = com.micrantha.eyespie.domain.entities.Location.Point(0.0, 0.0)
         )
 
-        assertFailsWith<UnsupportedOperationException> {
-            useCase(image, thing).getOrThrow()
-        }
+        repository.matchResult = Result.success(emptyList())
+
+        val result = useCase(image, thing).getOrThrow()
+
+        assertFalse(result.matched)
     }
 }

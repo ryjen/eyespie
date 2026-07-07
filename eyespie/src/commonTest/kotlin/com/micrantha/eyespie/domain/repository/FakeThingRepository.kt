@@ -14,6 +14,7 @@ import kotlin.time.ExperimentalTime
 class FakeThingRepository : ThingRepository {
     val things = mutableListOf<Thing>()
     var createResult: Result<Thing>? = null
+    var matchResult: Result<ThingMatches>? = null
 
     override suspend fun create(proof: Proof, imageUrl: String, playerID: String): Result<Thing> {
         return createResult ?: run {
@@ -43,5 +44,5 @@ class FakeThingRepository : ThingRepository {
         Result.success(things.map { Thing.Listing(it.id, it.id, it.createdAt, it.guessed, it.imageUrl) })
 
     override suspend fun match(embedding: Embedding): Result<ThingMatches> =
-        Result.success(emptyList())
+        matchResult ?: Result.success(emptyList())
 }
