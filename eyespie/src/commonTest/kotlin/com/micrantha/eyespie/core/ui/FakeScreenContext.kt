@@ -3,6 +3,7 @@ package com.micrantha.eyespie.core.ui
 import com.micrantha.bluebell.arch.Action
 import com.micrantha.bluebell.arch.Dispatcher
 import com.micrantha.bluebell.arch.FakeDispatcher
+import com.micrantha.bluebell.i18n.repository.FakeLocalizedRepository
 import com.micrantha.bluebell.i18n.repository.LocalizedRepository
 import com.micrantha.bluebell.platform.FileSystem
 import com.micrantha.bluebell.ui.components.Router
@@ -28,14 +29,15 @@ class FakeRouter : Router {
 class FakeScreenContext(
     override var di: DI = DI {},
     override val router: FakeRouter = FakeRouter(),
-    override val dispatcher: Dispatcher = FakeDispatcher()
+    override val dispatcher: Dispatcher = FakeDispatcher(),
+    override val i18n: LocalizedRepository = FakeLocalizedRepository()
 ) : ScreenContext {
-    override val i18n: LocalizedRepository get() = TODO()
     override val fileSystem: FileSystem get() = TODO()
 
     fun copy(
         di: DI = this.di,
         router: FakeRouter = this.router,
-        dispatcher: Dispatcher = this.dispatcher
-    ) = FakeScreenContext(di, router, dispatcher)
+        dispatcher: Dispatcher = this.dispatcher,
+        i18n: LocalizedRepository = this.i18n
+    ) = FakeScreenContext(di, router, dispatcher, i18n)
 }
