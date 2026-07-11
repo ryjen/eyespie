@@ -8,6 +8,7 @@ sealed interface RegisterAction {
     data class ChangedPassword(val password: String) : RegisterAction
     data class ChangedConfirmPassword(val confirm: String) : RegisterAction
     data object OnRegister : RegisterAction
+    data object NotConfigured : RegisterAction
     data object ResetStatus : RegisterAction
     data object OnSuccess : RegisterAction
     data class OnError(val error: Throwable) : RegisterAction

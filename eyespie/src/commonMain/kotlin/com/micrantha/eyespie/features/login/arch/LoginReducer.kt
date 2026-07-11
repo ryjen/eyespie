@@ -8,6 +8,7 @@ import com.micrantha.bluebell.ui.model.UiResult.Failure
 import com.micrantha.eyespie.app.S
 import com.micrantha.eyespie.features.login.entities.LoginAction.ChangedEmail
 import com.micrantha.eyespie.features.login.entities.LoginAction.ChangedPassword
+import com.micrantha.eyespie.features.login.entities.LoginAction.NotConfigured
 import com.micrantha.eyespie.features.login.entities.LoginAction.OnError
 import com.micrantha.eyespie.features.login.entities.LoginAction.OnLogin
 import com.micrantha.eyespie.features.login.entities.LoginAction.OnLoginWithGoogle
@@ -18,6 +19,7 @@ import com.micrantha.eyespie.features.login.entities.LoginAction.TogglePasswordM
 import com.micrantha.eyespie.features.login.entities.LoginState
 import com.micrantha.eyespie.generated.resources.logging_in
 import com.micrantha.eyespie.generated.resources.login_failed
+import com.micrantha.eyespie.generated.resources.not_configured
 
 class LoginReducer : Reducer<LoginState> {
 
@@ -32,6 +34,7 @@ class LoginReducer : Reducer<LoginState> {
         is TogglePasswordMask -> state.copy(isPasswordMasked = !state.isPasswordMasked)
         is OnLogin, is OnLoginWithGoogle -> state.copy(status = Busy(S.logging_in))
         is OnError -> state.copy(status = Failure(S.login_failed))
+        is NotConfigured -> state.copy(status = Failure(S.not_configured))
         is ResetStatus -> state.copy(status = Default)
         else -> state
     }

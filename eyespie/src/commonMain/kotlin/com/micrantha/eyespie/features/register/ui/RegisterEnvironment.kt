@@ -13,8 +13,10 @@ import com.micrantha.bluebell.ui.model.UiResult.Failure
 import com.micrantha.bluebell.ui.screen.ScreenContext
 import com.micrantha.eyespie.app.S
 import com.micrantha.eyespie.app.usecase.LoadMainUseCase
+import com.micrantha.eyespie.core.data.client.isSupabaseConfigured
 import com.micrantha.eyespie.domain.repository.AccountRepository
 import com.micrantha.eyespie.generated.resources.logging_in
+import com.micrantha.eyespie.generated.resources.not_configured
 import com.micrantha.eyespie.generated.resources.register_failed
 
 class RegisterEnvironment(
@@ -54,6 +56,7 @@ class RegisterEnvironment(
         )
 
         is RegisterAction.OnError -> state.copy(status = Failure(S.register_failed))
+        is RegisterAction.NotConfigured -> state.copy(status = Failure(S.not_configured))
         is RegisterAction.ResetStatus -> state.copy(status = Default)
         else -> state
     }
@@ -61,19 +64,31 @@ class RegisterEnvironment(
     override suspend fun invoke(action: Action, state: RegisterState) {
         when (action) {
 
-            is RegisterAction.OnRegister -> accountRepository.register(state.email, state.password)
-                .onFailure {
-                    dispatch(RegisterAction.OnError(it))
-                }.onSuccess {
-                    dispatch(RegisterAction.OnSuccess)
+            is RegisterAction.OnRegister -> {
+                if (!isSupabaseConfigured()) {
+                    dispatch(RegisterAction.NotConfigured)
+                    return
                 }
+                accountRepository.register(state.email, state.password)
+                    .onFailure {
+                        dispatch(RegisterAction.OnError(it))
+                    }.onSuccess {
+                        dispatch(RegisterAction.OnSuccess)
+                    }
+            }
 
-            is RegisterAction.OnRegisterWithGoogle -> accountRepository.registerWithGoogle()
-                .onSuccess {
-                    dispatch(RegisterAction.OnSuccess)
-                }.onFailure {
-                    dispatch(RegisterAction.OnError(it))
+            is RegisterAction.OnRegisterWithGoogle -> {
+                if (!isSupabaseConfigured()) {
+                    dispatch(RegisterAction.NotConfigured)
+                    return
                 }
+                accountRepository.registerWithGoogle()
+                    .onSuccess {
+                        dispatch(RegisterAction.OnSuccess)
+                    }.onFailure {
+                        dispatch(RegisterAction.OnError(it))
+                    }
+            }
 
             is RegisterAction.OnSuccess -> loadMainUseCase().onFailure {
                 dispatch(RegisterAction.OnError(it))

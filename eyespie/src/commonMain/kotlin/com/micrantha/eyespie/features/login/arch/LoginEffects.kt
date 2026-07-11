@@ -14,7 +14,9 @@ import com.micrantha.eyespie.features.login.entities.LoginAction.OnLoginWithGoog
 import com.micrantha.eyespie.features.login.entities.LoginAction.OnRegister
 import com.micrantha.eyespie.features.login.entities.LoginAction.OnSuccess
 import com.micrantha.eyespie.features.login.entities.LoginState
+import com.micrantha.eyespie.features.login.entities.LoginAction.NotConfigured
 import com.micrantha.eyespie.features.register.ui.RegisterScreen
+import com.micrantha.eyespie.core.data.client.isSupabaseConfigured
 
 class LoginEffects(
     private val context: ScreenContext,
@@ -25,19 +27,31 @@ class LoginEffects(
 
     override suspend fun invoke(action: Action, state: LoginState) {
         when (action) {
-            is OnLogin -> accountRepository.login(state.email, state.password)
-                .onFailure {
-                    dispatch(OnError(it))
-                }.onSuccess {
-                    dispatch(OnSuccess(it))
+            is OnLogin -> {
+                if (!isSupabaseConfigured()) {
+                    dispatch(NotConfigured)
+                    return
                 }
+                accountRepository.login(state.email, state.password)
+                    .onFailure {
+                        dispatch(OnError(it))
+                    }.onSuccess {
+                        dispatch(OnSuccess(it))
+                    }
+            }
 
-            is OnLoginWithGoogle -> accountRepository.loginWithGoogle()
-                .onSuccess {
-                    dispatch(OnSuccess(it))
-                }.onFailure {
-                    dispatch(OnError(it))
+            is OnLoginWithGoogle -> {
+                if (!isSupabaseConfigured()) {
+                    dispatch(NotConfigured)
+                    return
                 }
+                accountRepository.loginWithGoogle()
+                    .onSuccess {
+                        dispatch(OnSuccess(it))
+                    }.onFailure {
+                        dispatch(OnError(it))
+                    }
+            }
 
             is OnRegister -> context.navigate<RegisterScreen>()
 

@@ -35,6 +35,7 @@ import cafe.adriel.voyager.kodein.rememberScreenModel
 import com.micrantha.bluebell.arch.Dispatch
 import com.micrantha.bluebell.ui.components.StateRenderer
 import com.micrantha.bluebell.ui.model.isEnabled
+import com.micrantha.bluebell.ui.model.error
 import com.micrantha.bluebell.ui.model.isFailure
 import com.micrantha.bluebell.ui.theme.Dimensions
 import com.micrantha.eyespie.app.EyesPie
@@ -171,14 +172,14 @@ class RegisterScreen : Screen, StateRenderer<RegisterUiState> {
 
     @Composable
     private fun Messages(state: RegisterUiState, dispatch: Dispatch) {
-        state.error?.let { // Assuming error is a StringResource
+        state.status.error?.let {
             Text(
                 text = stringResource(it),
                 fontStyle = FontStyle.Italic,
                 color = MaterialTheme.colorScheme.error
             )
 
-            LaunchedEffect(state.status) { // Relaunch if status changes to ensure reset
+            LaunchedEffect(state.status) {
                 if (state.status.isFailure) {
                     delay(5000)
                     dispatch(RegisterAction.ResetStatus)
