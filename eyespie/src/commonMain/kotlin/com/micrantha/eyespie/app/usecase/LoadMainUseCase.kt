@@ -19,17 +19,21 @@ import com.micrantha.eyespie.features.players.ui.create.NewPlayerScreen
 import com.micrantha.eyespie.features.scan.data.CaptureSyncRepository
 import kotlinx.coroutines.flow.first
 
-class LoadMainUseCase(
+interface LoadMainUseCase {
+    suspend operator fun invoke(): Result<Unit>
+}
+
+class LoadMainUseCaseImpl(
     private val context: ScreenContext,
     private val accountRepository: AccountRepository,
     private val loadSessionPlayerUseCase: LoadSessionPlayerUseCase,
     private val onboardingRepository: OnboardingRepository,
     private val initGenAIUseCase: InitGenAIUseCase,
     private val captureSyncRepository: CaptureSyncRepository
-) {
+) : LoadMainUseCase {
     private val log by logger()
 
-    suspend operator fun invoke(): Result<Unit> = try {
+    override suspend operator fun invoke(): Result<Unit> = try {
         session()
             .then { session -> account(session) }
             .then { player -> newPlayer(player) }

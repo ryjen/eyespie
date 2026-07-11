@@ -8,6 +8,7 @@ import io.github.jan.supabase.auth.providers.builtin.Email
 internal interface AccountRemoteSource {
     fun isLoggedIn(): Boolean
     suspend fun account(): Result<AccountResponse>
+    suspend fun currentAccount(): Result<AccountResponse>
     suspend fun loginAnonymous(): Result<Unit>
     suspend fun login(email: String, password: String): Result<Unit>
     suspend fun loginWithGoogle(): Result<Unit>
@@ -22,6 +23,14 @@ internal class SupabaseAccountRemoteSource(
 
     override suspend fun account() = try {
         val session = client.auth().apply { loadFromStorage() }.currentSessionOrNull()!!
+        val user = session.user!!
+        Result.success(AccountResponse(session.accessToken, session.refreshToken, user.id))
+    } catch (e: Throwable) {
+        Result.failure(e)
+    }
+
+    override suspend fun currentAccount() = try {
+        val session = client.auth().currentSessionOrNull()!!
         val user = session.user!!
         Result.success(AccountResponse(session.accessToken, session.refreshToken, user.id))
     } catch (e: Throwable) {

@@ -9,7 +9,6 @@ import com.micrantha.eyespie.domain.entities.Session
 import com.micrantha.eyespie.domain.repository.FakeStorageRepository
 import com.micrantha.eyespie.domain.repository.FakeThingRepository
 import com.micrantha.eyespie.features.players.domain.entities.Player
-import com.micrantha.eyespie.features.scan.data.FakeCaptureSyncRepository
 import com.micrantha.eyespie.platform.scan.CameraImage
 import com.micrantha.eyespie.platform.scan.LoadCameraImageUseCase
 import kotlinx.coroutines.test.runTest
@@ -27,7 +26,6 @@ class UploadCaptureUseCaseTest {
 
     private val storageRepository = FakeStorageRepository()
     private val thingRepository = FakeThingRepository()
-    private val captureSyncRepository = FakeCaptureSyncRepository()
     private val fileSystem = object : FileSystem {
         override fun filesPath(): Path = "/".toPath()
         override fun sharedFilesPath(): Path = "/".toPath()
@@ -50,7 +48,6 @@ class UploadCaptureUseCaseTest {
     private val useCase = UploadCaptureUseCaseImpl(
         storageRepository,
         thingRepository,
-        captureSyncRepository,
         fileSystem,
         imageEmbeddingGenerator,
         loadCameraImageUseCase,

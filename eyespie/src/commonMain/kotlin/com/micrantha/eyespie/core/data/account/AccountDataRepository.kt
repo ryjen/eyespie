@@ -14,6 +14,7 @@ internal class AccountDataRepository(
 
     @OptIn(ExperimentalUuidApi::class)
     override suspend fun session() = remoteSource.account()
+        .recoverCatching { remoteSource.currentAccount().getOrThrow() }
         .map { data ->
             Session(
                 accessToken = data.accessToken,
@@ -27,16 +28,36 @@ internal class AccountDataRepository(
 
     override suspend fun isLoggedIn() = remoteSource.isLoggedIn()
 
+    @OptIn(ExperimentalUuidApi::class)
     override suspend fun login(email: String, passwd: String): Result<Session> {
         return remoteSource.login(email, passwd).mapCatching {
-            session().getOrThrow()
+            remoteSource.currentAccount().map { data ->
+                Session(
+                    accessToken = data.accessToken,
+                    refreshToken = data.refreshToken,
+                    userId = data.userId,
+                    id = Uuid.random().toString()
+                )
+            }.getOrThrow()
+        }.onSuccess {
+            currentSession.update(it)
         }
     }
 
     override suspend fun loginAnonymous() = remoteSource.loginAnonymous()
 
+    @OptIn(ExperimentalUuidApi::class)
     override suspend fun loginWithGoogle() = remoteSource.loginWithGoogle().mapCatching {
-        session().getOrThrow()
+        remoteSource.currentAccount().map { data ->
+            Session(
+                accessToken = data.accessToken,
+                refreshToken = data.refreshToken,
+                userId = data.userId,
+                id = Uuid.random().toString()
+            )
+        }.getOrThrow()
+    }.onSuccess {
+        currentSession.update(it)
     }
 
     override suspend fun register(email: String, passwd: String) =

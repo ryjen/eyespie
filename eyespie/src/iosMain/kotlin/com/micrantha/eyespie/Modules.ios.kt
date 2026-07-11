@@ -1,5 +1,6 @@
 package com.micrantha.eyespie
 
+import com.micrantha.bluebell.platform.FileSystem
 import com.micrantha.bluebell.platform.GenAI
 import com.micrantha.bluebell.platform.Platform
 import com.micrantha.bluebell.platform.PlatformGenAI
@@ -19,6 +20,7 @@ import org.kodein.di.delegate
 fun iosModules(app: AppDelegate) = DI {
 
     bindSingleton { Platform(app.networkMonitor) }
+    delegate<FileSystem>().to<Platform>()
 
     bindSingletonOf(::PlatformGenAI)
     delegate<GenAI>().to<PlatformGenAI>()

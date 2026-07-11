@@ -4,6 +4,7 @@ import android.content.Context
 import com.micrantha.bluebell.get
 import com.micrantha.bluebell.platform.AndroidNetworkMonitor
 import com.micrantha.bluebell.platform.BackgroundDownloader
+import com.micrantha.bluebell.platform.FileSystem
 import com.micrantha.bluebell.platform.GenAI
 import com.micrantha.bluebell.platform.Platform
 import com.micrantha.bluebell.platform.PlatformImpl
@@ -27,6 +28,7 @@ fun androidDependencies(
 
     bindSingletonOf(::PlatformImpl)
     delegate<Platform>().to<PlatformImpl>()
+    delegate<FileSystem>().to<PlatformImpl>()
 
     bindSingleton { DatabaseDriverFactory(instance()) }
 

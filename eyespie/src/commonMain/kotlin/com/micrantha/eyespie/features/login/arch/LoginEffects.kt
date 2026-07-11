@@ -7,6 +7,7 @@ import com.micrantha.bluebell.ui.components.Router
 import com.micrantha.bluebell.ui.screen.ScreenContext
 import com.micrantha.bluebell.ui.screen.navigate
 import com.micrantha.eyespie.app.usecase.LoadMainUseCase
+import com.micrantha.eyespie.core.data.client.SupabaseConfigChecker
 import com.micrantha.eyespie.domain.repository.AccountRepository
 import com.micrantha.eyespie.features.login.entities.LoginAction.OnError
 import com.micrantha.eyespie.features.login.entities.LoginAction.OnLogin
@@ -16,19 +17,22 @@ import com.micrantha.eyespie.features.login.entities.LoginAction.OnSuccess
 import com.micrantha.eyespie.features.login.entities.LoginState
 import com.micrantha.eyespie.features.login.entities.LoginAction.NotConfigured
 import com.micrantha.eyespie.features.register.ui.RegisterScreen
-import com.micrantha.eyespie.core.data.client.isSupabaseConfigured
 
 class LoginEffects(
     private val context: ScreenContext,
     private val accountRepository: AccountRepository,
     private val loadMainUseCase: LoadMainUseCase,
+    private val supabaseConfigChecker: SupabaseConfigChecker,
 ) : Effect<LoginState>,
     Dispatcher by context.dispatcher, Router by context.router {
 
     override suspend fun invoke(action: Action, state: LoginState) {
         when (action) {
             is OnLogin -> {
-                if (!isSupabaseConfigured()) {
+                if (state.emailError != null || state.passwordError != null) {
+                    return
+                }
+                if (!supabaseConfigChecker.isSupabaseConfigured()) {
                     dispatch(NotConfigured)
                     return
                 }
@@ -41,7 +45,7 @@ class LoginEffects(
             }
 
             is OnLoginWithGoogle -> {
-                if (!isSupabaseConfigured()) {
+                if (!supabaseConfigChecker.isSupabaseConfigured()) {
                     dispatch(NotConfigured)
                     return
                 }

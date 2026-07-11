@@ -13,7 +13,7 @@ import com.micrantha.bluebell.ui.model.UiResult.Failure
 import com.micrantha.bluebell.ui.screen.ScreenContext
 import com.micrantha.eyespie.app.S
 import com.micrantha.eyespie.app.usecase.LoadMainUseCase
-import com.micrantha.eyespie.core.data.client.isSupabaseConfigured
+import com.micrantha.eyespie.core.data.client.SupabaseConfigChecker
 import com.micrantha.eyespie.domain.repository.AccountRepository
 import com.micrantha.eyespie.generated.resources.logging_in
 import com.micrantha.eyespie.generated.resources.not_configured
@@ -22,7 +22,8 @@ import com.micrantha.eyespie.generated.resources.register_failed
 class RegisterEnvironment(
     private val context: ScreenContext,
     private val accountRepository: AccountRepository,
-    private val loadMainUseCase: LoadMainUseCase
+    private val loadMainUseCase: LoadMainUseCase,
+    private val supabaseConfigChecker: SupabaseConfigChecker,
 ) : Reducer<RegisterState>, Effect<RegisterState>,
     Dispatcher by context.dispatcher,
     LocalizedRepository by context.i18n, Router by context.router {
@@ -65,7 +66,7 @@ class RegisterEnvironment(
         when (action) {
 
             is RegisterAction.OnRegister -> {
-                if (!isSupabaseConfigured()) {
+                if (!supabaseConfigChecker.isSupabaseConfigured()) {
                     dispatch(RegisterAction.NotConfigured)
                     return
                 }
@@ -78,7 +79,7 @@ class RegisterEnvironment(
             }
 
             is RegisterAction.OnRegisterWithGoogle -> {
-                if (!isSupabaseConfigured()) {
+                if (!supabaseConfigChecker.isSupabaseConfigured()) {
                     dispatch(RegisterAction.NotConfigured)
                     return
                 }

@@ -4,7 +4,6 @@ import com.micrantha.bluebell.data.bluebellData
 import com.micrantha.bluebell.domain.bluebellDomain
 import com.micrantha.bluebell.flux.bluebellFlux
 import com.micrantha.bluebell.i18n.repository.LocalizedRepository
-import com.micrantha.bluebell.platform.FileSystem
 import com.micrantha.bluebell.platform.Platform
 import com.micrantha.bluebell.ui.bluebellUi
 import org.kodein.di.DI
@@ -22,7 +21,6 @@ fun bluebellModules(trigger: DITrigger? = null) = DI.Module(name = "Bluebell") {
     importOnce(bluebellFlux())
 
     delegate<LocalizedRepository>().to<Platform>()
-    delegate<FileSystem>().to<Platform>()
 
     onReady {
         trigger?.trigger()

@@ -1,7 +1,7 @@
 package com.micrantha.eyespie.features.scan.usecase
 
 import com.micrantha.bluebell.domain.usecase.dispatchUseCase
-import com.micrantha.bluebell.platform.Platform
+import com.micrantha.bluebell.platform.FileSystem
 import com.micrantha.eyespie.core.data.account.model.CurrentSession
 import com.micrantha.eyespie.domain.entities.Proof
 import com.micrantha.eyespie.domain.entities.Thing
@@ -26,7 +26,7 @@ interface UploadCaptureUseCase {
 class UploadCaptureUseCaseImpl(
     private val storageRepository: StorageRepository,
     private val thingRepository: ThingRepository,
-    private val platform: Platform,
+    private val fileSystem: FileSystem,
     private val imageEmbeddingGenerator: ImageEmbeddingGenerator,
     private val loadCameraImageUseCase: LoadCameraImageUseCase,
     private val session: CurrentSession = CurrentSession
@@ -40,7 +40,7 @@ class UploadCaptureUseCaseImpl(
         val playerID = session.requirePlayer().id
 
         val imageData = withContext(Dispatchers.IO) {
-            platform.fileRead(image)
+            fileSystem.fileRead(image)
         }
 
         val cameraImage = loadCameraImageUseCase(image).getOrThrow()

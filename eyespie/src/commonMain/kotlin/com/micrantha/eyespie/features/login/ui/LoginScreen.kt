@@ -8,11 +8,13 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Spacer
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.wrapContentHeight
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccountCircle
@@ -78,7 +80,8 @@ class LoginScreen : Screen, StateRenderer<LoginUiState> {
 
             Column(
                 horizontalAlignment = Alignment.CenterHorizontally,
-                modifier = Modifier.padding(Dimensions.Padding.mediumLarge)
+                modifier = Modifier.fillMaxHeight()
+                    .padding(Dimensions.Padding.mediumLarge)
             ) {
                 Icon(
                     EyesPie.defaultIcon,
@@ -97,6 +100,7 @@ class LoginScreen : Screen, StateRenderer<LoginUiState> {
                 TextField(
                     value = state.email,
                     enabled = state.status.isEnabled,
+                    isError = state.emailError != null,
                     modifier = Modifier.fillMaxWidth(),
                     visualTransformation = if (state.isEmailMasked)
                         EmailVisualTransformation()
@@ -115,7 +119,12 @@ class LoginScreen : Screen, StateRenderer<LoginUiState> {
                     maxLines = 1,
                     label = { Text(stringResource(S.email)) },
                     onValueChange = { dispatch(LoginAction.ChangedEmail(it)) },
-                    placeholder = { Text(stringResource(S.login_email_placeholder)) }
+                    placeholder = { Text(stringResource(S.login_email_placeholder)) },
+                    supportingText = {
+                        state.emailError?.let {
+                            Text(stringResource(it), color = MaterialTheme.colorScheme.error)
+                        }
+                    }
                 )
 
                 Spacer(modifier = Modifier.heightIn(Dimensions.content))
@@ -133,6 +142,7 @@ class LoginScreen : Screen, StateRenderer<LoginUiState> {
                         }
                     },
                     enabled = state.status.isEnabled,
+                    isError = state.passwordError != null,
                     visualTransformation = if (state.isPasswordMasked)
                         PasswordVisualTransformation()
                     else VisualTransformation.None,
@@ -141,7 +151,12 @@ class LoginScreen : Screen, StateRenderer<LoginUiState> {
                     label = { Text(stringResource(S.password)) },
                     value = state.password,
                     onValueChange = { dispatch(LoginAction.ChangedPassword(it)) },
-                    placeholder = { Text(stringResource(S.login_password_placeholder)) }
+                    placeholder = { Text(stringResource(S.login_password_placeholder)) },
+                    supportingText = {
+                        state.passwordError?.let {
+                            Text(stringResource(it), color = MaterialTheme.colorScheme.error)
+                        }
+                    }
                 )
 
                 Spacer(modifier = Modifier.heightIn(Dimensions.screen))
@@ -184,9 +199,9 @@ class LoginScreen : Screen, StateRenderer<LoginUiState> {
                     Text(stringResource(S.register))
                 }
 
-                Spacer(modifier = Modifier.heightIn(Dimensions.screen))
+                Spacer(modifier = Modifier.weight(1f))
 
-                Column(modifier = Modifier.heightIn(80.dp)) {
+                Column(modifier = Modifier.wrapContentHeight()) {
                     AnimatedVisibility(
                         visible = state.status.isFailure,
                         enter = fadeIn(

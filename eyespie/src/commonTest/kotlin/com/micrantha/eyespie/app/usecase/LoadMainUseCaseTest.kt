@@ -71,7 +71,7 @@ class LoadMainUseCaseTest {
     private val initGenAIUseCase = InitGenAIUseCase(llm, onboardingRepository, loadModelConfig, platform)
     private val captureSyncRepository = FakeCaptureSyncRepository()
 
-    private val useCase = LoadMainUseCase(
+    private val useCase = LoadMainUseCaseImpl(
         context,
         accountRepository,
         loadSessionPlayerUseCase,
