@@ -3,11 +3,11 @@ package com.micrantha.bluebell.arch
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.MainScope
 
-class FakeDispatcher : Dispatcher {
+class FakeDispatcher(
+    override val dispatchScope: CoroutineScope = MainScope()
+) : Dispatcher {
     val actions = mutableListOf<Action>()
     
-    override val dispatchScope: CoroutineScope = MainScope()
-
     override fun dispatch(action: Action) {
         actions.add(action)
     }

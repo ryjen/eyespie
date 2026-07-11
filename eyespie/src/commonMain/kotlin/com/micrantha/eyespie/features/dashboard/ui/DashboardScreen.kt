@@ -1,12 +1,25 @@
 package com.micrantha.eyespie.features.dashboard.ui
 
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.padding
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.filled.Sync
+import androidx.compose.material3.Badge
+import androidx.compose.material3.BadgedBox
+import androidx.compose.material3.Icon
+import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import cafe.adriel.voyager.core.screen.Screen
 import cafe.adriel.voyager.kodein.rememberScreenModel
@@ -16,6 +29,7 @@ import com.micrantha.bluebell.ui.components.status.FailureContent
 import com.micrantha.bluebell.ui.components.status.LoadingContent
 import com.micrantha.bluebell.ui.model.UiResult.Failure
 import com.micrantha.bluebell.ui.model.UiResult.Ready
+import com.micrantha.bluebell.ui.theme.Dimensions
 import com.micrantha.eyespie.app.S
 import com.micrantha.eyespie.core.ui.component.AppTitle
 import com.micrantha.eyespie.core.ui.component.RealtimeDataEnabledEffect
@@ -56,6 +70,8 @@ class DashboardScreen : Screen {
             modifier = Modifier.fillMaxSize()
         ) {
 
+            SyncStatusHeader(state)
+
             AppTitle()
 
             ScanNewThingCard {
@@ -68,6 +84,37 @@ class DashboardScreen : Screen {
                     is Failure -> FailureContent(state.status.message)
                     else -> LoadingContent(S.loading_dashboard)
                 }
+            }
+        }
+    }
+
+    @Composable
+    private fun SyncStatusHeader(state: DashboardUiState) {
+        val count = (state.status as? Ready)?.data?.pendingSyncCount ?: 0
+        if (count > 0) {
+            Row(
+                modifier = Modifier.fillMaxWidth()
+                    .background(MaterialTheme.colorScheme.secondaryContainer)
+                    .padding(Dimensions.Padding.small),
+                horizontalArrangement = Arrangement.Center,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                BadgedBox(
+                    badge = {
+                        Badge { Text(count.toString()) }
+                    }
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Sync,
+                        contentDescription = "Syncing",
+                        tint = MaterialTheme.colorScheme.onSecondaryContainer
+                    )
+                }
+                Text(
+                    text = " Syncing $count captures...",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSecondaryContainer
+                )
             }
         }
     }

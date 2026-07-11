@@ -18,6 +18,7 @@ import com.micrantha.eyespie.features.dashboard.ui.DashboardAction.Load
 import com.micrantha.eyespie.features.dashboard.ui.DashboardAction.LoadError
 import com.micrantha.eyespie.features.dashboard.ui.DashboardAction.Loaded
 import com.micrantha.eyespie.features.dashboard.ui.DashboardAction.ScanNewThing
+import com.micrantha.eyespie.features.dashboard.ui.DashboardAction.SyncCountUpdated
 import com.micrantha.eyespie.features.dashboard.ui.DashboardUiState.Data
 import com.micrantha.eyespie.features.dashboard.ui.DashboardUiState.Data.Nearby
 import com.micrantha.eyespie.features.dashboard.ui.DashboardUiState.Data.TabContent
@@ -27,6 +28,7 @@ import com.micrantha.eyespie.features.game.ui.detail.GameDetailScreenArg
 import com.micrantha.eyespie.features.game.ui.detail.GameDetailsScreen
 import com.micrantha.eyespie.features.guess.ui.ScanGuessArgs
 import com.micrantha.eyespie.features.guess.ui.ScanGuessScreen
+import com.micrantha.eyespie.features.scan.data.CaptureSyncRepository
 import com.micrantha.eyespie.features.scan.ui.capture.ScanCaptureScreen
 import eyespie.app.generated.resources.loading_dashboard
 import eyespie.app.generated.resources.network_failure
@@ -35,7 +37,8 @@ import kotlinx.coroutines.flow.onEach
 
 class DashboardEnvironment(
     private val context: ScreenContext,
-    private val dashboardLoadUseCase: DashboardLoadUseCase
+    private val dashboardLoadUseCase: DashboardLoadUseCase,
+    private val captureSyncRepository: CaptureSyncRepository
 ) : Reducer<DashboardState>, Effect<DashboardState>, Dispatcher by context.dispatcher {
 
     companion object : StateMapper<DashboardState, DashboardUiState> {
@@ -55,7 +58,8 @@ class DashboardEnvironment(
                     friends = TabContent(
                         data = state.friends ?: emptyList(),
                         hasMore = false
-                    )
+                    ),
+                    pendingSyncCount = state.pendingSyncCount
                 )
             }
         )
@@ -78,6 +82,10 @@ class DashboardEnvironment(
                 status = Busy(S.loading_dashboard)
             )
 
+            is SyncCountUpdated -> state.copy(
+                pendingSyncCount = action.count
+            )
+
             else -> state
         }
     }
@@ -88,11 +96,16 @@ class DashboardEnvironment(
                 arg = action.arg
             )
 
-            is Load ->
+            is Load -> {
                 dashboardLoadUseCase().onEach { res ->
                     res.onSuccess { dispatch(it) }
                         .onFailure { dispatch(LoadError) }
                 }.launchIn(dispatchScope)
+
+                captureSyncRepository.pendingCount.onEach {
+                    dispatch(SyncCountUpdated(it))
+                }.launchIn(dispatchScope)
+            }
 
             is ScanNewThing -> context.navigate<ScanCaptureScreen>()
 

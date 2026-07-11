@@ -12,6 +12,7 @@ data class DashboardState(
     val friends: PlayerList? = null,
     val things: ThingList? = null,
     val players: PlayerList? = null,
+    val pendingSyncCount: Int = 0,
     val status: UiResult<Unit> = UiResult.Default
 )
 
@@ -20,7 +21,8 @@ data class DashboardUiState(
 ) {
     data class Data(
         val nearby: Nearby,
-        val friends: TabContent<PlayerList>
+        val friends: TabContent<PlayerList>,
+        val pendingSyncCount: Int
     ) {
         data class TabContent<T>(
             val data: T,
@@ -56,4 +58,6 @@ sealed interface DashboardAction {
     data object AddFriendClicked : DashboardAction
 
     data class GuessThing(val thing: Thing.Listing) : DashboardAction
+
+    data class SyncCountUpdated(val count: Int) : DashboardAction
 }

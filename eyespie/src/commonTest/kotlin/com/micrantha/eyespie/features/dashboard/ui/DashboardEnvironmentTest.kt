@@ -9,13 +9,16 @@ import com.micrantha.eyespie.features.dashboard.ui.DashboardAction.Load
 import com.micrantha.eyespie.features.dashboard.ui.DashboardAction.LoadError
 import com.micrantha.eyespie.features.dashboard.ui.DashboardAction.Loaded
 import com.micrantha.eyespie.features.dashboard.ui.DashboardAction.ScanNewThing
+import com.micrantha.eyespie.features.dashboard.ui.DashboardAction.SyncCountUpdated
 import com.micrantha.eyespie.features.dashboard.ui.usecase.DashboardLoadUseCase
 import com.micrantha.eyespie.features.game.ui.component.GameAction
 import com.micrantha.eyespie.features.game.ui.detail.GameDetailScreenArg
 import com.micrantha.eyespie.features.game.ui.detail.GameDetailsScreen
 import com.micrantha.eyespie.features.guess.ui.ScanGuessArgs
 import com.micrantha.eyespie.features.guess.ui.ScanGuessScreen
+import com.micrantha.eyespie.features.scan.data.FakeCaptureSyncRepository
 import com.micrantha.eyespie.features.scan.ui.capture.ScanCaptureScreen
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -42,9 +45,10 @@ class DashboardEnvironmentTest {
         override fun invoke(): Flow<Result<Loaded>> = flow
     }
 
-    private val dispatcher = FakeDispatcher()
+    private val dispatcher = FakeDispatcher(CoroutineScope(UnconfinedTestDispatcher()))
     private val context = FakeScreenContext(dispatcher = dispatcher)
-    
+    private val captureSyncRepository = FakeCaptureSyncRepository()
+
     private val di = DI {
         bindFactory { arg: GameDetailScreenArg -> GameDetailsScreen(context, arg) }
         bindProvider { ScanCaptureScreen() }
@@ -56,7 +60,7 @@ class DashboardEnvironmentTest {
     }
 
     private val useCase = FakeLoadUseCase()
-    private val environment = DashboardEnvironment(context, useCase)
+    private val environment = DashboardEnvironment(context, useCase, captureSyncRepository)
 
     @BeforeTest
     fun setUp() {
@@ -154,8 +158,7 @@ class DashboardEnvironmentTest {
         
         useCase.flow.emit(Result.success(loaded))
 
-        assertEquals(1, dispatcher.actions.size)
-        assertIs<Loaded>(dispatcher.actions.first())
+        assertIs<Loaded>(dispatcher.actions.find { it is Loaded })
     }
 
     @Test
@@ -166,7 +169,18 @@ class DashboardEnvironmentTest {
         
         useCase.flow.emit(Result.failure(Exception("Error")))
 
-        assertEquals(1, dispatcher.actions.size)
-        assertIs<LoadError>(dispatcher.actions.first())
+        assertIs<LoadError>(dispatcher.actions.find { it is LoadError })
+    }
+
+    @Test
+    fun `invoke Load action should monitor capture sync count`() = runTest {
+        val action = Load
+        
+        environment.invoke(action, DashboardState())
+        
+        captureSyncRepository.countFlow.value = 5
+
+        val syncAction = dispatcher.actions.filterIsInstance<SyncCountUpdated>().last()
+        assertEquals(5, syncAction.count)
     }
 }
