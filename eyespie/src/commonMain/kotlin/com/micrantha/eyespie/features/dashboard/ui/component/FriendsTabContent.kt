@@ -14,7 +14,7 @@ import com.micrantha.eyespie.features.dashboard.ui.DashboardAction.AddFriendClic
 import com.micrantha.eyespie.features.dashboard.ui.DashboardUiState.Data.TabContent
 import com.micrantha.eyespie.features.players.domain.entities.PlayerList
 import com.micrantha.eyespie.features.players.ui.component.PlayerListCard
-import eyespie.app.generated.resources.no_players_found
+import com.micrantha.eyespie.generated.resources.no_players_found
 
 @Composable
 fun FriendsTabContent(tab: TabContent<PlayerList>, dispatch: Dispatch) {

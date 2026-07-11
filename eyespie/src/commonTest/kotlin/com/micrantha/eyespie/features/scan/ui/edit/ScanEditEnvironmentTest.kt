@@ -15,6 +15,7 @@ import com.micrantha.eyespie.features.scan.data.FakeCaptureSyncRepository
 import com.micrantha.eyespie.features.scan.entities.ScanEditAction.SaveScanEdit
 import com.micrantha.eyespie.features.scan.entities.ScanEditState
 import com.micrantha.eyespie.features.scan.usecase.ImageEmbeddingGenerator
+import com.micrantha.eyespie.features.scan.usecase.FakeUploadCaptureUseCase
 import com.micrantha.eyespie.features.scan.usecase.UploadCaptureUseCase
 import com.micrantha.eyespie.platform.scan.CameraImage
 import com.micrantha.eyespie.platform.scan.LoadCameraImageUseCase
@@ -23,6 +24,8 @@ import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.resetMain
 import kotlinx.coroutines.test.runTest
 import kotlinx.coroutines.test.setMain
+import kotlin.time.Clock
+import kotlin.time.Instant
 import okio.ByteString.Companion.toByteString
 import okio.Path
 import okio.Path.Companion.toPath
@@ -41,12 +44,6 @@ class ScanEditEnvironmentTest {
         override suspend fun clues(image: Path): Result<Set<AiClue>> = Result.success(emptySet())
         override suspend fun guess(image: Path, clue: GuessClue): Result<String> = Result.success("")
     }
-    private val fileSystem = object : FileSystem {
-        override fun filesPath(): Path = "/".toPath()
-        override fun sharedFilesPath(): Path = "/".toPath()
-        override fun fileRead(path: Path): ByteArray = byteArrayOf()
-        override fun fileWrite(path: Path, data: ByteArray) = Unit
-    }
     private val loadCameraImageUseCase = object : LoadCameraImageUseCase {
         override fun invoke(path: Path, regionOfInterest: Rect?): Result<CameraImage> = Result.success(object : CameraImage {
             override val width = 0
@@ -55,18 +52,7 @@ class ScanEditEnvironmentTest {
             override fun toImageBitmap() = TODO()
         })
     }
-    private val imageEmbeddingGenerator = object : ImageEmbeddingGenerator {
-        override suspend fun generate(image: CameraImage) = byteArrayOf(0).toByteString()
-    }
-    private val uploadCaptureUseCase = UploadCaptureUseCase(
-        FakeStorageRepository(),
-        FakeThingRepository(),
-        captureSyncRepository,
-        fileSystem,
-        imageEmbeddingGenerator,
-        loadCameraImageUseCase,
-        CurrentSession
-    )
+    private val uploadCaptureUseCase = FakeUploadCaptureUseCase()
     private val dispatcher = FakeDispatcher()
     private val context = FakeScreenContext(dispatcher = dispatcher)
     private val environment = ScanEditEnvironment(context, uploadCaptureUseCase, clueRepository, loadCameraImageUseCase)
@@ -90,15 +76,15 @@ class ScanEditEnvironmentTest {
             )
         )
         
-        CurrentSession.update(
-            Player(
-                "p1", 
-                kotlinx.datetime.Instant.parse("2023-01-01T00:00:00Z"), 
-                Player.Name("f", "l", "n"), 
-                "e", 
-                Player.Score(0)
-            )
-        )
+        uploadCaptureUseCase.result = Result.success(com.micrantha.eyespie.domain.entities.Thing(
+            id = "t1",
+            createdBy = Player.Ref("p1", "p1"),
+            imageUrl = "url",
+            createdAt = Clock.System.now(),
+            location = com.micrantha.eyespie.domain.entities.Location.Point(1.0, 2.0),
+            guessed = false,
+            guesses = emptyList()
+        ))
 
         environment.invoke(SaveScanEdit, state)
 

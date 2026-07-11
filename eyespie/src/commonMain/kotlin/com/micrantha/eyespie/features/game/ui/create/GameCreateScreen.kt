@@ -21,10 +21,10 @@ import com.micrantha.bluebell.arch.Dispatch
 import com.micrantha.bluebell.ui.theme.Dimensions
 import com.micrantha.eyespie.app.EyesPie
 import com.micrantha.eyespie.app.S
-import eyespie.app.generated.resources.name
-import eyespie.app.generated.resources.new_game_content
-import eyespie.app.generated.resources.new_game_header
-import eyespie.app.generated.resources.next
+import com.micrantha.eyespie.generated.resources.name
+import com.micrantha.eyespie.generated.resources.new_game_content
+import com.micrantha.eyespie.generated.resources.new_game_header
+import com.micrantha.eyespie.generated.resources.next
 import org.jetbrains.compose.resources.stringResource
 
 class GameCreateScreen : Screen {

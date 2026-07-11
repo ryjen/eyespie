@@ -14,7 +14,7 @@ import com.micrantha.bluebell.ui.theme.Dimensions
 import com.micrantha.eyespie.app.S
 import com.micrantha.eyespie.domain.entities.ThingList
 import com.micrantha.eyespie.features.dashboard.ui.DashboardAction.ScanNewThing
-import eyespie.app.generated.resources.no_things_found
+import com.micrantha.eyespie.generated.resources.no_things_found
 
 @Composable
 fun ThingListContent(

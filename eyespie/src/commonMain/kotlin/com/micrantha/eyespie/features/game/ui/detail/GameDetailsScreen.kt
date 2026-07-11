@@ -28,12 +28,12 @@ import com.micrantha.eyespie.domain.entities.Game
 import com.micrantha.eyespie.features.game.ui.detail.GameDetailsAction.Load
 import com.micrantha.eyespie.features.players.ui.component.PlayerListContent
 import com.micrantha.eyespie.features.things.ui.component.ThingListContent
-import eyespie.app.generated.resources.created_at
-import eyespie.app.generated.resources.expires_at
-import eyespie.app.generated.resources.location
-import eyespie.app.generated.resources.next_turn
-import eyespie.app.generated.resources.players
-import eyespie.app.generated.resources.things
+import com.micrantha.eyespie.generated.resources.created_at
+import com.micrantha.eyespie.generated.resources.expires_at
+import com.micrantha.eyespie.generated.resources.location
+import com.micrantha.eyespie.generated.resources.next_turn
+import com.micrantha.eyespie.generated.resources.players
+import com.micrantha.eyespie.generated.resources.things
 import org.jetbrains.compose.resources.stringResource
 import kotlin.time.ExperimentalTime
 

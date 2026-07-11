@@ -21,10 +21,10 @@ import com.micrantha.eyespie.features.dashboard.ui.DashboardAction.HasMoreThings
 import com.micrantha.eyespie.features.dashboard.ui.DashboardUiState.Data.Nearby
 import com.micrantha.eyespie.features.players.ui.component.PlayerListCard
 import com.micrantha.eyespie.features.things.ui.component.ThingListingCard
-import eyespie.app.generated.resources.no_players_found
-import eyespie.app.generated.resources.no_things_found
-import eyespie.app.generated.resources.players
-import eyespie.app.generated.resources.things
+import com.micrantha.eyespie.generated.resources.no_players_found
+import com.micrantha.eyespie.generated.resources.no_things_found
+import com.micrantha.eyespie.generated.resources.players
+import com.micrantha.eyespie.generated.resources.things
 import org.jetbrains.compose.resources.stringResource
 
 @OptIn(ExperimentalFoundationApi::class)

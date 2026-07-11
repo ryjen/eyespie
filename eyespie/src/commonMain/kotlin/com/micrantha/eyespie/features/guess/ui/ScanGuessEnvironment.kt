@@ -15,8 +15,8 @@ import com.micrantha.eyespie.features.guess.ui.ScanGuessAction.SimilarityUpdated
 import com.micrantha.eyespie.features.guess.ui.ScanGuessAction.ThingMatched
 import com.micrantha.eyespie.features.guess.ui.ScanGuessAction.ThingNotFound
 import com.micrantha.eyespie.features.scan.usecase.MatchCaptureUseCase
-import eyespie.app.generated.resources.no_data_found
-import eyespie.app.generated.resources.ok
+import com.micrantha.eyespie.generated.resources.no_data_found
+import com.micrantha.eyespie.generated.resources.ok
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 

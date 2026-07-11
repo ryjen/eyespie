@@ -17,7 +17,7 @@ import com.micrantha.eyespie.domain.repository.GameRepository
 import com.micrantha.eyespie.features.game.ui.component.GameAction.Error
 import com.micrantha.eyespie.features.game.ui.detail.GameDetailsAction.Load
 import com.micrantha.eyespie.features.game.ui.detail.GameDetailsAction.Loaded
-import eyespie.app.generated.resources.loading_game
+import com.micrantha.eyespie.generated.resources.loading_game
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 

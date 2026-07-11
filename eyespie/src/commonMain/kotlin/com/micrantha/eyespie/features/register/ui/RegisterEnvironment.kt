@@ -14,8 +14,8 @@ import com.micrantha.bluebell.ui.screen.ScreenContext
 import com.micrantha.eyespie.app.S
 import com.micrantha.eyespie.app.usecase.LoadMainUseCase
 import com.micrantha.eyespie.domain.repository.AccountRepository
-import eyespie.app.generated.resources.logging_in
-import eyespie.app.generated.resources.register_failed
+import com.micrantha.eyespie.generated.resources.logging_in
+import com.micrantha.eyespie.generated.resources.register_failed
 
 class RegisterEnvironment(
     private val context: ScreenContext,

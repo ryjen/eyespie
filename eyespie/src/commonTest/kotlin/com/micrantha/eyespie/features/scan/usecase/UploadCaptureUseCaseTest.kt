@@ -47,7 +47,7 @@ class UploadCaptureUseCaseTest {
         })
     }
 
-    private val useCase = UploadCaptureUseCase(
+    private val useCase = UploadCaptureUseCaseImpl(
         storageRepository,
         thingRepository,
         captureSyncRepository,

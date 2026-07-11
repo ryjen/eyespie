@@ -17,7 +17,14 @@ import kotlin.coroutines.coroutineContext
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
-class UploadCaptureUseCase(
+interface UploadCaptureUseCase {
+    suspend operator fun invoke(
+        proof: Proof,
+        image: Path
+    ): Result<Thing>
+}
+
+class UploadCaptureUseCaseImpl(
     private val storageRepository: StorageRepository,
     private val thingRepository: ThingRepository,
     private val captureSyncRepository: CaptureSyncRepository,
@@ -25,10 +32,10 @@ class UploadCaptureUseCase(
     private val imageEmbeddingGenerator: ImageEmbeddingGenerator,
     private val loadCameraImageUseCase: LoadCameraImageUseCase,
     private val session: CurrentSession = CurrentSession
-) {
+) : UploadCaptureUseCase {
 
     @OptIn(ExperimentalUuidApi::class)
-    suspend operator fun invoke(
+    override suspend fun invoke(
         proof: Proof,
         image: Path
     ): Result<Thing> = dispatchUseCase(coroutineContext) {

@@ -1,6 +1,7 @@
 package com.micrantha.eyespie.features.dashboard.ui
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -38,9 +39,9 @@ import com.micrantha.eyespie.features.dashboard.ui.DashboardAction.ScanNewThing
 import com.micrantha.eyespie.features.dashboard.ui.component.FriendsTabContent
 import com.micrantha.eyespie.features.dashboard.ui.component.NearbyTabContent
 import com.micrantha.eyespie.features.dashboard.ui.component.ScanNewThingCard
-import eyespie.app.generated.resources.friends
-import eyespie.app.generated.resources.loading_dashboard
-import eyespie.app.generated.resources.nearby
+import com.micrantha.eyespie.generated.resources.friends
+import com.micrantha.eyespie.generated.resources.loading_dashboard
+import com.micrantha.eyespie.generated.resources.nearby
 import org.jetbrains.compose.resources.stringResource
 
 class DashboardScreen : Screen {
@@ -70,7 +71,7 @@ class DashboardScreen : Screen {
             modifier = Modifier.fillMaxSize()
         ) {
 
-            SyncStatusHeader(state)
+            SyncStatusHeader(state, dispatch)
 
             AppTitle()
 
@@ -89,12 +90,13 @@ class DashboardScreen : Screen {
     }
 
     @Composable
-    private fun SyncStatusHeader(state: DashboardUiState) {
+    private fun SyncStatusHeader(state: DashboardUiState, dispatch: Dispatch) {
         val count = (state.status as? Ready)?.data?.pendingSyncCount ?: 0
         if (count > 0) {
             Row(
                 modifier = Modifier.fillMaxWidth()
                     .background(MaterialTheme.colorScheme.secondaryContainer)
+                    .clickable { dispatch(DashboardAction.PendingSyncClicked) }
                     .padding(Dimensions.Padding.small),
                 horizontalArrangement = Arrangement.Center,
                 verticalAlignment = Alignment.CenterVertically

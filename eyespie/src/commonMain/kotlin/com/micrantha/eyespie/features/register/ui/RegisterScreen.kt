@@ -39,15 +39,15 @@ import com.micrantha.bluebell.ui.model.isFailure
 import com.micrantha.bluebell.ui.theme.Dimensions
 import com.micrantha.eyespie.app.EyesPie
 import com.micrantha.eyespie.app.S
-import eyespie.app.generated.resources.confirm_password
-import eyespie.app.generated.resources.email
-import eyespie.app.generated.resources.login_email_placeholder
-import eyespie.app.generated.resources.login_password_placeholder
-import eyespie.app.generated.resources.password
-import eyespie.app.generated.resources.register
-import eyespie.app.generated.resources.register_confirm_password_placeholder
-import eyespie.app.generated.resources.register_title
-import eyespie.app.generated.resources.register_with_google
+import com.micrantha.eyespie.generated.resources.confirm_password
+import com.micrantha.eyespie.generated.resources.email
+import com.micrantha.eyespie.generated.resources.login_email_placeholder
+import com.micrantha.eyespie.generated.resources.login_password_placeholder
+import com.micrantha.eyespie.generated.resources.password
+import com.micrantha.eyespie.generated.resources.register
+import com.micrantha.eyespie.generated.resources.register_confirm_password_placeholder
+import com.micrantha.eyespie.generated.resources.register_title
+import com.micrantha.eyespie.generated.resources.register_with_google
 import kotlinx.coroutines.delay
 import org.jetbrains.compose.resources.stringResource
 

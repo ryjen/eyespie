@@ -13,7 +13,7 @@ import com.micrantha.eyespie.app.S
 import com.micrantha.eyespie.app.usecase.LoadMainUseCase
 import com.micrantha.eyespie.core.data.account.model.CurrentSession
 import com.micrantha.eyespie.features.players.domain.repository.PlayerRepository
-import eyespie.app.generated.resources.save_failed
+import com.micrantha.eyespie.generated.resources.save_failed
 import com.micrantha.bluebell.arch.Action as FluxAction
 
 class NewPlayerEnvironment(

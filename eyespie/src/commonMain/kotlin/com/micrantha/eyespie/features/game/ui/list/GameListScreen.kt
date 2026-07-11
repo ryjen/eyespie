@@ -25,7 +25,7 @@ import com.micrantha.eyespie.app.S
 import com.micrantha.eyespie.features.game.ui.component.GameListContent
 import com.micrantha.eyespie.features.game.ui.list.GameListAction.Load
 import com.micrantha.eyespie.features.game.ui.list.GameListAction.NewGame
-import eyespie.app.generated.resources.games
+import com.micrantha.eyespie.generated.resources.games
 import org.jetbrains.compose.resources.stringResource
 
 class GameListScreen(

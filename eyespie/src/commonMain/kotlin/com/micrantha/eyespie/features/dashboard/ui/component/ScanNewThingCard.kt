@@ -20,8 +20,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.style.TextAlign
 import com.micrantha.bluebell.ui.theme.Dimensions
 import com.micrantha.eyespie.app.S
-import eyespie.app.generated.resources.new_thing
-import eyespie.app.generated.resources.new_thing_description
+import com.micrantha.eyespie.generated.resources.new_thing
+import com.micrantha.eyespie.generated.resources.new_thing_description
 import org.jetbrains.compose.resources.stringResource
 
 @Composable

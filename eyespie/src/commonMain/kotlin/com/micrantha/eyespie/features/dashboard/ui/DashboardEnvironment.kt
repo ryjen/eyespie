@@ -17,6 +17,7 @@ import com.micrantha.eyespie.features.dashboard.ui.DashboardAction.GuessThing
 import com.micrantha.eyespie.features.dashboard.ui.DashboardAction.Load
 import com.micrantha.eyespie.features.dashboard.ui.DashboardAction.LoadError
 import com.micrantha.eyespie.features.dashboard.ui.DashboardAction.Loaded
+import com.micrantha.eyespie.features.dashboard.ui.DashboardAction.PendingSyncClicked
 import com.micrantha.eyespie.features.dashboard.ui.DashboardAction.ScanNewThing
 import com.micrantha.eyespie.features.dashboard.ui.DashboardAction.SyncCountUpdated
 import com.micrantha.eyespie.features.dashboard.ui.DashboardUiState.Data
@@ -30,8 +31,9 @@ import com.micrantha.eyespie.features.guess.ui.ScanGuessArgs
 import com.micrantha.eyespie.features.guess.ui.ScanGuessScreen
 import com.micrantha.eyespie.features.scan.data.CaptureSyncRepository
 import com.micrantha.eyespie.features.scan.ui.capture.ScanCaptureScreen
-import eyespie.app.generated.resources.loading_dashboard
-import eyespie.app.generated.resources.network_failure
+import com.micrantha.eyespie.features.scan.ui.sync.PendingSyncScreen
+import com.micrantha.eyespie.generated.resources.loading_dashboard
+import com.micrantha.eyespie.generated.resources.network_failure
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 
@@ -108,6 +110,8 @@ class DashboardEnvironment(
             }
 
             is ScanNewThing -> context.navigate<ScanCaptureScreen>()
+
+            is PendingSyncClicked -> context.navigate<PendingSyncScreen>()
 
             is GuessThing -> context.navigate<ScanGuessScreen, ScanGuessArgs>(
                 arg = ScanGuessArgs(action.thing.id)

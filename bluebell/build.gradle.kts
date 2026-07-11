@@ -6,6 +6,12 @@ plugins {
     alias(libs.plugins.compose.compiler)
 }
 
+compose {
+    resources {
+        packageOfResClass = "com.micrantha.bluebell.generated.resources"
+    }
+}
+
 kotlin {
     jvmToolchain(21)
 

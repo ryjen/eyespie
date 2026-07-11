@@ -12,12 +12,16 @@ import com.micrantha.eyespie.features.scan.ui.capture.ScanCaptureStateMapper
 import com.micrantha.eyespie.features.scan.ui.edit.ScanEditEnvironment
 import com.micrantha.eyespie.features.scan.ui.edit.ScanEditScreen
 import com.micrantha.eyespie.features.scan.ui.edit.ScanEditScreenModel
+import com.micrantha.eyespie.features.scan.ui.sync.PendingSyncEnvironment
+import com.micrantha.eyespie.features.scan.ui.sync.PendingSyncScreen
+import com.micrantha.eyespie.features.scan.ui.sync.PendingSyncScreenModel
 import com.micrantha.eyespie.features.scan.usecase.DeterministicImageEmbeddingGenerator
 import com.micrantha.eyespie.features.scan.usecase.ImageEmbeddingGenerator
 import com.micrantha.eyespie.features.scan.usecase.LoadImageUseCase
 import com.micrantha.eyespie.features.scan.usecase.MatchCaptureUseCase
 import com.micrantha.eyespie.features.scan.usecase.TakeCaptureUseCase
 import com.micrantha.eyespie.features.scan.usecase.UploadCaptureUseCase
+import com.micrantha.eyespie.features.scan.usecase.UploadCaptureUseCaseImpl
 import com.micrantha.eyespie.features.scan.usecase.platformImageEmbeddingGenerator
 import org.kodein.di.DI
 import org.kodein.di.bindFactory
@@ -38,7 +42,8 @@ internal fun module() = DI.Module("Scan") {
 
     bindProvider<ImageEmbeddingGenerator> { platformImageEmbeddingGenerator(this) }
     bindProviderOf(::MatchCaptureUseCase)
-    bindProviderOf(::UploadCaptureUseCase)
+    bindProviderOf(::UploadCaptureUseCaseImpl)
+    delegate<UploadCaptureUseCase>().to<UploadCaptureUseCaseImpl>()
     bindProviderOf(::LoadImageUseCase)
     bindProviderOf(::TakeCaptureUseCase)
 
@@ -50,4 +55,8 @@ internal fun module() = DI.Module("Scan") {
     bindProviderOf(::ScanEditEnvironment)
     bindProviderOf(::ScanEditScreenModel)
     bindFactory { params: ScanEditParams -> ScanEditScreen(params) }
+
+    bindProviderOf(::PendingSyncEnvironment)
+    bindProviderOf(::PendingSyncScreenModel)
+    bindProviderOf(::PendingSyncScreen)
 }

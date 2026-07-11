@@ -16,8 +16,8 @@ import com.micrantha.eyespie.features.login.entities.LoginAction.ResetStatus
 import com.micrantha.eyespie.features.login.entities.LoginAction.ToggleEmailMask
 import com.micrantha.eyespie.features.login.entities.LoginAction.TogglePasswordMask
 import com.micrantha.eyespie.features.login.entities.LoginState
-import eyespie.app.generated.resources.logging_in
-import eyespie.app.generated.resources.login_failed
+import com.micrantha.eyespie.generated.resources.logging_in
+import com.micrantha.eyespie.generated.resources.login_failed
 
 class LoginReducer : Reducer<LoginState> {
 

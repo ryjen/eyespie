@@ -23,7 +23,7 @@ import com.micrantha.eyespie.features.game.ui.detail.GameDetailsScreen
 import com.micrantha.eyespie.features.game.ui.list.GameListAction.Load
 import com.micrantha.eyespie.features.game.ui.list.GameListAction.Loaded
 import com.micrantha.eyespie.features.game.ui.list.GameListAction.NewGame
-import eyespie.app.generated.resources.loading_games
+import com.micrantha.eyespie.generated.resources.loading_games
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 

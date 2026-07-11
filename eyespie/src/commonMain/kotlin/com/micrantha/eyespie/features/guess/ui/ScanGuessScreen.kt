@@ -23,10 +23,10 @@ import com.micrantha.eyespie.platform.scan.CameraScanner
 import dev.icerock.moko.permissions.Permission
 import dev.icerock.moko.permissions.PermissionsController
 import dev.icerock.moko.permissions.camera.CAMERA
-import eyespie.app.generated.resources.scan_cold
-import eyespie.app.generated.resources.scan_hot
-import eyespie.app.generated.resources.scan_ice_cold
-import eyespie.app.generated.resources.scan_warm
+import com.micrantha.eyespie.generated.resources.scan_cold
+import com.micrantha.eyespie.generated.resources.scan_hot
+import com.micrantha.eyespie.generated.resources.scan_ice_cold
+import com.micrantha.eyespie.generated.resources.scan_warm
 import org.jetbrains.compose.resources.stringResource
 import org.kodein.di.compose.rememberInstance
 

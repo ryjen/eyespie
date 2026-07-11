@@ -16,7 +16,7 @@ import androidx.compose.ui.unit.dp
 import com.micrantha.bluebell.ui.theme.Dimensions
 import com.micrantha.eyespie.app.EyesPie
 import com.micrantha.eyespie.app.S
-import eyespie.app.generated.resources.app_title
+import com.micrantha.eyespie.generated.resources.app_title
 import org.jetbrains.compose.resources.stringResource
 
 @Composable

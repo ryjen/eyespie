@@ -11,6 +11,12 @@ plugins {
     id("com.micrantha.bluebell")
 }
 
+compose {
+    resources {
+        packageOfResClass = "com.micrantha.eyespie.generated.resources"
+    }
+}
+
 kotlin {
     jvmToolchain(21)
 

@@ -41,7 +41,7 @@ class ThingsDomainMapper(
         imageUrl = thing.imageUrl,
         createdBy = thing.createdBy.id,
         location = thing.location.toString(),
-        embedding = null // TODO
+        embedding = thing.embedding?.floats()?.joinToString(prefix = "[", postfix = "]", separator = ",")
     )
 
     fun map(data: ThingResponse): Thing {

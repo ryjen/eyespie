@@ -27,7 +27,7 @@ class DashboardLoadUseCaseImpl(
         combine(
             flow = if (location != null) thingsRepository.nearby(location) else flowOf(Result.success(emptyList())),
             flow2 = if (location != null) playerRepository.nearby(location) else flowOf(Result.success(emptyList())),
-            flow3 = friends,
+            flow3 = playerRepository.players(),
         ) { nearbyThings, nearbyPlayers, friends ->
             Loaded(
                 nearbyThings = nearbyThings.getOrDefault(emptyList()),
@@ -36,6 +36,4 @@ class DashboardLoadUseCaseImpl(
             )
         }
     }
-
-    private val friends = flowOf(Result.success(emptyList<Player.Listing>()))
 }

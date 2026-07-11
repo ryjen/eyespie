@@ -10,7 +10,6 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import com.micrantha.bluebell.ui.theme.Dimensions
 
-// TODO: style
 @Composable
 fun LabeledText(
     modifier: Modifier = Modifier,
@@ -23,12 +22,14 @@ fun LabeledText(
 ) {
 
     Text(
-        text = label,
-        style = MaterialTheme.typography.bodySmall
+        text = label.uppercase(),
+        style = MaterialTheme.typography.labelSmall,
+        color = MaterialTheme.colorScheme.secondary,
+        modifier = Modifier.padding(bottom = Dimensions.Padding.small / 2)
     )
     Text(
-        modifier = Modifier.padding(start = Dimensions.content),
         text = text,
-        style = MaterialTheme.typography.bodyLarge
+        style = MaterialTheme.typography.bodyLarge,
+        color = MaterialTheme.colorScheme.onSurface
     )
 }

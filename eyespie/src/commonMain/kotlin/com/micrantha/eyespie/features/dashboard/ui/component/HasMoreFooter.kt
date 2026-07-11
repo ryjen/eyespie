@@ -11,7 +11,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import com.micrantha.bluebell.ui.theme.Dimensions
 import com.micrantha.eyespie.app.S
-import eyespie.app.generated.resources.has_more
+import com.micrantha.eyespie.generated.resources.has_more
 import org.jetbrains.compose.resources.stringResource
 
 @Composable

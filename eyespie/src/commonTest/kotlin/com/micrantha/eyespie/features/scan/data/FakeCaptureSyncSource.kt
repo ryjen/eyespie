@@ -1,11 +1,16 @@
 package com.micrantha.eyespie.features.scan.data
 
 import com.micrantha.eyespie.data.PendingCapture
+import com.micrantha.eyespie.domain.entities.AiProof
 import com.micrantha.eyespie.domain.entities.Proof
 import com.micrantha.eyespie.features.scan.data.source.CaptureSyncSource
+import kotlinx.serialization.encodeToString
+import kotlinx.serialization.json.Json
 import okio.Path
 
-class FakeCaptureSyncSource : CaptureSyncSource {
+class FakeCaptureSyncSource(
+    private val json: Json = Json
+) : CaptureSyncSource {
     val queued = mutableListOf<PendingCapture>()
 
     override suspend fun queue(proof: Proof, imagePath: Path, playerID: String): Result<Unit> {
@@ -15,7 +20,7 @@ class FakeCaptureSyncSource : CaptureSyncSource {
             player_id = playerID,
             latitude = proof.location?.point?.latitude,
             longitude = proof.location?.point?.longitude,
-            clues = null, // simplified for fake
+            clues = proof.clues?.let { json.encodeToString<AiProof>(it) },
             embedding = proof.embedding.toByteArray(),
             created_at = ""
         ))

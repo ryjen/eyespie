@@ -60,4 +60,6 @@ sealed interface DashboardAction {
     data class GuessThing(val thing: Thing.Listing) : DashboardAction
 
     data class SyncCountUpdated(val count: Int) : DashboardAction
+
+    data object PendingSyncClicked : DashboardAction
 }
