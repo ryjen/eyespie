@@ -1,7 +1,7 @@
 package com.micrantha.eyespie.features.scan
 
 import com.micrantha.eyespie.features.scan.data.CaptureSyncRepository
-import com.micrantha.eyespie.features.scan.data.CaptureSyncRepositoryImpl
+import com.micrantha.eyespie.features.scan.data.CaptureSyncDataRepository
 import com.micrantha.eyespie.features.scan.data.source.CaptureSyncSource
 import com.micrantha.eyespie.features.scan.data.source.SqlCaptureSyncSource
 import com.micrantha.eyespie.features.scan.entities.ScanEditParams
@@ -15,7 +15,6 @@ import com.micrantha.eyespie.features.scan.ui.edit.ScanEditScreenModel
 import com.micrantha.eyespie.features.scan.ui.sync.PendingSyncEnvironment
 import com.micrantha.eyespie.features.scan.ui.sync.PendingSyncScreen
 import com.micrantha.eyespie.features.scan.ui.sync.PendingSyncScreenModel
-import com.micrantha.eyespie.features.scan.usecase.DeterministicImageEmbeddingGenerator
 import com.micrantha.eyespie.features.scan.usecase.ImageEmbeddingGenerator
 import com.micrantha.eyespie.features.scan.usecase.LoadImageUseCase
 import com.micrantha.eyespie.features.scan.usecase.MatchCaptureUseCase
@@ -37,13 +36,12 @@ internal fun module() = DI.Module("Scan") {
 
     bindProviderOf(::SqlCaptureSyncSource)
     delegate<CaptureSyncSource>().to<SqlCaptureSyncSource>()
-    bindSingletonOf(::CaptureSyncRepositoryImpl)
-    delegate<CaptureSyncRepository>().to<CaptureSyncRepositoryImpl>()
-
-    bindProvider<ImageEmbeddingGenerator> { platformImageEmbeddingGenerator(this) }
-    bindProviderOf(::MatchCaptureUseCase)
     bindProviderOf(::UploadCaptureUseCaseImpl)
     delegate<UploadCaptureUseCase>().to<UploadCaptureUseCaseImpl>()
+    bindSingletonOf(::CaptureSyncDataRepository)
+    delegate<CaptureSyncRepository>().to<CaptureSyncDataRepository>()
+    bindProvider<ImageEmbeddingGenerator> { platformImageEmbeddingGenerator(di) }
+    bindProviderOf(::MatchCaptureUseCase)
     bindProviderOf(::LoadImageUseCase)
     bindProviderOf(::TakeCaptureUseCase)
 

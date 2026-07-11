@@ -23,7 +23,7 @@ interface CaptureSyncRepository {
     suspend fun queue(proof: Proof, imagePath: okio.Path, playerID: String): Result<Unit>
 }
 
-class CaptureSyncRepositoryImpl(
+class CaptureSyncDataRepository(
     private val source: CaptureSyncSource,
     private val uploadUseCase: UploadCaptureUseCase,
     private val connectivity: ConnectivityStatus,

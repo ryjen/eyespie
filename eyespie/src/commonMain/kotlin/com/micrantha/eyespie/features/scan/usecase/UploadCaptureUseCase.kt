@@ -1,13 +1,12 @@
 package com.micrantha.eyespie.features.scan.usecase
 
 import com.micrantha.bluebell.domain.usecase.dispatchUseCase
-import com.micrantha.bluebell.platform.FileSystem
+import com.micrantha.bluebell.platform.Platform
 import com.micrantha.eyespie.core.data.account.model.CurrentSession
 import com.micrantha.eyespie.domain.entities.Proof
 import com.micrantha.eyespie.domain.entities.Thing
 import com.micrantha.eyespie.domain.repository.StorageRepository
 import com.micrantha.eyespie.domain.repository.ThingRepository
-import com.micrantha.eyespie.features.scan.data.CaptureSyncRepository
 import com.micrantha.eyespie.platform.scan.LoadCameraImageUseCase
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
@@ -27,8 +26,7 @@ interface UploadCaptureUseCase {
 class UploadCaptureUseCaseImpl(
     private val storageRepository: StorageRepository,
     private val thingRepository: ThingRepository,
-    private val captureSyncRepository: CaptureSyncRepository,
-    private val fileSystem: FileSystem,
+    private val platform: Platform,
     private val imageEmbeddingGenerator: ImageEmbeddingGenerator,
     private val loadCameraImageUseCase: LoadCameraImageUseCase,
     private val session: CurrentSession = CurrentSession
@@ -40,30 +38,25 @@ class UploadCaptureUseCaseImpl(
         image: Path
     ): Result<Thing> = dispatchUseCase(coroutineContext) {
         val playerID = session.requirePlayer().id
-        
-        try {
-            val imageData = withContext(Dispatchers.IO) {
-                fileSystem.fileRead(image)
-            }
 
-            val cameraImage = loadCameraImageUseCase(image).getOrThrow()
-            val embedding = imageEmbeddingGenerator.generate(cameraImage)
-
-            val imageID = Uuid.random().toString()
-
-            storageRepository.upload(
-                "${playerID}/${imageID}.jpg",
-                imageData
-            ).map { url ->
-                thingRepository.create(
-                    proof.copy(embedding = embedding),
-                    url,
-                    playerID
-                ).getOrThrow()
-            }.getOrThrow()
-        } catch (err: Throwable) {
-            captureSyncRepository.queue(proof, image, playerID)
-            throw err
+        val imageData = withContext(Dispatchers.IO) {
+            platform.fileRead(image)
         }
+
+        val cameraImage = loadCameraImageUseCase(image).getOrThrow()
+        val embedding = imageEmbeddingGenerator.generate(cameraImage)
+
+        val imageID = Uuid.random().toString()
+
+        storageRepository.upload(
+            "${playerID}/${imageID}.jpg",
+            imageData
+        ).map { url ->
+            thingRepository.create(
+                proof.copy(embedding = embedding),
+                url,
+                playerID
+            ).getOrThrow()
+        }.getOrThrow()
     }
 }

@@ -2,6 +2,9 @@ package com.micrantha.eyespie.core.data.client
 
 import com.micrantha.eyespie.app.AppConfig
 
+internal fun isSupabaseConfigured(): Boolean =
+    AppConfig.SUPABASE_URL.isNotBlank() && AppConfig.SUPABASE_KEY.isNotBlank()
+
 internal fun requireSupabaseConfig(): Pair<String, String> {
     val url = AppConfig.SUPABASE_URL
     val key = AppConfig.SUPABASE_KEY

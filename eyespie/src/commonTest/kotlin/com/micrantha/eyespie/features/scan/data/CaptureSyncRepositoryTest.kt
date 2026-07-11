@@ -20,7 +20,7 @@ class CaptureSyncRepositoryTest {
     private lateinit var uploadUseCase: FakeUploadCaptureUseCase
     private lateinit var networkMonitor: FakeNetworkMonitor
     private lateinit var connectivityStatus: ConnectivityStatus
-    private lateinit var repository: CaptureSyncRepositoryImpl
+    private lateinit var repository: CaptureSyncDataRepository
     private val testScope = TestScope()
 
     @BeforeTest
@@ -31,7 +31,7 @@ class CaptureSyncRepositoryTest {
         connectivityStatus = ConnectivityStatus(networkMonitor)
         connectivityStatus.start()
         
-        repository = CaptureSyncRepositoryImpl(
+        repository = CaptureSyncDataRepository(
             source,
             uploadUseCase,
             connectivityStatus,

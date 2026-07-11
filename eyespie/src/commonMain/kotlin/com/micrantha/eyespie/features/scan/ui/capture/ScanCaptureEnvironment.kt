@@ -4,8 +4,6 @@ import com.micrantha.bluebell.arch.Action
 import com.micrantha.bluebell.arch.Dispatcher
 import com.micrantha.bluebell.arch.Effect
 import com.micrantha.bluebell.arch.Reducer
-import com.micrantha.bluebell.i18n.repository.LocalizedRepository
-import com.micrantha.bluebell.platform.FileSystem
 import com.micrantha.bluebell.ui.components.Router
 import com.micrantha.bluebell.ui.screen.ScreenContext
 import com.micrantha.bluebell.ui.screen.navigate
@@ -20,10 +18,7 @@ import okio.Path
 class ScanCaptureEnvironment(
     private val context: ScreenContext,
 ) : Reducer<ScanState>, Effect<ScanState>,
-    Router by context.router,
-    FileSystem by context.fileSystem,
-    Dispatcher by context.dispatcher,
-    LocalizedRepository by context.i18n {
+    Dispatcher by context.dispatcher {
 
     override suspend fun invoke(action: Action, state: ScanState) {
         when (action) {

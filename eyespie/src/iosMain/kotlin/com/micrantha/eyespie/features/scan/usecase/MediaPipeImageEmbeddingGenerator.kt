@@ -1,6 +1,6 @@
 package com.micrantha.eyespie.features.scan.usecase
 
-import org.kodein.di.DirectDI
+import org.kodein.di.DI
 
-actual fun platformImageEmbeddingGenerator(di: DirectDI): ImageEmbeddingGenerator = 
+actual fun platformImageEmbeddingGenerator(di: DI): ImageEmbeddingGenerator = 
     DeterministicImageEmbeddingGenerator()

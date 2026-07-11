@@ -4,7 +4,6 @@ import com.micrantha.bluebell.data.bluebellData
 import com.micrantha.bluebell.domain.bluebellDomain
 import com.micrantha.bluebell.flux.bluebellFlux
 import com.micrantha.bluebell.i18n.repository.LocalizedRepository
-import com.micrantha.bluebell.platform.ConnectivityStatus
 import com.micrantha.bluebell.platform.FileSystem
 import com.micrantha.bluebell.platform.Platform
 import com.micrantha.bluebell.ui.bluebellUi
@@ -12,7 +11,6 @@ import org.kodein.di.DI
 import org.kodein.di.DIAware
 import org.kodein.di.DITrigger
 import org.kodein.di.DirectDIAware
-import org.kodein.di.bindProviderOf
 import org.kodein.di.delegate
 import org.kodein.di.instance
 
@@ -22,8 +20,6 @@ fun bluebellModules(trigger: DITrigger? = null) = DI.Module(name = "Bluebell") {
     importOnce(bluebellDomain())
     importOnce(bluebellUi())
     importOnce(bluebellFlux())
-
-    bindProviderOf(::ConnectivityStatus)
 
     delegate<LocalizedRepository>().to<Platform>()
     delegate<FileSystem>().to<Platform>()

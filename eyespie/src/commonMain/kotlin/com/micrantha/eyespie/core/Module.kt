@@ -8,6 +8,7 @@ import com.micrantha.bluebell.observability.repository.DefaultDestinationContext
 import com.micrantha.bluebell.observability.repository.OfflineSupabaseUsageObservability
 import com.micrantha.bluebell.observability.repository.OkioJsonLinesDiskCache
 import com.micrantha.bluebell.observability.usecase.FlushOfflineUsageToSupabase
+import com.micrantha.bluebell.platform.ConnectivityStatus
 import com.micrantha.bluebell.platform.Platform
 import com.micrantha.eyespie.core.data.account.AccountDataRepository
 import com.micrantha.eyespie.core.data.account.model.CurrentSession
@@ -55,6 +56,8 @@ import org.kodein.di.instance
 import okio.FileSystem as OkioFileSystem
 
 internal fun module() = DI.Module("Core Feature") {
+    bindProviderOf(::ConnectivityStatus)
+
     bindSingletonOf(::SupaClient)
     bindSingletonOf(::SupaRealtimeClient)
 

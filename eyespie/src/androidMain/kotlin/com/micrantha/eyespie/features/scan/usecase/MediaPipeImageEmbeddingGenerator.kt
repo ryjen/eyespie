@@ -10,7 +10,8 @@ import com.micrantha.eyespie.platform.scan.PlatformCameraImage
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import okio.ByteString.Companion.toByteString
-import org.kodein.di.DirectDI
+import org.kodein.di.DI
+import org.kodein.di.direct
 import org.kodein.di.instance
 
 class MediaPipeImageEmbeddingGenerator(
@@ -60,5 +61,5 @@ class MediaPipeImageEmbeddingGenerator(
     }
 }
 
-actual fun platformImageEmbeddingGenerator(di: DirectDI): ImageEmbeddingGenerator = 
-    MediaPipeImageEmbeddingGenerator(di.instance())
+actual fun platformImageEmbeddingGenerator(di: DI): ImageEmbeddingGenerator = 
+    MediaPipeImageEmbeddingGenerator(di.direct.instance())

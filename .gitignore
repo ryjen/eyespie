@@ -214,8 +214,17 @@ vendor/bundle
 fastlane/README.md
 fastlane/report.xml
 
-## AI Tools 
+## Nix
+result
+
+# direnv
+.direnv/
+
+## AI Tools
 .claude
 
 .gemini/
 gha-creds-*.json
+
+.agents
+.serena

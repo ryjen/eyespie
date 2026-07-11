@@ -31,7 +31,7 @@ fun EyesPieApp(module: DI = localDI()) = subDI(
             diBuilder = {
                 bindSingleton { navigator }
                 bindSingleton { permissions }
-                bindSingleton(overrides = true) { locationTracker }
+                bindSingleton { locationTracker }
             }
         ) {
 

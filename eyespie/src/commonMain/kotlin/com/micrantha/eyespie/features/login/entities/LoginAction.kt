@@ -20,6 +20,8 @@ sealed interface LoginAction {
 
     data class ChangedEmail(val email: String) : LoginAction
 
+    data object NotConfigured : LoginAction
+
     data object ResetStatus : LoginAction
 
     data object OnRegister : LoginAction

@@ -68,4 +68,5 @@
     <string name="scan_warm">Warmer…</string>
     <string name="scan_cold">Colder…</string>
     <string name="scan_ice_cold">Try looking elsewhere</string>
+    <string name="not_configured">App is not configured. Please set environment variables.</string>
 </resources>
