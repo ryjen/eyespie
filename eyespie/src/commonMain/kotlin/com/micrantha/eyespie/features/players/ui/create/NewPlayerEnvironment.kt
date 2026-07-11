@@ -74,6 +74,10 @@ class NewPlayerEnvironment(
                 dispatch(Action.OnError(it))
             }
 
+            is Action.Done -> loadMainUseCase().onFailure {
+                dispatch(Action.OnError(it))
+            }
+
             else -> Unit
         }
     }
