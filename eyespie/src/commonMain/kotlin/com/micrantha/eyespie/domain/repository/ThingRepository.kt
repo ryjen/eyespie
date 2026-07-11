@@ -14,7 +14,7 @@ interface ThingRepository {
 
     fun thing(thingID: String): Flow<Result<Thing>>
 
-    suspend fun match(embedding: Embedding): Result<ThingMatches>
+    fun match(embedding: Embedding): Flow<Result<ThingMatches>>
 
     suspend fun create(
         proof: Proof,

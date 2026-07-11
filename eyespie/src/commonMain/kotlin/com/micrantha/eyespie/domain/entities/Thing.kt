@@ -13,6 +13,7 @@ data class Thing(
     val guesses: List<Guess>,
     val imageUrl: ImagePath,
     val location: Location.Point,
+    val embedding: Embedding? = null
 ) : Entity, Creatable {
 
     data class Guess(

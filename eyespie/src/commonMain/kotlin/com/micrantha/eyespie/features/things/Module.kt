@@ -10,13 +10,22 @@ import com.micrantha.eyespie.features.things.data.source.ThingsRemoteSource
 import com.micrantha.eyespie.features.things.ui.detail.ThingDetailEnvironment
 import com.micrantha.eyespie.features.things.ui.detail.ThingDetailScreen
 import com.micrantha.eyespie.features.things.ui.detail.ThingDetailScreenModel
+import com.micrantha.eyespie.app.AppConfig
 import org.kodein.di.DI
+import org.kodein.di.bindProvider
 import org.kodein.di.bindProviderOf
 import org.kodein.di.delegate
+import org.kodein.di.instance
 
 
 internal fun module() = DI.Module("Things") {
-    bindProviderOf(::ThingsDomainMapper)
+    bindProvider { 
+        ThingsDomainMapper(
+            locationMapper = instance(),
+            matchThreshold = AppConfig.MATCH_THRESHOLD.toFloat(),
+            matchCount = AppConfig.MATCH_COUNT.toInt()
+        )
+    }
     bindProviderOf(::ThingDataRepository)
     delegate<ThingRepository>().to<ThingDataRepository>()
     bindProviderOf(::SupabaseThingsRemoteSource)

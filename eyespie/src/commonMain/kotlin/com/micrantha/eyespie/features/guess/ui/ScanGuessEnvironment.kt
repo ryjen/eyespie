@@ -51,19 +51,19 @@ class ScanGuessEnvironment(
                 matchCaptureUseCase(
                     action.image,
                     state.thing
-                ).onSuccess { result ->
-                    if (result.matched) {
-                        dispatch(ThingMatched)
-                        navigateBack()
-                    } else {
-                        dispatch(SimilarityUpdated(result.bestSimilarity))
+                ).onEach { res ->
+                    res.onSuccess { result ->
+                        if (result.matched) {
+                            dispatch(ThingMatched)
+                            navigateBack()
+                        } else {
+                            dispatch(SimilarityUpdated(result.bestSimilarity))
+                            dispatch(ThingNotFound)
+                        }
+                    }.onFailure {
                         dispatch(ThingNotFound)
-                        // keep trying!
-                        // TODO: display warmer/colder
                     }
-                }.onFailure {
-                    dispatch(ThingNotFound)
-                }
+                }.launchIn(dispatchScope)
             }
 
         }

@@ -5,11 +5,11 @@ import com.micrantha.eyespie.domain.entities.Thing
 import com.micrantha.eyespie.domain.repository.FakeThingRepository
 import com.micrantha.eyespie.features.players.domain.entities.Player
 import com.micrantha.eyespie.platform.scan.CameraImage
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import okio.ByteString.Companion.toByteString
 import kotlin.test.Test
 import kotlin.test.assertFalse
-import kotlin.test.assertNotNull
 import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
 
@@ -17,7 +17,7 @@ import kotlin.time.Instant
 class MatchCaptureUseCaseTest {
 
     private class FakeImageEmbeddingGenerator : ImageEmbeddingGenerator {
-        override suspend fun generate(image: CameraImage): Embedding = byteArrayOf(1).toByteString()
+        override suspend fun generate(image: CameraImage): Embedding = byteArrayOf(1, 2, 3, 4).toByteString()
     }
 
     private val generator = FakeImageEmbeddingGenerator()
@@ -44,7 +44,7 @@ class MatchCaptureUseCaseTest {
 
         repository.matchResult = Result.success(emptyList())
 
-        val result = useCase(image, thing).getOrThrow()
+        val result = useCase(image, thing).first().getOrThrow()
 
         assertFalse(result.matched)
     }

@@ -1,0 +1,25 @@
+appId: com.micrantha.eyespie.debug
+---
+- launchApp
+- assertVisible: "EyesPie"
+- tapOn: "Register"
+- tapOn: "Email"
+- inputText: "newuser@micrantha.test"
+- tapOn: "Password"
+- inputText: "P@ssw0rd123"
+- tapOn: "Confirm Password"
+- inputText: "P@ssw0rd123"
+- tapOn: "Register"
+- assertVisible: "Welcome to Eyespie"
+- swipeLeft
+- assertVisible: "Enable machine vision?"
+- tapOn: "No"
+- assertVisible: "Create New Player"
+- tapOn: "First Name"
+- inputText: "Test"
+- tapOn: "Last Name"
+- inputText: "User"
+- tapOn: "Nick Name"
+- inputText: "tester"
+- tapOn: "Save"
+- assertVisible: "Scan New Thing"

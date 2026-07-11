@@ -13,6 +13,7 @@ import com.micrantha.eyespie.features.things.data.source.ThingsLocalSource
 import com.micrantha.eyespie.features.things.data.source.ThingsRemoteSource
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.runTest
+import okio.ByteString.Companion.toByteString
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -63,15 +64,16 @@ class ThingDataRepositoryTest {
     }
 
     @Test
-    fun `things should fallback to local when remote fails`() = runTest {
-        val playerID = "user123"
-        val localThings = listOf(ThingData(id = "1", imageUrl = "", createdBy = playerID))
+    fun `match should return local results first`() = runTest {
+        val embedding = byteArrayOf(1, 1, 1, 1, 2, 2, 2, 2).toByteString()
+        val localThings = listOf(ThingData(id = "1", imageUrl = "", createdBy = "u1", embedding = embedding.hex()))
         localSource.things = localThings
-        remoteSource.thingsResult = Result.failure(Exception("Network error"))
-
-        val results = repository.things(playerID).toList()
-
+        
+        val results = repository.match(embedding).toList()
+        
         assertTrue(results.any { it.isSuccess })
-        assertEquals(1, results.first { it.isSuccess }.getOrNull()?.size)
+        val matchResult = results.first { it.isSuccess }.getOrThrow()
+        assertEquals(1, matchResult.size)
+        assertEquals("1", matchResult.first().id)
     }
 }

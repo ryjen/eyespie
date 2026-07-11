@@ -45,6 +45,6 @@ class FakeThingRepository : ThingRepository {
     override fun nearby(location: Location.Point, distance: Double): Flow<Result<ThingList>> =
         flowOf(Result.success(things.map { Thing.Listing(it.id, it.id, it.createdAt, it.guessed, it.imageUrl) }))
 
-    override suspend fun match(embedding: Embedding): Result<ThingMatches> =
-        matchResult ?: Result.success(emptyList())
+    override fun match(embedding: Embedding): Flow<Result<ThingMatches>> =
+        flowOf(matchResult ?: Result.success(emptyList()))
 }

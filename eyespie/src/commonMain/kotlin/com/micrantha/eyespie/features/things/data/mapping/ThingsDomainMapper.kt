@@ -5,6 +5,7 @@ import com.micrantha.eyespie.domain.entities.Embedding
 import com.micrantha.eyespie.domain.entities.Location.Point
 import com.micrantha.eyespie.domain.entities.Proof
 import com.micrantha.eyespie.domain.entities.Thing
+import com.micrantha.eyespie.domain.entities.floats
 import com.micrantha.eyespie.features.players.domain.entities.Player
 import com.micrantha.eyespie.features.things.data.model.MatchRequest
 import com.micrantha.eyespie.features.things.data.model.MatchResponse
@@ -14,6 +15,7 @@ import com.micrantha.eyespie.features.things.data.model.ThingRequest
 import com.micrantha.eyespie.features.things.data.model.ThingResponse
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.decodeFromJsonElement
+import okio.ByteString.Companion.decodeHex
 import kotlin.time.Clock.System
 import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
@@ -21,6 +23,8 @@ import kotlin.time.Instant
 @OptIn(ExperimentalTime::class)
 class ThingsDomainMapper(
     private val locationMapper: LocationDomainMapper,
+    val matchThreshold: Float = 0.5f,
+    val matchCount: Int = 5
 ) {
 
     fun new(proof: Proof, imageUrl: String, playerId: String) =
@@ -28,21 +32,8 @@ class ThingsDomainMapper(
             imageUrl = imageUrl,
             createdBy = playerId,
             location = proof.location.toString(),
-            embedding = embeddingString(proof.embedding)
+            embedding = proof.embedding.floats().joinToString(prefix = "[", postfix = "]", separator = ",")
         )
-
-    private fun embeddingString(embedding: Embedding): String {
-        val floats = mutableListOf<Float>()
-        val bytes = embedding.toByteArray()
-        for (i in 0 until bytes.size / 4) {
-            val bits = (bytes[i * 4].toInt() and 0xFF shl 24) or
-                    (bytes[i * 4 + 1].toInt() and 0xFF shl 16) or
-                    (bytes[i * 4 + 2].toInt() and 0xFF shl 8) or
-                    (bytes[i * 4 + 3].toInt() and 0xFF)
-            floats.add(Float.fromBits(bits))
-        }
-        return floats.joinToString(prefix = "[", postfix = "]", separator = ",")
-    }
 
     fun map(thing: Thing) = ThingRequest(
         id = thing.id,
@@ -67,6 +58,13 @@ class ThingsDomainMapper(
             ),
             guesses = emptyList(),
             location = point,
+            embedding = data.embedding?.let { hex ->
+                try {
+                    hex.decodeHex()
+                } catch (_: Throwable) {
+                    null
+                }
+            }
         )
     }
 
@@ -85,19 +83,10 @@ class ThingsDomainMapper(
     )
 
     fun match(embedding: Embedding): MatchRequest {
-        val floats = mutableListOf<Float>()
-        val bytes = embedding.toByteArray()
-        for (i in 0 until bytes.size / 4) {
-            val bits = (bytes[i * 4].toInt() and 0xFF shl 24) or
-                    (bytes[i * 4 + 1].toInt() and 0xFF shl 16) or
-                    (bytes[i * 4 + 2].toInt() and 0xFF shl 8) or
-                    (bytes[i * 4 + 3].toInt() and 0xFF)
-            floats.add(Float.fromBits(bits))
-        }
         return MatchRequest(
-            embedding = floats,
-            threshold = 0.5f,
-            count = 5,
+            embedding = embedding.floats(),
+            threshold = matchThreshold,
+            count = matchCount,
         )
     }
 
