@@ -30,6 +30,6 @@ class DeterministicImageEmbeddingGenerator : ImageEmbeddingGenerator {
     }
 
     private companion object {
-        const val EMBEDDING_DIMENSIONS = 32
+        const val EMBEDDING_DIMENSIONS = 4096
     }
 }

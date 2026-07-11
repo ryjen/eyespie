@@ -28,7 +28,21 @@ class ThingsDomainMapper(
             imageUrl = imageUrl,
             createdBy = playerId,
             location = proof.location.toString(),
+            embedding = embeddingString(proof.embedding)
         )
+
+    private fun embeddingString(embedding: Embedding): String {
+        val floats = mutableListOf<Float>()
+        val bytes = embedding.toByteArray()
+        for (i in 0 until bytes.size / 4) {
+            val bits = (bytes[i * 4].toInt() and 0xFF shl 24) or
+                    (bytes[i * 4 + 1].toInt() and 0xFF shl 16) or
+                    (bytes[i * 4 + 2].toInt() and 0xFF shl 8) or
+                    (bytes[i * 4 + 3].toInt() and 0xFF)
+            floats.add(Float.fromBits(bits))
+        }
+        return floats.joinToString(prefix = "[", postfix = "]", separator = ",")
+    }
 
     fun map(thing: Thing) = ThingRequest(
         id = thing.id,
@@ -36,6 +50,7 @@ class ThingsDomainMapper(
         imageUrl = thing.imageUrl,
         createdBy = thing.createdBy.id,
         location = thing.location.toString(),
+        embedding = null // TODO
     )
 
     fun map(data: ThingResponse): Thing {
@@ -69,11 +84,22 @@ class ThingsDomainMapper(
         distance = distance
     )
 
-    fun match(embedding: Embedding) = MatchRequest(
-        embedding = embedding.toByteArray(),
-        threshold = 0.5f,
-        count = 5,
-    )
+    fun match(embedding: Embedding): MatchRequest {
+        val floats = mutableListOf<Float>()
+        val bytes = embedding.toByteArray()
+        for (i in 0 until bytes.size / 4) {
+            val bits = (bytes[i * 4].toInt() and 0xFF shl 24) or
+                    (bytes[i * 4 + 1].toInt() and 0xFF shl 16) or
+                    (bytes[i * 4 + 2].toInt() and 0xFF shl 8) or
+                    (bytes[i * 4 + 3].toInt() and 0xFF)
+            floats.add(Float.fromBits(bits))
+        }
+        return MatchRequest(
+            embedding = floats,
+            threshold = 0.5f,
+            count = 5,
+        )
+    }
 
     fun match(data: MatchResponse) = Thing.Match(
         id = data.id,

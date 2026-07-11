@@ -6,17 +6,17 @@ import kotlinx.serialization.json.JsonElement
 
 @Serializable
 data class MatchRequest(
-    @SerialName("query_embedding") val embedding: ByteArray,
+    @SerialName("query_embedding") val embedding: List<Float>,
     @SerialName("match_threshold") val threshold: Float,
     @SerialName("match_count") val count: Int,
 ) {
     override fun equals(other: Any?): Boolean {
         if (this === other) return true
         if (other == null || other !is MatchRequest) return false
-        return embedding.contentEquals(other.embedding)
+        return embedding == other.embedding
     }
 
-    override fun hashCode() = embedding.contentHashCode()
+    override fun hashCode() = embedding.hashCode()
 }
 
 @Serializable

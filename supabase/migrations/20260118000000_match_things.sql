@@ -1,13 +1,13 @@
 -- Add semantic matching support for Things.
 --
 -- This migration updates the embedding column to match the current app's
--- 32-dimensional deterministic embeddings and adds the RPC function
+-- 1024-dimensional semantic embeddings and adds the RPC function
 -- used by ThingsRemoteSource.
 
-alter table public."Thing" alter column embedding type extensions.vector(32);
+alter table public."Thing" alter column embedding type extensions.vector(1024);
 
 create or replace function match_things (
-  query_embedding extensions.vector(32),
+  query_embedding extensions.vector(1024),
   match_threshold float,
   match_count int
 )

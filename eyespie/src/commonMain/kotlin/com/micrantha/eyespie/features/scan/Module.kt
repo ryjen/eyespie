@@ -18,6 +18,7 @@ import com.micrantha.eyespie.features.scan.usecase.LoadImageUseCase
 import com.micrantha.eyespie.features.scan.usecase.MatchCaptureUseCase
 import com.micrantha.eyespie.features.scan.usecase.TakeCaptureUseCase
 import com.micrantha.eyespie.features.scan.usecase.UploadCaptureUseCase
+import com.micrantha.eyespie.features.scan.usecase.platformImageEmbeddingGenerator
 import org.kodein.di.DI
 import org.kodein.di.bindFactory
 import org.kodein.di.bindProvider
@@ -35,7 +36,7 @@ internal fun module() = DI.Module("Scan") {
     bindSingletonOf(::CaptureSyncRepositoryImpl)
     delegate<CaptureSyncRepository>().to<CaptureSyncRepositoryImpl>()
 
-    bindProvider<ImageEmbeddingGenerator> { DeterministicImageEmbeddingGenerator() }
+    bindProvider<ImageEmbeddingGenerator> { platformImageEmbeddingGenerator(this) }
     bindProviderOf(::MatchCaptureUseCase)
     bindProviderOf(::UploadCaptureUseCase)
     bindProviderOf(::LoadImageUseCase)

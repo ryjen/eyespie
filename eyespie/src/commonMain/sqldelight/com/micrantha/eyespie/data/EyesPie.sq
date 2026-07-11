@@ -51,12 +51,13 @@ CREATE TABLE ThingEntity (
     image_url TEXT NOT NULL,
     created_at TEXT NOT NULL,
     location TEXT,
-    clues TEXT
+    clues TEXT,
+    embedding BLOB
 );
 
 insertThing:
-INSERT OR REPLACE INTO ThingEntity(id, created_by, image_url, created_at, location, clues)
-VALUES (?, ?, ?, ?, ?, ?);
+INSERT OR REPLACE INTO ThingEntity(id, created_by, image_url, created_at, location, clues, embedding)
+VALUES (?, ?, ?, ?, ?, ?, ?);
 
 selectAllThings:
 SELECT * FROM ThingEntity;
@@ -74,12 +75,13 @@ CREATE TABLE PendingCapture (
     latitude REAL,
     longitude REAL,
     clues TEXT,
+    embedding BLOB,
     created_at TEXT NOT NULL
 );
 
 insertPendingCapture:
-INSERT INTO PendingCapture(id, image_path, player_id, latitude, longitude, clues, created_at)
-VALUES (?, ?, ?, ?, ?, ?, ?);
+INSERT INTO PendingCapture(id, image_path, player_id, latitude, longitude, clues, embedding, created_at)
+VALUES (?, ?, ?, ?, ?, ?, ?, ?);
 
 selectAllPendingCaptures:
 SELECT * FROM PendingCapture;

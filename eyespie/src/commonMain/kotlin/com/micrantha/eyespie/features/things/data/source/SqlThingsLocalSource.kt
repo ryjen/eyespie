@@ -4,6 +4,8 @@ import com.micrantha.eyespie.data.EyesPieDatabase
 import com.micrantha.eyespie.features.things.data.model.ThingData
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
+import okio.ByteString.Companion.decodeHex
+import okio.ByteString.Companion.toByteString
 
 internal class SqlThingsLocalSource(
     database: EyesPieDatabase,
@@ -13,14 +15,15 @@ internal class SqlThingsLocalSource(
 
     override fun getAll(): Result<List<ThingData>> = try {
         val things =
-            queries.selectAllThings { id, created_by, image_url, created_at, location, proof ->
+            queries.selectAllThings { id, created_by, image_url, created_at, location, proof, embedding ->
                 ThingData(
                     id = id,
                     createdBy = created_by,
                     imageUrl = image_url,
                     createdAt = created_at,
                     location = location,
-                    proof = proof?.let { json.parseToJsonElement(it) }
+                    proof = proof?.let { json.parseToJsonElement(it) },
+                    embedding = embedding?.toByteString()?.hex()
                 )
             }.executeAsList()
         Result.success(things)
@@ -37,7 +40,15 @@ internal class SqlThingsLocalSource(
                     image_url = thing.imageUrl,
                     created_at = thing.createdAt!!,
                     location = thing.location,
-                    clues = thing.proof?.let { json.encodeToString(JsonElement.serializer(), it) }
+                    clues = thing.proof?.let { json.encodeToString(JsonElement.serializer(), it) },
+                    embedding = thing.embedding?.let { 
+                        try {
+                           // Try to decode hex if it is hex
+                           it.decodeHex().toByteArray()
+                        } catch (_: Throwable) {
+                           null
+                        }
+                    }
                 )
             }
         }

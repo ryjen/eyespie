@@ -12,6 +12,7 @@ data class ThingData(
     @SerialName("created_by") val createdBy: String,
     val location: String? = null,
     val proof: JsonElement? = null,
+    val embedding: String? = null,
     @SerialName("game_thing") val game: ThingData.GameThing? = null,
 ) {
     override fun equals(other: Any?): Boolean {

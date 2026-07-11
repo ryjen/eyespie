@@ -16,6 +16,7 @@ class FakeCaptureSyncSource : CaptureSyncSource {
             latitude = proof.location?.point?.latitude,
             longitude = proof.location?.point?.longitude,
             clues = null, // simplified for fake
+            embedding = proof.embedding.toByteArray(),
             created_at = ""
         ))
         return Result.success(Unit)

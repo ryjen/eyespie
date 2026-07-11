@@ -3,12 +3,17 @@ package com.micrantha.eyespie.features.scan.usecase
 import com.micrantha.bluebell.platform.FileSystem
 import com.micrantha.eyespie.core.data.account.model.CurrentSession
 import com.micrantha.eyespie.domain.entities.AiClue
+import com.micrantha.eyespie.domain.entities.Embedding
 import com.micrantha.eyespie.domain.entities.Proof
 import com.micrantha.eyespie.domain.entities.Session
 import com.micrantha.eyespie.domain.repository.FakeStorageRepository
 import com.micrantha.eyespie.domain.repository.FakeThingRepository
 import com.micrantha.eyespie.features.players.domain.entities.Player
+import com.micrantha.eyespie.features.scan.data.FakeCaptureSyncRepository
+import com.micrantha.eyespie.platform.scan.CameraImage
+import com.micrantha.eyespie.platform.scan.LoadCameraImageUseCase
 import kotlinx.coroutines.test.runTest
+import okio.ByteString.Companion.toByteString
 import okio.Path
 import okio.Path.Companion.toPath
 import kotlin.test.Test
@@ -22,6 +27,7 @@ class UploadCaptureUseCaseTest {
 
     private val storageRepository = FakeStorageRepository()
     private val thingRepository = FakeThingRepository()
+    private val captureSyncRepository = FakeCaptureSyncRepository()
     private val fileSystem = object : FileSystem {
         override fun filesPath(): Path = "/".toPath()
         override fun sharedFilesPath(): Path = "/".toPath()
@@ -29,11 +35,25 @@ class UploadCaptureUseCaseTest {
         override fun fileWrite(path: Path, data: ByteArray) = Unit
     }
     private val session = CurrentSession
+    private val imageEmbeddingGenerator = object : ImageEmbeddingGenerator {
+        override suspend fun generate(image: CameraImage): Embedding = byteArrayOf(0, 0, 0, 0).toByteString()
+    }
+    private val loadCameraImageUseCase = object : LoadCameraImageUseCase {
+        override fun invoke(path: Path, regionOfInterest: androidx.compose.ui.geometry.Rect?) = Result.success(object : CameraImage {
+            override val width = 0
+            override val height = 0
+            override fun toByteArray() = byteArrayOf()
+            override fun toImageBitmap() = TODO()
+        })
+    }
 
     private val useCase = UploadCaptureUseCase(
         storageRepository,
         thingRepository,
+        captureSyncRepository,
         fileSystem,
+        imageEmbeddingGenerator,
+        loadCameraImageUseCase,
         session
     )
 

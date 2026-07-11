@@ -7,6 +7,8 @@ import com.micrantha.eyespie.domain.entities.Proof
 import com.micrantha.eyespie.domain.entities.Thing
 import com.micrantha.eyespie.domain.repository.StorageRepository
 import com.micrantha.eyespie.domain.repository.ThingRepository
+import com.micrantha.eyespie.features.scan.data.CaptureSyncRepository
+import com.micrantha.eyespie.platform.scan.LoadCameraImageUseCase
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.IO
 import kotlinx.coroutines.withContext
@@ -18,7 +20,10 @@ import kotlin.uuid.Uuid
 class UploadCaptureUseCase(
     private val storageRepository: StorageRepository,
     private val thingRepository: ThingRepository,
+    private val captureSyncRepository: CaptureSyncRepository,
     private val fileSystem: FileSystem,
+    private val imageEmbeddingGenerator: ImageEmbeddingGenerator,
+    private val loadCameraImageUseCase: LoadCameraImageUseCase,
     private val session: CurrentSession = CurrentSession
 ) {
 
@@ -27,19 +32,31 @@ class UploadCaptureUseCase(
         proof: Proof,
         image: Path
     ): Result<Thing> = dispatchUseCase(coroutineContext) {
-        val imageData = withContext(Dispatchers.IO) {
-            fileSystem.fileRead(image)
-        }
-
         val playerID = session.requirePlayer().id
+        
+        try {
+            val imageData = withContext(Dispatchers.IO) {
+                fileSystem.fileRead(image)
+            }
 
-        val imageID = Uuid.random().toString()
+            val cameraImage = loadCameraImageUseCase(image).getOrThrow()
+            val embedding = imageEmbeddingGenerator.generate(cameraImage)
 
-        storageRepository.upload(
-            "${playerID}/${imageID}.jpg",
-            imageData
-        ).map { url ->
-            thingRepository.create(proof, url, playerID).getOrThrow()
-        }.getOrThrow()
+            val imageID = Uuid.random().toString()
+
+            storageRepository.upload(
+                "${playerID}/${imageID}.jpg",
+                imageData
+            ).map { url ->
+                thingRepository.create(
+                    proof.copy(embedding = embedding),
+                    url,
+                    playerID
+                ).getOrThrow()
+            }.getOrThrow()
+        } catch (err: Throwable) {
+            captureSyncRepository.queue(proof, image, playerID)
+            throw err
+        }
     }
 }

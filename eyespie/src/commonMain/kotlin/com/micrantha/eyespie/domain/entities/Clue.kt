@@ -6,6 +6,7 @@ import okio.ByteString
 data class Proof(
     val clues: AiProof?,
     val location: Location?,
+    val embedding: Embedding = ByteString.EMPTY,
 )
 
 typealias Clues = Set<AiClue>

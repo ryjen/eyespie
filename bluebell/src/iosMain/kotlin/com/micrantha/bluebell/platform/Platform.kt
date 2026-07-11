@@ -26,14 +26,14 @@ import platform.UIKit.UIDevice
 import com.micrantha.bluebell.platform.FileSystem as BluebellFileSystem
 
 
-actual class Platform(
-    actual val networkMonitor: NetworkMonitor,
-) : LocalizedRepository, BluebellFileSystem {
+actual class PlatformImpl(
+    override val networkMonitor: NetworkMonitor,
+) : Platform {
 
-    actual val name: String =
+    override val name: String =
         UIDevice.currentDevice.systemName() + " " + UIDevice.currentDevice.systemVersion
 
-    actual override fun format(
+    override fun format(
         epochSeconds: Long,
         format: String,
         timeZone: String
@@ -46,16 +46,16 @@ actual class Platform(
         return dateFormatter.stringFromDate(date)
     }
 
-    actual override fun format(format: String, vararg args: Any): String {
+    override fun format(format: String, vararg args: Any): String {
         if (args.isEmpty()) {
             return NSString.stringWithFormat(format)
         }
         return NSString.stringWithFormat(format, *arrayOf(args.first()))
     }
 
-    actual val locale by lazy { Locale() }
+    override val locale by lazy { Locale() }
 
-    actual fun resource(path: Path): BufferedSource {
+    override fun resource(path: Path): BufferedSource {
         val bundle = NSBundle.mainBundle
         val url = bundle.URLForResource(
             name = path.name.substringBeforeLast("."),
@@ -68,17 +68,17 @@ actual class Platform(
         return Buffer().write(data.toByteArray())
     }
 
-    actual fun asset(path: Path): BufferedSource = resource(path)
+    override fun asset(path: Path): BufferedSource = resource(path)
 
-    actual override fun filesPath(): Path {
+    override fun filesPath(): Path {
         return NSHomeDirectory().toPath().resolve("files")
     }
 
-    actual override fun sharedFilesPath(): Path {
+    override fun sharedFilesPath(): Path {
         return NSHomeDirectory().toPath().resolve("shared")
     }
 
-    actual fun checksum(path: Path): String? {
+    override fun checksum(path: Path): String? {
         return runCatching {
             val source = FileSystem.SYSTEM.source(path)
             sha256(source)

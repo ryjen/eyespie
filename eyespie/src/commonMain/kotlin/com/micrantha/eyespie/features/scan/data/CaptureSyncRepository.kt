@@ -10,6 +10,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.launchIn
 import kotlinx.coroutines.flow.onEach
 import kotlinx.serialization.json.Json
+import okio.ByteString.Companion.toByteString
 import okio.Path.Companion.toPath
 
 interface CaptureSyncRepository {
@@ -47,7 +48,8 @@ class CaptureSyncRepositoryImpl(
                     clues = item.clues?.let { json.decodeFromString<AiProof>(it) },
                     location = if (item.latitude != null && item.longitude != null) {
                         Location(point = Location.Point(item.latitude, item.longitude))
-                    } else null
+                    } else null,
+                    embedding = item.embedding?.toByteString() ?: okio.ByteString.EMPTY
                 )
                 uploadUseCase(proof, item.image_path.toPath()).onSuccess {
                     source.remove(item.id)
