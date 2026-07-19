@@ -21,30 +21,13 @@ import com.micrantha.bluebell.ui.theme.Dimensions
 import com.micrantha.eyespie.core.ui.Screen
 import com.micrantha.eyespie.features.onboarding.components.ClickableAnimatedPagerIndicator
 import com.micrantha.eyespie.features.onboarding.components.RenderGenAI
+import com.micrantha.eyespie.features.onboarding.components.RenderPermissions
 import com.micrantha.eyespie.features.onboarding.components.RenderWelcome
 import com.micrantha.eyespie.features.onboarding.entities.OnboardingAction
 import com.micrantha.eyespie.features.onboarding.entities.OnboardingPage
 import com.micrantha.eyespie.features.onboarding.entities.OnboardingUiState
 import kotlinx.coroutines.delay
 
-// TODO: wizard like setup for first run
-// A) How to Play
-//   1) Scanning
-//   2) Sharing
-//   3) Guessing
-// B) Permissions Info
-//   1) Camera for scanning
-//   2) Notifications for game events and downloads
-//   3) Storage for GenAI
-//   4) Contacts for sharing
-// C) GenAI
-//   1) prompt user to download genAI models
-//   2) start background downloads
-//   3) notify user progress and completion
-// D) Social
-//   1) Invitations / contacts
-//   2) Link social media share
-//   3) More info in settings
 class OnboardingScreen : Screen, StateRenderer<OnboardingUiState> {
     @Composable
     override fun Content() {
@@ -84,8 +67,9 @@ class OnboardingScreen : Screen, StateRenderer<OnboardingUiState> {
             ) { pageNum ->
                 Box(modifier = Modifier.fillMaxSize()) {
                     when (pageNum) {
-                        OnboardingPage.GenAI.ordinal -> RenderGenAI(state, dispatch)
                         OnboardingPage.Welcome.ordinal -> RenderWelcome(state, dispatch)
+                        OnboardingPage.Permissions.ordinal -> RenderPermissions(state, dispatch)
+                        OnboardingPage.GenAI.ordinal -> RenderGenAI(state, dispatch)
                     }
                 }
             }
