@@ -15,6 +15,12 @@ sealed interface CapabilityAuthorization {
     data object SettingsRequired : CapabilityAuthorization
 }
 
+data class CapabilityState(
+    val capability: OnboardingCapability,
+    val authorization: CapabilityAuthorization = CapabilityAuthorization.NotRequested,
+    val canRequestDuringOnboarding: Boolean,
+)
+
 data class CapabilityUiState(
     val capability: OnboardingCapability,
     val title: String,
