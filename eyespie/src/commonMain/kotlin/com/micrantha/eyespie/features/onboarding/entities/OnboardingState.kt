@@ -9,4 +9,15 @@ data class OnboardingState(
     val isInitializing: Boolean = true,
     val models: OnboardingModels? = null,
     val selectedModel: String? = null,
+    val capabilities: List<CapabilityState> = listOf(
+        CapabilityState(
+            capability = OnboardingCapability.CameraScanning,
+            canRequestDuringOnboarding = true,
+        ),
+        CapabilityState(
+            capability = OnboardingCapability.Notifications,
+            canRequestDuringOnboarding = false,
+        ),
+    ),
+    val requestInFlight: OnboardingCapability? = null,
 )
