@@ -9,9 +9,14 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: eyespie-ci-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
 jobs:
   build-android:
     runs-on: ubuntu-latest
+    timeout-minutes: 30
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -26,14 +31,8 @@ jobs:
       - name: Create build configuration
         run: cp env.example .env.local
 
-      - name: Validate Gradle configuration
-        run: ./gradlew :app:tasks --no-daemon
-
-      - name: Run tests
-        run: ./gradlew test --no-daemon
-
-      - name: Build debug app bundle with asset packs
-        run: ./gradlew :app:bundleDebug --no-daemon
+      - name: Test and build debug app bundle with asset packs
+        run: ./gradlew test :app:bundleDebug --no-daemon --parallel --build-cache
 
       - name: Upload debug app bundle
         uses: actions/upload-artifact@v4
