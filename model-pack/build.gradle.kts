@@ -1,5 +1,5 @@
 plugins {
-    id("com.android.asset-pack") version "8.13.1"
+    id("com.android.asset-pack")
 }
 
 assetPack {
