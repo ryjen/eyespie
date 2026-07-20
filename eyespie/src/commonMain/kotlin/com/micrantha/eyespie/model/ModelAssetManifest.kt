@@ -50,10 +50,12 @@ class ModelAssetManifestParser(
 
         val diagnosticCode = when {
             manifest.schemaVersion != 1 -> "manifest.unsupported_schema"
-            manifest.modelId.isBlank() -> "manifest.missing_model_id"
+            manifest.modelId.isBlank() || manifest.modelId != manifest.modelId.trim() ->
+                "manifest.missing_model_id"
             expectedModelId != null && manifest.modelId != expectedModelId -> "manifest.model_id_mismatch"
-            manifest.version.isBlank() || manifest.version.equals("latest", ignoreCase = true) ->
-                "manifest.mutable_version"
+            manifest.version.isBlank() ||
+                manifest.version != manifest.version.trim() ||
+                manifest.version.equals("latest", ignoreCase = true) -> "manifest.mutable_version"
             filename.isBlank() ||
                 filename != filename.trim() ||
                 filename == "." ||
