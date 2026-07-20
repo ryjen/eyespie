@@ -145,6 +145,7 @@ kotlin {
 
             implementation(libs.kotlinx.coroutines.android)
             implementation(libs.fetch)
+            implementation("com.google.android.play:asset-delivery:2.3.0")
 
             implementation(libs.mediapipe.tasks.vision)
             implementation(libs.mediapipe.tasks.genai)
