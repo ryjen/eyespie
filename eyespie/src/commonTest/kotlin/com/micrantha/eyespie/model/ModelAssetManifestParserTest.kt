@@ -73,11 +73,8 @@ class ModelAssetManifestParserTest {
     }
 
     @Test
-    fun trimsSafeFilename() {
-        val result = parser.parseAndValidate(manifestWithFilename("  gemma.task  "))
-
-        val valid = assertIs<ManifestValidationResult.Valid>(result)
-        assertEquals("gemma.task", valid.descriptor.filename)
+    fun rejectsFilenameWithLeadingOrTrailingWhitespace() {
+        assertInvalidFilename("  gemma.task  ")
     }
 
     private fun assertInvalidFilename(filename: String) {
