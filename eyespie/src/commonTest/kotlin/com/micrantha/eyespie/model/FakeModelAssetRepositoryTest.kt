@@ -126,6 +126,43 @@ class FakeModelAssetRepositoryTest {
         }
     }
 
+    @Test
+    fun readyStateVersionMustMatchResolvedModel() {
+        val readyModel = ReadyModel(descriptor(), "/runtime/model.task")
+
+        assertFailsWith<IllegalArgumentException> {
+            FakeModelAssetRepository(
+                ModelAssetState.Ready("different-version", readyModel.localPath),
+                readyModel,
+            )
+        }
+    }
+
+    @Test
+    fun readyStatePathMustMatchResolvedModel() {
+        val readyModel = ReadyModel(descriptor(), "/runtime/model.task")
+
+        assertFailsWith<IllegalArgumentException> {
+            FakeModelAssetRepository(
+                ModelAssetState.Ready(readyModel.descriptor.version, "/runtime/different.task"),
+                readyModel,
+            )
+        }
+    }
+
+    @Test
+    fun emitRejectsInconsistentReadyState() {
+        val readyModel = ReadyModel(descriptor(), "/runtime/model.task")
+        val repository = FakeModelAssetRepository()
+
+        assertFailsWith<IllegalArgumentException> {
+            repository.emit(
+                ModelAssetState.Ready("different-version", readyModel.localPath),
+                readyModel,
+            )
+        }
+    }
+
     private fun descriptor() = ModelAssetDescriptor(
         id = "eyespie-offline-model",
         version = "2026.07.20-1",
