@@ -54,7 +54,7 @@ class FakeModelAssetRepository(
     override suspend fun resolveReadyModel(): ReadyModel? =
         if (state.value is ModelAssetState.Ready) readyModel else null
 
-    fun emit(next: ModelAssetState, model: ReadyModel? = readyModel) {
+    fun emit(next: ModelAssetState, model: ReadyModel? = null) {
         requireConsistentReadyState(next, model)
         readyModel = model
         state.value = next
