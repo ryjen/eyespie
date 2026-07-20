@@ -13,12 +13,7 @@ class FakeModelAssetRepository(
     private val state = MutableStateFlow(initialState)
 
     init {
-        require(initialState !is ModelAssetState.Ready || initialReadyModel != null) {
-            "Ready state requires a resolved model"
-        }
-        require(initialState is ModelAssetState.Ready || initialReadyModel == null) {
-            "Resolved model requires Ready state"
-        }
+        requireConsistentReadyState(initialState, initialReadyModel)
     }
 
     override fun observe(): Flow<ModelAssetState> = state.asStateFlow()
@@ -60,14 +55,25 @@ class FakeModelAssetRepository(
         if (state.value is ModelAssetState.Ready) readyModel else null
 
     fun emit(next: ModelAssetState, model: ReadyModel? = readyModel) {
-        require(next !is ModelAssetState.Ready || model != null) {
-            "Ready state requires a resolved model"
-        }
-        require(next is ModelAssetState.Ready || model == null) {
-            "Resolved model requires Ready state"
-        }
-
+        requireConsistentReadyState(next, model)
         readyModel = model
         state.value = next
+    }
+
+    private fun requireConsistentReadyState(
+        next: ModelAssetState,
+        model: ReadyModel?,
+    ) {
+        if (next is ModelAssetState.Ready) {
+            requireNotNull(model) { "Ready state requires a resolved model" }
+            require(next.version == model.descriptor.version) {
+                "Ready state version must match resolved model"
+            }
+            require(next.localPath == model.localPath) {
+                "Ready state path must match resolved model"
+            }
+        } else {
+            require(model == null) { "Resolved model requires Ready state" }
+        }
     }
 }
