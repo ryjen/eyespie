@@ -45,6 +45,7 @@ class ModelAssetManifestParser(
         }.getOrElse {
             return ManifestValidationResult.Invalid("manifest.invalid_json")
         }
+        val normalizedSupportedEngines = supportedEngines.mapTo(mutableSetOf()) { it.lowercase() }
 
         val diagnosticCode = when {
             manifest.schemaVersion != 1 -> "manifest.unsupported_schema"
@@ -56,8 +57,7 @@ class ModelAssetManifestParser(
                 "manifest.invalid_filename"
             manifest.sizeBytes <= 0L -> "manifest.invalid_size"
             !SHA_256.matches(manifest.sha256) -> "manifest.invalid_sha256"
-            manifest.runtime.engine.lowercase() !in supportedEngines.map(String::lowercase) ->
-                "manifest.unsupported_engine"
+            manifest.runtime.engine.lowercase() !in normalizedSupportedEngines -> "manifest.unsupported_engine"
             manifest.runtime.minimumRuntimeVersion.isBlank() -> "manifest.missing_runtime_version"
             manifest.runtime.minimumModelAbi <= 0 -> "manifest.invalid_model_abi"
             manifest.runtime.minimumModelAbi > supportedModelAbi -> "manifest.unsupported_model_abi"
