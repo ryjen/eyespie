@@ -163,6 +163,28 @@ class FakeModelAssetRepositoryTest {
         }
     }
 
+    @Test
+    fun emitCanTransitionAwayFromReadyWithoutModelArgument() = runTest {
+        val readyModel = ReadyModel(descriptor(), "/runtime/model.task")
+        val repository = FakeModelAssetRepository(
+            ModelAssetState.Ready(readyModel.descriptor.version, readyModel.localPath),
+            readyModel,
+        )
+        val failed = ModelAssetState.Failed(
+            stage = FailureStage.RuntimeSmokeCheck,
+            recoverable = false,
+            diagnosticCode = "runtime.smoke_check_failed",
+        )
+
+        repository.emit(failed)
+
+        repository.observe().test {
+            assertEquals(failed, awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
+        assertNull(repository.resolveReadyModel())
+    }
+
     private fun descriptor() = ModelAssetDescriptor(
         id = "eyespie-offline-model",
         version = "2026.07.20-1",
