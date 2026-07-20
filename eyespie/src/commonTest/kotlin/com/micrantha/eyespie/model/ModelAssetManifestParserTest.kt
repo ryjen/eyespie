@@ -57,6 +57,41 @@ class ModelAssetManifestParserTest {
         )
     }
 
+    @Test
+    fun rejectsDotPathComponentFilename() {
+        assertInvalidFilename(".")
+    }
+
+    @Test
+    fun rejectsParentPathComponentFilename() {
+        assertInvalidFilename("..")
+    }
+
+    @Test
+    fun rejectsFilenameWithPathSeparator() {
+        assertInvalidFilename("models/gemma.task")
+    }
+
+    @Test
+    fun trimsSafeFilename() {
+        val result = parser.parseAndValidate(manifestWithFilename("  gemma.task  "))
+
+        val valid = assertIs<ManifestValidationResult.Valid>(result)
+        assertEquals("gemma.task", valid.descriptor.filename)
+    }
+
+    private fun assertInvalidFilename(filename: String) {
+        val result = parser.parseAndValidate(manifestWithFilename(filename))
+
+        assertEquals(
+            ManifestValidationResult.Invalid("manifest.invalid_filename"),
+            result,
+        )
+    }
+
+    private fun manifestWithFilename(filename: String) =
+        validManifest.replace("offline-model.task", filename)
+
     private companion object {
         val validManifest = """
             {
