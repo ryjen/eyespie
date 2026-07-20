@@ -46,6 +46,7 @@ class ModelAssetManifestParser(
             return ManifestValidationResult.Invalid("manifest.invalid_json")
         }
         val normalizedSupportedEngines = supportedEngines.mapTo(mutableSetOf()) { it.lowercase() }
+        val filename = manifest.filename.trim()
 
         val diagnosticCode = when {
             manifest.schemaVersion != 1 -> "manifest.unsupported_schema"
@@ -53,8 +54,12 @@ class ModelAssetManifestParser(
             expectedModelId != null && manifest.modelId != expectedModelId -> "manifest.model_id_mismatch"
             manifest.version.isBlank() || manifest.version.equals("latest", ignoreCase = true) ->
                 "manifest.mutable_version"
-            manifest.filename.isBlank() || manifest.filename.contains("/") || manifest.filename.contains("\\") ->
-                "manifest.invalid_filename"
+            filename.isEmpty() ||
+                filename == "." ||
+                filename == ".." ||
+                filename.contains('/') ||
+                filename.contains('\\') ||
+                filename.contains('\u0000') -> "manifest.invalid_filename"
             manifest.sizeBytes <= 0L -> "manifest.invalid_size"
             !SHA_256.matches(manifest.sha256) -> "manifest.invalid_sha256"
             manifest.runtime.engine.lowercase() !in normalizedSupportedEngines -> "manifest.unsupported_engine"
@@ -65,7 +70,7 @@ class ModelAssetManifestParser(
         }
 
         return if (diagnosticCode == null) {
-            ManifestValidationResult.Valid(manifest.toDescriptor())
+            ManifestValidationResult.Valid(manifest.copy(filename = filename).toDescriptor())
         } else {
             ManifestValidationResult.Invalid(diagnosticCode)
         }
