@@ -1,15 +1,16 @@
 package com.micrantha.bluebell.observability
 
+import com.micrantha.bluebell.observability.domain.SupabaseInsertClient
 import com.micrantha.bluebell.observability.entity.AnalyticsEvent
 import com.micrantha.bluebell.observability.entity.DestinationContext
 import com.micrantha.bluebell.observability.repository.OkioJsonLinesDiskCache
-import com.micrantha.bluebell.observability.repository.destination.SupabaseInsertClient
 import com.micrantha.bluebell.observability.usecase.FlushOfflineUsageToSupabase
 import kotlinx.coroutines.test.runTest
 import okio.FileSystem
 import okio.Path.Companion.toPath
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 
 @OptIn(ExperimentalTime::class)
@@ -23,10 +24,9 @@ class FlushOfflineUsageToSupabaseTest {
 
         val cache = OkioJsonLinesDiskCache(fs, path)
 
-        // Two events to upload
-        cache.write(AnalyticsEvent.FeatureUsage(properties = mapOf("action" to "open")))
+        cache.store(AnalyticsEvent.FeatureUsage(properties = mapOf("action" to "open")))
             .getOrThrow()
-        cache.write(AnalyticsEvent.FeatureUsage(properties = mapOf("action" to "close")))
+        cache.store(AnalyticsEvent.FeatureUsage(properties = mapOf("action" to "close")))
             .getOrThrow()
 
         var inserted = 0
@@ -35,13 +35,9 @@ class FlushOfflineUsageToSupabaseTest {
         }
 
         val usecase = FlushOfflineUsageToSupabase(cache, fakeSupabase)
-        val context = kotlin.time.ExperimentalTime::class.let {
-            @OptIn(kotlin.time.ExperimentalTime::class)
-            DestinationContext()
-        }
         val result = usecase.flushOnce(
             batchSize = 100,
-            context = context
+            context = DestinationContext(timestamp = Clock.System.now()),
         ).getOrThrow()
 
         assertEquals(2, result)
