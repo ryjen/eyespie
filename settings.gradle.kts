@@ -26,4 +26,5 @@ dependencyResolutionManagement {
 rootProject.name = "eyespie"
 include(":bluebell")
 include(":app")
+include(":model-pack")
 project(":app").projectDir = file("eyespie")
