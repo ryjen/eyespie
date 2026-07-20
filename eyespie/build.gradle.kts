@@ -164,6 +164,7 @@ kotlin {
                 implementation(libs.mockk)
                 implementation(libs.robolectric)
                 implementation(libs.androidx.ui.test.junit4)
+                implementation(libs.androidx.ui.test.manifest)
                 implementation(libs.roborazzi)
                 implementation(libs.roborazzi.compose)
                 implementation(libs.roborazzi.junit)
@@ -269,7 +270,6 @@ android {
 
     dependencies {
         debugImplementation(libs.okio.fakefilesystem)
-        debugImplementation(libs.androidx.ui.test.manifest)
     }
 }
 

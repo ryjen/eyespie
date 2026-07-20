@@ -6,7 +6,7 @@ import com.micrantha.bluebell.observability.repository.OkioJsonLinesDiskCache
 import kotlinx.coroutines.test.runTest
 import okio.FileSystem
 import okio.Path.Companion.toPath
-import okio.SYSTEM
+import kotlin.random.Random
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -15,25 +15,26 @@ class OkioJsonLinesDiskCacheTest {
     @Test
     fun writesAndReadsEvents() = runTest {
         val fs = FileSystem.SYSTEM
-        val path = "./build/test-observability-events.jsonl".toPath()
+        val path = "./build/test-observability-events-${Random.nextInt()}.jsonl".toPath()
 
-        // clean
-        if (fs.exists(path)) fs.delete(path)
+        try {
+            val cache = OkioJsonLinesDiskCache(fs, path)
 
-        val cache = OkioJsonLinesDiskCache(fs, path)
+            cache.store(AnalyticsEvent.FeatureUsage(properties = mapOf("action" to "open")))
+                .getOrThrow()
+            cache.store(AnalyticsEvent.FeatureUsage(properties = mapOf("action" to "close")))
+                .getOrThrow()
 
-        cache.write(AnalyticsEvent.FeatureUsage(properties = mapOf("action" to "open")))
-            .getOrThrow()
-        cache.write(AnalyticsEvent.FeatureUsage(properties = mapOf("action" to "close")))
-            .getOrThrow()
+            val read = cache.retrieve(10)
+            assertEquals(2, read.size)
 
-        val read = cache.readOldest(10)
-        assertEquals(2, read.size)
-
-        val filtered = cache.query(EventFilter(properties = mapOf("action" to "open")), 10)
-        assertEquals(1, filtered.size)
-
-        // cleanup
-        if (fs.exists(path)) fs.delete(path)
+            val filtered = cache.retrieveByFilter(
+                EventFilter(properties = mapOf("action" to "open")),
+                10,
+            )
+            assertEquals(1, filtered.size)
+        } finally {
+            if (fs.exists(path)) fs.delete(path)
+        }
     }
 }
