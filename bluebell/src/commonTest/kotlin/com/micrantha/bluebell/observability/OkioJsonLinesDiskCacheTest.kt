@@ -6,7 +6,6 @@ import com.micrantha.bluebell.observability.repository.OkioJsonLinesDiskCache
 import kotlinx.coroutines.test.runTest
 import okio.FileSystem
 import okio.Path.Companion.toPath
-import okio.SYSTEM
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
@@ -17,23 +16,24 @@ class OkioJsonLinesDiskCacheTest {
         val fs = FileSystem.SYSTEM
         val path = "./build/test-observability-events.jsonl".toPath()
 
-        // clean
         if (fs.exists(path)) fs.delete(path)
 
         val cache = OkioJsonLinesDiskCache(fs, path)
 
-        cache.write(AnalyticsEvent.FeatureUsage(properties = mapOf("action" to "open")))
+        cache.store(AnalyticsEvent.FeatureUsage(properties = mapOf("action" to "open")))
             .getOrThrow()
-        cache.write(AnalyticsEvent.FeatureUsage(properties = mapOf("action" to "close")))
+        cache.store(AnalyticsEvent.FeatureUsage(properties = mapOf("action" to "close")))
             .getOrThrow()
 
-        val read = cache.readOldest(10)
+        val read = cache.retrieve(10)
         assertEquals(2, read.size)
 
-        val filtered = cache.query(EventFilter(properties = mapOf("action" to "open")), 10)
+        val filtered = cache.retrieveByFilter(
+            EventFilter(properties = mapOf("action" to "open")),
+            10,
+        )
         assertEquals(1, filtered.size)
 
-        // cleanup
         if (fs.exists(path)) fs.delete(path)
     }
 }
