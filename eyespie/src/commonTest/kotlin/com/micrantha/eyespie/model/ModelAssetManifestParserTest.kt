@@ -28,6 +28,38 @@ class ModelAssetManifestParserTest {
     }
 
     @Test
+    fun rejectsLatestVersionWithWhitespace() {
+        val result = parser.parseAndValidate(validManifest.replace("2026.07.20-1", " latest "))
+
+        assertEquals(
+            ManifestValidationResult.Invalid("manifest.mutable_version"),
+            result,
+        )
+    }
+
+    @Test
+    fun rejectsVersionWithLeadingOrTrailingWhitespace() {
+        val result = parser.parseAndValidate(validManifest.replace("2026.07.20-1", " 2026.07.20-1 "))
+
+        assertEquals(
+            ManifestValidationResult.Invalid("manifest.mutable_version"),
+            result,
+        )
+    }
+
+    @Test
+    fun rejectsModelIdWithLeadingOrTrailingWhitespace() {
+        val result = parser.parseAndValidate(
+            validManifest.replace("eyespie-offline-model", " eyespie-offline-model "),
+        )
+
+        assertEquals(
+            ManifestValidationResult.Invalid("manifest.missing_model_id"),
+            result,
+        )
+    }
+
+    @Test
     fun rejectsModelIdMismatch() {
         val result = parser.parseAndValidate(validManifest, expectedModelId = "different-model")
 
