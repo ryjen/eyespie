@@ -4,6 +4,7 @@ import app.cash.turbine.test
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertNull
 
 class FakeModelAssetRepositoryTest {
@@ -20,6 +21,41 @@ class FakeModelAssetRepositoryTest {
             awaitItem()
             repository.requestDownload()
             assertEquals(ModelAssetState.Queued(), awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun recoverableFailureCanBeRetried() = runTest {
+        val repository = FakeModelAssetRepository(
+            ModelAssetState.Failed(
+                stage = FailureStage.Download,
+                recoverable = true,
+                diagnosticCode = "download.offline",
+            ),
+        )
+
+        repository.requestDownload()
+
+        repository.observe().test {
+            assertEquals(ModelAssetState.Queued(), awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
+    }
+
+    @Test
+    fun terminalFailureCannotBeRetried() = runTest {
+        val failed = ModelAssetState.Failed(
+            stage = FailureStage.Compatibility,
+            recoverable = false,
+            diagnosticCode = "runtime.unsupported",
+        )
+        val repository = FakeModelAssetRepository(failed)
+
+        repository.requestDownload()
+
+        repository.observe().test {
+            assertEquals(failed, awaitItem())
             cancelAndIgnoreRemainingEvents()
         }
     }
@@ -54,6 +90,40 @@ class FakeModelAssetRepositoryTest {
             cancelAndIgnoreRemainingEvents()
         }
         assertNull(repository.resolveReadyModel())
+    }
+
+    @Test
+    fun cancellationDoesNotRemoveReadyModel() = runTest {
+        val descriptor = descriptor()
+        val readyModel = ReadyModel(descriptor, "/runtime/model.task")
+        val ready = ModelAssetState.Ready(descriptor.version, readyModel.localPath)
+        val repository = FakeModelAssetRepository(ready, readyModel)
+
+        repository.cancelDownload()
+
+        repository.observe().test {
+            assertEquals(ready, awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
+        assertEquals(readyModel, repository.resolveReadyModel())
+    }
+
+    @Test
+    fun readyInitialStateRequiresResolvedModel() {
+        assertFailsWith<IllegalArgumentException> {
+            FakeModelAssetRepository(
+                ModelAssetState.Ready("2026.07.20-1", "/runtime/model.task"),
+            )
+        }
+    }
+
+    @Test
+    fun resolvedModelRequiresReadyInitialState() {
+        assertFailsWith<IllegalArgumentException> {
+            FakeModelAssetRepository(
+                initialReadyModel = ReadyModel(descriptor(), "/runtime/model.task"),
+            )
+        }
     }
 
     private fun descriptor() = ModelAssetDescriptor(
