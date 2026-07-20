@@ -20,6 +20,7 @@ class FakeModelAssetRepositoryTest {
             awaitItem()
             repository.requestDownload()
             assertEquals(ModelAssetState.Queued(), awaitItem())
+            cancelAndIgnoreRemainingEvents()
         }
     }
 
@@ -34,7 +35,10 @@ class FakeModelAssetRepositoryTest {
 
         repository.remove()
         assertNull(repository.resolveReadyModel())
-        assertEquals(ModelAssetState.NotInstalled, repository.observe().test { awaitItem() })
+        repository.observe().test {
+            assertEquals(ModelAssetState.NotInstalled, awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
     }
 
     @Test
@@ -45,7 +49,10 @@ class FakeModelAssetRepositoryTest {
 
         repository.cancelDownload()
 
-        assertEquals(ModelAssetState.NotInstalled, repository.observe().test { awaitItem() })
+        repository.observe().test {
+            assertEquals(ModelAssetState.NotInstalled, awaitItem())
+            cancelAndIgnoreRemainingEvents()
+        }
         assertNull(repository.resolveReadyModel())
     }
 
