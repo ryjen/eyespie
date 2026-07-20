@@ -36,7 +36,15 @@ jobs:
         run: cp env.example .env.local
 
       - name: Test and build debug app bundle with asset packs
-        run: ./gradlew test :app:bundleDebug --no-daemon --parallel --build-cache --configuration-cache
+        run: >-
+          ./gradlew
+          :bluebell:testDebugUnitTest
+          :app:testDebugUnitTest
+          :app:bundleDebug
+          --no-daemon
+          --parallel
+          --build-cache
+          --configuration-cache
 
       - name: Upload debug app bundle
         uses: actions/upload-artifact@v4
