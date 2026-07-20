@@ -7,9 +7,19 @@ import kotlinx.coroutines.flow.asStateFlow
 /** Deterministic repository for common tests, previews, and onboarding development. */
 class FakeModelAssetRepository(
     initialState: ModelAssetState = ModelAssetState.NotInstalled,
-    private var readyModel: ReadyModel? = null,
+    initialReadyModel: ReadyModel? = null,
 ) : ModelAssetRepository {
+    private var readyModel: ReadyModel? = initialReadyModel
     private val state = MutableStateFlow(initialState)
+
+    init {
+        require(initialState !is ModelAssetState.Ready || initialReadyModel != null) {
+            "Ready state requires a resolved model"
+        }
+        require(initialState is ModelAssetState.Ready || initialReadyModel == null) {
+            "Resolved model requires Ready state"
+        }
+    }
 
     override fun observe(): Flow<ModelAssetState> = state.asStateFlow()
 
@@ -18,21 +28,32 @@ class FakeModelAssetRepository(
         state.value = when (current) {
             is ModelAssetState.AwaitingConsent,
             ModelAssetState.NotInstalled,
-            is ModelAssetState.Failed,
             -> ModelAssetState.Queued()
+
+            is ModelAssetState.Failed ->
+                if (current.recoverable) ModelAssetState.Queued() else current
 
             else -> current
         }
     }
 
     override suspend fun cancelDownload() {
-        state.value = ModelAssetState.NotInstalled
-        readyModel = null
+        when (state.value) {
+            is ModelAssetState.Queued,
+            is ModelAssetState.Downloading,
+            is ModelAssetState.Verifying,
+            -> {
+                readyModel = null
+                state.value = ModelAssetState.NotInstalled
+            }
+
+            else -> Unit
+        }
     }
 
     override suspend fun remove() {
-        state.value = ModelAssetState.NotInstalled
         readyModel = null
+        state.value = ModelAssetState.NotInstalled
     }
 
     override suspend fun resolveReadyModel(): ReadyModel? =
@@ -42,7 +63,11 @@ class FakeModelAssetRepository(
         require(next !is ModelAssetState.Ready || model != null) {
             "Ready state requires a resolved model"
         }
+        require(next is ModelAssetState.Ready || model == null) {
+            "Resolved model requires Ready state"
+        }
+
+        readyModel = model
         state.value = next
-        readyModel = if (next is ModelAssetState.Ready) model else null
     }
 }
