@@ -16,6 +16,7 @@ class AccountDataRepositoryTest {
 
         override fun isLoggedIn() = loggedIn
         override suspend fun account() = accountResult
+        override suspend fun currentAccount() = accountResult
         override suspend fun loginAnonymous() = loginResult
         override suspend fun login(email: String, password: String) = loginResult
         override suspend fun loginWithGoogle() = loginResult
