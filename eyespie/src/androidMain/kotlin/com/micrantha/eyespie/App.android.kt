@@ -47,11 +47,7 @@ private fun ModelAssetConfirmationEffect(dependencies: DI) {
 
     LaunchedEffect(repository, assetPackManager, confirmationLauncher) {
         repository.observe().collect { state ->
-            val confirmationRequired = state is ModelAssetState.Queued &&
-                state.reason in setOf(
-                    QueueReason.WaitingForWifi,
-                    QueueReason.WaitingForPlatformConfirmation,
-                )
+            val confirmationRequired = requiresModelAssetConfirmation(state)
 
             if (confirmationRequired && !confirmationShowing) {
                 confirmationShowing = assetPackManager.showConfirmationDialog(confirmationLauncher)
@@ -61,3 +57,12 @@ private fun ModelAssetConfirmationEffect(dependencies: DI) {
         }
     }
 }
+
+internal fun requiresModelAssetConfirmation(state: ModelAssetState): Boolean =
+    state is ModelAssetState.Queued && when (state.reason) {
+        QueueReason.WaitingForWifi,
+        QueueReason.WaitingForPlatformConfirmation,
+        -> true
+
+        else -> false
+    }
