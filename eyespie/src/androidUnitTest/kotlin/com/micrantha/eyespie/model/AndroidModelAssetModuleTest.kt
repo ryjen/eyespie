@@ -20,9 +20,10 @@ class AndroidModelAssetModuleTest {
             import(androidModelAssetModule(assetPackManager))
         }
 
-        val repository = dependencies.direct.instance<ModelAssetRepository>()
+        val repository = assertIs<PlayAssetDeliveryModelRepository>(
+            dependencies.direct.instance<ModelAssetRepository>(),
+        )
 
-        assertIs<PlayAssetDeliveryModelRepository>(repository)
         verify(exactly = 1) { assetPackManager.registerListener(any()) }
         repository.close()
     }
