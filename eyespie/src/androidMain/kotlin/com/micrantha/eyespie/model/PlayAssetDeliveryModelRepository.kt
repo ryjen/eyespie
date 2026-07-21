@@ -32,7 +32,7 @@ internal class PlayAssetDeliveryModelRepository(
 
     init {
         assetPackManager.registerListener(listener)
-        if (resolveCurrentAssetPath() != null) {
+        if (resolveAssetFiles() != null) {
             verifyInstalledAsset()
         }
     }
@@ -42,7 +42,7 @@ internal class PlayAssetDeliveryModelRepository(
     override suspend fun requestDownload() {
         removalInProgress.set(false)
 
-        if (resolveCurrentAssetPath() != null) {
+        if (resolveAssetFiles() != null) {
             verifyInstalledAsset()
             return
         }
