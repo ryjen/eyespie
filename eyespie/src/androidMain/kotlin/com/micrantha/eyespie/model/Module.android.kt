@@ -2,6 +2,7 @@ package com.micrantha.eyespie.model
 
 import com.google.android.play.core.assetpacks.AssetPackManager
 import org.kodein.di.DI
+import org.kodein.di.bindInstance
 import org.kodein.di.bindSingleton
 
 internal val androidSmokeModelDescriptor = ModelAssetDescriptor(
@@ -21,6 +22,7 @@ internal fun androidModelAssetModule(
     assetPackManager: AssetPackManager,
     descriptor: ModelAssetDescriptor = androidSmokeModelDescriptor,
 ) = DI.Module("AndroidModelAsset") {
+    bindInstance<AssetPackManager> { assetPackManager }
     bindSingleton<ModelAssetRepository> {
         PlayAssetDeliveryModelRepository(
             assetPackManager = assetPackManager,
