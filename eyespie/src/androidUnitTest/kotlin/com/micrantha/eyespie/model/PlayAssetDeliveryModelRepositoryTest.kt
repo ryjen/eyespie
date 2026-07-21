@@ -6,10 +6,8 @@ import com.google.android.play.core.assetpacks.AssetPackManager
 import com.google.android.play.core.assetpacks.AssetPackState
 import com.google.android.play.core.assetpacks.AssetPackStates
 import com.google.android.play.core.assetpacks.model.AssetPackStatus
-import io.mockk.capture
 import io.mockk.every
 import io.mockk.mockk
-import io.mockk.slot
 import io.mockk.verifyOrder
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
@@ -74,9 +72,10 @@ class PlayAssetDeliveryModelRepositoryTest {
 
     private fun successfulVoidTask(): Task<Void> {
         val task = mockk<Task<Void>>()
-        val successListener = slot<OnSuccessListener<Void>>()
-        every { task.addOnSuccessListener(capture(successListener)) } answers {
-            successListener.captured.onSuccess(null)
+        every { task.addOnSuccessListener(any()) } answers {
+            @Suppress("UNCHECKED_CAST")
+            val listener = invocation.args[0] as OnSuccessListener<Void>
+            listener.onSuccess(null)
             task
         }
         every { task.addOnFailureListener(any()) } returns task
