@@ -59,7 +59,7 @@ class ModelAssetVerifierTest {
 
     @Test
     fun rejectsActualDigestMismatch() {
-        writeArtifact(modelContent = "different payload!!")
+        writeArtifact(modelContent = "different payload!")
 
         assertInvalid(
             verifier.verify(manifestPath, modelPath, descriptor, runtime),
