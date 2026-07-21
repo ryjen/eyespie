@@ -6,9 +6,10 @@ import com.google.android.play.core.assetpacks.AssetPackManager
 import com.google.android.play.core.assetpacks.AssetPackState
 import com.google.android.play.core.assetpacks.AssetPackStates
 import com.google.android.play.core.assetpacks.model.AssetPackStatus
+import io.mockk.capture
 import io.mockk.every
-import io.mockk.firstArg
 import io.mockk.mockk
+import io.mockk.slot
 import io.mockk.verifyOrder
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
@@ -73,8 +74,9 @@ class PlayAssetDeliveryModelRepositoryTest {
 
     private fun successfulVoidTask(): Task<Void> {
         val task = mockk<Task<Void>>()
-        every { task.addOnSuccessListener(any()) } answers {
-            firstArg<OnSuccessListener<Void>>().onSuccess(null)
+        val successListener = slot<OnSuccessListener<Void>>()
+        every { task.addOnSuccessListener(capture(successListener)) } answers {
+            successListener.captured.onSuccess(null)
             task
         }
         every { task.addOnFailureListener(any()) } returns task
