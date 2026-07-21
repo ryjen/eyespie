@@ -61,8 +61,6 @@ internal object PlayAssetDeliveryStateMapper {
         AssetPackErrorCode.NETWORK_ERROR -> "pad.network_error"
         AssetPackErrorCode.ACCESS_DENIED -> "pad.access_denied"
         AssetPackErrorCode.INSUFFICIENT_STORAGE -> "pad.insufficient_storage"
-        AssetPackErrorCode.PLAY_STORE_NOT_FOUND -> "pad.play_store_not_found"
-        AssetPackErrorCode.NETWORK_UNRESTRICTED -> "pad.network_unrestricted"
         AssetPackErrorCode.APP_NOT_OWNED -> "pad.app_not_owned"
         AssetPackErrorCode.INTERNAL_ERROR -> "pad.internal_error"
         else -> "pad.error.$errorCode"
