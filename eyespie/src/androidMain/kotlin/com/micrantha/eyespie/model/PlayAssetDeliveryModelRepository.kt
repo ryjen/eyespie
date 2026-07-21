@@ -6,6 +6,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import java.io.File
+import java.util.concurrent.atomic.AtomicBoolean
 
 internal class PlayAssetDeliveryModelRepository(
     private val assetPackManager: AssetPackManager,
@@ -14,9 +15,10 @@ internal class PlayAssetDeliveryModelRepository(
     private val assetDirectory: String = MODEL_ASSET_DIRECTORY,
 ) : ModelAssetRepository, AutoCloseable {
     private val state = MutableStateFlow<ModelAssetState>(initialState())
+    private val removalInProgress = AtomicBoolean(false)
 
     private val listener = AssetPackStateUpdateListener { assetPackState ->
-        if (assetPackState.name() == packName) {
+        if (assetPackState.name() == packName && !removalInProgress.get()) {
             state.value = PlayAssetDeliveryStateMapper.map(assetPackState)
         }
     }
@@ -28,6 +30,8 @@ internal class PlayAssetDeliveryModelRepository(
     override fun observe(): Flow<ModelAssetState> = state.asStateFlow()
 
     override suspend fun requestDownload() {
+        removalInProgress.set(false)
+
         if (resolveCurrentAssetPath() != null) {
             state.value = ModelAssetState.Verifying(
                 verifiedBytes = 0L,
@@ -53,9 +57,14 @@ internal class PlayAssetDeliveryModelRepository(
     }
 
     override suspend fun remove() {
-        state.value = ModelAssetState.NotInstalled
+        removalInProgress.set(true)
+        assetPackManager.cancel(listOf(packName))
         assetPackManager.removePack(packName)
+            .addOnSuccessListener {
+                state.value = ModelAssetState.NotInstalled
+            }
             .addOnFailureListener { error ->
+                removalInProgress.set(false)
                 state.value = ModelAssetState.Failed(
                     stage = FailureStage.Removal,
                     recoverable = true,
