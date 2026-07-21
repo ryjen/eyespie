@@ -42,11 +42,11 @@ internal class PlayAssetDeliveryModelRepository(
 
         state.value = ModelAssetState.Queued()
         assetPackManager.fetch(listOf(packName))
-            .addOnFailureListener { error ->
+            .addOnFailureListener {
                 state.value = ModelAssetState.Failed(
                     stage = FailureStage.Scheduling,
                     recoverable = true,
-                    diagnosticCode = "pad.fetch_failed.${error.javaClass.simpleName}",
+                    diagnosticCode = "pad.fetch_failed",
                 )
             }
     }
@@ -63,12 +63,12 @@ internal class PlayAssetDeliveryModelRepository(
             .addOnSuccessListener {
                 state.value = ModelAssetState.NotInstalled
             }
-            .addOnFailureListener { error ->
+            .addOnFailureListener {
                 removalInProgress.set(false)
                 state.value = ModelAssetState.Failed(
                     stage = FailureStage.Removal,
                     recoverable = true,
-                    diagnosticCode = "pad.remove_failed.${error.javaClass.simpleName}",
+                    diagnosticCode = "pad.remove_failed",
                 )
             }
     }
