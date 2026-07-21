@@ -101,7 +101,7 @@ class ModelAssetVerifierTest {
     }
 
     private fun writeArtifact(
-        manifest: String = this.manifest,
+        manifest: String = Companion.manifest,
         modelContent: String = MODEL_CONTENT,
     ) {
         fileSystem.createDirectories(manifestPath.parent!!)
