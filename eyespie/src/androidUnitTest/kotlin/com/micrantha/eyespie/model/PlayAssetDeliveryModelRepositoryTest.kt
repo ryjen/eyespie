@@ -11,9 +11,14 @@ import io.mockk.mockk
 import io.mockk.verifyOrder
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
+import org.junit.runner.RunWith
+import org.robolectric.RobolectricTestRunner
+import org.robolectric.annotation.Config
 import kotlin.test.Test
 import kotlin.test.assertEquals
 
+@RunWith(RobolectricTestRunner::class)
+@Config(sdk = [33])
 class PlayAssetDeliveryModelRepositoryTest {
     @Test
     fun removeCancelsActiveRequestBeforeRemovingInstalledPack() = runTest {
