@@ -1,6 +1,7 @@
 package com.micrantha.eyespie.model
 
 import com.google.android.play.core.assetpacks.AssetPackManager
+import com.google.android.play.core.assetpacks.AssetPackState
 import com.google.android.play.core.assetpacks.AssetPackStateUpdateListener
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -17,11 +18,7 @@ internal class PlayAssetDeliveryModelRepository(
     private val state = MutableStateFlow<ModelAssetState>(initialState())
     private val removalInProgress = AtomicBoolean(false)
 
-    private val listener = AssetPackStateUpdateListener { assetPackState ->
-        if (assetPackState.name() == packName && !removalInProgress.get()) {
-            state.value = PlayAssetDeliveryStateMapper.map(assetPackState)
-        }
-    }
+    private val listener = AssetPackStateUpdateListener(::handleAssetPackState)
 
     init {
         assetPackManager.registerListener(listener)
@@ -80,6 +77,12 @@ internal class PlayAssetDeliveryModelRepository(
         val assetsPath = packLocation.assetsPath() ?: return null
         val modelFile = File(File(assetsPath, assetDirectory), descriptor.filename)
         return modelFile.takeIf(File::isFile)?.absolutePath
+    }
+
+    internal fun handleAssetPackState(assetPackState: AssetPackState) {
+        if (assetPackState.name() == packName && !removalInProgress.get()) {
+            state.value = PlayAssetDeliveryStateMapper.map(assetPackState)
+        }
     }
 
     override fun close() {
