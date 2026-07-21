@@ -5,6 +5,7 @@ import com.google.android.play.core.assetpacks.AssetPackManager
 import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verifyOrder
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -29,12 +30,9 @@ class PlayAssetDeliveryModelRepositoryTest {
             assetPackManager.cancel(listOf(PACK_NAME))
             assetPackManager.removePack(PACK_NAME)
         }
-        assertEquals(ModelAssetState.NotInstalled, repository.observe().value())
+        assertEquals(ModelAssetState.NotInstalled, repository.observe().first())
         repository.close()
     }
-
-    private suspend fun kotlinx.coroutines.flow.Flow<ModelAssetState>.value(): ModelAssetState =
-        kotlinx.coroutines.flow.first(this)
 
     private fun descriptor() = ModelAssetDescriptor(
         id = "eyespie-offline-model-smoke-test",
