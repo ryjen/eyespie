@@ -7,7 +7,6 @@ import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.platform.LocalContext
 import com.google.android.play.core.assetpacks.AssetPackManager
@@ -38,7 +37,7 @@ private fun ModelAssetConfirmationEffect(dependencies: DI) {
     val assetPackManager = remember(dependencies) {
         dependencies.direct.instance<AssetPackManager>()
     }
-    var confirmationShowing by rememberSaveable { mutableStateOf(false) }
+    var confirmationShowing by remember { mutableStateOf(false) }
     val confirmationLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.StartIntentSenderForResult(),
     ) {
