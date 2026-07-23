@@ -133,7 +133,7 @@ internal class PlayAssetDeliveryModelRepository(
         }
     }
 
-    private fun verifyInstalledAsset(): ModelAssetVerificationResult {
+    private suspend fun verifyInstalledAsset(): ModelAssetVerificationResult {
         val files = resolveAssetFiles()
         if (files == null || !files.modelFile.isFile || !files.manifestFile.isFile) {
             return ModelAssetVerificationResult.Invalid(
