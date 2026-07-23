@@ -1,5 +1,6 @@
 package com.micrantha.eyespie.model
 
+import android.content.Context
 import com.google.android.play.core.assetpacks.AssetPackManager
 import io.mockk.every
 import io.mockk.mockk
@@ -13,11 +14,20 @@ import kotlin.test.assertIs
 class AndroidModelAssetModuleTest {
     @Test
     fun resolvesPlayAssetDeliveryRepositoryBehindSharedContract() {
+        val context = mockk<Context>(relaxed = true) {
+            every { applicationContext } returns this
+        }
         val assetPackManager = mockk<AssetPackManager>(relaxed = true) {
             every { getPackLocation(any()) } returns null
         }
         val dependencies = DI {
-            import(androidModelAssetModule(assetPackManager))
+            import(
+                androidModelAssetModule(
+                    context = context,
+                    assetPackManager = assetPackManager,
+                    smokeChecker = ModelRuntimeSmokeChecker { RuntimeSmokeCheckResult.Passed },
+                ),
+            )
         }
 
         val repository = assertIs<PlayAssetDeliveryModelRepository>(
