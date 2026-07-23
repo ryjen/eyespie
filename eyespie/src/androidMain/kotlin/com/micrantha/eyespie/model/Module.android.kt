@@ -1,6 +1,7 @@
 package com.micrantha.eyespie.model
 
 import com.google.android.play.core.assetpacks.AssetPackManager
+import okio.FileSystem
 import org.kodein.di.DI
 import org.kodein.di.bindInstance
 import org.kodein.di.bindSingleton
@@ -18,15 +19,25 @@ internal val androidSmokeModelDescriptor = ModelAssetDescriptor(
     ),
 )
 
+internal val androidModelRuntimeCapabilities = ModelRuntimeCapabilities(
+    engine = "mediapipe",
+    version = "0.10.35",
+    modelAbi = 1,
+)
+
 internal fun androidModelAssetModule(
     assetPackManager: AssetPackManager,
     descriptor: ModelAssetDescriptor = androidSmokeModelDescriptor,
+    verifier: ModelAssetVerifier = ModelAssetVerifier(FileSystem.SYSTEM),
+    runtime: ModelRuntimeCapabilities = androidModelRuntimeCapabilities,
 ) = DI.Module("AndroidModelAsset") {
     bindInstance<AssetPackManager> { assetPackManager }
     bindSingleton<ModelAssetRepository> {
         PlayAssetDeliveryModelRepository(
             assetPackManager = assetPackManager,
             descriptor = descriptor,
+            verifier = verifier,
+            runtime = runtime,
         )
     }
 }

@@ -1,5 +1,8 @@
 package com.micrantha.eyespie.model
 
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import okio.Buffer
 import okio.FileSystem
 import okio.HashingSource
@@ -29,19 +32,41 @@ sealed interface ModelAssetVerificationResult {
  * Performs deterministic validation that is independent of Play Asset Delivery or Apple delivery APIs.
  * Runtime loading and bounded inference smoke testing remain a separate stage.
  */
-class ModelAssetVerifier(
+class ModelAssetVerifier private constructor(
     private val fileSystem: FileSystem,
-    private val manifestParser: ModelAssetManifestParser = ModelAssetManifestParser(),
+    private val manifestParser: ModelAssetManifestParser,
+    private val cancellationCheck: suspend () -> Unit,
 ) {
-    fun verify(
+    constructor(
+        fileSystem: FileSystem,
+        manifestParser: ModelAssetManifestParser = ModelAssetManifestParser(),
+    ) : this(
+        fileSystem = fileSystem,
+        manifestParser = manifestParser,
+        cancellationCheck = { currentCoroutineContext().ensureActive() },
+    )
+
+    internal constructor(
+        fileSystem: FileSystem,
+        cancellationCheck: suspend () -> Unit,
+    ) : this(
+        fileSystem = fileSystem,
+        manifestParser = ModelAssetManifestParser(),
+        cancellationCheck = cancellationCheck,
+    )
+
+    suspend fun verify(
         manifestPath: Path,
         modelPath: Path,
         expectedDescriptor: ModelAssetDescriptor,
         runtime: ModelRuntimeCapabilities,
     ): ModelAssetVerificationResult {
-        val manifestContent = runCatching {
+        cancellationCheck()
+        val manifestContent = try {
             fileSystem.source(manifestPath).buffer().use { it.readUtf8() }
-        }.getOrElse {
+        } catch (cancellation: CancellationException) {
+            throw cancellation
+        } catch (_: Throwable) {
             return invalid(FailureStage.Verification, "verification.manifest_unreadable")
         }
 
@@ -97,16 +122,19 @@ class ModelAssetVerifier(
             return invalid(FailureStage.Compatibility, "verification.unsupported_runtime_version")
         }
 
-        val hashingSource = runCatching {
+        val hashingSource = try {
             HashingSource.sha256(fileSystem.source(modelPath))
-        }.getOrElse {
+        } catch (cancellation: CancellationException) {
+            throw cancellation
+        } catch (_: Throwable) {
             return invalid(FailureStage.Verification, "verification.model_unreadable")
         }
         var actualBytes = 0L
-        val readResult = runCatching {
+        val actualDigest = try {
             hashingSource.use { source ->
                 val buffer = Buffer()
                 while (true) {
+                    cancellationCheck()
                     val read = source.read(buffer, BUFFER_SIZE)
                     if (read == -1L) break
                     actualBytes += read
@@ -114,8 +142,9 @@ class ModelAssetVerifier(
                 }
             }
             hashingSource.hash.hex()
-        }
-        val actualDigest = readResult.getOrElse {
+        } catch (cancellation: CancellationException) {
+            throw cancellation
+        } catch (_: Throwable) {
             return invalid(FailureStage.Verification, "verification.model_unreadable")
         }
 

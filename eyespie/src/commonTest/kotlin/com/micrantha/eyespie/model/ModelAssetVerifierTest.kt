@@ -1,9 +1,12 @@
 package com.micrantha.eyespie.model
 
-import okio.fakefilesystem.FakeFileSystem
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.test.runTest
 import okio.Path.Companion.toPath
+import okio.fakefilesystem.FakeFileSystem
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertIs
 
 class ModelAssetVerifierTest {
@@ -13,7 +16,7 @@ class ModelAssetVerifierTest {
     private val modelPath = "/model/offline-model.task".toPath()
 
     @Test
-    fun verifiesValidArtifact() {
+    fun verifiesValidArtifact() = runTest {
         writeArtifact()
 
         val result = verifier.verify(manifestPath, modelPath, descriptor, runtime)
@@ -25,7 +28,7 @@ class ModelAssetVerifierTest {
     }
 
     @Test
-    fun rejectsMalformedManifest() {
+    fun rejectsMalformedManifest() = runTest {
         writeArtifact(manifest = "not-json")
 
         assertInvalid(
@@ -36,7 +39,7 @@ class ModelAssetVerifierTest {
     }
 
     @Test
-    fun rejectsReleaseVersionMismatch() {
+    fun rejectsReleaseVersionMismatch() = runTest {
         writeArtifact(manifest = manifest.replace(VERSION, "2026.07.21-2"))
 
         assertInvalid(
@@ -47,7 +50,7 @@ class ModelAssetVerifierTest {
     }
 
     @Test
-    fun rejectsActualSizeMismatch() {
+    fun rejectsActualSizeMismatch() = runTest {
         writeArtifact(modelContent = "$MODEL_CONTENT-extra")
 
         assertInvalid(
@@ -58,7 +61,7 @@ class ModelAssetVerifierTest {
     }
 
     @Test
-    fun rejectsActualDigestMismatch() {
+    fun rejectsActualDigestMismatch() = runTest {
         writeArtifact(modelContent = "different payload!")
 
         assertInvalid(
@@ -69,7 +72,7 @@ class ModelAssetVerifierTest {
     }
 
     @Test
-    fun rejectsUnsupportedRuntimeVersion() {
+    fun rejectsUnsupportedRuntimeVersion() = runTest {
         writeArtifact()
 
         assertInvalid(
@@ -85,7 +88,7 @@ class ModelAssetVerifierTest {
     }
 
     @Test
-    fun rejectsUnsupportedRuntimeAbi() {
+    fun rejectsUnsupportedRuntimeAbi() = runTest {
         writeArtifact()
 
         assertInvalid(
@@ -98,6 +101,29 @@ class ModelAssetVerifierTest {
             FailureStage.Compatibility,
             "manifest.unsupported_model_abi",
         )
+    }
+
+    @Test
+    fun stopsHashingWhenCancellationIsDetectedBetweenChunks() = runTest {
+        val modelContent = "x".repeat(20_000)
+        val largeDescriptor = descriptor.copy(expectedBytes = modelContent.length.toLong())
+        writeArtifact(
+            manifest = manifest
+                .replace("\"sizeBytes\": 18", "\"sizeBytes\": ${modelContent.length}"),
+            modelContent = modelContent,
+        )
+        var checks = 0
+        val cancellableVerifier = ModelAssetVerifier(fileSystem) {
+            checks += 1
+            if (checks == 3) throw CancellationException("cancel verification")
+        }
+
+        assertFailsWith<CancellationException> {
+            cancellableVerifier.verify(manifestPath, modelPath, largeDescriptor, runtime)
+        }
+
+        assertEquals(3, checks)
+        fileSystem.checkNoOpenFiles()
     }
 
     private fun writeArtifact(
