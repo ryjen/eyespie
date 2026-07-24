@@ -16,7 +16,53 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  generate:
+  classify:
+    name: classify
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      generate: ${{ steps.classify.outputs.generate }}
+    steps:
+      - name: Checkout code
+        if: github.event_name == 'pull_request'
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+          fetch-depth: 0
+
+      - name: Classify SBOM inputs
+        id: classify
+        shell: bash
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+        run: |
+          set -euo pipefail
+
+          if [[ "$EVENT_NAME" != "pull_request" ]]; then
+            echo "generate=true" >> "$GITHUB_OUTPUT"
+            echo "Trusted event: full SBOM generation required."
+            exit 0
+          fi
+
+          changed_files="$(git diff --name-only "$BASE_SHA" "$HEAD_SHA")"
+          printf '%s\n' "$changed_files"
+
+          relevant_pattern='(^|/)(gradle\.properties|gradle\.lockfile|settings\.gradle(\.kts)?|build\.gradle(\.kts)?|libs\.versions\.toml|gradle-wrapper\.properties|gradle-wrapper\.jar|gradlew(\.bat)?|Podfile|Podfile\.lock|.*\.podspec)$|^buildSrc/|^gradle/|^\.github/workflows/sbom\.yml$|^scripts/.*sbom|^model-pack/|^iosApp/Podfile|^eyespie/eyespie\.podspec$'
+
+          if grep -Eq "$relevant_pattern" <<< "$changed_files"; then
+            echo "generate=true" >> "$GITHUB_OUTPUT"
+            echo "SBOM-affecting change detected."
+          else
+            echo "generate=false" >> "$GITHUB_OUTPUT"
+            echo "No SBOM-affecting changes; macOS generation will be skipped."
+          fi
+
+  generate-work:
+    name: generate-work
+    needs: classify
+    if: needs.classify.outputs.generate == 'true'
     runs-on: macos-latest
     timeout-minutes: 30
 
@@ -245,10 +291,11 @@ jobs:
           RUBY
 
       - name: Verify generated CocoaPods metadata is committed
+        id: verify-metadata
         run: git diff --exit-code -- eyespie/eyespie.podspec iosApp/Podfile.lock
 
       - name: Upload CocoaPods metadata drift
-        if: failure()
+        if: failure() && steps.verify-metadata.outcome == 'failure'
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: eyespie-sbom-cocoapods-metadata-${{ github.sha }}
@@ -264,4 +311,37 @@ jobs:
           name: eyespie-sbom-${{ github.sha }}
           path: build/reports/sbom/*.cdx.json
           if-no-files-found: error
-          retention-days: 30
+          retention-days: ${{ github.event_name == 'pull_request' && 7 || 30 }}
+
+  # Keep this terminal job named "generate" so existing branch protection remains valid.
+  generate:
+    name: generate
+    if: always()
+    needs: [classify, generate-work]
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Report SBOM result
+        shell: bash
+        env:
+          CLASSIFY_RESULT: ${{ needs.classify.result }}
+          GENERATE_RESULT: ${{ needs.generate-work.result }}
+          SHOULD_GENERATE: ${{ needs.classify.outputs.generate }}
+        run: |
+          set -euo pipefail
+
+          if [[ "$CLASSIFY_RESULT" != "success" ]]; then
+            echo "SBOM classification failed." >&2
+            exit 1
+          fi
+
+          if [[ "$SHOULD_GENERATE" == "true" && "$GENERATE_RESULT" != "success" ]]; then
+            echo "SBOM generation did not succeed: $GENERATE_RESULT" >&2
+            exit 1
+          fi
+
+          if [[ "$SHOULD_GENERATE" == "false" ]]; then
+            echo "SBOM generation was not required for this pull request."
+          else
+            echo "SBOM generation completed successfully."
+          fi
