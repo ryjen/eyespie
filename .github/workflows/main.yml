@@ -36,6 +36,9 @@ jobs:
       - name: Create build configuration
         run: cp env.example .env.local
 
+      - name: Verify model metadata contract
+        run: python3 scripts/stage_android_model_artifact.py verify
+
       - name: Compile Android production and unit-test sources
         run: >-
           ./gradlew
