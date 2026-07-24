@@ -313,6 +313,7 @@ jobs:
           if-no-files-found: error
           retention-days: ${{ github.event_name == 'pull_request' && 7 || 30 }}
 
+  # Keep this terminal job named "generate" so existing branch protection remains valid.
   generate:
     name: generate
     if: always()
