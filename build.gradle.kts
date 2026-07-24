@@ -30,11 +30,11 @@ project(":app") {
     tasks.cyclonedxDirectBom {
         includeConfigs = listOf(
             ".*[Mm]ain.*[Rr]esolvable.*",
-            ".*[Dd]ebugRuntimeClasspath",
             ".*[Rr]eleaseRuntimeClasspath",
         )
         skipConfigs = listOf(
             ".*[Tt]est.*",
+            ".*[Dd]ebug.*",
             ".*[Bb]enchmark.*",
             ".*[Ll]int.*",
         )
