@@ -9,6 +9,7 @@ bluebellAssets
 
 ## AI Models ##
 *.tflite
+*.task
 
 ## Environment ##
 .env*
@@ -215,6 +216,7 @@ fastlane/README.md
 fastlane/report.xml
 
 ## Nix
+
 result
 
 # direnv
