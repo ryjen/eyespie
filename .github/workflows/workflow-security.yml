@@ -13,6 +13,9 @@ on:
       - ".github/dependabot.yml"
   workflow_dispatch:
 
+env:
+  ZIZMOR_VERSION: "1.28.0"
+
 permissions:
   contents: read
 
@@ -26,13 +29,21 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - name: Audit GitHub workflow definitions
-        uses: zizmorcore/zizmor-action@5f14fd08f7cf1cb1609c1e344975f152c7ee938d # v0.5.6
+      - name: Checkout repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
         with:
-          advanced-security: false
-          annotations: true
-          min-confidence: high
-          min-severity: high
-          online-audits: true
-          version: "1.28.0"
-          inputs: ryjen/eyespie@${{ github.event.pull_request.head.sha || github.sha }}
+          persist-credentials: false
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@11f9893b081a58869d3b5fccaea48c9e9e46f990 # v8.3.2
+
+      - name: Audit GitHub workflow definitions
+        run: >-
+          uvx "zizmor@${ZIZMOR_VERSION}"
+          --format=github
+          --min-confidence=high
+          --min-severity=high
+          --collect=workflows
+          .
+        env:
+          GH_TOKEN: ${{ github.token }}
