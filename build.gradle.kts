@@ -12,6 +12,33 @@ plugins {
     alias(libs.plugins.compose.compiler) apply false
     alias(libs.plugins.jetbrains.kotlin.jvm) apply false
     alias(libs.plugins.sqldelight) apply false
+    alias(libs.plugins.cyclonedx)
+}
+
+allprojects {
+    tasks.cyclonedxDirectBom {
+        skipConfigs = listOf(
+            ".*[Tt]est.*",
+            ".*[Bb]enchmark.*",
+            ".*[Ll]int.*",
+        )
+        includeBuildEnvironment = false
+        includeBuildSystem = true
+    }
+}
+
+tasks.cyclonedxBom {
+    projectType = "application"
+    componentGroup = "com.micrantha"
+    componentName = "eyespie"
+    componentVersion = providers
+        .environmentVariable("SBOM_COMPONENT_VERSION")
+        .orElse("0.1.0")
+        .get()
+    includeLicenseText = false
+    includeBuildSystem = true
+    jsonOutput.set(layout.buildDirectory.file("reports/sbom/eyespie-gradle.cdx.json"))
+    xmlOutput.unsetConvention()
 }
 
 project(":app") {
