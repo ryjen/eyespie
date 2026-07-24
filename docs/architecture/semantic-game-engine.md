@@ -52,8 +52,9 @@ flowchart TD
     MatchEngine --> ProviderRouter
 
     ProviderRouter --> LocalModels[Local Device Models]
-    ProviderRouter --> RemoteModels[Remote Models]
+    ProviderRouter --> RemoteGate[Remote Policy and Consent Gate]
     ProviderRouter --> Rules[Rules Engine]
+    RemoteGate --> RemoteModels[Remote Models]
 
     MatchEngine --> GameState[Game State]
     ClueEngine --> GameState
@@ -99,7 +100,17 @@ Potential embedding types:
 - text embeddings
 - scene embeddings
 
-The system should support multiple embedding providers and future local vector indexing.
+The embedding and index subsystem owns raw vector values. Domain and gameplay layers should exchange typed references and metadata rather than platform-specific vector containers.
+
+An embedding reference should identify:
+
+- model identifier and version
+- dimensions
+- normalization strategy
+- similarity metric
+- storage key or lifecycle scope
+
+This allows providers to change without making vectors from incompatible models appear interchangeable.
 
 ---
 
@@ -112,7 +123,7 @@ Primary responsibilities:
 - clue generation
 - hint generation
 - semantic guess interpretation
-- semantic closeness scoring
+- bounded semantic evidence
 - accessibility descriptions
 - dynamic difficulty adaptation
 
@@ -128,11 +139,13 @@ Example structured context:
 }
 ```
 
+Reasoning output is advisory evidence. It cannot replace authoritative perception confidence or directly determine the final score.
+
 ---
 
 # Provider Routing
 
-The system supports local-first execution.
+The system supports local-first execution and denies remote execution by default.
 
 ## Local Providers
 
@@ -151,7 +164,7 @@ Benefits:
 
 ## Remote Providers
 
-Remote providers are fallback systems.
+Remote providers are policy-controlled fallback systems.
 
 Potential providers:
 
@@ -160,23 +173,53 @@ Potential providers:
 - hosted Anthropic models
 - custom hosted inference
 
-Remote execution should require explicit policy approval.
+A remote route requires all of the following:
 
----
+1. the request declares the minimum data capabilities it requires
+2. policy authorizes those capabilities for the selected provider
+3. user consent exists where required
+4. payload minimization removes all unapproved fields
 
-# Routing Strategy
+Policy authorization and user consent are distinct gates. Consent does not override policy, and policy does not imply consent.
+
+Sensitive data classes require explicit capabilities, including:
+
+- raw images or video frames
+- object crops
+- OCR text
+- faces or biometric features
+- precise location
+- persistent scene history
+
+Fallback routing must never silently broaden the transmitted payload.
+
+## Routing Strategy
 
 ```mermaid
 flowchart TD
     Request[Semantic Request]
-    Request --> Capability{Local model available?}
+    Request --> Capability{Local capability available?}
 
-    Capability -->|Yes| Local[Local Model]
-    Capability -->|No| Policy{Remote allowed?}
+    Capability -->|Yes| Local[Local Provider]
+    Capability -->|No| Declared[Declare minimum remote capabilities]
 
-    Policy -->|Yes| Remote[Remote Model]
-    Policy -->|No| Rules[Rules Fallback]
+    Declared --> Policy{Policy authorizes provider and data classes?}
+    Policy -->|No| Rules[Rules or deterministic fallback]
+    Policy -->|Yes| Consent{Consent present where required?}
+
+    Consent -->|No| Rules
+    Consent -->|Yes| Minimize[Minimize and classify payload]
+    Minimize --> Remote[Remote Provider]
 ```
+
+Each remote decision records:
+
+- requested capability set
+- authorized capability set
+- consent basis
+- transmitted field classes
+- provider and model
+- local or remote execution
 
 ---
 
@@ -188,70 +231,94 @@ Potential inputs:
 
 - perception confidence
 - embedding similarity
-- semantic interpretation
+- bounded semantic evidence
 - gameplay constraints
 - ambiguity penalties
 
-Example conceptual scoring:
+Raw values from different providers are not directly additive. Each signal must be normalized or calibrated against its model/version and evaluation corpus before aggregation.
+
+Conceptual scoring pipeline:
 
 ```text
-score = visual_similarity
-      + semantic_similarity
-      + perception_confidence
-      + gameplay_bonus
-      - ambiguity_penalty
+normalized_visual = calibrate(visual_similarity, visual_model_version)
+normalized_semantic = calibrate(semantic_similarity, semantic_model_version)
+normalized_perception = calibrate(perception_confidence, perception_model_version)
+
+score = aggregate(
+    normalized_visual,
+    normalized_semantic,
+    normalized_perception,
+    gameplay_constraints,
+    ambiguity_penalty
+)
 ```
+
+The scoring policy must define:
+
+- expected range and calibration method for each signal
+- model/version-specific thresholds
+- behavior when signals are missing
+- abstention or rejection thresholds
+- deterministic tie-breaking
+- score provenance
 
 The architecture intentionally avoids fully LLM-owned scoring.
 
 ---
 
-# Semantic Candidate Model
+# Semantic Candidate Contract
 
-Potential canonical model:
+The semantic candidate is a language-neutral domain contract. Kotlin, Swift, and any tooling implementation may map it into platform-native types, but the contract must not depend on a platform-specific vector or serialization type.
 
-```ts
-interface SemanticCandidate {
-  id: string
+```text
+SemanticCandidate
+  id: CandidateId
+  labels: List<LabelEvidence>
+  attributes: AttributeEvidence
+  embeddings: List<EmbeddingRef>
+  provenance: Provenance
 
-  labels: Array<{
-    value: string
-    confidence: number
-    source: string
-  }>
+LabelEvidence
+  value: String
+  confidence: NormalizedScore
+  source: EvidenceSource
 
-  attributes: {
-    color?: string[]
-    shape?: string[]
-    material?: string[]
-    location?: string[]
-  }
+EmbeddingRef
+  kind: IMAGE | OBJECT_CROP | TEXT | SCENE
+  modelId: String
+  modelVersion: String
+  dimensions: Integer
+  normalization: Normalization
+  similarityMetric: SimilarityMetric
+  storageKey: Optional<OpaqueKey>
 
-  embeddings: {
-    image?: Float32Array
-    crop?: Float32Array
-    text?: Float32Array
-  }
-
-  provenance: {
-    provider: string
-    model: string
-    timestamp: string
-  }
-}
+Provenance
+  provider: String
+  modelId: String
+  modelVersion: String
+  generatedAt: Timestamp
+  executionLocation: LOCAL | REMOTE | RULES
 ```
+
+Raw vectors do not belong in general application state. They remain in the embedding/index subsystem and are accessed through `EmbeddingRef` when matching requires them.
+
+A reference with a missing `storageKey` may represent an ephemeral embedding whose lifecycle is bounded to the active operation.
 
 ---
 
 # Provenance and Evaluation
 
-Generated clues and semantic decisions should preserve:
+Generated clues, matching signals, remote decisions, and final scores should preserve:
 
 - model provider
-- model identifier
-- prompt version
+- model identifier and version
+- prompt version where applicable
 - generation timestamp
-- local vs remote execution
+- local, remote, or rules execution
+- policy and consent decision identifiers for remote execution
+- transmitted field classes for remote execution
+- calibration version
+- contributing signals and missing signals
 
 This supports:
 
@@ -259,6 +326,7 @@ This supports:
 - debugging
 - evaluation
 - fairness analysis
+- privacy auditing
 - future regression testing
 
 ---
@@ -295,7 +363,7 @@ Camera-derived scene data may contain:
 - locations
 - sensitive objects
 
-The architecture therefore defaults to local-first reasoning.
+The architecture therefore defaults to local reasoning. Remote execution requires explicit capabilities, policy authorization, consent where applicable, and payload minimization.
 
 ---
 
