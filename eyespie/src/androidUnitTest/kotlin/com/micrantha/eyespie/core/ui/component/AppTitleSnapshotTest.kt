@@ -28,5 +28,6 @@ class AppTitleSnapshotTest {
         }
 
         composeTestRule.onRoot().captureRoboImage()
+        error("Controlled CI diagnostics smoke failure")
     }
 }
