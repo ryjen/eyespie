@@ -1,7 +1,6 @@
 name: Build and Test
 permissions:
   contents: read
-  pull-requests: write
 on:
   push:
     branches:
@@ -19,13 +18,15 @@ jobs:
 
     steps:
       - name: Checkout Code
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
 
       - name: Create build config
         uses: ./.github/actions/configure-build
         with:
           config: ${{ secrets.APP_CONFIG }}
 
-      - uses: maierj/fastlane-action@v3.1.0
+      - uses: maierj/fastlane-action@5a3b971aaa26776459bb26894d6c1a1a84a311a7 # v3.1.0
         with:
           lane: "test"

@@ -1,0 +1,51 @@
+name: Workflow Security
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/**"
+      - ".github/dependabot.yml"
+  pull_request:
+    branches: [main]
+    paths:
+      - ".github/workflows/**"
+      - ".github/dependabot.yml"
+  workflow_dispatch:
+
+env:
+  ZIZMOR_VERSION: "1.28.0"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: eyespie-workflow-security-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  zizmor:
+    name: zizmor
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
+
+      - name: Set up uv
+        uses: astral-sh/setup-uv@11f9893b081a58869d3b5fccaea48c9e9e46f990 # v8.3.2
+
+      # Slice A intentionally blocks on high-confidence, high-severity findings
+      # in workflow files. Composite-action internals require a separate hardening slice.
+      - name: Audit GitHub workflow definitions
+        run: >-
+          uvx "zizmor@${ZIZMOR_VERSION}"
+          --format=github
+          --min-confidence=high
+          --min-severity=high
+          --collect=workflows
+          .
+        env:
+          GH_TOKEN: ${{ github.token }}
