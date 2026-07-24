@@ -24,7 +24,9 @@ jobs:
     environment: staging
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
 
       - uses: ./.github/actions/supabase
         with:
@@ -37,7 +39,9 @@ jobs:
     environment: staging
 
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
 
       - name: Create build config
         uses: ./.github/actions/configure-build
@@ -48,7 +52,7 @@ jobs:
           login_email: ${{ inputs.login_email }}
           login_password: ${{ inputs.login_password }}
 
-      - uses: maierj/fastlane-action@v3.1.0
+      - uses: maierj/fastlane-action@5a3b971aaa26776459bb26894d6c1a1a84a311a7 # v3.1.0
         with:
           lane: "distribute_staging"
         env:
