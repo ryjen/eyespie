@@ -22,7 +22,9 @@ jobs:
 
     steps:
       - name: Checkout code
-        uses: actions/checkout@v4
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+        with:
+          persist-credentials: false
 
       - name: Set SBOM component version
         shell: bash
@@ -43,13 +45,13 @@ jobs:
           echo "COCOAPODS_COMPONENT_VERSION=$cocoapods_version" >> "$GITHUB_ENV"
 
       - name: Set up JDK 21
-        uses: actions/setup-java@v4
+        uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d # v4.8.0
         with:
           java-version: "21"
           distribution: temurin
 
       - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@v6
+        uses: gradle/actions/setup-gradle@3f131e8634966bd73d06cc69884922b02e6faf92 # v6
         with:
           cache-read-only: ${{ github.ref != 'refs/heads/main' }}
 
@@ -151,7 +153,7 @@ jobs:
 
       - name: Upload Gradle failure log
         if: failure() && hashFiles('gradle-sbom.log') != ''
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: eyespie-sbom-gradle-failure-${{ github.sha }}
           path: gradle-sbom.log
@@ -182,7 +184,7 @@ jobs:
 
       - name: Upload CocoaPods preparation failure log
         if: failure() && hashFiles('cocoapods-prepare.log') != ''
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: eyespie-sbom-cocoapods-prepare-failure-${{ github.sha }}
           path: cocoapods-prepare.log
@@ -211,7 +213,7 @@ jobs:
 
       - name: Upload CocoaPods SBOM failure log
         if: failure() && hashFiles('cocoapods-sbom.log') != ''
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: eyespie-sbom-cocoapods-failure-${{ github.sha }}
           path: cocoapods-sbom.log
@@ -247,7 +249,7 @@ jobs:
 
       - name: Upload CocoaPods metadata drift
         if: failure()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: eyespie-sbom-cocoapods-metadata-${{ github.sha }}
           path: |
@@ -257,7 +259,7 @@ jobs:
           retention-days: 7
 
       - name: Upload SBOM bundle
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
         with:
           name: eyespie-sbom-${{ github.sha }}
           path: build/reports/sbom/*.cdx.json
