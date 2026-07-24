@@ -34,10 +34,13 @@ jobs:
               echo "tag does not contain a valid semantic version: $GITHUB_REF_NAME" >&2
               exit 1
             fi
+            cocoapods_version="${version%%+*}"
           else
             version="0.1.0+git.${GITHUB_SHA:0:12}"
+            cocoapods_version="0.1.0"
           fi
           echo "SBOM_COMPONENT_VERSION=$version" >> "$GITHUB_ENV"
+          echo "COCOAPODS_COMPONENT_VERSION=$cocoapods_version" >> "$GITHUB_ENV"
 
       - name: Set up JDK 21
         uses: actions/setup-java@v4
@@ -188,7 +191,7 @@ jobs:
             --path iosApp \
             --output build/reports/sbom/eyespie-cocoapods.cdx.json \
             --name eyespie \
-            --version "$SBOM_COMPONENT_VERSION" \
+            --version "$COCOAPODS_COMPONENT_VERSION" \
             --type application \
             --group com.micrantha \
             --source https://github.com/ryjen/eyespie \
