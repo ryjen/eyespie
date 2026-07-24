@@ -58,7 +58,7 @@ jobs:
           tail -n 40 gradle-sbom.log
 
       - name: Upload Gradle failure log
-        if: failure()
+        if: failure() && hashFiles('gradle-sbom.log') != ''
         uses: actions/upload-artifact@v4
         with:
           name: eyespie-sbom-gradle-failure-${{ github.sha }}
@@ -71,9 +71,34 @@ jobs:
           gem install --user-install cyclonedx-cocoapods --version 2.0.1 --no-document
           echo "$(ruby -e 'puts Gem.user_dir')/bin" >> "$GITHUB_PATH"
 
-      - name: Generate CocoaPods SBOM
+      - name: Prepare locked CocoaPods dependency graph
+        shell: bash
         run: |
-          cyclonedx-cocoapods \
+          set -o pipefail
+          if ! {
+            ./gradlew :app:generateDummyFramework --no-daemon --build-cache
+            pod install --project-directory=iosApp --deployment
+          } >cocoapods-prepare.log 2>&1; then
+            tail -n 120 cocoapods-prepare.log
+            exit 1
+          fi
+          tail -n 40 cocoapods-prepare.log
+
+      - name: Upload CocoaPods preparation failure log
+        if: failure() && hashFiles('cocoapods-prepare.log') != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: eyespie-sbom-cocoapods-prepare-failure-${{ github.sha }}
+          path: cocoapods-prepare.log
+          if-no-files-found: error
+          retention-days: 7
+
+      - name: Generate CocoaPods SBOM
+        shell: bash
+        run: |
+          set -o pipefail
+          mkdir -p build/reports/sbom
+          if ! cyclonedx-cocoapods \
             --path iosApp \
             --output build/reports/sbom/eyespie-cocoapods.cdx.json \
             --name eyespie \
@@ -81,7 +106,21 @@ jobs:
             --type application \
             --group com.micrantha \
             --source https://github.com/ryjen/eyespie \
-            --exclude-test-targets
+            --exclude-test-targets \
+            >cocoapods-sbom.log 2>&1; then
+            cat cocoapods-sbom.log
+            exit 1
+          fi
+          cat cocoapods-sbom.log
+
+      - name: Upload CocoaPods SBOM failure log
+        if: failure() && hashFiles('cocoapods-sbom.log') != ''
+        uses: actions/upload-artifact@v4
+        with:
+          name: eyespie-sbom-cocoapods-failure-${{ github.sha }}
+          path: cocoapods-sbom.log
+          if-no-files-found: error
+          retention-days: 7
 
       - name: Check generated SBOMs
         run: |
@@ -98,6 +137,9 @@ jobs:
             puts "#{path}: #{bom["components"].length} components"
           end
           RUBY
+
+      - name: Verify lockfile remains unchanged
+        run: git diff --exit-code -- iosApp/Podfile.lock
 
       - name: Upload SBOM bundle
         uses: actions/upload-artifact@v4
