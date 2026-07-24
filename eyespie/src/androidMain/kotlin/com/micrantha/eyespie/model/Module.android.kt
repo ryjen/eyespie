@@ -1,5 +1,6 @@
 package com.micrantha.eyespie.model
 
+import android.content.Context
 import com.google.android.play.core.assetpacks.AssetPackManager
 import okio.FileSystem
 import org.kodein.di.DI
@@ -26,10 +27,12 @@ internal val androidModelRuntimeCapabilities = ModelRuntimeCapabilities(
 )
 
 internal fun androidModelAssetModule(
+    context: Context,
     assetPackManager: AssetPackManager,
     descriptor: ModelAssetDescriptor = androidSmokeModelDescriptor,
     verifier: ModelAssetVerifier = ModelAssetVerifier(FileSystem.SYSTEM),
     runtime: ModelRuntimeCapabilities = androidModelRuntimeCapabilities,
+    smokeChecker: ModelRuntimeSmokeChecker = MediaPipeLlmRuntimeSmokeChecker(context),
 ) = DI.Module("AndroidModelAsset") {
     bindInstance<AssetPackManager> { assetPackManager }
     bindSingleton<ModelAssetRepository> {
@@ -38,6 +41,7 @@ internal fun androidModelAssetModule(
             descriptor = descriptor,
             verifier = verifier,
             runtime = runtime,
+            smokeChecker = smokeChecker,
         )
     }
 }

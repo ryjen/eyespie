@@ -11,11 +11,15 @@ import io.mockk.every
 import io.mockk.mockk
 import io.mockk.verify
 import io.mockk.verifyOrder
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.withContext
 import okio.FileSystem
 import java.nio.file.Files
 import java.nio.file.Path
@@ -35,11 +39,11 @@ class PlayAssetDeliveryModelRepositoryTest {
     }
 
     @Test
-    fun installedPackVerificationDoesNotRunSynchronouslyDuringConstruction() = runTest {
+    fun installedPackVerificationAndSmokeCheckDoNotRunSynchronouslyDuringConstruction() = runTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
         val repository = repository(
-            assetPackManagerWithLocation(writeArtifact()),
-            dispatcher,
+            assetPackManager = assetPackManagerWithLocation(writeArtifact()),
+            verificationDispatcher = dispatcher,
         )
 
         assertEquals(
@@ -49,13 +53,45 @@ class PlayAssetDeliveryModelRepositoryTest {
             ),
             repository.observe().first(),
         )
+        assertNull(repository.resolveReadyModel())
 
         advanceUntilIdle()
 
         assertEquals(
-            ModelAssetState.Verifying(
-                verifiedBytes = descriptor().expectedBytes,
-                totalBytes = descriptor().expectedBytes,
+            ModelAssetState.Ready(
+                version = VERSION,
+                localPath = expectedModelPath(),
+            ),
+            repository.observe().first(),
+        )
+        assertEquals(
+            ReadyModel(descriptor(), expectedModelPath()),
+            repository.resolveReadyModel(),
+        )
+        repository.close()
+    }
+
+    @Test
+    fun runtimeSmokeFailurePreventsReadyState() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        val repository = repository(
+            assetPackManager = assetPackManagerWithLocation(writeArtifact()),
+            verificationDispatcher = dispatcher,
+            smokeChecker = ModelRuntimeSmokeChecker {
+                RuntimeSmokeCheckResult.Failed(
+                    recoverable = false,
+                    diagnosticCode = "runtime.invalid_model",
+                )
+            },
+        )
+
+        advanceUntilIdle()
+
+        assertEquals(
+            ModelAssetState.Failed(
+                stage = FailureStage.RuntimeSmokeCheck,
+                recoverable = false,
+                diagnosticCode = "runtime.invalid_model",
             ),
             repository.observe().first(),
         )
@@ -64,11 +100,50 @@ class PlayAssetDeliveryModelRepositoryTest {
     }
 
     @Test
-    fun corruptInstalledPackFailsVerificationAndIsNeverReady() = runTest {
+    fun removalDuringNonInterruptibleSmokeCheckCannotPublishReady() = runTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
+        val smokeStarted = CompletableDeferred<Unit>()
+        val smokeRelease = CompletableDeferred<Unit>()
+        val assetPackManager = assetPackManagerWithLocation(writeArtifact()).also {
+            every { it.cancel(listOf(PACK_NAME)) } returns mockk<AssetPackStates>()
+            every { it.removePack(PACK_NAME) } returns successfulVoidTask()
+        }
         val repository = repository(
-            assetPackManagerWithLocation(writeArtifact(modelContent = "different payload!")),
-            dispatcher,
+            assetPackManager = assetPackManager,
+            verificationDispatcher = dispatcher,
+            smokeChecker = ModelRuntimeSmokeChecker {
+                smokeStarted.complete(Unit)
+                withContext(NonCancellable) {
+                    smokeRelease.await()
+                }
+                RuntimeSmokeCheckResult.Passed
+            },
+        )
+
+        runCurrent()
+        smokeStarted.await()
+        repository.remove()
+        smokeRelease.complete(Unit)
+        advanceUntilIdle()
+
+        assertEquals(ModelAssetState.NotInstalled, repository.observe().first())
+        assertNull(repository.resolveReadyModel())
+        repository.close()
+    }
+
+    @Test
+    fun corruptInstalledPackFailsVerificationAndNeverRunsSmokeCheck() = runTest {
+        val dispatcher = StandardTestDispatcher(testScheduler)
+        var smokeCalls = 0
+        val repository = repository(
+            assetPackManager = assetPackManagerWithLocation(
+                writeArtifact(modelContent = "different payload!"),
+            ),
+            verificationDispatcher = dispatcher,
+            smokeChecker = ModelRuntimeSmokeChecker {
+                smokeCalls += 1
+                RuntimeSmokeCheckResult.Passed
+            },
         )
 
         advanceUntilIdle()
@@ -81,6 +156,7 @@ class PlayAssetDeliveryModelRepositoryTest {
             ),
             repository.observe().first(),
         )
+        assertEquals(0, smokeCalls)
         assertNull(repository.resolveReadyModel())
         repository.close()
     }
@@ -101,21 +177,12 @@ class PlayAssetDeliveryModelRepositoryTest {
         assetsPath = writeArtifact()
 
         repository.handleAssetPackState(completedState())
-
-        assertEquals(
-            ModelAssetState.Verifying(
-                verifiedBytes = 0L,
-                totalBytes = descriptor().expectedBytes,
-            ),
-            repository.observe().first(),
-        )
-
         advanceUntilIdle()
 
         assertEquals(
-            ModelAssetState.Verifying(
-                verifiedBytes = descriptor().expectedBytes,
-                totalBytes = descriptor().expectedBytes,
+            ModelAssetState.Ready(
+                version = VERSION,
+                localPath = expectedModelPath(),
             ),
             repository.observe().first(),
         )
@@ -144,23 +211,6 @@ class PlayAssetDeliveryModelRepositoryTest {
             ),
             repository.observe().first(),
         )
-        repository.close()
-    }
-
-    @Test
-    fun removalPreventsLateVerificationResultFromRestoringState() = runTest {
-        val dispatcher = StandardTestDispatcher(testScheduler)
-        val assetPackManager = assetPackManagerWithLocation(writeArtifact()).also {
-            every { it.cancel(listOf(PACK_NAME)) } returns mockk<AssetPackStates>()
-            every { it.removePack(PACK_NAME) } returns successfulVoidTask()
-        }
-        val repository = repository(assetPackManager, dispatcher)
-
-        repository.remove()
-        advanceUntilIdle()
-
-        assertEquals(ModelAssetState.NotInstalled, repository.observe().first())
-        assertNull(repository.resolveReadyModel())
         repository.close()
     }
 
@@ -214,6 +264,9 @@ class PlayAssetDeliveryModelRepositoryTest {
     private fun repository(
         assetPackManager: AssetPackManager,
         verificationDispatcher: CoroutineDispatcher,
+        smokeChecker: ModelRuntimeSmokeChecker = ModelRuntimeSmokeChecker {
+            RuntimeSmokeCheckResult.Passed
+        },
     ) = PlayAssetDeliveryModelRepository(
         assetPackManager = assetPackManager,
         descriptor = descriptor(),
@@ -223,6 +276,7 @@ class PlayAssetDeliveryModelRepositoryTest {
             version = "0.10.35",
             modelAbi = 1,
         ),
+        smokeChecker = smokeChecker,
         verificationDispatcher = verificationDispatcher,
         packName = PACK_NAME,
     )
@@ -242,11 +296,17 @@ class PlayAssetDeliveryModelRepositoryTest {
         every { totalBytesToDownload() } returns 18L
     }
 
+    private var lastAssetsRoot: Path? = null
+
+    private fun expectedModelPath(): String =
+        lastAssetsRoot!!.resolve("model").resolve(MODEL_FILENAME).toFile().absolutePath
+
     private fun writeArtifact(
         manifest: String = MANIFEST,
         modelContent: String = MODEL_CONTENT,
     ): String {
         val root = newAssetsDirectory()
+        lastAssetsRoot = root
         val modelDirectory = root.resolve("model").createDirectories()
         modelDirectory.resolve("manifest.json").writeText(manifest)
         modelDirectory.resolve(MODEL_FILENAME).writeText(modelContent)

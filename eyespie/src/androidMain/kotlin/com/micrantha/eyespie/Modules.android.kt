@@ -31,7 +31,8 @@ fun androidDependencies(
     bindInstance { applicationContext }
     importOnce(
         androidModelAssetModule(
-            AssetPackManagerFactory.getInstance(applicationContext),
+            context = applicationContext,
+            assetPackManager = AssetPackManagerFactory.getInstance(applicationContext),
         ),
     )
 

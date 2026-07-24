@@ -24,6 +24,7 @@ internal class PlayAssetDeliveryModelRepository(
     private val descriptor: ModelAssetDescriptor,
     private val verifier: ModelAssetVerifier,
     private val runtime: ModelRuntimeCapabilities,
+    private val smokeChecker: ModelRuntimeSmokeChecker,
     verificationDispatcher: CoroutineDispatcher = Dispatchers.IO,
     private val packName: String = MODEL_PACK_NAME,
     private val assetDirectory: String = MODEL_ASSET_DIRECTORY,
@@ -38,7 +39,7 @@ internal class PlayAssetDeliveryModelRepository(
     private val verificationGeneration = AtomicLong(0L)
     private val verificationScope = CoroutineScope(SupervisorJob() + verificationDispatcher)
     private var verificationJob: Job? = null
-    private var verifiedCandidate: ReadyModel? = null
+    private var readyModel: ReadyModel? = null
 
     private val listener = AssetPackStateUpdateListener(::handleAssetPackState)
 
@@ -95,7 +96,7 @@ internal class PlayAssetDeliveryModelRepository(
             }
     }
 
-    override suspend fun resolveReadyModel(): ReadyModel? = null
+    override suspend fun resolveReadyModel(): ReadyModel? = readyModel
 
     fun resolveCurrentAssetPath(): String? =
         resolveAssetFiles()?.modelFile?.takeIf(File::isFile)?.absolutePath
@@ -120,16 +121,34 @@ internal class PlayAssetDeliveryModelRepository(
     private fun startVerification() {
         val generation = verificationGeneration.incrementAndGet()
         verificationJob?.cancel()
-        verifiedCandidate = null
+        readyModel = null
         state.value = ModelAssetState.Verifying(
             verifiedBytes = 0L,
             totalBytes = descriptor.expectedBytes,
         )
 
         verificationJob = verificationScope.launch {
-            val result = verifyInstalledAsset()
-            if (generation != verificationGeneration.get() || removalInProgress.get()) return@launch
-            publishVerificationResult(result)
+            when (val result = verifyInstalledAsset()) {
+                is ModelAssetVerificationResult.Invalid -> {
+                    if (!isCurrent(generation)) return@launch
+                    publishVerificationFailure(result)
+                }
+
+                is ModelAssetVerificationResult.Verified -> {
+                    if (!isCurrent(generation)) return@launch
+                    val candidate = ReadyModel(
+                        descriptor = result.descriptor,
+                        localPath = result.localPath,
+                    )
+                    state.value = ModelAssetState.Verifying(
+                        verifiedBytes = descriptor.expectedBytes,
+                        totalBytes = descriptor.expectedBytes,
+                    )
+                    val smokeResult = smokeChecker.check(candidate)
+                    if (!isCurrent(generation)) return@launch
+                    publishSmokeCheckResult(candidate, smokeResult)
+                }
+            }
         }
     }
 
@@ -150,35 +169,47 @@ internal class PlayAssetDeliveryModelRepository(
         )
     }
 
-    private fun publishVerificationResult(result: ModelAssetVerificationResult) {
+    private fun publishVerificationFailure(result: ModelAssetVerificationResult.Invalid) {
+        readyModel = null
+        state.value = ModelAssetState.Failed(
+            stage = result.stage,
+            recoverable = true,
+            diagnosticCode = result.diagnosticCode,
+        )
+    }
+
+    private fun publishSmokeCheckResult(
+        candidate: ReadyModel,
+        result: RuntimeSmokeCheckResult,
+    ) {
         when (result) {
-            is ModelAssetVerificationResult.Verified -> {
-                verifiedCandidate = ReadyModel(
-                    descriptor = result.descriptor,
-                    localPath = result.localPath,
-                )
-                state.value = ModelAssetState.Verifying(
-                    verifiedBytes = descriptor.expectedBytes,
-                    totalBytes = descriptor.expectedBytes,
+            RuntimeSmokeCheckResult.Passed -> {
+                readyModel = candidate
+                state.value = ModelAssetState.Ready(
+                    version = candidate.descriptor.version,
+                    localPath = candidate.localPath,
                 )
             }
 
-            is ModelAssetVerificationResult.Invalid -> {
-                verifiedCandidate = null
+            is RuntimeSmokeCheckResult.Failed -> {
+                readyModel = null
                 state.value = ModelAssetState.Failed(
-                    stage = result.stage,
-                    recoverable = true,
+                    stage = FailureStage.RuntimeSmokeCheck,
+                    recoverable = result.recoverable,
                     diagnosticCode = result.diagnosticCode,
                 )
             }
         }
     }
 
+    private fun isCurrent(generation: Long): Boolean =
+        generation == verificationGeneration.get() && !removalInProgress.get()
+
     private fun invalidateVerification() {
         verificationGeneration.incrementAndGet()
         verificationJob?.cancel()
         verificationJob = null
-        verifiedCandidate = null
+        readyModel = null
     }
 
     private fun resolveAssetFiles(): AssetFiles? {
