@@ -14,7 +14,53 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  build-android:
+  validate:
+    name: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: "21"
+          distribution: temurin
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          cache-read-only: ${{ github.ref != 'refs/heads/main' }}
+
+      - name: Create build configuration
+        run: cp env.example .env.local
+
+      - name: Compile Android production and unit-test sources
+        run: >-
+          ./gradlew
+          :bluebell:compileDebugKotlinAndroid
+          :bluebell:compileDebugUnitTestKotlinAndroid
+          :app:compileDebugKotlinAndroid
+          :app:compileDebugUnitTestKotlinAndroid
+          --no-daemon
+          --parallel
+          --build-cache
+          --configuration-cache
+
+      - name: Upload validation diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eyespie-validation-diagnostics-${{ github.sha }}
+          path: |
+            **/build/reports/problems/**
+          if-no-files-found: ignore
+          retention-days: 7
+
+  android-tests:
+    name: android-tests
+    needs: validate
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
@@ -35,21 +81,76 @@ jobs:
       - name: Create build configuration
         run: cp env.example .env.local
 
-      - name: Test and build debug app bundle with asset packs
+      - name: Run Android unit and snapshot tests
         run: >-
           ./gradlew
           :bluebell:testDebugUnitTest
           :app:testDebugUnitTest
+          --no-daemon
+          --parallel
+          --build-cache
+          --configuration-cache
+
+      - name: Upload Android test diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eyespie-android-test-diagnostics-${{ github.sha }}
+          path: |
+            **/build/reports/tests/**
+            **/build/test-results/**
+            **/build/outputs/roborazzi/**
+            **/build/roborazzi/**
+            **/build/reports/problems/**
+          if-no-files-found: ignore
+          retention-days: 7
+
+  android-bundle:
+    name: android-bundle
+    needs: [validate, android-tests]
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: "21"
+          distribution: temurin
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          cache-read-only: ${{ github.ref != 'refs/heads/main' }}
+
+      - name: Create build configuration
+        run: cp env.example .env.local
+
+      - name: Build debug app bundle with asset packs
+        run: >-
+          ./gradlew
           :app:bundleDebug
           --no-daemon
           --parallel
           --build-cache
           --configuration-cache
 
+      - name: Upload bundle diagnostics
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eyespie-android-bundle-diagnostics-${{ github.sha }}
+          path: |
+            **/build/reports/problems/**
+          if-no-files-found: ignore
+          retention-days: 7
+
       - name: Upload debug app bundle
         uses: actions/upload-artifact@v4
         with:
-          name: eyespie-debug-aab
+          name: eyespie-debug-aab-${{ github.sha }}
           path: eyespie/build/outputs/bundle/debug/*.aab
           if-no-files-found: error
           retention-days: 7
