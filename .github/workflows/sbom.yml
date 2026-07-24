@@ -42,13 +42,20 @@ jobs:
         run: cp env.example .env.local
 
       - name: Generate Gradle and Kotlin Multiplatform SBOM
-        run: >-
-          ./gradlew
-          cyclonedxBom
-          --no-daemon
-          --parallel
-          --build-cache
-          --configuration-cache
+        shell: bash
+        run: |
+          set -o pipefail
+          if ! ./gradlew \
+            cyclonedxBom \
+            --no-daemon \
+            --parallel \
+            --build-cache \
+            --configuration-cache \
+            >gradle-sbom.log 2>&1; then
+            tail -n 120 gradle-sbom.log
+            exit 1
+          fi
+          tail -n 40 gradle-sbom.log
 
       - name: Install CycloneDX CocoaPods generator
         run: |
