@@ -13,10 +13,8 @@ import io.mockk.verify
 import io.mockk.verifyOrder
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineDispatcher
-import kotlinx.coroutines.awaitCancellation
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.StandardTestDispatcher
-import kotlinx.coroutines.test.advanceTimeBy
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
@@ -57,11 +55,13 @@ class PlayAssetDeliveryModelRepositoryTest {
 
         advanceUntilIdle()
 
-        val ready = ModelAssetState.Ready(
-            version = VERSION,
-            localPath = expectedModelPath(),
+        assertEquals(
+            ModelAssetState.Ready(
+                version = VERSION,
+                localPath = expectedModelPath(),
+            ),
+            repository.observe().first(),
         )
-        assertEquals(ready, repository.observe().first())
         assertEquals(
             ReadyModel(descriptor(), expectedModelPath()),
             repository.resolveReadyModel(),
@@ -98,33 +98,7 @@ class PlayAssetDeliveryModelRepositoryTest {
     }
 
     @Test
-    fun runtimeSmokeTimeoutIsRecoverable() = runTest {
-        val dispatcher = StandardTestDispatcher(testScheduler)
-        val repository = repository(
-            assetPackManager = assetPackManagerWithLocation(writeArtifact()),
-            verificationDispatcher = dispatcher,
-            smokeChecker = ModelRuntimeSmokeChecker { awaitCancellation() },
-            smokeCheckTimeoutMillis = 100L,
-        )
-
-        runCurrent()
-        advanceTimeBy(100L)
-        runCurrent()
-
-        assertEquals(
-            ModelAssetState.Failed(
-                stage = FailureStage.RuntimeSmokeCheck,
-                recoverable = true,
-                diagnosticCode = "runtime.timeout",
-            ),
-            repository.observe().first(),
-        )
-        assertNull(repository.resolveReadyModel())
-        repository.close()
-    }
-
-    @Test
-    fun removalDuringSmokeCheckCannotPublishReady() = runTest {
+    fun removalDuringNonInterruptibleSmokeCheckCannotPublishReady() = runTest {
         val dispatcher = StandardTestDispatcher(testScheduler)
         val smokeStarted = CompletableDeferred<Unit>()
         val smokeRelease = CompletableDeferred<Unit>()
@@ -289,7 +263,6 @@ class PlayAssetDeliveryModelRepositoryTest {
         smokeChecker: ModelRuntimeSmokeChecker = ModelRuntimeSmokeChecker {
             RuntimeSmokeCheckResult.Passed
         },
-        smokeCheckTimeoutMillis: Long = 15_000L,
     ) = PlayAssetDeliveryModelRepository(
         assetPackManager = assetPackManager,
         descriptor = descriptor(),
@@ -301,7 +274,6 @@ class PlayAssetDeliveryModelRepositoryTest {
         ),
         smokeChecker = smokeChecker,
         verificationDispatcher = verificationDispatcher,
-        smokeCheckTimeoutMillis = smokeCheckTimeoutMillis,
         packName = PACK_NAME,
     )
 
