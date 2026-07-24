@@ -13,11 +13,13 @@ import io.mockk.verify
 import io.mockk.verifyOrder
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineDispatcher
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
+import kotlinx.coroutines.withContext
 import okio.FileSystem
 import java.nio.file.Files
 import java.nio.file.Path
@@ -111,7 +113,9 @@ class PlayAssetDeliveryModelRepositoryTest {
             verificationDispatcher = dispatcher,
             smokeChecker = ModelRuntimeSmokeChecker {
                 smokeStarted.complete(Unit)
-                smokeRelease.await()
+                withContext(NonCancellable) {
+                    smokeRelease.await()
+                }
                 RuntimeSmokeCheckResult.Passed
             },
         )
