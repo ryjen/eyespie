@@ -9,13 +9,11 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
 import kotlinx.coroutines.SupervisorJob
-import kotlinx.coroutines.TimeoutCancellationException
 import kotlinx.coroutines.cancel
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.withTimeout
 import okio.Path.Companion.toPath
 import java.io.File
 import java.util.concurrent.atomic.AtomicBoolean
@@ -28,7 +26,6 @@ internal class PlayAssetDeliveryModelRepository(
     private val runtime: ModelRuntimeCapabilities,
     private val smokeChecker: ModelRuntimeSmokeChecker,
     verificationDispatcher: CoroutineDispatcher = Dispatchers.IO,
-    private val smokeCheckTimeoutMillis: Long = DEFAULT_SMOKE_CHECK_TIMEOUT_MILLIS,
     private val packName: String = MODEL_PACK_NAME,
     private val assetDirectory: String = MODEL_ASSET_DIRECTORY,
 ) : ModelAssetRepository, AutoCloseable {
@@ -147,7 +144,7 @@ internal class PlayAssetDeliveryModelRepository(
                         verifiedBytes = descriptor.expectedBytes,
                         totalBytes = descriptor.expectedBytes,
                     )
-                    val smokeResult = runSmokeCheck(candidate)
+                    val smokeResult = smokeChecker.check(candidate)
                     if (!isCurrent(generation)) return@launch
                     publishSmokeCheckResult(candidate, smokeResult)
                 }
@@ -169,17 +166,6 @@ internal class PlayAssetDeliveryModelRepository(
             modelPath = files.modelFile.absolutePath.toPath(),
             expectedDescriptor = descriptor,
             runtime = runtime,
-        )
-    }
-
-    private suspend fun runSmokeCheck(candidate: ReadyModel): RuntimeSmokeCheckResult = try {
-        withTimeout(smokeCheckTimeoutMillis) {
-            smokeChecker.check(candidate)
-        }
-    } catch (_: TimeoutCancellationException) {
-        RuntimeSmokeCheckResult.Failed(
-            recoverable = true,
-            diagnosticCode = "runtime.timeout",
         )
     }
 
@@ -245,6 +231,5 @@ internal class PlayAssetDeliveryModelRepository(
         const val MODEL_PACK_NAME = "model_pack"
         const val MODEL_ASSET_DIRECTORY = "model"
         const val MODEL_MANIFEST_FILENAME = "manifest.json"
-        const val DEFAULT_SMOKE_CHECK_TIMEOUT_MILLIS = 15_000L
     }
 }
