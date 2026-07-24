@@ -18,14 +18,21 @@ class CameraAnalyzer(
 
     @androidx.annotation.OptIn(ExperimentalGetImage::class)
     override fun analyze(image: ImageProxy) {
-        val frame = PlatformCameraImage(
-            _image = image.image,
-            _width = image.width,
-            _height = image.height,
-            _rotation = image.imageInfo.rotationDegrees,
-            _timestamp = image.imageInfo.timestamp,
-            regionOfInterest = regionOfInterest
-        )
+        val frame = try {
+            PlatformCameraImage(
+                _image = image.image,
+                _width = image.width,
+                _height = image.height,
+                _rotation = image.imageInfo.rotationDegrees,
+                _timestamp = image.imageInfo.timestamp,
+                regionOfInterest = regionOfInterest
+            )
+        } catch (err: Throwable) {
+            image.close()
+            errorCallback(err)
+            log.error(err) { "unable to prepare camera image for analysis" }
+            return
+        }
 
         scope.launch {
             try {
