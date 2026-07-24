@@ -18,6 +18,11 @@ plugins {
 
 allprojects {
     tasks.cyclonedxDirectBom {
+        includeConfigs = listOf(
+            ".*[Mm]ain.*[Rr]esolvable.*",
+            ".*[Dd]ebugRuntimeClasspath",
+            ".*[Rr]eleaseRuntimeClasspath",
+        )
         skipConfigs = listOf(
             ".*[Tt]est.*",
             ".*[Bb]enchmark.*",
