@@ -15,9 +15,6 @@ concurrency:
   group: eyespie-sbom-${{ github.event.pull_request.number || github.ref }}
   cancel-in-progress: true
 
-env:
-  SBOM_COMPONENT_VERSION: ${{ github.ref_type == 'tag' && github.ref_name || github.sha }}
-
 jobs:
   generate:
     runs-on: macos-latest
@@ -26,6 +23,21 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+
+      - name: Set SBOM component version
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [[ "$GITHUB_REF_TYPE" == "tag" ]]; then
+            version="${GITHUB_REF_NAME#v}"
+            if [[ ! "$version" =~ ^[0-9]+\.[0-9]+\.[0-9]+([.-][0-9A-Za-z.-]+)?(\+[0-9A-Za-z.-]+)?$ ]]; then
+              echo "tag does not contain a valid semantic version: $GITHUB_REF_NAME" >&2
+              exit 1
+            fi
+          else
+            version="0.1.0+git.${GITHUB_SHA:0:12}"
+          fi
+          echo "SBOM_COMPONENT_VERSION=$version" >> "$GITHUB_ENV"
 
       - name: Set up JDK 21
         uses: actions/setup-java@v4
@@ -57,6 +69,76 @@ jobs:
           fi
           tail -n 40 gradle-sbom.log
 
+      - name: Add verified model pack components
+        shell: bash
+        run: |
+          ruby <<'RUBY'
+          require "digest"
+          require "json"
+
+          bom_path = "build/reports/sbom/eyespie-gradle.cdx.json"
+          manifest_path = "model-pack/src/main/assets/model/manifest.json"
+          manifest = JSON.parse(File.read(manifest_path))
+          artifact_path = File.join(File.dirname(manifest_path), manifest.fetch("filename"))
+
+          actual_size = File.size(artifact_path)
+          expected_size = manifest.fetch("sizeBytes")
+          abort "model size mismatch: expected #{expected_size}, got #{actual_size}" unless actual_size == expected_size
+
+          actual_sha256 = Digest::SHA256.file(artifact_path).hexdigest
+          expected_sha256 = manifest.fetch("sha256").downcase
+          abort "model digest mismatch" unless actual_sha256 == expected_sha256
+
+          bom = JSON.parse(File.read(bom_path))
+          components = bom["components"] ||= []
+          dependencies = bom["dependencies"] ||= []
+          component_version = ENV.fetch("SBOM_COMPONENT_VERSION")
+          pack_ref = "urn:eyespie:model-pack:model_pack:#{component_version}"
+          model_ref = "urn:eyespie:model:#{manifest.fetch("modelId")}:#{manifest.fetch("version")}"
+
+          components.reject! { |component| [pack_ref, model_ref].include?(component["bom-ref"]) }
+          components << {
+            "type" => "data",
+            "bom-ref" => pack_ref,
+            "group" => "com.micrantha",
+            "name" => "model_pack",
+            "version" => component_version,
+            "properties" => [
+              { "name" => "eyespie:asset-pack:delivery", "value" => "on-demand" },
+              { "name" => "eyespie:asset-pack:module", "value" => ":model-pack" }
+            ]
+          }
+          components << {
+            "type" => "machine-learning-model",
+            "bom-ref" => model_ref,
+            "group" => "com.micrantha",
+            "name" => manifest.fetch("modelId"),
+            "version" => manifest.fetch("version"),
+            "hashes" => [{ "alg" => "SHA-256", "content" => actual_sha256 }],
+            "properties" => [
+              { "name" => "eyespie:model:filename", "value" => manifest.fetch("filename") },
+              { "name" => "eyespie:model:size-bytes", "value" => actual_size.to_s },
+              { "name" => "eyespie:model:runtime-engine", "value" => manifest.dig("runtime", "engine").to_s },
+              { "name" => "eyespie:model:minimum-runtime-version", "value" => manifest.dig("runtime", "minimumRuntimeVersion").to_s },
+              { "name" => "eyespie:model:minimum-abi", "value" => manifest.dig("runtime", "minimumModelAbi").to_s }
+            ]
+          }
+
+          add_dependency = lambda do |ref, depends_on|
+            entry = dependencies.find { |dependency| dependency["ref"] == ref }
+            if entry
+              entry["dependsOn"] = (Array(entry["dependsOn"]) + depends_on).uniq
+            else
+              dependencies << { "ref" => ref, "dependsOn" => depends_on }
+            end
+          end
+
+          root_ref = bom.dig("metadata", "component", "bom-ref")
+          add_dependency.call(root_ref, [pack_ref]) if root_ref
+          add_dependency.call(pack_ref, [model_ref])
+          File.write(bom_path, JSON.pretty_generate(bom) + "\n")
+          RUBY
+
       - name: Upload Gradle failure log
         if: failure() && hashFiles('gradle-sbom.log') != ''
         uses: actions/upload-artifact@v4
@@ -71,7 +153,7 @@ jobs:
           gem install --user-install cyclonedx-cocoapods --version 2.0.1 --no-document
           echo "$(ruby -e 'puts Gem.user_dir')/bin" >> "$GITHUB_PATH"
 
-      - name: Prepare CocoaPods dependency graph
+      - name: Prepare locked CocoaPods dependency graph
         shell: bash
         run: |
           set -o pipefail
@@ -81,7 +163,7 @@ jobs:
               :app:generateDummyFramework \
               --no-daemon \
               --build-cache
-            pod install --project-directory=iosApp
+            pod install --deployment --project-directory=iosApp
           } >cocoapods-prepare.log 2>&1; then
             tail -n 120 cocoapods-prepare.log
             exit 1
@@ -140,6 +222,12 @@ jobs:
             abort "#{path}: missing components" unless bom["components"].is_a?(Array)
             puts "#{path}: #{bom["components"].length} components"
           end
+
+          gradle_bom = JSON.parse(File.read("build/reports/sbom/eyespie-gradle.cdx.json"))
+          components = gradle_bom.fetch("components")
+          abort "debug-only dependency leaked into SBOM" if components.any? { |component| component["name"] == "okio-fakefilesystem" }
+          abort "model asset pack missing from SBOM" unless components.any? { |component| component["name"] == "model_pack" }
+          abort "ML model missing from SBOM" unless components.any? { |component| component["type"] == "machine-learning-model" }
           RUBY
 
       - name: Verify generated CocoaPods metadata is committed
