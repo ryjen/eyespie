@@ -49,7 +49,7 @@ internal class MediaPipeLlmRuntimeSmokeChecker(
             recoverable = false,
             diagnosticCode = "runtime.unavailable",
         )
-    } catch (error: Throwable) {
+    } catch (error: Exception) {
         RuntimeSmokeCheckResult.Failed(
             recoverable = true,
             diagnosticCode = "runtime.load_failed",
