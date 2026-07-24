@@ -1,4 +1,5 @@
 import com.android.build.api.dsl.ApplicationExtension
+import org.cyclonedx.model.Component
 import org.gradle.kotlin.dsl.configure
 
 plugins {
@@ -28,15 +29,14 @@ allprojects {
 }
 
 tasks.cyclonedxBom {
-    projectType = "application"
-    componentGroup = "com.micrantha"
-    componentName = "eyespie"
-    componentVersion = providers
-        .environmentVariable("SBOM_COMPONENT_VERSION")
-        .orElse("0.1.0")
-        .get()
-    includeLicenseText = false
-    includeBuildSystem = true
+    projectType.set(Component.Type.APPLICATION)
+    componentGroup.set("com.micrantha")
+    componentName.set("eyespie")
+    componentVersion.set(
+        providers.environmentVariable("SBOM_COMPONENT_VERSION").orElse("0.1.0")
+    )
+    includeLicenseText.set(false)
+    includeBuildSystem.set(true)
     jsonOutput.set(layout.buildDirectory.file("reports/sbom/eyespie-gradle.cdx.json"))
     xmlOutput.unsetConvention()
 }
