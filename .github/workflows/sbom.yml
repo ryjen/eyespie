@@ -71,13 +71,17 @@ jobs:
           gem install --user-install cyclonedx-cocoapods --version 2.0.1 --no-document
           echo "$(ruby -e 'puts Gem.user_dir')/bin" >> "$GITHUB_PATH"
 
-      - name: Prepare locked CocoaPods dependency graph
+      - name: Prepare CocoaPods dependency graph
         shell: bash
         run: |
           set -o pipefail
           if ! {
-            ./gradlew :app:generateDummyFramework --no-daemon --build-cache
-            pod install --project-directory=iosApp --deployment
+            ./gradlew \
+              :app:podspec \
+              :app:generateDummyFramework \
+              --no-daemon \
+              --build-cache
+            pod install --project-directory=iosApp
           } >cocoapods-prepare.log 2>&1; then
             tail -n 120 cocoapods-prepare.log
             exit 1
@@ -138,8 +142,19 @@ jobs:
           end
           RUBY
 
-      - name: Verify lockfile remains unchanged
-        run: git diff --exit-code -- iosApp/Podfile.lock
+      - name: Verify generated CocoaPods metadata is committed
+        run: git diff --exit-code -- eyespie/eyespie.podspec iosApp/Podfile.lock
+
+      - name: Upload CocoaPods metadata drift
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: eyespie-sbom-cocoapods-metadata-${{ github.sha }}
+          path: |
+            eyespie/eyespie.podspec
+            iosApp/Podfile.lock
+          if-no-files-found: error
+          retention-days: 7
 
       - name: Upload SBOM bundle
         uses: actions/upload-artifact@v4
