@@ -26,11 +26,17 @@ kotlin {
 
     cocoapods {
         version = "1.0"
-        summary = "Native dependencies for ${project.name}"
-        homepage = "https://github.com/hackelia-micrantha/eyespie"
+        name = "eyespie"
+        summary = "Native dependencies for eyespie"
+        homepage = "https://github.com/ryjen/eyespie"
         license = "GPLv3"
         ios.deploymentTarget = "15.0"
         podfile = project.file("../iosApp/Podfile")
+
+        framework {
+            baseName = "eyespie"
+            isStatic = true
+        }
 
         pod("MediaPipeTasksVision")
         pod("MediaPipeTasksGenAI")
@@ -132,7 +138,7 @@ kotlin {
             implementation(libs.androidx.activity.compose)
             implementation(libs.androidx.fragment.ktx)
             implementation(libs.androidx.work.runtime.ktx)
-            implementation(libs.androidx.palette)
+            implementation(libs.androidx.palette.ktx)
 
             implementation(libs.androidx.camera.core)
             implementation(libs.androidx.camera.camera2)
@@ -217,6 +223,94 @@ android {
         }
         abi {
             enableSplit = true
+        }
+    }
+    compileOptions {
+        sourceCompatibility = JavaVersion.VERSION_21
+        targetCompatibility = JavaVersion.VERSION_21
+    }
+    packaging {
+        resources {
+            excludes += "/META-INF/{AL2.0,LGPL2.1}"
+            excludes += "META-INF/LICENSE.md"
+            excludes += "META-INF/LICENSE-notice.md"
+        }
+        jniLibs {
+            useLegacyPackaging = false // Ensures uncompressed .so files
+        }
+    }
+    signingConfigs {
+        create("release") {
+            System.getenv("ANDROID_STORE_FILE")?.let { storeFile = file(it) }
+            storePassword = System.getenv("ANDROID_STORE_PASSWORD")
+            keyAlias = System.getenv("ANDROID_KEY_ALIAS")
+            keyPassword = System.getenv("ANDROID_KEY_PASSWORD")
+        }
+    }
+
+    sqldelight {
+        databases {
+            create("EyesPieDatabase") {
+                packageName.set("com.micrantha.eyespie.data")
+            }
+        }
+    }
+
+    buildTypes {
+        debug {
+            applicationIdSuffix = ".debug"
+        }
+        release {
+            isMinifyEnabled = true
+            isShrinkResources = true
+            signingConfig = signingConfigs.getByName("release")
+
+            proguardFiles(
+                getDefaultProguardFile("proguard-android-optimize.txt"),
+                "proguard-rules.pro"
+            )
+            ndk {
+                debugSymbolLevel = "SYMBOL_TABLE"
+            }
+        }
+    }
+
+    dependencies {
+        debugImplementation(libs.okio.fakefilesystem)
+    }
+}
+
+bluebell {
+    config {
+        packageName = "com.micrantha.eyespie.config"
+        className = "EnvConfig"
+        envFile = ".env.local"
+
+        defaultedKeys = listOf(
+            "SUPABASE_URL",
+            "SUPABASE_KEY",
+            "LOGIN_EMAIL",
+            "LOGIN_PASSWORD",
+        )
+        requiredKeys = listOf(
+            "SUPABASE_URL",
+            "SUPABASE_KEY",
+        )
+    }
+    graphql {
+        serviceName = "eyespie"
+        packagePath = "com.micrantha.eyespie.graphql"
+    }
+
+    afterEvaluate {
+        apollo {
+            service(graphql.serviceName) {
+                packageNamesFromFilePaths(graphql.packagePath)
+                introspection {
+                    endpointUrl = graphql.endpoint
+                    headers.putAll(graphql.headers)
+                }
+            }
         }
     }
 }
