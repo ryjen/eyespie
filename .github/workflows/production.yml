@@ -22,7 +22,7 @@ jobs:
         with:
           access_token: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
           project_id: ${{ secrets.SUPABASE_PROJECT_ID }}
-          db_password: ${{ secrets.SUPABASE_DB_URL }}
+          database_url: ${{ secrets.SUPABASE_DB_URL }}
 
   mobile:
     runs-on: macos-latest
