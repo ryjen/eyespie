@@ -34,5 +34,5 @@ jobs:
           min-confidence: high
           min-severity: high
           online-audits: true
-          version: "1.26.0"
+          version: "1.28.0"
           inputs: ryjen/eyespie@${{ github.event.pull_request.head.sha || github.sha }}
