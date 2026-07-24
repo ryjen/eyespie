@@ -53,6 +53,7 @@ mockk = "1.13.13"
 roborazzi = "1.64.0"
 robolectric = "4.14.1"
 sqldelight = "2.0.2"
+cyclonedx = "3.2.4"
 
 [plugins]
 
@@ -67,6 +68,7 @@ compose-compiler = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "
 jetbrains-kotlin-jvm = { id = "org.jetbrains.kotlin.jvm", version.ref = "jetbrainsKotlinJvm" }
 roborazzi = { id = "io.github.takahirom.roborazzi", version.ref = "roborazzi" }
 sqldelight = { id = "app.cash.sqldelight", version.ref = "sqldelight" }
+cyclonedx = { id = "org.cyclonedx.bom", version.ref = "cyclonedx" }
 
 [libraries]
 
