@@ -26,11 +26,17 @@ kotlin {
 
     cocoapods {
         version = "1.0"
-        summary = "Native dependencies for ${project.name}"
-        homepage = "https://github.com/hackelia-micrantha/eyespie"
+        name = "eyespie"
+        summary = "Native dependencies for eyespie"
+        homepage = "https://github.com/ryjen/eyespie"
         license = "GPLv3"
         ios.deploymentTarget = "15.0"
         podfile = project.file("../iosApp/Podfile")
+
+        framework {
+            baseName = "eyespie"
+            isStatic = true
+        }
 
         pod("MediaPipeTasksVision")
         pod("MediaPipeTasksGenAI")
