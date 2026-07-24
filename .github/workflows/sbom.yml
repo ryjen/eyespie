@@ -84,6 +84,12 @@ jobs:
           manifest = JSON.parse(File.read(manifest_path))
           artifact_path = File.join(File.dirname(manifest_path), manifest.fetch("filename"))
 
+          unless File.file?(artifact_path)
+            File.open(ENV.fetch("GITHUB_ENV"), "a") { |file| file.puts "MODEL_ARTIFACT_INCLUDED=false" }
+            puts "Model artifact is not staged; omitting model-pack components from the source SBOM."
+            exit
+          end
+
           actual_size = File.size(artifact_path)
           expected_size = manifest.fetch("sizeBytes")
           abort "model size mismatch: expected #{expected_size}, got #{actual_size}" unless actual_size == expected_size
@@ -91,6 +97,7 @@ jobs:
           actual_sha256 = Digest::SHA256.file(artifact_path).hexdigest
           expected_sha256 = manifest.fetch("sha256").downcase
           abort "model digest mismatch" unless actual_sha256 == expected_sha256
+          File.open(ENV.fetch("GITHUB_ENV"), "a") { |file| file.puts "MODEL_ARTIFACT_INCLUDED=true" }
 
           bom = JSON.parse(File.read(bom_path))
           components = bom["components"] ||= []
@@ -229,8 +236,10 @@ jobs:
           gradle_bom = JSON.parse(File.read("build/reports/sbom/eyespie-gradle.cdx.json"))
           components = gradle_bom.fetch("components")
           abort "debug-only dependency leaked into SBOM" if components.any? { |component| component["name"] == "okio-fakefilesystem" }
-          abort "model asset pack missing from SBOM" unless components.any? { |component| component["name"] == "model_pack" }
-          abort "ML model missing from SBOM" unless components.any? { |component| component["type"] == "machine-learning-model" }
+          if ENV.fetch("MODEL_ARTIFACT_INCLUDED", "false") == "true"
+            abort "model asset pack missing from SBOM" unless components.any? { |component| component["name"] == "model_pack" }
+            abort "ML model missing from SBOM" unless components.any? { |component| component["type"] == "machine-learning-model" }
+          end
           RUBY
 
       - name: Verify generated CocoaPods metadata is committed
