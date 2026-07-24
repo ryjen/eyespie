@@ -20,3 +20,11 @@ val verifyModelArtifact by tasks.registering(Exec::class) {
         "--require-artifact",
     )
 }
+
+gradle.projectsEvaluated {
+    project(":eyespie").tasks.matching {
+        name.startsWith("bundle") && !name.contains("Debug", ignoreCase = true)
+    }.configureEach {
+        dependsOn(verifyModelArtifact)
+    }
+}
