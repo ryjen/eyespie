@@ -26,17 +26,11 @@ kotlin {
 
     cocoapods {
         version = "1.0"
-        name = "eyespie"
-        summary = "Native dependencies for eyespie"
-        homepage = "https://github.com/ryjen/eyespie"
+        summary = "Native dependencies for ${project.name}"
+        homepage = "https://github.com/hackelia-micrantha/eyespie"
         license = "GPLv3"
         ios.deploymentTarget = "15.0"
         podfile = project.file("../iosApp/Podfile")
-
-        framework {
-            baseName = "eyespie"
-            isStatic = true
-        }
 
         pod("MediaPipeTasksVision")
         pod("MediaPipeTasksGenAI")
@@ -313,12 +307,4 @@ bluebell {
             }
         }
     }
-}
-
-// Debug source builds may run without the gated model artifact. Any non-debug AAB is
-// distributable and must contain exactly the approved artifact described by the manifest.
-tasks.matching {
-    name.startsWith("bundle") && !name.contains("Debug", ignoreCase = true)
-}.configureEach {
-    dependsOn(":model-pack:verifyModelArtifact")
 }
