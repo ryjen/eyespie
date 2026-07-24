@@ -11,10 +11,10 @@ Eyespie began as a computer-vision-driven game experience using perception model
 The product direction has evolved toward a multimodal semantic game engine where:
 
 - LLM reasoning is a core part of clue generation
-- Image/object embeddings are a core part of clue matching
-- Computer vision remains the grounded perception layer
-- Local device models are preferred over remote models
-- Remote reasoning is treated as a failsafe and fallback path
+- image/object embeddings are a core part of clue matching
+- computer vision remains the grounded perception layer
+- local device models are preferred over remote models
+- remote reasoning is treated as a policy-controlled fallback path
 
 The system must support:
 
@@ -71,6 +71,16 @@ Embeddings are used for:
 - clue candidate expansion
 - duplicate or ambiguity detection
 
+Embedding values remain owned by the embedding and index subsystem. Cross-layer contracts expose typed embedding references and metadata rather than platform-specific vector containers.
+
+Each embedding reference must identify at least:
+
+- model and model version
+- dimensions
+- normalization strategy
+- similarity metric
+- storage or lifecycle scope
+
 ### Semantic Reasoning Layer
 
 The semantic reasoning layer uses bounded structured context to:
@@ -96,6 +106,16 @@ Matching and scoring must combine:
 
 No single model output should exclusively determine game scoring.
 
+Signals must be normalized or calibrated before aggregation. Scoring behavior must define:
+
+- model/version-specific thresholds
+- missing-signal behavior
+- abstention or rejection thresholds
+- deterministic tie-breaking
+- score provenance
+
+Reasoning providers may contribute bounded semantic evidence, but they must not manufacture authoritative perception confidence.
+
 ### Provider Routing Layer
 
 The application must support multiple reasoning providers.
@@ -112,9 +132,21 @@ The provider layer must support:
 - capability detection
 - local-first execution
 - privacy policies
+- consent state where applicable
 - offline behavior
 - fallback routing
 - future provider replacement
+
+Remote execution is denied by default. A remote route may be selected only when all required gates succeed:
+
+1. the request declares the minimum data capabilities it needs
+2. policy permits those capabilities for the selected provider
+3. user consent is present where required
+4. the payload has been minimized to the approved fields
+
+Fallback routing must never silently broaden the transmitted data. Raw images, object crops, OCR text, faces, precise location, and other sensitive scene data require explicit capabilities rather than inheriting permission from a general remote-model setting.
+
+Remote decisions must preserve provenance for the policy decision, consent basis, provider, model, and transmitted field classes.
 
 ## Consequences
 
@@ -126,6 +158,8 @@ The provider layer must support:
 - better cross-platform portability
 - clearer separation between perception and reasoning
 - easier future evaluation and regression testing
+- auditable remote-data boundaries
+- portable domain contracts
 
 ### Negative
 
@@ -134,6 +168,7 @@ The provider layer must support:
 - device capability fragmentation
 - additional evaluation and prompt-versioning requirements
 - more difficult debugging and QA workflows
+- explicit calibration and policy infrastructure
 
 ## Risks
 
@@ -152,7 +187,7 @@ The system should preserve provenance metadata and support evaluation corpora.
 
 Remote reasoning may expose camera-derived scene context.
 
-The system should prefer local execution and require explicit policy or user consent before remote reasoning.
+The system defaults to local execution and requires explicit policy authorization plus consent where applicable before remote reasoning. Only the minimum approved structured payload may cross the remote boundary.
 
 ### Vendor Lock-In
 
@@ -161,6 +196,7 @@ The architecture should avoid coupling product behavior to:
 - Apple-only APIs
 - Android-only APIs
 - specific hosted LLM providers
+- platform-specific vector or serialization types
 
 ## Future Work
 
