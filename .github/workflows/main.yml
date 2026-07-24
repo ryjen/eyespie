@@ -38,21 +38,12 @@ jobs:
       - name: Verify model metadata contract
         run: python3 scripts/stage_android_model_artifact.py verify
 
-      - name: Test and build debug app bundle with asset packs
+      - name: Run Android unit tests
         run: >-
           ./gradlew
           :bluebell:testDebugUnitTest
           :app:testDebugUnitTest
-          :app:bundleDebug
           --no-daemon
           --parallel
           --build-cache
           --configuration-cache
-
-      - name: Upload debug app bundle
-        uses: actions/upload-artifact@v4
-        with:
-          name: eyespie-debug-aab
-          path: eyespie/build/outputs/bundle/debug/*.aab
-          if-no-files-found: error
-          retention-days: 7
