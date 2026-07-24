@@ -46,7 +46,7 @@ jobs:
         run: |
           set -o pipefail
           if ! ./gradlew \
-            cyclonedxBom \
+            :app:cyclonedxDirectBom \
             --no-daemon \
             --parallel \
             --build-cache \
