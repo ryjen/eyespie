@@ -17,6 +17,13 @@ internal fun interface ModelRuntimeSmokeChecker {
     suspend fun check(model: ReadyModel): RuntimeSmokeCheckResult
 }
 
+/**
+ * Opens the artifact with the same MediaPipe backend used by production inference.
+ *
+ * MediaPipe initialization is a synchronous native call and is not cooperatively cancellable.
+ * Repository generation guards prevent a stale result from publishing readiness after removal,
+ * replacement, cancellation, or close, but cannot forcibly interrupt native initialization.
+ */
 internal class MediaPipeLlmRuntimeSmokeChecker(
     context: Context,
 ) : ModelRuntimeSmokeChecker {
@@ -26,7 +33,7 @@ internal class MediaPipeLlmRuntimeSmokeChecker(
         val options = LlmInference.LlmInferenceOptions.builder()
             .setModelPath(model.localPath)
             .setMaxTokens(SMOKE_CHECK_MAX_TOKENS)
-            .setPreferredBackend(LlmInference.Backend.CPU)
+            .setPreferredBackend(LlmInference.Backend.GPU)
             .build()
         LlmInference.createFromOptions(applicationContext, options).use { }
         RuntimeSmokeCheckResult.Passed
