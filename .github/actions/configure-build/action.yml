@@ -27,41 +27,50 @@ outputs:
 runs:
   using: "composite"
   steps:
-    - uses: ruby/setup-ruby@v1
+    - uses: ruby/setup-ruby@95ef2b042f9d7a56d8268cba8559e2842e2ad01b # v1
       with:
         ruby-version: "3.2"
         bundler-cache: true
 
     - name: Set up JDK 21
-      uses: actions/setup-java@v2
+      uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9 # v4.8.0
       with:
         distribution: "temurin"
         java-version: "21"
 
-    - uses: burrunan/gradle-cache-action@v1
+    - name: Set up Gradle
+      uses: gradle/actions/setup-gradle@3f131e8634966bd73d06cc69884922b02e6faf92 # v6
 
     - name: Create android keystore
       if: inputs.android_keystore != ''
       id: decode
+      env:
+        ANDROID_KEYSTORE_B64: ${{ inputs.android_keystore }}
       run: |
-        echo -n "${{ inputs.android_keystore }}" | base64 -d > "${{ github.workspace }}/android.keystore"
-        echo "android_keystore=${{ github.workspace }}/android.keystore" >> $GITHUB_OUTPUT
+        printf '%s' "$ANDROID_KEYSTORE_B64" | base64 -d > "${{ github.workspace }}/android.keystore"
+        echo "android_keystore=${{ github.workspace }}/android.keystore" >> "$GITHUB_OUTPUT"
       shell: bash
 
     - name: Create build config
+      env:
+        LOGIN_EMAIL_VALUE: ${{ inputs.login_email }}
+        LOGIN_PASSWORD_VALUE: ${{ inputs.login_password }}
       run: |
-        echo "LOGIN_EMAIL=${{ inputs.login_email }}" > "${{ github.workspace }}/.env.local"
-        echo "LOGIN_PASSWORD=${{ inputs.login_password }}" >> "${{ github.workspace }}/.env.local"
+        printf 'LOGIN_EMAIL=%s\n' "$LOGIN_EMAIL_VALUE" > "${{ github.workspace }}/.env.local"
+        printf 'LOGIN_PASSWORD=%s\n' "$LOGIN_PASSWORD_VALUE" >> "${{ github.workspace }}/.env.local"
       shell: bash
 
-    - if: inputs.config != ''
+    - name: Append application config
+      if: inputs.config != ''
+      env:
+        INPUT_CONFIG: ${{ inputs.config }}
       run: |
         printf '\n' >> "${{ github.workspace }}/.env.local"
         echo "APP_CONFIG bytes: ${#INPUT_CONFIG}"
-        echo -n "${{ inputs.config }}" | base64 -d >> "${{ github.workspace }}/.env.local"
-      env:
-        INPUT_CONFIG: ${{ inputs.config }}
+        printf '%s' "$INPUT_CONFIG" | base64 -d >> "${{ github.workspace }}/.env.local"
       shell: bash
 
-    - run: echo "env_file=${{ github.workspace }}/.env.local" >> $GITHUB_OUTPUT
+    - name: Export environment file path
+      id: env
+      run: echo "env_file=${{ github.workspace }}/.env.local" >> "$GITHUB_OUTPUT"
       shell: bash
