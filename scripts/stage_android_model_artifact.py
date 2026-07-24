@@ -25,6 +25,8 @@ DESCRIPTOR_PATTERN = re.compile(
     r'internal val androidSmokeModelDescriptor = ModelAssetDescriptor\(.*?\n\)',
     re.DOTALL,
 )
+RELEASE_ID_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]{0,127}$")
+ARTIFACT_NAME_PATTERN = re.compile(r"^[A-Za-z0-9][A-Za-z0-9._-]*\.task$")
 
 
 def sha256(path: Path) -> str:
@@ -33,6 +35,28 @@ def sha256(path: Path) -> str:
         for chunk in iter(lambda: stream.read(1024 * 1024), b""):
             digest.update(chunk)
     return digest.hexdigest()
+
+
+def validate_release_value(name: str, value: str) -> None:
+    if not RELEASE_ID_PATTERN.fullmatch(value):
+        raise SystemExit(
+            f"{name} must contain only letters, numbers, '.', '_', and '-' "
+            "and must be at most 128 characters"
+        )
+
+
+def validate_artifact_name(filename: str) -> None:
+    if not ARTIFACT_NAME_PATTERN.fullmatch(filename):
+        raise SystemExit(
+            "Artifact filename must be a simple .task basename containing only "
+            "letters, numbers, '.', '_', and '-'"
+        )
+
+
+def staged_task_files() -> list[Path]:
+    if not MODEL_DIR.is_dir():
+        return []
+    return sorted(path for path in MODEL_DIR.glob("*.task") if path.is_file())
 
 
 def descriptor_source(
@@ -62,11 +86,20 @@ def stage(args: argparse.Namespace) -> None:
     source = args.artifact.resolve()
     if not source.is_file():
         raise SystemExit(f"Artifact does not exist: {source}")
-    if source.suffix != ".task":
-        raise SystemExit("The Android MediaPipe artifact must use the .task extension")
+    validate_artifact_name(source.name)
+    validate_release_value("model ID", args.model_id)
+    validate_release_value("version", args.version)
+    validate_release_value("minimum runtime version", args.minimum_runtime_version)
+    if args.minimum_model_abi < 1:
+        raise SystemExit("minimum model ABI must be at least 1")
 
     MODEL_DIR.mkdir(parents=True, exist_ok=True)
     destination = MODEL_DIR / source.name
+
+    for existing in staged_task_files():
+        if existing.resolve() != destination.resolve():
+            existing.unlink()
+
     if source != destination.resolve():
         shutil.copyfile(source, destination)
 
@@ -121,7 +154,7 @@ def parse_descriptor(module: str) -> dict[str, object]:
         return found.group(1)
 
     def integer(name: str) -> int:
-        found = re.search(rf'{name} = (\d+)L?', block)
+        found = re.search(rf"{name} = (\d+)L?", block)
         if not found:
             raise SystemExit(f"Descriptor field missing: {name}")
         return int(found.group(1))
@@ -157,12 +190,22 @@ def verify(require_artifact: bool) -> None:
         print(json.dumps({"descriptor": descriptor, "manifest": expected}, indent=2), file=sys.stderr)
         raise SystemExit(1)
 
-    artifact = MODEL_DIR / str(manifest["filename"])
-    if not artifact.is_file():
+    filename = str(manifest["filename"])
+    validate_artifact_name(filename)
+    task_files = staged_task_files()
+    artifact = MODEL_DIR / filename
+
+    if not task_files:
         if require_artifact:
             raise SystemExit(f"Required model artifact is missing: {artifact}")
         print("Descriptor and manifest agree; model artifact is not staged (expected in source CI).")
         return
+
+    if len(task_files) != 1 or task_files[0].name != filename:
+        staged = ", ".join(path.name for path in task_files)
+        raise SystemExit(
+            f"Asset pack must contain exactly one .task file named {filename}; found: {staged}"
+        )
 
     actual_size = artifact.stat().st_size
     actual_digest = sha256(artifact)
@@ -170,7 +213,7 @@ def verify(require_artifact: bool) -> None:
         raise SystemExit(f"Artifact size mismatch: expected {manifest['sizeBytes']}, got {actual_size}")
     if actual_digest != manifest["sha256"]:
         raise SystemExit(f"Artifact digest mismatch: expected {manifest['sha256']}, got {actual_digest}")
-    print("Descriptor, manifest, size, and SHA-256 are consistent.")
+    print("Descriptor, manifest, size, SHA-256, and single-artifact policy are consistent.")
 
 
 def main() -> None:
