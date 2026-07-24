@@ -3,6 +3,9 @@ package com.micrantha.eyespie.features.onboarding.arch
 import com.micrantha.bluebell.arch.StateMapper
 import com.micrantha.bluebell.i18n.repository.LocalizedRepository
 import com.micrantha.bluebell.ui.screen.ScreenContext
+import com.micrantha.eyespie.features.onboarding.entities.CapabilityState
+import com.micrantha.eyespie.features.onboarding.entities.CapabilityUiState
+import com.micrantha.eyespie.features.onboarding.entities.OnboardingCapability
 import com.micrantha.eyespie.features.onboarding.entities.OnboardingState
 import com.micrantha.eyespie.features.onboarding.entities.OnboardingUiState
 
@@ -22,7 +25,31 @@ class OnboardingMapper(
                 OnboardingUiState.Model(
                     it.key, it.key == state.selectedModel
                 )
-            } ?: emptyList()
+            } ?: emptyList(),
+            capabilities = state.capabilities.map(::mapCapability),
+            requestInFlight = state.requestInFlight,
         )
+
+        private fun mapCapability(state: CapabilityState): CapabilityUiState = when (state.capability) {
+            OnboardingCapability.CameraScanning -> CapabilityUiState(
+                capability = state.capability,
+                title = "Scan with the camera",
+                rationale = "Eyespie uses the camera to scan real-world scenes and objects for gameplay.",
+                deniedImpact = "You can continue setup, but scanning will remain unavailable until camera access is enabled.",
+                privacySummary = "Camera frames are used for the active scan. They are not permission telemetry.",
+                authorization = state.authorization,
+                canRequestDuringOnboarding = state.canRequestDuringOnboarding,
+            )
+
+            OnboardingCapability.Notifications -> CapabilityUiState(
+                capability = state.capability,
+                title = "Game and download notifications",
+                rationale = "Notifications can report game events and long-running model download progress.",
+                deniedImpact = "Status remains available in the app, but background alerts will not be shown.",
+                privacySummary = "Notification permission does not grant access to contacts, media, or scanned content.",
+                authorization = state.authorization,
+                canRequestDuringOnboarding = state.canRequestDuringOnboarding,
+            )
+        }
     }
 }

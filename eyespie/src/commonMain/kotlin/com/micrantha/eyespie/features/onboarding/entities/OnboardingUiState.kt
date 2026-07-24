@@ -6,6 +6,8 @@ data class OnboardingUiState(
     val isError: Boolean,
     val isSelected: Boolean,
     val models: List<Model>,
+    val capabilities: List<CapabilityUiState> = emptyList(),
+    val requestInFlight: OnboardingCapability? = null,
 ) {
     data class Model(
         val name: String,
