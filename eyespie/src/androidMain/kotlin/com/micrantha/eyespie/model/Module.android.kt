@@ -8,11 +8,11 @@ import org.kodein.di.bindInstance
 import org.kodein.di.bindSingleton
 
 internal val androidSmokeModelDescriptor = ModelAssetDescriptor(
-    id = "eyespie-offline-model-smoke-test",
-    version = "pad-smoke-2026-07-20.1",
-    filename = "pad-smoke-test.bin",
-    expectedBytes = 39L,
-    sha256 = "a9be80b9c833cb32e1a41ae404bdebf1b5d74ab2e85d8ca6ad44e5fd7e824ddf",
+    id = "eyespie-offline-model",
+    version = "unstaged",
+    filename = "eyespie-offline-model-unstaged.task",
+    expectedBytes = 0L,
+    sha256 = "0000000000000000000000000000000000000000000000000000000000000000",
     runtime = ModelRuntimeCompatibility(
         engine = "mediapipe",
         minimumRuntimeVersion = "0.10.35",
