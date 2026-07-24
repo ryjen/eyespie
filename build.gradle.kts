@@ -18,6 +18,16 @@ plugins {
 
 allprojects {
     tasks.cyclonedxDirectBom {
+        enabled = project.path == ":app"
+    }
+}
+
+tasks.cyclonedxBom {
+    enabled = false
+}
+
+project(":app") {
+    tasks.cyclonedxDirectBom {
         includeConfigs = listOf(
             ".*[Mm]ain.*[Rr]esolvable.*",
             ".*[Dd]ebugRuntimeClasspath",
@@ -28,25 +38,19 @@ allprojects {
             ".*[Bb]enchmark.*",
             ".*[Ll]int.*",
         )
+        projectType.set(Component.Type.APPLICATION)
+        componentGroup.set("com.micrantha")
+        componentName.set("eyespie")
+        componentVersion.set(
+            providers.environmentVariable("SBOM_COMPONENT_VERSION").orElse("0.1.0")
+        )
+        includeLicenseText.set(false)
         includeBuildEnvironment = false
         includeBuildSystem = true
+        jsonOutput.set(rootProject.layout.buildDirectory.file("reports/sbom/eyespie-gradle.cdx.json"))
+        xmlOutput.unsetConvention()
     }
-}
 
-tasks.cyclonedxBom {
-    projectType.set(Component.Type.APPLICATION)
-    componentGroup.set("com.micrantha")
-    componentName.set("eyespie")
-    componentVersion.set(
-        providers.environmentVariable("SBOM_COMPONENT_VERSION").orElse("0.1.0")
-    )
-    includeLicenseText.set(false)
-    includeBuildSystem.set(true)
-    jsonOutput.set(layout.buildDirectory.file("reports/sbom/eyespie-gradle.cdx.json"))
-    xmlOutput.unsetConvention()
-}
-
-project(":app") {
     plugins.withId("com.android.application") {
         extensions.configure<ApplicationExtension> {
             assetPacks += setOf(":model-pack")
