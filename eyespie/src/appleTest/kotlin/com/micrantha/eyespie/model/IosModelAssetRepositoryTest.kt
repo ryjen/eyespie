@@ -85,7 +85,7 @@ class IosModelAssetRepositoryTest {
     }
 
     @Test
-    fun schedulingCancellationPropagatesWithoutBecomingFailure() = runTest {
+    fun schedulingCancellationPropagatesAndResetsState() = runTest {
         val cancellation = CancellationException("cancelled")
         val transport = FakeIosModelAssetTransport(scheduleFailure = cancellation)
         val repository = repositoryFor(transport)
@@ -95,7 +95,8 @@ class IosModelAssetRepositoryTest {
         }
 
         assertEquals(cancellation, thrown)
-        assertIs<ModelAssetState.Queued>(repository.observe().first())
+        assertEquals(ModelAssetState.NotInstalled, repository.observe().first())
+        assertNull(repository.pendingDownloadedArtifact())
         repository.close()
     }
 
