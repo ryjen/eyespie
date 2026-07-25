@@ -1,15 +1,9 @@
 import SwiftUI
 import eyespie
 
-enum ConfigError: Error {
-    case general(reason: String)
-}
-
 struct ComposeView: UIViewControllerRepresentable {
-    var application = IOSApplication(component: AppDelegate(
-        networkMonitor: iOSNetworkMonitor(),
-        packageId: "com.micrantha.eyespie"
-    )
+    private let application = IOSApplication(
+        component: AppComposition.shared.kotlinAppDelegate
     )
 
     func makeUIViewController(context: Context) -> UIViewController {
@@ -20,20 +14,18 @@ struct ComposeView: UIViewControllerRepresentable {
         application.update(viewController: uiViewController)
     }
 
-    func dismantleUIViewController(_ uiViewController: Self.UIViewControllerType, coordinator: Self.Coordinator) {
+    func dismantleUIViewController(
+        _ uiViewController: Self.UIViewControllerType,
+        coordinator: Self.Coordinator
+    ) {
         application.finish(viewController: uiViewController)
     }
 }
 
-
 struct ContentView: View {
-
     var body: some View {
-        ComposeView().ignoresSafeArea(.all, edges: .bottom)
-        .onAppear {
-        }
-        .onDisappear {
-        }
+        ComposeView()
+            .ignoresSafeArea(.all, edges: .bottom)
     }
 }
 
