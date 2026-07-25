@@ -1,5 +1,6 @@
 package com.micrantha.eyespie.model
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.first
@@ -10,6 +11,7 @@ import org.kodein.di.direct
 import org.kodein.di.instance
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertIs
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
@@ -79,6 +81,21 @@ class IosModelAssetRepositoryTest {
             ),
             repository.observe().first(),
         )
+        repository.close()
+    }
+
+    @Test
+    fun schedulingCancellationPropagatesWithoutBecomingFailure() = runTest {
+        val cancellation = CancellationException("cancelled")
+        val transport = FakeIosModelAssetTransport(scheduleFailure = cancellation)
+        val repository = repositoryFor(transport)
+
+        val thrown = assertFailsWith<CancellationException> {
+            repository.requestDownload()
+        }
+
+        assertEquals(cancellation, thrown)
+        assertIs<ModelAssetState.Queued>(repository.observe().first())
         repository.close()
     }
 
