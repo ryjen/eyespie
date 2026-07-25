@@ -1,0 +1,157 @@
+name: EyesPie iOS KMP
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: eyespie-ios-kmp-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  classify-ios-kmp:
+    name: classify-ios-kmp
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      required: ${{ steps.changes.outputs.required }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Classify iOS and KMP changes
+        id: changes
+        shell: bash
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          BEFORE_SHA: ${{ github.event.before }}
+        run: |
+          set -euo pipefail
+
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            base="$BASE_SHA"
+          elif [[ -n "$BEFORE_SHA" && "$BEFORE_SHA" != "0000000000000000000000000000000000000000" ]]; then
+            base="$BEFORE_SHA"
+          else
+            base="$(git rev-parse HEAD^)"
+          fi
+
+          git diff --name-only "$base" HEAD > changed-files.txt
+          cat changed-files.txt
+
+          if grep -Eq '(^|/)(src/(common(Main|Test)|ios(Main|Test)|apple(Main|Test))/|build\.gradle(\.kts)?$|settings\.gradle(\.kts)?$|gradle\.properties$|gradle/libs\.versions\.toml$|gradle/wrapper/|buildSrc/|iosApp/|Podfile|Podfile\.lock|\.github/workflows/ios-kmp\.yml$)' changed-files.txt; then
+            echo "required=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "required=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  ios-kmp-build:
+    name: ios-kmp-build
+    needs: classify-ios-kmp
+    if: needs.classify-ios-kmp.outputs.required == 'true'
+    runs-on: macos-15
+    timeout-minutes: 35
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5.6.0
+        with:
+          java-version: "21"
+          distribution: temurin
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@3f131e8634966bd73d06cc69884922b02e6faf92 # v6
+        with:
+          cache-read-only: ${{ github.ref != 'refs/heads/main' }}
+
+      - name: Create build configuration
+        run: cp env.example .env.local
+
+      - name: Resolve supported simulator tasks
+        id: tasks
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./gradlew :app:tasks --all --no-daemon > build-ios-tasks.txt
+
+          compile_task=:app:compileKotlinIosSimulatorArm64
+          test_task=:app:iosSimulatorArm64Test
+
+          grep -Fq "compileKotlinIosSimulatorArm64" build-ios-tasks.txt || {
+            echo "Missing expected simulator compile task: $compile_task" >&2
+            exit 1
+          }
+          grep -Fq "iosSimulatorArm64Test" build-ios-tasks.txt || {
+            echo "Missing expected simulator test task: $test_task" >&2
+            exit 1
+          }
+
+          echo "compile=$compile_task" >> "$GITHUB_OUTPUT"
+          echo "test=$test_task" >> "$GITHUB_OUTPUT"
+
+      - name: Compile iOS simulator sources and run Apple tests
+        run: >-
+          ./gradlew
+          ${{ steps.tasks.outputs.compile }}
+          ${{ steps.tasks.outputs.test }}
+          --no-daemon
+          --build-cache
+          --configuration-cache
+
+      - name: Upload iOS KMP diagnostics
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: eyespie-ios-kmp-diagnostics-${{ github.sha }}
+          path: |
+            build-ios-tasks.txt
+            **/build/reports/tests/**
+            **/build/test-results/**
+            **/build/reports/problems/**
+          if-no-files-found: ignore
+          retention-days: 7
+
+  ios-kmp:
+    name: ios-kmp
+    needs: [classify-ios-kmp, ios-kmp-build]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Enforce iOS KMP result
+        shell: bash
+        env:
+          REQUIRED: ${{ needs.classify-ios-kmp.outputs.required }}
+          CLASSIFY_RESULT: ${{ needs.classify-ios-kmp.result }}
+          BUILD_RESULT: ${{ needs.ios-kmp-build.result }}
+        run: |
+          set -euo pipefail
+
+          if [[ "$CLASSIFY_RESULT" != "success" ]]; then
+            echo "iOS/KMP change classification failed: $CLASSIFY_RESULT" >&2
+            exit 1
+          fi
+
+          if [[ "$REQUIRED" == "true" && "$BUILD_RESULT" != "success" ]]; then
+            echo "Required iOS/KMP validation did not pass: $BUILD_RESULT" >&2
+            exit 1
+          fi
+
+          if [[ "$REQUIRED" == "false" && "$BUILD_RESULT" != "skipped" ]]; then
+            echo "Unexpected iOS/KMP worker result for unrelated changes: $BUILD_RESULT" >&2
+            exit 1
+          fi
+
+          echo "iOS/KMP gate passed (required=$REQUIRED, worker=$BUILD_RESULT)."
