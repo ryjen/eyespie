@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 import html
 import sys
+import xml.etree.ElementTree as ET
 import zipfile
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
@@ -14,6 +15,8 @@ BASE_MODULE = "base"
 MODEL_PACK_MODULE = "model_pack"
 MODEL_MANIFEST = f"{MODEL_PACK_MODULE}/assets/model/manifest.json"
 BASE_MODEL_PREFIX = f"{BASE_MODULE}/assets/model/"
+DIST_NAMESPACE = "http://schemas.android.com/apk/distribution"
+DELIVERY_MODES = {"install-time", "fast-follow", "on-demand"}
 
 
 class ValidationError(RuntimeError):
@@ -51,8 +54,46 @@ def inventory(archive: zipfile.ZipFile) -> tuple[set[str], dict[str, ModuleSize]
     return modules, sizes
 
 
+def parse_asset_pack_delivery_mode(manifest_xml: str) -> str:
+    try:
+        root = ET.fromstring(manifest_xml)
+    except ET.ParseError as error:
+        raise ValidationError(f"invalid decoded model_pack manifest XML: {error}") from error
+
+    module = root.find(f"{{{DIST_NAMESPACE}}}module")
+    if module is None:
+        raise ValidationError("model_pack manifest is missing dist:module")
+
+    module_type = module.get(f"{{{DIST_NAMESPACE}}}type")
+    if module_type != "asset-pack":
+        raise ValidationError(
+            f"model_pack dist:module type must be asset-pack, found {module_type!r}"
+        )
+
+    delivery = module.find(f"{{{DIST_NAMESPACE}}}delivery")
+    if delivery is None:
+        raise ValidationError("model_pack manifest is missing dist:delivery")
+
+    modes = [
+        child.tag.rsplit("}", 1)[-1]
+        for child in delivery
+        if child.tag.startswith(f"{{{DIST_NAMESPACE}}}")
+        and child.tag.rsplit("}", 1)[-1] in DELIVERY_MODES
+    ]
+    if len(modes) != 1:
+        raise ValidationError(
+            "model_pack dist:delivery must contain exactly one delivery mode; "
+            f"found {modes or 'none'}"
+        )
+    return modes[0]
+
+
 def validate_inventory(entries: set[str], manifest_xml: str) -> None:
-    modules = {PurePosixPath(entry).parts[0] for entry in entries if PurePosixPath(entry).parts}
+    modules = {
+        PurePosixPath(entry).parts[0]
+        for entry in entries
+        if PurePosixPath(entry).parts
+    }
     if BASE_MODULE not in modules:
         raise ValidationError("base module is absent from the App Bundle")
     if MODEL_PACK_MODULE not in modules:
@@ -72,12 +113,10 @@ def validate_inventory(entries: set[str], manifest_xml: str) -> None:
             "model-pack assets leaked into the base module: " + ", ".join(leaked)
         )
 
-    normalized_manifest = " ".join(manifest_xml.split())
-    has_distribution_namespace = "http://schemas.android.com/apk/distribution" in normalized_manifest
-    has_on_demand = "<dist:on-demand" in normalized_manifest or "<on-demand" in normalized_manifest
-    if not has_distribution_namespace or not has_on_demand:
+    delivery_mode = parse_asset_pack_delivery_mode(manifest_xml)
+    if delivery_mode != "on-demand":
         raise ValidationError(
-            "model_pack manifest does not contain artifact-level on-demand delivery evidence"
+            f"model_pack delivery mode must be on-demand, found {delivery_mode}"
         )
 
 
@@ -107,7 +146,7 @@ def render_report(aab: Path, sizes: dict[str, ModuleSize]) -> str:
             f"- Total archive size: {human_bytes(aab.stat().st_size)}",
             f"- Required modules: `{BASE_MODULE}`, `{MODEL_PACK_MODULE}`",
             f"- Required model manifest: `{MODEL_MANIFEST}`",
-            "- Delivery evidence: `model_pack` manifest contains `dist:on-demand`",
+            "- Delivery mode: `model_pack` is structurally configured as `dist:on-demand`",
             "",
             "| Module | Files | Compressed | Uncompressed |",
             "|---|---:|---:|---:|",
