@@ -7,15 +7,23 @@ final class iOSAppDelegate: NSObject, UIApplicationDelegate {
         handleEventsForBackgroundURLSession identifier: String,
         completionHandler: @escaping () -> Void
     ) {
-        guard let transport = AppComposition.shared.modelAssetTransport else {
-            completionHandler()
+        let bundleIdentifier = Bundle.main.bundleIdentifier ?? "com.micrantha.eyespie.ios"
+        guard IosUrlSessionModelAssetTransport.retainBackgroundSessionCompletion(
+            identifier: identifier,
+            bundleIdentifier: bundleIdentifier,
+            completionHandler: completionHandler
+        ) else {
             return
         }
 
-        transport.handleEventsForBackgroundSession(
-            identifier: identifier,
-            completionHandler: completionHandler
-        )
+        // Retain the system handler before constructing the background URLSession. Recreating the
+        // session may synchronously begin delegate delivery during application relaunch.
+        guard AppComposition.shared.modelAssetTransport != nil else {
+            IosUrlSessionModelAssetTransport.completeBackgroundSessionEvents(
+                identifier: identifier
+            )
+            return
+        }
     }
 }
 
