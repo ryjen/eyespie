@@ -32,6 +32,20 @@ The first production iOS delivery implementation will use a self-hosted backgrou
 
 Managed or Apple-Hosted Background Assets may replace both transports in a future baseline migration to iOS 26 or later. That migration requires a separate product decision supported by device-coverage data.
 
+### Background URLSession policy
+
+The iOS 15-compatible transport uses a delegate-backed background `URLSession` with a stable identifier derived from the application bundle identifier.
+
+- `isDiscretionary` is disabled because scheduling follows explicit user consent rather than an opportunistic maintenance download.
+- Cellular, constrained, and expensive-network access are disabled because the future production artifact is approximately 584 MB.
+- Connectivity waiting is enabled so temporary network unavailability maps to a queued/recoverable state rather than an immediate terminal failure.
+- The session permits system relaunch events and limits itself to one active model task.
+- The application retains the system background-session completion handler before reconstructing the session and invokes it only after the session delegate reports that all queued events have been delivered.
+- Completed transfers are moved from the system temporary URL into a fixed app-owned staging directory. Server-provided filenames are ignored, staging filenames are validated, and replacement is atomic where supported.
+- Transfer completion enters `Verifying`; staging alone never produces `Ready`.
+
+The first transport slice uses a small immutable HTTPS fixture from this repository, pinned to commit `745fc97a149fcd67f4a673fd5612f972ec874126`. Its expected byte count and SHA-256 are recorded in a test-only configuration that is separate from future production model configuration. No model URL, credential, or approximately 584 MB artifact is included.
+
 ## Shared lifecycle mapping
 
 Platform observations map to the shared lifecycle as follows:
@@ -54,7 +68,7 @@ The repository must never report `Ready` from file presence alone.
 ## Artifact identity and storage
 
 - The iOS artifact uses the same immutable descriptor fields as Android: model ID, version, filename, exact byte count, SHA-256, runtime engine, minimum runtime version, and model ABI.
-- Downloads are written to a temporary location and atomically promoted only after verification.
+- Downloads are moved into app-owned staging after transfer and atomically promoted to final storage only after verification.
 - The verified artifact is stored in an application-controlled directory that is excluded from iCloud backup.
 - Partial, corrupt, obsolete, and superseded artifacts are removed deterministically.
 - `remove()` deletes the verified artifact and transport bookkeeping, then returns the repository to `NotInstalled`.
@@ -65,7 +79,8 @@ The implementation must include:
 
 - pure mapping tests for supported, unsupported, and misconfigured capabilities;
 - repository tests for interruption, retry, cancellation, checksum mismatch, removal, and relaunch restoration;
-- simulator tests using a local HTTP fixture server for the `URLSession` path;
+- deterministic coordinator/state-machine tests for scheduling, restoration, stale callbacks, progress, staging, cleanup, and background completion handling;
+- simulator validation using the controlled immutable HTTPS fixture without downloading the production model;
 - physical-device tests for background execution and process termination;
 - TestFlight validation before adopting Apple-hosted asset packs in a future iOS 26 migration.
 
