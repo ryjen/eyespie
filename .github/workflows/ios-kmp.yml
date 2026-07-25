@@ -47,7 +47,7 @@ jobs:
           git diff --name-only "$base" HEAD > changed-files.txt
           cat changed-files.txt
 
-          if grep -Eq '(^|/)(src/(common(Main|Test)|ios(Main|Test)|apple(Main|Test))/|build\.gradle(\.kts)?$|settings\.gradle(\.kts)?$|gradle\.properties$|gradle/libs\.versions\.toml$|gradle/wrapper/|buildSrc/|iosApp/|Podfile|Podfile\.lock|\.github/workflows/ios-kmp\.yml$)' changed-files.txt; then
+          if grep -Eq '(^|/)(src/(common(Main|Test)|native(Main|Test)|ios(Main|Test)|apple(Main|Test))/|build\.gradle(\.kts)?$|settings\.gradle(\.kts)?$|gradle\.properties$|gradle/libs\.versions\.toml$|gradle/wrapper/|buildSrc/|iosApp/|Podfile|Podfile\.lock|\.github/workflows/ios-kmp\.yml$)' changed-files.txt; then
             echo "required=true" >> "$GITHUB_OUTPUT"
           else
             echo "required=false" >> "$GITHUB_OUTPUT"
@@ -84,30 +84,33 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          ./gradlew :app:tasks --all --no-daemon > build-ios-tasks.txt
+          ./gradlew :app:tasks :bluebell:tasks --all --no-daemon > build-ios-tasks.txt
 
-          compile_task=:app:compileKotlinIosSimulatorArm64
-          test_task=:app:iosSimulatorArm64Test
+          app_compile_task=:app:compileKotlinIosSimulatorArm64
+          app_test_task=:app:iosSimulatorArm64Test
+          bluebell_test_task=:bluebell:iosSimulatorArm64Test
 
           grep -Fq "compileKotlinIosSimulatorArm64" build-ios-tasks.txt || {
-            echo "Missing expected simulator compile task: $compile_task" >&2
+            echo "Missing expected simulator compile task: $app_compile_task" >&2
             exit 1
           }
           grep -Fq "iosSimulatorArm64Test" build-ios-tasks.txt || {
-            echo "Missing expected simulator test task: $test_task" >&2
+            echo "Missing expected simulator test tasks" >&2
             exit 1
           }
 
-          echo "compile=$compile_task" >> "$GITHUB_OUTPUT"
-          echo "test=$test_task" >> "$GITHUB_OUTPUT"
+          echo "app_compile=$app_compile_task" >> "$GITHUB_OUTPUT"
+          echo "app_test=$app_test_task" >> "$GITHUB_OUTPUT"
+          echo "bluebell_test=$bluebell_test_task" >> "$GITHUB_OUTPUT"
 
       - name: Compile iOS simulator sources and run Apple tests
         shell: bash
         run: |
           set -o pipefail
           ./gradlew \
-            "${{ steps.tasks.outputs.compile }}" \
-            "${{ steps.tasks.outputs.test }}" \
+            "${{ steps.tasks.outputs.app_compile }}" \
+            "${{ steps.tasks.outputs.app_test }}" \
+            "${{ steps.tasks.outputs.bluebell_test }}" \
             --no-daemon \
             --build-cache \
             --configuration-cache \
