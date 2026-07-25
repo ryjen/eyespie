@@ -241,11 +241,23 @@ protocol ModelAssetDownloadTask: AnyObject {
     var taskDescription: String? { get set }
     var countOfBytesReceived: Int64 { get }
     var countOfBytesExpectedToReceive: Int64 { get }
+    var isSuspended: Bool { get }
     func resume()
     func cancel()
 }
 
-extension URLSessionTask: ModelAssetDownloadTask {}
+extension URLSessionTask: ModelAssetDownloadTask {
+    var isSuspended: Bool {
+        state == .suspended
+    }
+}
+
+enum IosModelAssetTaskRestorationPolicy {
+    static func resumeIfSuspended(_ task: ModelAssetDownloadTask) {
+        guard task.isSuspended else { return }
+        task.resume()
+    }
+}
 
 protocol ModelAssetURLSession: AnyObject {
     func makeDownloadTask(with url: URL) -> ModelAssetDownloadTask
@@ -578,6 +590,7 @@ final class IosUrlSessionModelAssetTransport: NSObject, IosModelAssetTransport {
 
                 self.activeTask = restoredTask
                 self.emitRestoredState(for: restoredTask)
+                IosModelAssetTaskRestorationPolicy.resumeIfSuspended(restoredTask)
             }
         }
     }

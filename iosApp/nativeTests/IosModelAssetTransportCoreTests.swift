@@ -12,6 +12,7 @@ enum IosModelAssetTransportCoreTests {
         #endif
         testSingleActiveTaskAndStaleCallbacks()
         testRestorationPlanning()
+        testRestoredTaskResumePolicy()
         testTaskInventory()
         testCancellation()
         testProgressMapping()
@@ -83,6 +84,30 @@ enum IosModelAssetTransportCoreTests {
         let whileActive = state.restorationPlan(candidateTaskIdentifiers: [2, 3, 4])
         require(whileActive.restoredTaskIdentifier == nil, "active task must not be replaced")
         require(whileActive.cancelledTaskIdentifiers == [2, 4], "duplicates must cancel")
+    }
+
+    private static func testRestoredTaskResumePolicy() {
+        let suspended = FakeModelAssetDownloadTask(
+            taskIdentifier: 7,
+            taskDescription: "expected",
+            isSuspended: true
+        )
+
+        IosModelAssetTaskRestorationPolicy.resumeIfSuspended(suspended)
+        IosModelAssetTaskRestorationPolicy.resumeIfSuspended(suspended)
+
+        require(suspended.resumeCalls == 1, "suspended restored task must resume once")
+        require(!suspended.isSuspended, "resumed task must no longer be suspended")
+
+        let running = FakeModelAssetDownloadTask(
+            taskIdentifier: 8,
+            taskDescription: "expected",
+            isSuspended: false
+        )
+
+        IosModelAssetTaskRestorationPolicy.resumeIfSuspended(running)
+
+        require(running.resumeCalls == 0, "running restored task must not be resumed")
     }
 
     private static func testTaskInventory() {
@@ -266,14 +291,24 @@ private final class FakeModelAssetDownloadTask: ModelAssetDownloadTask {
     var taskDescription: String?
     let countOfBytesReceived: Int64 = 0
     let countOfBytesExpectedToReceive: Int64 = -1
+    var isSuspended: Bool
+    private(set) var resumeCalls = 0
     private(set) var wasCancelled = false
 
-    init(taskIdentifier: Int, taskDescription: String?) {
+    init(
+        taskIdentifier: Int,
+        taskDescription: String?,
+        isSuspended: Bool = false
+    ) {
         self.taskIdentifier = taskIdentifier
         self.taskDescription = taskDescription
+        self.isSuspended = isSuspended
     }
 
-    func resume() {}
+    func resume() {
+        resumeCalls += 1
+        isSuspended = false
+    }
 
     func cancel() {
         wasCancelled = true
