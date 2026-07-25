@@ -28,6 +28,7 @@ import com.micrantha.eyespie.features.onboarding.entities.OnboardingPage
 import com.micrantha.eyespie.features.onboarding.entities.OnboardingState
 import com.micrantha.eyespie.features.onboarding.usecase.LoadModelConfig
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.sync.Mutex
 
 class OnboardingEffects(
     private val context: ScreenContext,
@@ -36,6 +37,7 @@ class OnboardingEffects(
     private val loadModelConfig: LoadModelConfig,
     private val capabilityPermissionGateway: CapabilityPermissionGateway,
 ) : Effect<OnboardingState>, Dispatcher by context.dispatcher {
+    private val requestCoordinator = CapabilityRequestCoordinator()
 
     override suspend fun invoke(
         action: Action,
@@ -112,18 +114,33 @@ class OnboardingEffects(
         } ?: return
         if (state.requestInFlight != null) return
 
-        dispatch(CapabilityRequestStarted(action.capability))
         try {
-            val authorization = capabilityPermissionGateway.requestAuthorization(
-                capability = action.capability,
-                previous = capability.authorization,
-            ) ?: return
+            val authorization = requestCoordinator.runExclusive {
+                dispatch(CapabilityRequestStarted(action.capability))
+                capabilityPermissionGateway.requestAuthorization(
+                    capability = action.capability,
+                    previous = capability.authorization,
+                )
+            } ?: return
             dispatch(CapabilityRequestResolved(action.capability, authorization))
         } catch (cancelled: CancellationException) {
             dispatch(CapabilityRequestFailed(action.capability))
             throw cancelled
         } catch (_: Throwable) {
             dispatch(CapabilityRequestFailed(action.capability))
+        }
+    }
+}
+
+internal class CapabilityRequestCoordinator {
+    private val mutex = Mutex()
+
+    suspend fun <T> runExclusive(block: suspend () -> T): T? {
+        if (!mutex.tryLock()) return null
+        return try {
+            block()
+        } finally {
+            mutex.unlock()
         }
     }
 }
