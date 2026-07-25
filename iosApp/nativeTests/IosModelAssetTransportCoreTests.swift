@@ -94,6 +94,10 @@ enum IosModelAssetTransportCoreTests {
 
     private static func testProgressMapping() {
         require(
+            IosModelAssetProgress.map(downloadedBytes: 0, totalBytes: 100) == .queued,
+            "zero-byte restored tasks must remain queued"
+        )
+        require(
             IosModelAssetProgress.map(downloadedBytes: 12, totalBytes: 100) ==
                 .known(downloadedBytes: 12, totalBytes: 100),
             "known totals must remain known"

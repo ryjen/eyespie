@@ -137,10 +137,12 @@ struct IosModelAssetTaskStateMachine {
 }
 
 enum IosModelAssetProgress: Equatable {
+    case queued
     case known(downloadedBytes: Int64, totalBytes: Int64)
     case unknown(downloadedBytes: Int64)
 
     static func map(downloadedBytes: Int64, totalBytes: Int64) -> Self {
+        guard downloadedBytes > 0 else { return .queued }
         if totalBytes > 0 {
             return .known(downloadedBytes: downloadedBytes, totalBytes: totalBytes)
         }
@@ -567,17 +569,15 @@ final class IosUrlSessionModelAssetTransport: NSObject, IosModelAssetTransport {
             downloadedBytes: downloadedBytes,
             totalBytes: totalBytes
         ) {
+        case .queued:
+            eventStream.emitQueued()
         case let .known(downloadedBytes, totalBytes):
             eventStream.emitDownloading(
                 downloadedBytes: downloadedBytes,
                 totalBytes: totalBytes
             )
         case let .unknown(downloadedBytes):
-            if downloadedBytes > 0 {
-                eventStream.emitDownloadingUnknownTotal(downloadedBytes: downloadedBytes)
-            } else {
-                eventStream.emitQueued()
-            }
+            eventStream.emitDownloadingUnknownTotal(downloadedBytes: downloadedBytes)
         }
     }
 
