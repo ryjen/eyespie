@@ -264,6 +264,25 @@ extension URLSession: ModelAssetURLSession {
     }
 }
 
+struct IosModelAssetTaskInventory {
+    let matchingTasks: [ModelAssetDownloadTask]
+    let staleTasks: [ModelAssetDownloadTask]
+
+    static func partition(
+        tasks: [ModelAssetDownloadTask],
+        expectedTaskDescription: String
+    ) -> IosModelAssetTaskInventory {
+        IosModelAssetTaskInventory(
+            matchingTasks: tasks.filter {
+                $0.taskDescription == expectedTaskDescription
+            },
+            staleTasks: tasks.filter {
+                $0.taskDescription != expectedTaskDescription
+            }
+        )
+    }
+}
+
 // MARK: - App-owned staging
 
 final class IosModelAssetStagingStore {
@@ -528,9 +547,15 @@ final class IosUrlSessionModelAssetTransport: NSObject, IosModelAssetTransport {
         session.existingTasks { [weak self] tasks in
             guard let self else { return }
             self.stateQueue.async {
-                let matchingTasks = tasks
-                    .filter { $0.taskDescription == self.configuration.taskDescription }
-                    .sorted { $0.taskIdentifier < $1.taskIdentifier }
+                let inventory = IosModelAssetTaskInventory.partition(
+                    tasks: tasks,
+                    expectedTaskDescription: self.configuration.taskDescription
+                )
+                inventory.staleTasks.forEach { $0.cancel() }
+
+                let matchingTasks = inventory.matchingTasks.sorted {
+                    $0.taskIdentifier < $1.taskIdentifier
+                }
                 let plan = self.taskState.restorationPlan(
                     candidateTaskIdentifiers: matchingTasks.map(\.taskIdentifier)
                 )
