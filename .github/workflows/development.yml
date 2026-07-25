@@ -27,7 +27,7 @@ jobs:
     environment: development
 
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
@@ -42,7 +42,7 @@ jobs:
     environment: development
 
     steps:
-      - uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
@@ -60,6 +60,6 @@ jobs:
           login_email: ${{ inputs.login_email }}
           login_password: ${{ inputs.login_password }}
 
-      - uses: maierj/fastlane-action@5a3b971aaa26776459bb26894d6c1a1a84a311a7 # v3.1.0
+      - uses: maierj/fastlane-action@182983d8f94bad9884001c03c1c2786f4c7165ed # v3.2.0
         with:
           lane: "test"
