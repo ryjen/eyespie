@@ -26,7 +26,7 @@ EXTERNAL SOURCES:
     :path: "../eyespie"
 
 SPEC CHECKSUMS:
-  eyespie: 68bbb422f29a110070bb9058dcd078e1da5a5f26
+  eyespie: 3695db7d3b2bcb81ddbcc4b0c9f71cd2b794aefc
   MediaPipeTasksCommon: 6cfa29170d4900f04d250ad95ec058f14a741f38
   MediaPipeTasksGenAI: 076ba7032a6e9da16db9c7cf0c3b67c751c18bc1
   MediaPipeTasksGenAIC: ec35d9f431f6a6b651a0bc9f67a4ed149ffa575c
