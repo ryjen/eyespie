@@ -16,11 +16,23 @@ class IosModelAssetRepository(
 ) : ModelAssetRepository {
     private val initialState = capabilities.snapshot().availability().initialModelAssetState()
     private val state = MutableStateFlow<ModelAssetState>(initialState)
+    private var pendingArtifact: IosDownloadedArtifact? = null
 
     init {
         scope.launch {
             transport.observe().collect { event ->
-                state.value = event.toModelAssetState(state.value)
+                if (event is IosModelAssetTransportEvent.Downloaded) {
+                    pendingArtifact = IosDownloadedArtifact(
+                        temporaryPath = event.temporaryPath,
+                        totalBytes = event.totalBytes,
+                    )
+                } else if (event is IosModelAssetTransportEvent.Cancelled) {
+                    pendingArtifact = null
+                }
+                state.value = event.toModelAssetState(
+                    currentState = state.value,
+                    capabilityState = capabilities.snapshot().availability().initialModelAssetState(),
+                )
             }
         }
     }
@@ -30,8 +42,23 @@ class IosModelAssetRepository(
     override suspend fun requestDownload() {
         when (capabilities.snapshot().availability()) {
             ModelDeliveryAvailability.Available -> {
+                pendingArtifact = null
                 state.value = ModelAssetState.Queued()
-                transport.schedule()
+                try {
+                    transport.schedule()
+                } catch (error: IosModelAssetTransportException) {
+                    state.value = ModelAssetState.Failed(
+                        stage = FailureStage.Scheduling,
+                        recoverable = error.recoverable,
+                        diagnosticCode = error.diagnosticCode,
+                    )
+                } catch (_: Throwable) {
+                    state.value = ModelAssetState.Failed(
+                        stage = FailureStage.Scheduling,
+                        recoverable = false,
+                        diagnosticCode = "model_delivery_schedule_failed",
+                    )
+                }
             }
 
             ModelDeliveryAvailability.UnsupportedOperatingSystem ->
@@ -45,16 +72,20 @@ class IosModelAssetRepository(
     override suspend fun cancelDownload() {
         transport.cancel()
         transport.removeTemporaryArtifacts()
+        pendingArtifact = null
         state.value = capabilities.snapshot().availability().initialModelAssetState()
     }
 
     override suspend fun remove() {
         transport.cancel()
         transport.removeTemporaryArtifacts()
+        pendingArtifact = null
         state.value = capabilities.snapshot().availability().initialModelAssetState()
     }
 
     override suspend fun resolveReadyModel(): ReadyModel? = null
+
+    internal fun pendingDownloadedArtifact(): IosDownloadedArtifact? = pendingArtifact
 
     internal fun close() {
         scope.cancel()
@@ -63,6 +94,7 @@ class IosModelAssetRepository(
 
 private fun IosModelAssetTransportEvent.toModelAssetState(
     currentState: ModelAssetState,
+    capabilityState: ModelAssetState,
 ): ModelAssetState = when (this) {
     IosModelAssetTransportEvent.Idle -> currentState
     is IosModelAssetTransportEvent.Queued -> ModelAssetState.Queued(reason)
@@ -82,5 +114,5 @@ private fun IosModelAssetTransportEvent.toModelAssetState(
         diagnosticCode = diagnosticCode,
     )
 
-    IosModelAssetTransportEvent.Cancelled -> ModelAssetState.NotInstalled
+    IosModelAssetTransportEvent.Cancelled -> capabilityState
 }
