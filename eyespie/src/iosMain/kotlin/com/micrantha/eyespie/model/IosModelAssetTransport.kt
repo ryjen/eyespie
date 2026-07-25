@@ -4,6 +4,7 @@ import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.asSharedFlow
+import kotlin.coroutines.cancellation.CancellationException
 
 /**
  * Narrow bridge implemented by the native iOS layer.
@@ -14,7 +15,7 @@ import kotlinx.coroutines.flow.asSharedFlow
 interface IosModelAssetTransport {
     fun observe(): Flow<IosModelAssetTransportEvent>
 
-    @Throws(IosModelAssetTransportException::class)
+    @Throws(IosModelAssetTransportException::class, CancellationException::class)
     suspend fun schedule()
 
     suspend fun cancel()
