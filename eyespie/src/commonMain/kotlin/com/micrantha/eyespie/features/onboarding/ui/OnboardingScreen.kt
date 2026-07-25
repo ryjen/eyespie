@@ -55,6 +55,11 @@ class OnboardingScreen : Screen, StateRenderer<OnboardingUiState> {
             pageCount = { OnboardingPage.entries.size },
         )
 
+        LaunchedEffect(state.page) {
+            if (pagerState.currentPage != state.page.ordinal) {
+                pagerState.animateScrollToPage(state.page.ordinal)
+            }
+        }
         LaunchedEffect(pagerState.currentPage) {
             delay(300)
             dispatch(OnboardingAction.PageChanged(pagerState.currentPage))
