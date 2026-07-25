@@ -173,8 +173,41 @@ final class IosUrlSessionModelAssetTransport: NSObject, IosModelAssetTransport {
         OperationQueue
     ) -> ModelAssetURLSession
 
+    private static let backgroundHandlerQueue = DispatchQueue(
+        label: "com.micrantha.eyespie.model-asset-background-handlers"
+    )
+    private static var backgroundHandlersByIdentifier: [String: [() -> Void]] = [:]
+
     static func sessionIdentifier(bundleIdentifier: String) -> String {
         "\(bundleIdentifier).model-asset.background-url-session"
+    }
+
+    @discardableResult
+    static func retainBackgroundSessionCompletion(
+        identifier: String,
+        bundleIdentifier: String,
+        completionHandler: @escaping () -> Void
+    ) -> Bool {
+        guard identifier == sessionIdentifier(bundleIdentifier: bundleIdentifier) else {
+            completionHandler()
+            return false
+        }
+
+        backgroundHandlerQueue.sync {
+            backgroundHandlersByIdentifier[identifier, default: []].append(completionHandler)
+        }
+        return true
+    }
+
+    static func completeBackgroundSessionEvents(identifier: String) {
+        let completionHandlers = backgroundHandlerQueue.sync {
+            backgroundHandlersByIdentifier.removeValue(forKey: identifier) ?? []
+        }
+        guard !completionHandlers.isEmpty else { return }
+
+        DispatchQueue.main.async {
+            completionHandlers.forEach { $0() }
+        }
     }
 
     static func makeSessionConfiguration(identifier: String) -> URLSessionConfiguration {
@@ -204,7 +237,6 @@ final class IosUrlSessionModelAssetTransport: NSObject, IosModelAssetTransport {
     private var session: ModelAssetURLSession!
     private var activeTask: ModelAssetDownloadTask?
     private var terminalTaskIdentifiers = Set<Int>()
-    private var backgroundCompletionHandlers: [() -> Void] = []
 
     init(
         bundleIdentifier: String,
@@ -301,20 +333,6 @@ final class IosUrlSessionModelAssetTransport: NSObject, IosModelAssetTransport {
         }
     }
 
-    func handleEventsForBackgroundSession(
-        identifier: String,
-        completionHandler: @escaping () -> Void
-    ) {
-        guard identifier == backgroundSessionIdentifier else {
-            completionHandler()
-            return
-        }
-
-        stateQueue.async {
-            self.backgroundCompletionHandlers.append(completionHandler)
-        }
-    }
-
     private func restoreExistingBackgroundTask() {
         session.existingTasks { [weak self] tasks in
             guard let self else { return }
@@ -376,6 +394,18 @@ final class IosUrlSessionModelAssetTransport: NSObject, IosModelAssetTransport {
         }
     }
 
+    private func failCurrentTask(
+        taskIdentifier: Int,
+        recoverable: Bool,
+        diagnosticCode: String
+    ) {
+        finishCurrentTask(taskIdentifier: taskIdentifier)
+        eventStream.emitFailed(
+            recoverable: recoverable,
+            diagnosticCode: diagnosticCode
+        )
+    }
+
     private func mapFailure(_ error: Error) -> (recoverable: Bool, diagnosticCode: String) {
         let urlError = error as? URLError
         switch urlError?.code {
@@ -389,6 +419,15 @@ final class IosUrlSessionModelAssetTransport: NSObject, IosModelAssetTransport {
             return (false, "model_download_remote_configuration_invalid")
         default:
             return (false, "model_download_transport_failed")
+        }
+    }
+
+    private func mapHTTPFailure(statusCode: Int) -> (recoverable: Bool, diagnosticCode: String) {
+        switch statusCode {
+        case 408, 425, 429, 500 ... 599:
+            return (true, "model_download_http_temporarily_unavailable")
+        default:
+            return (false, "model_download_http_response_invalid")
         }
     }
 }
@@ -416,21 +455,43 @@ extension IosUrlSessionModelAssetTransport: URLSessionDownloadDelegate {
         didFinishDownloadingTo location: URL
     ) {
         stateQueue.async {
-            guard self.isCurrent(taskIdentifier: downloadTask.taskIdentifier) else {
+            let taskIdentifier = downloadTask.taskIdentifier
+            guard self.isCurrent(taskIdentifier: taskIdentifier) else {
                 try? FileManager.default.removeItem(at: location)
+                return
+            }
+
+            guard let response = downloadTask.response as? HTTPURLResponse else {
+                try? FileManager.default.removeItem(at: location)
+                self.failCurrentTask(
+                    taskIdentifier: taskIdentifier,
+                    recoverable: false,
+                    diagnosticCode: "model_download_response_missing"
+                )
+                return
+            }
+
+            guard (200 ... 299).contains(response.statusCode) else {
+                try? FileManager.default.removeItem(at: location)
+                let failure = self.mapHTTPFailure(statusCode: response.statusCode)
+                self.failCurrentTask(
+                    taskIdentifier: taskIdentifier,
+                    recoverable: failure.recoverable,
+                    diagnosticCode: failure.diagnosticCode
+                )
                 return
             }
 
             do {
                 let staged = try self.stagingStore.stageDownloadedFile(at: location)
-                self.finishCurrentTask(taskIdentifier: downloadTask.taskIdentifier)
+                self.finishCurrentTask(taskIdentifier: taskIdentifier)
                 self.eventStream.emitDownloaded(
                     temporaryPath: staged.url.path,
                     totalBytes: staged.bytes
                 )
             } catch {
-                self.finishCurrentTask(taskIdentifier: downloadTask.taskIdentifier)
-                self.eventStream.emitFailed(
+                self.failCurrentTask(
+                    taskIdentifier: taskIdentifier,
                     recoverable: false,
                     diagnosticCode: "model_download_staging_failed"
                 )
@@ -440,6 +501,16 @@ extension IosUrlSessionModelAssetTransport: URLSessionDownloadDelegate {
 }
 
 extension IosUrlSessionModelAssetTransport {
+    func urlSession(
+        _ session: URLSession,
+        taskIsWaitingForConnectivity task: URLSessionTask
+    ) {
+        stateQueue.async {
+            guard self.isCurrent(taskIdentifier: task.taskIdentifier) else { return }
+            self.eventStream.emitWaitingForNetwork()
+        }
+    }
+
     func urlSession(
         _ session: URLSession,
         task: URLSessionTask,
@@ -454,8 +525,8 @@ extension IosUrlSessionModelAssetTransport {
 
             if let error {
                 let failure = self.mapFailure(error)
-                self.finishCurrentTask(taskIdentifier: taskIdentifier)
-                self.eventStream.emitFailed(
+                self.failCurrentTask(
+                    taskIdentifier: taskIdentifier,
                     recoverable: failure.recoverable,
                     diagnosticCode: failure.diagnosticCode
                 )
@@ -464,8 +535,8 @@ extension IosUrlSessionModelAssetTransport {
 
             // A successful task must first deliver didFinishDownloadingTo. Reaching this callback
             // without a staged artifact is a terminal lifecycle violation.
-            self.finishCurrentTask(taskIdentifier: taskIdentifier)
-            self.eventStream.emitFailed(
+            self.failCurrentTask(
+                taskIdentifier: taskIdentifier,
                 recoverable: false,
                 diagnosticCode: "model_download_missing_staged_artifact"
             )
@@ -474,13 +545,7 @@ extension IosUrlSessionModelAssetTransport {
 
     func urlSessionDidFinishEvents(forBackgroundURLSession session: URLSession) {
         stateQueue.async {
-            let completionHandlers = self.backgroundCompletionHandlers
-            self.backgroundCompletionHandlers.removeAll(keepingCapacity: true)
-            guard !completionHandlers.isEmpty else { return }
-
-            DispatchQueue.main.async {
-                completionHandlers.forEach { $0() }
-            }
+            Self.completeBackgroundSessionEvents(identifier: self.backgroundSessionIdentifier)
         }
     }
 }
