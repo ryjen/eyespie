@@ -4,6 +4,7 @@ import com.micrantha.bluebell.platform.FileSystem
 import com.micrantha.bluebell.platform.GenAI
 import com.micrantha.bluebell.platform.Platform
 import com.micrantha.bluebell.platform.PlatformGenAI
+import com.micrantha.bluebell.platform.PlatformImpl
 import com.micrantha.eyespie.core.data.db.DatabaseDriverFactory
 import com.micrantha.eyespie.model.iosModelAssetModule
 import com.micrantha.eyespie.platform.scan.analyzer.DetectCaptureAnalyzer
@@ -22,8 +23,9 @@ fun iosModules(app: AppDelegate) = DI {
 
     import(iosModelAssetModule(app.modelDeliveryCapabilities))
 
-    bindSingleton { Platform(app.networkMonitor) }
-    delegate<FileSystem>().to<Platform>()
+    bindSingleton { PlatformImpl(app.networkMonitor) }
+    delegate<Platform>().to<PlatformImpl>()
+    delegate<FileSystem>().to<PlatformImpl>()
 
     bindSingletonOf(::PlatformGenAI)
     delegate<GenAI>().to<PlatformGenAI>()
