@@ -29,7 +29,12 @@ class OnboardingMapper(
                     it.key == state.selectedModel,
                 )
             } ?: emptyList(),
-            capabilities = state.capabilities.map(::mapCapability),
+            capabilities = state.capabilities
+                .filterNot {
+                    it.authorization == CapabilityAuthorization.Unsupported ||
+                        it.authorization == CapabilityAuthorization.NotRequired
+                }
+                .map(::mapCapability),
             requestInFlight = state.requestInFlight,
         )
 
