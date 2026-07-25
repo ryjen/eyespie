@@ -10,10 +10,8 @@ import dev.icerock.moko.permissions.PermissionState
 import dev.icerock.moko.permissions.PermissionsController
 import dev.icerock.moko.permissions.RequestCanceledException
 import dev.icerock.moko.permissions.camera.CAMERA
-import dev.icerock.moko.permissions.notifications.REMOTE_NOTIFICATION
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 
 interface CapabilityPermissionGateway {
     suspend fun loadCapabilities(previous: List<CapabilityState>): List<CapabilityState>
@@ -46,9 +44,7 @@ class MokoCapabilityPermissionGateway(
             CapabilityState(
                 capability = OnboardingCapability.Notifications,
                 authorization = safely(notificationsPrevious) {
-                    permissionsController
-                        .getPermissionState(Permission.REMOTE_NOTIFICATION)
-                        .toCapabilityAuthorization(notificationsPrevious)
+                    currentNotificationAuthorization(permissionsController, notificationsPrevious)
                 },
                 canRequestDuringOnboarding = false,
             ),
@@ -58,15 +54,22 @@ class MokoCapabilityPermissionGateway(
     override suspend fun requestAuthorization(
         capability: OnboardingCapability,
         previous: CapabilityAuthorization,
-    ): CapabilityAuthorization = requestMutex.withLock {
-        when (capability) {
-            OnboardingCapability.CameraScanning -> requestCamera(previous)
-            OnboardingCapability.Notifications -> previous
+    ): CapabilityAuthorization {
+        if (!requestMutex.tryLock()) return previous
+        return try {
+            when (capability) {
+                OnboardingCapability.CameraScanning -> requestCamera(previous)
+                OnboardingCapability.Notifications -> previous
+            }
+        } finally {
+            requestMutex.unlock()
         }
     }
 
     override fun openSettings(capability: OnboardingCapability) {
-        permissionsController.openAppSettings()
+        if (capability == OnboardingCapability.CameraScanning) {
+            permissionsController.openAppSettings()
+        }
     }
 
     private suspend fun requestCamera(previous: CapabilityAuthorization): CapabilityAuthorization = try {
@@ -93,6 +96,11 @@ class MokoCapabilityPermissionGateway(
 }
 
 internal expect suspend fun currentCameraAuthorization(
+    permissionsController: PermissionsController,
+    previous: CapabilityAuthorization,
+): CapabilityAuthorization
+
+internal expect suspend fun currentNotificationAuthorization(
     permissionsController: PermissionsController,
     previous: CapabilityAuthorization,
 ): CapabilityAuthorization
