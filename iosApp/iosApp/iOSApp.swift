@@ -1,11 +1,12 @@
 import SwiftUI
-import eyespie
 
 @main
 struct iOSApp: App {
-	var body: some Scene {
-		WindowGroup {
-			ContentView()
-		}
-	}
+    @UIApplicationDelegateAdaptor(iOSAppDelegate.self) private var appDelegate
+
+    var body: some Scene {
+        WindowGroup {
+            ContentView()
+        }
+    }
 }
