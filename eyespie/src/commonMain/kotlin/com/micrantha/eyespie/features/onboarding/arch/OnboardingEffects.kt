@@ -117,7 +117,7 @@ class OnboardingEffects(
             val authorization = capabilityPermissionGateway.requestAuthorization(
                 capability = action.capability,
                 previous = capability.authorization,
-            )
+            ) ?: return
             dispatch(CapabilityRequestResolved(action.capability, authorization))
         } catch (cancelled: CancellationException) {
             dispatch(CapabilityRequestFailed(action.capability))
