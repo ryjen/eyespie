@@ -1,11 +1,14 @@
 package com.micrantha.eyespie.model
 
+import kotlinx.coroutines.channels.BufferOverflow
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableSharedFlow
+import kotlinx.coroutines.flow.asSharedFlow
 
 /**
  * Narrow bridge implemented by the native iOS layer.
  *
- * The bridge owns URLSession lifecycle and temporary-file cleanup. Kotlin maps transport
+ * The bridge owns URLSession lifecycle and app-owned staging cleanup. Kotlin maps transport
  * observations into the shared model lifecycle and never treats transfer completion as Ready.
  */
 interface IosModelAssetTransport {
@@ -26,6 +29,7 @@ class IosModelAssetTransportException(
 ) : Exception(diagnosticCode, cause)
 
 internal data class IosDownloadedArtifact(
+    /** App-owned staging path. It is internal and is not exposed through shared public state. */
     val temporaryPath: String,
     val totalBytes: Long,
 )
@@ -42,7 +46,7 @@ sealed interface IosModelAssetTransportEvent {
         val totalBytes: Long?,
     ) : IosModelAssetTransportEvent
 
-    /** Transfer completed into a temporary location; verification is intentionally not included. */
+    /** Transfer completed into app-owned staging; verification is intentionally not included. */
     data class Downloaded(
         val temporaryPath: String,
         val totalBytes: Long,
@@ -54,6 +58,63 @@ sealed interface IosModelAssetTransportEvent {
     ) : IosModelAssetTransportEvent
 
     data object Cancelled : IosModelAssetTransportEvent
+}
+
+/**
+ * Kotlin-owned event stream used by the Swift transport implementation.
+ *
+ * Swift owns URLSession and filesystem behavior; this class only avoids requiring Swift to
+ * construct kotlinx.coroutines Flow implementations or Kotlin sealed-event subclasses directly.
+ */
+class IosModelAssetTransportEventStream {
+    private val events = MutableSharedFlow<IosModelAssetTransportEvent>(
+        replay = 1,
+        extraBufferCapacity = 16,
+        onBufferOverflow = BufferOverflow.DROP_OLDEST,
+    )
+
+    fun observe(): Flow<IosModelAssetTransportEvent> = events.asSharedFlow()
+
+    fun emitIdle() {
+        events.tryEmit(IosModelAssetTransportEvent.Idle)
+    }
+
+    fun emitQueued() {
+        events.tryEmit(IosModelAssetTransportEvent.Queued())
+    }
+
+    fun emitWaitingForNetwork() {
+        events.tryEmit(IosModelAssetTransportEvent.Queued(QueueReason.WaitingForNetwork))
+    }
+
+    fun emitDownloading(
+        downloadedBytes: Long,
+        totalBytes: Long,
+    ) {
+        events.tryEmit(IosModelAssetTransportEvent.Downloading(downloadedBytes, totalBytes))
+    }
+
+    fun emitDownloadingUnknownTotal(downloadedBytes: Long) {
+        events.tryEmit(IosModelAssetTransportEvent.Downloading(downloadedBytes, null))
+    }
+
+    fun emitDownloaded(
+        temporaryPath: String,
+        totalBytes: Long,
+    ) {
+        events.tryEmit(IosModelAssetTransportEvent.Downloaded(temporaryPath, totalBytes))
+    }
+
+    fun emitFailed(
+        recoverable: Boolean,
+        diagnosticCode: String,
+    ) {
+        events.tryEmit(IosModelAssetTransportEvent.Failed(recoverable, diagnosticCode))
+    }
+
+    fun emitCancelled() {
+        events.tryEmit(IosModelAssetTransportEvent.Cancelled)
+    }
 }
 
 internal object UnconfiguredIosModelAssetTransport : IosModelAssetTransport {
