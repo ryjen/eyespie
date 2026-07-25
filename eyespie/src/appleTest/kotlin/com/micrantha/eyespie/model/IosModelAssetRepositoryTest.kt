@@ -50,6 +50,24 @@ class IosModelAssetRepositoryTest {
     }
 
     @Test
+    fun defaultProductionModuleFailsClosedUntilNativeConfigurationExists() = runTest {
+        val dependencies = DI {
+            import(iosModelAssetModule())
+        }
+        val repository = dependencies.direct.instance<ModelAssetRepository>()
+
+        assertEquals(
+            ModelAssetState.Failed(
+                stage = FailureStage.Scheduling,
+                recoverable = false,
+                diagnosticCode = "model_delivery_not_configured",
+            ),
+            repository.observe().first(),
+        )
+        assertNull(repository.resolveReadyModel())
+    }
+
+    @Test
     fun availableRepositoryStartsNotInstalledAndNeverResolvesReadyModel() = runTest {
         val repository = repositoryFor(
             capabilitySnapshot(
