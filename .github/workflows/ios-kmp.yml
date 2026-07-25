@@ -87,11 +87,16 @@ jobs:
           ./gradlew :app:tasks :bluebell:tasks --all --no-daemon > build-ios-tasks.txt
 
           app_compile_task=:app:compileKotlinIosSimulatorArm64
+          app_test_compile_task=:app:compileTestKotlinIosSimulatorArm64
           app_test_task=:app:iosSimulatorArm64Test
           bluebell_test_task=:bluebell:iosSimulatorArm64Test
 
           grep -Fq "compileKotlinIosSimulatorArm64" build-ios-tasks.txt || {
             echo "Missing expected simulator compile task: $app_compile_task" >&2
+            exit 1
+          }
+          grep -Fq "compileTestKotlinIosSimulatorArm64" build-ios-tasks.txt || {
+            echo "Missing expected simulator test compile task: $app_test_compile_task" >&2
             exit 1
           }
           grep -Fq "iosSimulatorArm64Test" build-ios-tasks.txt || {
@@ -100,6 +105,7 @@ jobs:
           }
 
           echo "app_compile=$app_compile_task" >> "$GITHUB_OUTPUT"
+          echo "app_test_compile=$app_test_compile_task" >> "$GITHUB_OUTPUT"
           echo "app_test=$app_test_task" >> "$GITHUB_OUTPUT"
           echo "bluebell_test=$bluebell_test_task" >> "$GITHUB_OUTPUT"
 
@@ -109,6 +115,7 @@ jobs:
           set -o pipefail
           ./gradlew \
             "${{ steps.tasks.outputs.app_compile }}" \
+            "${{ steps.tasks.outputs.app_test_compile }}" \
             "${{ steps.tasks.outputs.app_test }}" \
             "${{ steps.tasks.outputs.bluebell_test }}" \
             --no-daemon \
