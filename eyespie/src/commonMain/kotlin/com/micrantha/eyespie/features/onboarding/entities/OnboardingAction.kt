@@ -5,7 +5,11 @@ sealed interface OnboardingAction {
     data object RefreshCapabilities : OnboardingAction
     data object SkipDownload : OnboardingAction
     data class Loaded(val models: OnboardingModels) : OnboardingAction
-    data class CapabilitiesLoaded(val capabilities: List<CapabilityState>) : OnboardingAction
+    data class CapabilitiesLoaded(
+        val previous: List<CapabilityState>,
+        val capabilities: List<CapabilityState>,
+    ) : OnboardingAction
+
     data object NextPage : OnboardingAction
     data object Done : OnboardingAction
     data object Download : OnboardingAction
