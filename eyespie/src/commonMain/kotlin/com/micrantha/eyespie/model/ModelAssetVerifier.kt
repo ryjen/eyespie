@@ -64,10 +64,8 @@ class ModelAssetVerifier private constructor(
         cancellationCheck()
         val manifestContent = try {
             val source = fileSystem.source(manifestPath).buffer()
-            try {
+            closePreservingPrimaryFailure(source::close) {
                 source.readUtf8()
-            } finally {
-                source.close()
             }
         } catch (cancellation: CancellationException) {
             throw cancellation
@@ -136,7 +134,7 @@ class ModelAssetVerifier private constructor(
         }
         var actualBytes = 0L
         val actualDigest = try {
-            try {
+            closePreservingPrimaryFailure(hashingSource::close) {
                 val buffer = Buffer()
                 while (true) {
                     cancellationCheck()
@@ -145,8 +143,6 @@ class ModelAssetVerifier private constructor(
                     actualBytes += read
                     buffer.clear()
                 }
-            } finally {
-                hashingSource.close()
             }
             hashingSource.hash.hex()
         } catch (cancellation: CancellationException) {
@@ -190,5 +186,29 @@ class ModelAssetVerifier private constructor(
 
     private companion object {
         const val BUFFER_SIZE = 8_192L
+
+        inline fun <T> closePreservingPrimaryFailure(
+            close: () -> Unit,
+            block: () -> T,
+        ): T {
+            var primaryFailure: Throwable? = null
+            try {
+                return block()
+            } catch (failure: Throwable) {
+                primaryFailure = failure
+                throw failure
+            } finally {
+                val primary = primaryFailure
+                if (primary == null) {
+                    close()
+                } else {
+                    try {
+                        close()
+                    } catch (closeFailure: Throwable) {
+                        primary.addSuppressed(closeFailure)
+                    }
+                }
+            }
+        }
     }
 }
