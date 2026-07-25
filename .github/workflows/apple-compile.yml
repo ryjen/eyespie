@@ -39,13 +39,17 @@ jobs:
         run: cp env.example .env.local
 
       - name: Compile Apple production and test sources
-        run: >-
-          ./gradlew
-          :app:compileKotlinIosSimulatorArm64
-          :app:compileTestKotlinIosSimulatorArm64
-          --no-daemon
-          --build-cache
-          --configuration-cache
+        shell: bash
+        run: |
+          set -o pipefail
+          mkdir -p build/reports/apple-compile
+          ./gradlew \
+            :app:compileKotlinIosSimulatorArm64 \
+            :app:compileTestKotlinIosSimulatorArm64 \
+            --no-daemon \
+            --build-cache \
+            --configuration-cache \
+            2>&1 | tee build/reports/apple-compile/gradle.log
 
       - name: Upload Apple compile diagnostics
         if: failure()
@@ -53,6 +57,7 @@ jobs:
         with:
           name: eyespie-apple-compile-diagnostics-${{ github.sha }}
           path: |
+            build/reports/apple-compile/**
             **/build/reports/problems/**
             **/build/test-results/**
           if-no-files-found: ignore
