@@ -19,7 +19,7 @@ class AppDelegate(
         private set
 
     /**
-     * Installs the real native transport and atomically enables the corresponding capability.
+     * Installs the real native transport and enables its capability before application modules resolve.
      * The Kotlin-only composition path remains fail-closed because it never calls this method.
      */
     fun installModelAssetTransport(transport: IosModelAssetTransport) {
