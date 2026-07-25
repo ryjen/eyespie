@@ -2,12 +2,14 @@ package com.micrantha.eyespie.features.login.arch
 
 import com.micrantha.bluebell.ui.model.UiResult
 import com.micrantha.eyespie.features.login.entities.LoginState
+import kotlin.experimental.ExperimentalNativeApi
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
+@OptIn(ExperimentalNativeApi::class)
 class LoginMapperTest {
 
     private val mapper = LoginMapper()
