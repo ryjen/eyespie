@@ -85,7 +85,10 @@ private fun BoxWithConstraintsScope.RenderCameraAuthorization(
     state: ScanUiState,
     dispatch: Dispatch,
 ) {
-    RenderBackButton(dispatch)
+    RenderBackButton(
+        dispatch = dispatch,
+        tint = MaterialTheme.colorScheme.onSurface,
+    )
 
     Column(
         modifier = Modifier.align(Alignment.Center)
@@ -169,11 +172,17 @@ private fun BoxWithConstraintsScope.RenderCamera(
         }
     }
 
-    RenderBackButton(dispatch)
+    RenderBackButton(
+        dispatch = dispatch,
+        tint = MaterialTheme.colorScheme.surface,
+    )
 }
 
 @Composable
-private fun BoxWithConstraintsScope.RenderBackButton(dispatch: Dispatch) {
+private fun BoxWithConstraintsScope.RenderBackButton(
+    dispatch: Dispatch,
+    tint: Color,
+) {
     TextButton(
         modifier = Modifier.align(Alignment.TopStart).size(Dimensions.touchable)
             .padding(top = Dimensions.screen, start = Dimensions.screen),
@@ -184,7 +193,7 @@ private fun BoxWithConstraintsScope.RenderBackButton(dispatch: Dispatch) {
         Icon(
             imageVector = Icons.Default.ChevronLeft,
             contentDescription = "Back",
-            tint = MaterialTheme.colorScheme.surface,
+            tint = tint,
         )
     }
 }
