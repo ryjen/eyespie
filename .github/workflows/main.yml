@@ -41,6 +41,9 @@ jobs:
       - name: Verify model metadata contract
         run: python3 scripts/stage_android_model_artifact.py verify
 
+      - name: Test Android bundle topology validator
+        run: python3 -m unittest scripts.tests.test_validate_android_bundle
+
       - name: Compile Android production and unit-test sources
         run: >-
           ./gradlew
@@ -146,6 +149,51 @@ jobs:
           --build-cache
           --configuration-cache
 
+      - name: Resolve generated debug bundle
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          bundles=(eyespie/build/outputs/bundle/debug/*.aab)
+          if (( ${#bundles[@]} != 1 )); then
+            printf 'expected exactly one debug AAB, found %d\n' "${#bundles[@]}" >&2
+            printf 'candidate: %s\n' "${bundles[@]:-none}" >&2
+            exit 1
+          fi
+          printf 'AAB_PATH=%s\n' "${bundles[0]}" >> "$GITHUB_ENV"
+
+      - name: Download pinned bundletool
+        shell: bash
+        run: |
+          set -euo pipefail
+          version=1.18.3
+          expected_sha256=a099cfa1543f55593bc2ed16a70a7c67fe54b1747bb7301f37fdfd6d91028e29
+          mkdir -p build/tools
+          curl --fail --location --proto '=https' --tlsv1.2 \
+            --output build/tools/bundletool.jar \
+            "https://github.com/google/bundletool/releases/download/${version}/bundletool-all-${version}.jar"
+          printf '%s  %s\n' "$expected_sha256" build/tools/bundletool.jar | sha256sum --check --strict
+
+      - name: Decode model-pack manifest
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p build/reports/android-bundle
+          java -jar build/tools/bundletool.jar dump manifest \
+            --bundle="$AAB_PATH" \
+            --module=model_pack \
+            > build/reports/android-bundle/model-pack-manifest.xml
+
+      - name: Validate bundle and model-pack topology
+        run: >-
+          python3 scripts/validate_android_bundle.py
+          --aab "$AAB_PATH"
+          --model-pack-manifest build/reports/android-bundle/model-pack-manifest.xml
+          --report build/reports/android-bundle/topology.md
+
+      - name: Add topology report to workflow summary
+        run: cat build/reports/android-bundle/topology.md >> "$GITHUB_STEP_SUMMARY"
+
       - name: Upload bundle diagnostics
         if: failure()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
@@ -153,7 +201,16 @@ jobs:
           name: eyespie-android-bundle-diagnostics-${{ github.sha }}
           path: |
             **/build/reports/problems/**
+            build/reports/android-bundle/**
           if-no-files-found: ignore
+          retention-days: 7
+
+      - name: Upload bundle topology report
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: eyespie-android-bundle-topology-${{ github.sha }}
+          path: build/reports/android-bundle/topology.md
+          if-no-files-found: error
           retention-days: 7
 
       - name: Upload debug app bundle
