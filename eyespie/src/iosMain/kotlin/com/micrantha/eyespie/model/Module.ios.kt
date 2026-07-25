@@ -4,4 +4,10 @@ import org.kodein.di.DI
 
 internal fun iosModelAssetModule(
     capabilities: IosModelDeliveryCapabilities = DefaultIosModelDeliveryCapabilities,
-): DI.Module = modelAssetModule(IosModelAssetRepository(capabilities))
+    transport: IosModelAssetTransport = UnconfiguredIosModelAssetTransport,
+): DI.Module = modelAssetModule(
+    IosModelAssetRepository(
+        capabilities = capabilities,
+        transport = transport,
+    ),
+)
