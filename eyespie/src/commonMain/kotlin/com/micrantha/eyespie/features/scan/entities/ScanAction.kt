@@ -4,20 +4,28 @@ import com.micrantha.eyespie.features.onboarding.entities.CapabilityAuthorizatio
 import com.micrantha.eyespie.platform.scan.CameraImage
 import okio.Path
 
+class CameraAuthorizationRequestId internal constructor()
+
 sealed interface ScanAction {
     data object RefreshCameraAuthorization : ScanAction
-    data object RequestCameraAuthorization : ScanAction
-    data object CameraAuthorizationRequestStarted : ScanAction
+    data class RequestCameraAuthorization(
+        val requestId: CameraAuthorizationRequestId = CameraAuthorizationRequestId(),
+    ) : ScanAction
+
     data class CameraAuthorizationLoaded(
         val previous: CapabilityAuthorization,
         val authorization: CapabilityAuthorization,
     ) : ScanAction
 
     data class CameraAuthorizationRequestResolved(
+        val requestId: CameraAuthorizationRequestId,
         val authorization: CapabilityAuthorization,
     ) : ScanAction
 
-    data object CameraAuthorizationRequestFailed : ScanAction
+    data class CameraAuthorizationRequestFailed(
+        val requestId: CameraAuthorizationRequestId,
+    ) : ScanAction
+
     data object OpenCameraSettings : ScanAction
 
     data class SaveScan(
