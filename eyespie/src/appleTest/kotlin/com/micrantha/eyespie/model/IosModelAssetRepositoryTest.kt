@@ -225,7 +225,10 @@ class IosModelAssetRepositoryTest {
 private class FakeIosModelAssetTransport(
     private val scheduleFailure: Throwable? = null,
 ) : IosModelAssetTransport {
-    private val events = MutableSharedFlow<IosModelAssetTransportEvent>(extraBufferCapacity = 8)
+    private val events = MutableSharedFlow<IosModelAssetTransportEvent>(
+        replay = 1,
+        extraBufferCapacity = 8,
+    )
 
     var scheduleCalls = 0
     var cancelCalls = 0
