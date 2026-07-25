@@ -12,6 +12,7 @@ import dev.icerock.moko.permissions.RequestCanceledException
 import dev.icerock.moko.permissions.camera.CAMERA
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 interface CapabilityPermissionGateway {
     suspend fun loadCapabilities(previous: List<CapabilityState>): List<CapabilityState>
@@ -29,11 +30,13 @@ class MokoCapabilityPermissionGateway(
 ) : CapabilityPermissionGateway {
     private val requestMutex = Mutex()
 
-    override suspend fun loadCapabilities(previous: List<CapabilityState>): List<CapabilityState> {
+    override suspend fun loadCapabilities(
+        previous: List<CapabilityState>,
+    ): List<CapabilityState> = requestMutex.withLock {
         val cameraPrevious = previous.authorizationFor(OnboardingCapability.CameraScanning)
         val notificationsPrevious = previous.authorizationFor(OnboardingCapability.Notifications)
 
-        return listOf(
+        listOf(
             CapabilityState(
                 capability = OnboardingCapability.CameraScanning,
                 authorization = safely(cameraPrevious) {
