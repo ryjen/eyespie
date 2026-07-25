@@ -58,7 +58,7 @@ jobs:
     needs: classify-ios-kmp
     if: needs.classify-ios-kmp.outputs.required == 'true'
     runs-on: macos-15
-    timeout-minutes: 35
+    timeout-minutes: 45
     steps:
       - name: Checkout code
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
@@ -123,6 +123,23 @@ jobs:
             --configuration-cache \
             --stacktrace 2>&1 | tee build-ios-gradle.log
 
+      - name: Install iOS application pods
+        working-directory: iosApp
+        run: pod install
+
+      - name: Build iOS application with Kotlin framework
+        shell: bash
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -workspace iosApp/iosApp.xcworkspace \
+            -scheme iosApp \
+            -configuration Debug \
+            -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' \
+            CODE_SIGNING_ALLOWED=NO \
+            build 2>&1 | tee build-ios-xcode.log
+
       - name: Upload iOS KMP diagnostics
         if: failure()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
@@ -131,6 +148,7 @@ jobs:
           path: |
             build-ios-tasks.txt
             build-ios-gradle.log
+            build-ios-xcode.log
             **/build/reports/tests/**
             **/build/test-results/**
             **/build/reports/problems/**
