@@ -13,15 +13,15 @@ import kotlinx.coroutines.launch
 class IosModelAssetRepository(
     private val capabilities: IosModelDeliveryCapabilities,
     private val transport: IosModelAssetTransport = UnconfiguredIosModelAssetTransport,
-    parentScope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
+    scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
 ) : ModelAssetRepository {
-    private val scope = CoroutineScope(parentScope.coroutineContext + SupervisorJob())
+    private val repositoryScope = CoroutineScope(scope.coroutineContext + SupervisorJob())
     private val initialState = capabilities.snapshot().availability().initialModelAssetState()
     private val state = MutableStateFlow<ModelAssetState>(initialState)
     private var pendingArtifact: IosDownloadedArtifact? = null
 
     init {
-        scope.launch {
+        repositoryScope.launch {
             transport.observe().collect { event ->
                 if (event is IosModelAssetTransportEvent.Downloaded) {
                     pendingArtifact = IosDownloadedArtifact(
@@ -94,7 +94,7 @@ class IosModelAssetRepository(
     internal fun pendingDownloadedArtifact(): IosDownloadedArtifact? = pendingArtifact
 
     internal fun close() {
-        scope.cancel()
+        repositoryScope.cancel()
     }
 }
 
