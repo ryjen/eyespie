@@ -19,7 +19,7 @@ interface CapabilityPermissionGateway {
     suspend fun requestAuthorization(
         capability: OnboardingCapability,
         previous: CapabilityAuthorization,
-    ): CapabilityAuthorization
+    ): CapabilityAuthorization?
 
     fun openSettings(capability: OnboardingCapability)
 }
@@ -54,8 +54,8 @@ class MokoCapabilityPermissionGateway(
     override suspend fun requestAuthorization(
         capability: OnboardingCapability,
         previous: CapabilityAuthorization,
-    ): CapabilityAuthorization {
-        if (!requestMutex.tryLock()) return previous
+    ): CapabilityAuthorization? {
+        if (!requestMutex.tryLock()) return null
         return try {
             when (capability) {
                 OnboardingCapability.CameraScanning -> requestCamera(previous)
