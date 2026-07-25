@@ -48,6 +48,8 @@ class IosModelAssetRepository(
                 try {
                     transport.schedule()
                 } catch (error: CancellationException) {
+                    pendingArtifact = null
+                    state.value = capabilities.snapshot().availability().initialModelAssetState()
                     throw error
                 } catch (error: IosModelAssetTransportException) {
                     state.value = ModelAssetState.Failed(
