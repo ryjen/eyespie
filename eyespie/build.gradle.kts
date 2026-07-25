@@ -162,8 +162,13 @@ kotlin {
             implementation(libs.sqldelight.android.driver)
         }
 
-        iosMain.dependencies {
-            implementation(libs.sqldelight.native.driver)
+        iosMain {
+            kotlin.exclude("com/micrantha/eyespie/platform/scan/CameraAnalyzer.kt")
+            kotlin.exclude("com/micrantha/eyespie/platform/scan/analyzer/**")
+            kotlin.exclude("com/micrantha/eyespie/platform/scan/generator/**")
+            dependencies {
+                implementation(libs.sqldelight.native.driver)
+            }
         }
 
         val androidUnitTest by getting {
@@ -175,141 +180,6 @@ kotlin {
                 implementation(libs.roborazzi)
                 implementation(libs.roborazzi.compose)
                 implementation(libs.roborazzi.junit)
-            }
-        }
-
-        appleTest {
-        }
-
-    }
-}
-java {
-    toolchain {
-        languageVersion.set(JavaLanguageVersion.of(21))
-    }
-}
-android {
-    namespace = "com.micrantha.eyespie"
-    compileSdk = libs.versions.android.compileSdk.get().toInt()
-
-    defaultConfig {
-        minSdk = libs.versions.android.minSdk.get().toInt()
-        targetSdk = libs.versions.android.targetSdk.get().toInt()
-
-        versionCode = 10
-        versionName = "1.0.0"
-    }
-    sourceSets["main"].res.srcDirs("src/androidMain/res")
-    sourceSets["main"].resources.srcDirs("src/commonMain/resources")
-
-    buildFeatures {
-        compose = true
-        buildConfig = true
-        mlModelBinding = true
-    }
-
-    testOptions {
-        unitTests {
-            isIncludeAndroidResources = true
-        }
-    }
-
-    bundle {
-        language {
-            enableSplit = false
-        }
-        density {
-            enableSplit = true
-        }
-        abi {
-            enableSplit = true
-        }
-    }
-    compileOptions {
-        sourceCompatibility = JavaVersion.VERSION_21
-        targetCompatibility = JavaVersion.VERSION_21
-    }
-    packaging {
-        resources {
-            excludes += "/META-INF/{AL2.0,LGPL2.1}"
-            excludes += "META-INF/LICENSE.md"
-            excludes += "META-INF/LICENSE-notice.md"
-        }
-        jniLibs {
-            useLegacyPackaging = false // Ensures uncompressed .so files
-        }
-    }
-    signingConfigs {
-        create("release") {
-            System.getenv("ANDROID_STORE_FILE")?.let { storeFile = file(it) }
-            storePassword = System.getenv("ANDROID_STORE_PASSWORD")
-            keyAlias = System.getenv("ANDROID_KEY_ALIAS")
-            keyPassword = System.getenv("ANDROID_KEY_PASSWORD")
-        }
-    }
-
-    sqldelight {
-        databases {
-            create("EyesPieDatabase") {
-                packageName.set("com.micrantha.eyespie.data")
-            }
-        }
-    }
-
-    buildTypes {
-        debug {
-            applicationIdSuffix = ".debug"
-        }
-        release {
-            isMinifyEnabled = true
-            isShrinkResources = true
-            signingConfig = signingConfigs.getByName("release")
-
-            proguardFiles(
-                getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro"
-            )
-            ndk {
-                debugSymbolLevel = "SYMBOL_TABLE"
-            }
-        }
-    }
-
-    dependencies {
-        debugImplementation(libs.okio.fakefilesystem)
-    }
-}
-
-bluebell {
-    config {
-        packageName = "com.micrantha.eyespie.config"
-        className = "EnvConfig"
-        envFile = ".env.local"
-
-        defaultedKeys = listOf(
-            "SUPABASE_URL",
-            "SUPABASE_KEY",
-            "LOGIN_EMAIL",
-            "LOGIN_PASSWORD",
-        )
-        requiredKeys = listOf(
-            "SUPABASE_URL",
-            "SUPABASE_KEY",
-        )
-    }
-    graphql {
-        serviceName = "eyespie"
-        packagePath = "com.micrantha.eyespie.graphql"
-    }
-
-    afterEvaluate {
-        apollo {
-            service(graphql.serviceName) {
-                packageNamesFromFilePaths(graphql.packagePath)
-                introspection {
-                    endpointUrl = graphql.endpoint
-                    headers.putAll(graphql.headers)
-                }
             }
         }
     }
