@@ -1,7 +1,15 @@
 import Foundation
+#if canImport(FoundationNetworking)
+import FoundationNetworking
+#endif
+#if canImport(Network)
 import Network
+#endif
+#if canImport(eyespie)
 import eyespie
+#endif
 
+#if canImport(eyespie)
 final class iOSNetworkMonitor: NetworkMonitor {
     private let monitor = NWPathMonitor()
     private let queue = DispatchQueue(label: "NetworkMonitor")
@@ -17,6 +25,7 @@ final class iOSNetworkMonitor: NetworkMonitor {
         monitor.cancel()
     }
 }
+#endif
 
 // MARK: - Model asset configuration
 
@@ -38,6 +47,189 @@ struct IosModelAssetDownloadConfiguration: Equatable {
         expectedBytes: 5_592,
         expectedSHA256: "245a5c650f640511cbcb62c22507693ea3429db714d6503371b91cb91191d012"
     )
+}
+
+#if canImport(Darwin)
+enum IosModelAssetSessionPolicy {
+    static func makeConfiguration(identifier: String) -> URLSessionConfiguration {
+        let configuration = URLSessionConfiguration.background(withIdentifier: identifier)
+
+        // Downloads are explicitly user-initiated, so discretionary scheduling is disabled.
+        // The future production artifact is about 584 MB, so cellular, constrained, and
+        // expensive-network access are deliberately disabled.
+        configuration.isDiscretionary = false
+        configuration.allowsCellularAccess = false
+        configuration.allowsConstrainedNetworkAccess = false
+        configuration.allowsExpensiveNetworkAccess = false
+        configuration.waitsForConnectivity = true
+        configuration.sessionSendsLaunchEvents = true
+        configuration.httpMaximumConnectionsPerHost = 1
+        configuration.requestCachePolicy = .reloadIgnoringLocalCacheData
+        return configuration
+    }
+}
+#endif
+
+// MARK: - Deterministic coordinator state
+
+struct IosModelAssetRestorationPlan: Equatable {
+    let restoredTaskIdentifier: Int?
+    let cancelledTaskIdentifiers: [Int]
+}
+
+struct IosModelAssetTaskStateMachine {
+    private(set) var activeTaskIdentifier: Int?
+    private var terminalTaskIdentifiers = Set<Int>()
+
+    mutating func schedule(taskIdentifier: Int) -> Bool {
+        guard activeTaskIdentifier == nil else { return false }
+        terminalTaskIdentifiers.remove(taskIdentifier)
+        activeTaskIdentifier = taskIdentifier
+        return true
+    }
+
+    mutating func restorationPlan(
+        candidateTaskIdentifiers: [Int]
+    ) -> IosModelAssetRestorationPlan {
+        let candidates = Array(Set(candidateTaskIdentifiers)).sorted()
+
+        if let activeTaskIdentifier {
+            return IosModelAssetRestorationPlan(
+                restoredTaskIdentifier: nil,
+                cancelledTaskIdentifiers: candidates.filter { $0 != activeTaskIdentifier }
+            )
+        }
+
+        guard let restoredTaskIdentifier = candidates.last else {
+            return IosModelAssetRestorationPlan(
+                restoredTaskIdentifier: nil,
+                cancelledTaskIdentifiers: []
+            )
+        }
+
+        terminalTaskIdentifiers.remove(restoredTaskIdentifier)
+        activeTaskIdentifier = restoredTaskIdentifier
+        return IosModelAssetRestorationPlan(
+            restoredTaskIdentifier: restoredTaskIdentifier,
+            cancelledTaskIdentifiers: Array(candidates.dropLast())
+        )
+    }
+
+    func acceptsCallback(taskIdentifier: Int) -> Bool {
+        activeTaskIdentifier == taskIdentifier &&
+            !terminalTaskIdentifiers.contains(taskIdentifier)
+    }
+
+    @discardableResult
+    mutating func finish(taskIdentifier: Int) -> Bool {
+        guard acceptsCallback(taskIdentifier: taskIdentifier) else { return false }
+        terminalTaskIdentifiers.insert(taskIdentifier)
+        activeTaskIdentifier = nil
+        return true
+    }
+
+    mutating func cancelCurrentTask() -> Int? {
+        guard let activeTaskIdentifier else { return nil }
+        terminalTaskIdentifiers.insert(activeTaskIdentifier)
+        self.activeTaskIdentifier = nil
+        return activeTaskIdentifier
+    }
+}
+
+enum IosModelAssetProgress: Equatable {
+    case known(downloadedBytes: Int64, totalBytes: Int64)
+    case unknown(downloadedBytes: Int64)
+
+    static func map(downloadedBytes: Int64, totalBytes: Int64) -> Self {
+        if totalBytes > 0 {
+            return .known(downloadedBytes: downloadedBytes, totalBytes: totalBytes)
+        }
+        return .unknown(downloadedBytes: downloadedBytes)
+    }
+}
+
+struct IosModelAssetFailure: Equatable {
+    let recoverable: Bool
+    let diagnosticCode: String
+}
+
+enum IosModelAssetFailurePolicy {
+    static func map(error: Error) -> IosModelAssetFailure {
+        let urlError = error as? URLError
+        switch urlError?.code {
+        case .timedOut, .cannotFindHost, .cannotConnectToHost, .dnsLookupFailed,
+             .networkConnectionLost, .notConnectedToInternet, .resourceUnavailable,
+             .internationalRoamingOff, .callIsActive, .dataNotAllowed:
+            return IosModelAssetFailure(
+                recoverable: true,
+                diagnosticCode: "model_download_network_unavailable"
+            )
+        case .cancelled:
+            return IosModelAssetFailure(
+                recoverable: true,
+                diagnosticCode: "model_download_cancelled"
+            )
+        case .badURL, .unsupportedURL, .userAuthenticationRequired:
+            return IosModelAssetFailure(
+                recoverable: false,
+                diagnosticCode: "model_download_remote_configuration_invalid"
+            )
+        default:
+            return IosModelAssetFailure(
+                recoverable: false,
+                diagnosticCode: "model_download_transport_failed"
+            )
+        }
+    }
+
+    static func mapHTTP(statusCode: Int) -> IosModelAssetFailure {
+        switch statusCode {
+        case 408, 425, 429, 500 ... 599:
+            return IosModelAssetFailure(
+                recoverable: true,
+                diagnosticCode: "model_download_http_temporarily_unavailable"
+            )
+        default:
+            return IosModelAssetFailure(
+                recoverable: false,
+                diagnosticCode: "model_download_http_response_invalid"
+            )
+        }
+    }
+}
+
+final class IosBackgroundSessionCompletionBroker: @unchecked Sendable {
+    static let shared = IosBackgroundSessionCompletionBroker()
+
+    private let queue = DispatchQueue(
+        label: "com.micrantha.eyespie.model-asset-background-handlers"
+    )
+    private var handlersByIdentifier: [String: [() -> Void]] = [:]
+
+    private init() {}
+
+    @discardableResult
+    func retain(
+        identifier: String,
+        expectedIdentifier: String,
+        completionHandler: @escaping () -> Void
+    ) -> Bool {
+        guard identifier == expectedIdentifier else {
+            completionHandler()
+            return false
+        }
+
+        queue.sync {
+            handlersByIdentifier[identifier, default: []].append(completionHandler)
+        }
+        return true
+    }
+
+    func drain(identifier: String) -> [() -> Void] {
+        queue.sync {
+            handlersByIdentifier.removeValue(forKey: identifier) ?? []
+        }
+    }
 }
 
 // MARK: - URLSession seams
@@ -93,7 +285,8 @@ final class IosModelAssetStagingStore {
 
         guard stagingFilename == URL(fileURLWithPath: stagingFilename).lastPathComponent,
               !stagingFilename.contains(".."),
-              !stagingFilename.contains("/") else {
+              !stagingFilename.contains("/"),
+              !stagingFilename.contains("\\") else {
             throw StoreError.unsafeDestination
         }
 
@@ -123,10 +316,12 @@ final class IosModelAssetStagingStore {
             attributes: nil
         )
 
+        #if canImport(Darwin)
         var resourceValues = URLResourceValues()
         resourceValues.isExcludedFromBackup = true
         var mutableRoot = rootDirectory
         try mutableRoot.setResourceValues(resourceValues)
+        #endif
 
         let incomingURL = rootDirectory.appendingPathComponent(
             ".incoming-\(UUID().uuidString)",
@@ -137,12 +332,17 @@ final class IosModelAssetStagingStore {
         do {
             try fileManager.moveItem(at: temporaryURL, to: incomingURL)
             if fileManager.fileExists(atPath: destinationURL.path) {
+                #if canImport(Darwin)
                 _ = try fileManager.replaceItemAt(
                     destinationURL,
                     withItemAt: incomingURL,
                     backupItemName: nil,
                     options: [.usingNewMetadataOnly]
                 )
+                #else
+                try fileManager.removeItem(at: destinationURL)
+                try fileManager.moveItem(at: incomingURL, to: destinationURL)
+                #endif
             } else {
                 try fileManager.moveItem(at: incomingURL, to: destinationURL)
             }
@@ -164,6 +364,7 @@ final class IosModelAssetStagingStore {
     }
 }
 
+#if canImport(eyespie)
 // MARK: - Native background transport
 
 final class IosUrlSessionModelAssetTransport: NSObject, IosModelAssetTransport {
@@ -172,11 +373,6 @@ final class IosUrlSessionModelAssetTransport: NSObject, IosModelAssetTransport {
         URLSessionDelegate,
         OperationQueue
     ) -> ModelAssetURLSession
-
-    private static let backgroundHandlerQueue = DispatchQueue(
-        label: "com.micrantha.eyespie.model-asset-background-handlers"
-    )
-    private static var backgroundHandlersByIdentifier: [String: [() -> Void]] = [:]
 
     static func sessionIdentifier(bundleIdentifier: String) -> String {
         "\(bundleIdentifier).model-asset.background-url-session"
@@ -188,21 +384,17 @@ final class IosUrlSessionModelAssetTransport: NSObject, IosModelAssetTransport {
         bundleIdentifier: String,
         completionHandler: @escaping () -> Void
     ) -> Bool {
-        guard identifier == sessionIdentifier(bundleIdentifier: bundleIdentifier) else {
-            completionHandler()
-            return false
-        }
-
-        backgroundHandlerQueue.sync {
-            backgroundHandlersByIdentifier[identifier, default: []].append(completionHandler)
-        }
-        return true
+        IosBackgroundSessionCompletionBroker.shared.retain(
+            identifier: identifier,
+            expectedIdentifier: sessionIdentifier(bundleIdentifier: bundleIdentifier),
+            completionHandler: completionHandler
+        )
     }
 
     static func completeBackgroundSessionEvents(identifier: String) {
-        let completionHandlers = backgroundHandlerQueue.sync {
-            backgroundHandlersByIdentifier.removeValue(forKey: identifier) ?? []
-        }
+        let completionHandlers = IosBackgroundSessionCompletionBroker.shared.drain(
+            identifier: identifier
+        )
         guard !completionHandlers.isEmpty else { return }
 
         DispatchQueue.main.async {
@@ -211,20 +403,7 @@ final class IosUrlSessionModelAssetTransport: NSObject, IosModelAssetTransport {
     }
 
     static func makeSessionConfiguration(identifier: String) -> URLSessionConfiguration {
-        let configuration = URLSessionConfiguration.background(withIdentifier: identifier)
-
-        // Downloads are explicitly user-initiated, so discretionary scheduling is disabled.
-        // The future production artifact is about 584 MB, so cellular, constrained, and
-        // expensive-network access are deliberately disabled.
-        configuration.isDiscretionary = false
-        configuration.allowsCellularAccess = false
-        configuration.allowsConstrainedNetworkAccess = false
-        configuration.allowsExpensiveNetworkAccess = false
-        configuration.waitsForConnectivity = true
-        configuration.sessionSendsLaunchEvents = true
-        configuration.httpMaximumConnectionsPerHost = 1
-        configuration.requestCachePolicy = .reloadIgnoringLocalCacheData
-        return configuration
+        IosModelAssetSessionPolicy.makeConfiguration(identifier: identifier)
     }
 
     let backgroundSessionIdentifier: String
@@ -236,7 +415,7 @@ final class IosUrlSessionModelAssetTransport: NSObject, IosModelAssetTransport {
     private let delegateQueue: OperationQueue
     private var session: ModelAssetURLSession!
     private var activeTask: ModelAssetDownloadTask?
-    private var terminalTaskIdentifiers = Set<Int>()
+    private var taskState = IosModelAssetTaskStateMachine()
 
     init(
         bundleIdentifier: String,
@@ -297,6 +476,16 @@ final class IosUrlSessionModelAssetTransport: NSObject, IosModelAssetTransport {
 
             let task = self.session.makeDownloadTask(with: self.configuration.sourceURL)
             task.taskDescription = self.configuration.taskDescription
+            guard self.taskState.schedule(taskIdentifier: task.taskIdentifier) else {
+                task.cancel()
+                self.eventStream.emitFailed(
+                    recoverable: false,
+                    diagnosticCode: "model_download_single_task_invariant_failed"
+                )
+                completionHandler(KotlinUnit(), nil)
+                return
+            }
+
             self.activeTask = task
             self.eventStream.emitQueued()
             task.resume()
@@ -306,12 +495,12 @@ final class IosUrlSessionModelAssetTransport: NSObject, IosModelAssetTransport {
 
     func cancel(completionHandler: @escaping (KotlinUnit?, Error?) -> Void) {
         stateQueue.async {
-            guard let task = self.activeTask else {
+            guard let task = self.activeTask,
+                  self.taskState.cancelCurrentTask() == task.taskIdentifier else {
                 completionHandler(KotlinUnit(), nil)
                 return
             }
 
-            self.terminalTaskIdentifiers.insert(task.taskIdentifier)
             self.activeTask = nil
             task.cancel()
             self.eventStream.emitCancelled()
@@ -340,20 +529,26 @@ final class IosUrlSessionModelAssetTransport: NSObject, IosModelAssetTransport {
                 let matchingTasks = tasks
                     .filter { $0.taskDescription == self.configuration.taskDescription }
                     .sorted { $0.taskIdentifier < $1.taskIdentifier }
+                let plan = self.taskState.restorationPlan(
+                    candidateTaskIdentifiers: matchingTasks.map(\.taskIdentifier)
+                )
 
-                if let activeTask = self.activeTask {
-                    matchingTasks
-                        .filter { $0.taskIdentifier != activeTask.taskIdentifier }
-                        .forEach { $0.cancel() }
+                let tasksByIdentifier = Dictionary(
+                    uniqueKeysWithValues: matchingTasks.map { ($0.taskIdentifier, $0) }
+                )
+                plan.cancelledTaskIdentifiers.forEach {
+                    tasksByIdentifier[$0]?.cancel()
+                }
+
+                guard let restoredTaskIdentifier = plan.restoredTaskIdentifier,
+                      self.activeTask == nil,
+                      let restoredTask = tasksByIdentifier[restoredTaskIdentifier] else {
+                    if self.taskState.activeTaskIdentifier == nil {
+                        self.eventStream.emitIdle()
+                    }
                     return
                 }
 
-                guard let restoredTask = matchingTasks.last else {
-                    self.eventStream.emitIdle()
-                    return
-                }
-
-                matchingTasks.dropLast().forEach { $0.cancel() }
                 self.activeTask = restoredTask
                 self.emitRestoredState(for: restoredTask)
             }
@@ -361,74 +556,53 @@ final class IosUrlSessionModelAssetTransport: NSObject, IosModelAssetTransport {
     }
 
     private func emitRestoredState(for task: ModelAssetDownloadTask) {
-        if task.countOfBytesReceived > 0 {
-            emitProgress(
-                downloadedBytes: task.countOfBytesReceived,
-                totalBytes: task.countOfBytesExpectedToReceive
-            )
-        } else {
-            eventStream.emitQueued()
-        }
+        emitProgress(
+            downloadedBytes: task.countOfBytesReceived,
+            totalBytes: task.countOfBytesExpectedToReceive
+        )
     }
 
     private func emitProgress(downloadedBytes: Int64, totalBytes: Int64) {
-        if totalBytes > 0 {
+        switch IosModelAssetProgress.map(
+            downloadedBytes: downloadedBytes,
+            totalBytes: totalBytes
+        ) {
+        case let .known(downloadedBytes, totalBytes):
             eventStream.emitDownloading(
                 downloadedBytes: downloadedBytes,
                 totalBytes: totalBytes
             )
-        } else {
-            eventStream.emitDownloadingUnknownTotal(downloadedBytes: downloadedBytes)
+        case let .unknown(downloadedBytes):
+            if downloadedBytes > 0 {
+                eventStream.emitDownloadingUnknownTotal(downloadedBytes: downloadedBytes)
+            } else {
+                eventStream.emitQueued()
+            }
         }
     }
 
     private func isCurrent(taskIdentifier: Int) -> Bool {
-        activeTask?.taskIdentifier == taskIdentifier &&
-            !terminalTaskIdentifiers.contains(taskIdentifier)
+        taskState.acceptsCallback(taskIdentifier: taskIdentifier)
     }
 
-    private func finishCurrentTask(taskIdentifier: Int) {
-        terminalTaskIdentifiers.insert(taskIdentifier)
+    @discardableResult
+    private func finishCurrentTask(taskIdentifier: Int) -> Bool {
+        guard taskState.finish(taskIdentifier: taskIdentifier) else { return false }
         if activeTask?.taskIdentifier == taskIdentifier {
             activeTask = nil
         }
+        return true
     }
 
     private func failCurrentTask(
         taskIdentifier: Int,
-        recoverable: Bool,
-        diagnosticCode: String
+        failure: IosModelAssetFailure
     ) {
-        finishCurrentTask(taskIdentifier: taskIdentifier)
+        guard finishCurrentTask(taskIdentifier: taskIdentifier) else { return }
         eventStream.emitFailed(
-            recoverable: recoverable,
-            diagnosticCode: diagnosticCode
+            recoverable: failure.recoverable,
+            diagnosticCode: failure.diagnosticCode
         )
-    }
-
-    private func mapFailure(_ error: Error) -> (recoverable: Bool, diagnosticCode: String) {
-        let urlError = error as? URLError
-        switch urlError?.code {
-        case .timedOut, .cannotFindHost, .cannotConnectToHost, .dnsLookupFailed,
-             .networkConnectionLost, .notConnectedToInternet, .resourceUnavailable,
-             .internationalRoamingOff, .callIsActive, .dataNotAllowed:
-            return (true, "model_download_network_unavailable")
-        case .cancelled:
-            return (true, "model_download_cancelled")
-        case .badURL, .unsupportedURL, .userAuthenticationRequired:
-            return (false, "model_download_remote_configuration_invalid")
-        default:
-            return (false, "model_download_transport_failed")
-        }
-    }
-
-    private func mapHTTPFailure(statusCode: Int) -> (recoverable: Bool, diagnosticCode: String) {
-        switch statusCode {
-        case 408, 425, 429, 500 ... 599:
-            return (true, "model_download_http_temporarily_unavailable")
-        default:
-            return (false, "model_download_http_response_invalid")
-        }
     }
 }
 
@@ -465,26 +639,31 @@ extension IosUrlSessionModelAssetTransport: URLSessionDownloadDelegate {
                 try? FileManager.default.removeItem(at: location)
                 self.failCurrentTask(
                     taskIdentifier: taskIdentifier,
-                    recoverable: false,
-                    diagnosticCode: "model_download_response_missing"
+                    failure: IosModelAssetFailure(
+                        recoverable: false,
+                        diagnosticCode: "model_download_response_missing"
+                    )
                 )
                 return
             }
 
             guard (200 ... 299).contains(response.statusCode) else {
                 try? FileManager.default.removeItem(at: location)
-                let failure = self.mapHTTPFailure(statusCode: response.statusCode)
                 self.failCurrentTask(
                     taskIdentifier: taskIdentifier,
-                    recoverable: failure.recoverable,
-                    diagnosticCode: failure.diagnosticCode
+                    failure: IosModelAssetFailurePolicy.mapHTTP(
+                        statusCode: response.statusCode
+                    )
                 )
                 return
             }
 
             do {
                 let staged = try self.stagingStore.stageDownloadedFile(at: location)
-                self.finishCurrentTask(taskIdentifier: taskIdentifier)
+                guard self.finishCurrentTask(taskIdentifier: taskIdentifier) else {
+                    try? FileManager.default.removeItem(at: staged.url)
+                    return
+                }
                 self.eventStream.emitDownloaded(
                     temporaryPath: staged.url.path,
                     totalBytes: staged.bytes
@@ -492,8 +671,10 @@ extension IosUrlSessionModelAssetTransport: URLSessionDownloadDelegate {
             } catch {
                 self.failCurrentTask(
                     taskIdentifier: taskIdentifier,
-                    recoverable: false,
-                    diagnosticCode: "model_download_staging_failed"
+                    failure: IosModelAssetFailure(
+                        recoverable: false,
+                        diagnosticCode: "model_download_staging_failed"
+                    )
                 )
             }
         }
@@ -518,17 +699,12 @@ extension IosUrlSessionModelAssetTransport {
     ) {
         stateQueue.async {
             let taskIdentifier = task.taskIdentifier
-            guard !self.terminalTaskIdentifiers.contains(taskIdentifier),
-                  self.activeTask?.taskIdentifier == taskIdentifier else {
-                return
-            }
+            guard self.isCurrent(taskIdentifier: taskIdentifier) else { return }
 
             if let error {
-                let failure = self.mapFailure(error)
                 self.failCurrentTask(
                     taskIdentifier: taskIdentifier,
-                    recoverable: failure.recoverable,
-                    diagnosticCode: failure.diagnosticCode
+                    failure: IosModelAssetFailurePolicy.map(error: error)
                 )
                 return
             }
@@ -537,8 +713,10 @@ extension IosUrlSessionModelAssetTransport {
             // without a staged artifact is a terminal lifecycle violation.
             self.failCurrentTask(
                 taskIdentifier: taskIdentifier,
-                recoverable: false,
-                diagnosticCode: "model_download_missing_staged_artifact"
+                failure: IosModelAssetFailure(
+                    recoverable: false,
+                    diagnosticCode: "model_download_missing_staged_artifact"
+                )
             )
         }
     }
@@ -577,3 +755,4 @@ final class AppComposition {
         self.kotlinAppDelegate = appDelegate
     }
 }
+#endif
