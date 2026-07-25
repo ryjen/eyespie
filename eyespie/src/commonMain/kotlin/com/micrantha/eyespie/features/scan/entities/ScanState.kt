@@ -11,5 +11,8 @@ data class ScanState(
     val location: Location? = null,
     val cameraAuthorization: CapabilityAuthorization = CapabilityAuthorization.NotRequested,
     val cameraAuthorizationLoaded: Boolean = false,
-    val cameraRequestInFlight: Boolean = false,
-)
+    val cameraRequestId: CameraAuthorizationRequestId? = null,
+) {
+    val cameraRequestInFlight: Boolean
+        get() = cameraRequestId != null
+}
