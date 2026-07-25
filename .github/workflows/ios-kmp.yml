@@ -102,13 +102,16 @@ jobs:
           echo "test=$test_task" >> "$GITHUB_OUTPUT"
 
       - name: Compile iOS simulator sources and run Apple tests
-        run: >-
-          ./gradlew
-          ${{ steps.tasks.outputs.compile }}
-          ${{ steps.tasks.outputs.test }}
-          --no-daemon
-          --build-cache
-          --configuration-cache
+        shell: bash
+        run: |
+          set -o pipefail
+          ./gradlew \
+            "${{ steps.tasks.outputs.compile }}" \
+            "${{ steps.tasks.outputs.test }}" \
+            --no-daemon \
+            --build-cache \
+            --configuration-cache \
+            --stacktrace 2>&1 | tee build-ios-gradle.log
 
       - name: Upload iOS KMP diagnostics
         if: failure()
@@ -117,6 +120,7 @@ jobs:
           name: eyespie-ios-kmp-diagnostics-${{ github.sha }}
           path: |
             build-ios-tasks.txt
+            build-ios-gradle.log
             **/build/reports/tests/**
             **/build/test-results/**
             **/build/reports/problems/**
