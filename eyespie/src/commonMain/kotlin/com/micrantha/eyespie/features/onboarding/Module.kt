@@ -3,8 +3,10 @@ package com.micrantha.eyespie.features.onboarding
 import com.micrantha.bluebell.get
 import com.micrantha.eyespie.domain.usecase.InitGenAIUseCase
 import com.micrantha.eyespie.features.onboarding.arch.OnboardingEffects
+import com.micrantha.eyespie.features.onboarding.data.CapabilityPermissionGateway
 import com.micrantha.eyespie.features.onboarding.data.DataOnboardingRepository
 import com.micrantha.eyespie.features.onboarding.data.ModelMetaRepository
+import com.micrantha.eyespie.features.onboarding.data.MokoCapabilityPermissionGateway
 import com.micrantha.eyespie.features.onboarding.data.OnboardingLocalSource
 import com.micrantha.eyespie.features.onboarding.data.OnboardingRepository
 import com.micrantha.eyespie.features.onboarding.ui.OnboardingScreen
@@ -30,6 +32,8 @@ internal fun onboardingModule() = DI.Module("Onboarding") {
 
     bindProviderOf(::ModelMetaRepository)
 
+    bindProviderOf(::MokoCapabilityPermissionGateway)
+    delegate<CapabilityPermissionGateway>().to<MokoCapabilityPermissionGateway>()
     bindProviderOf(::OnboardingEffects)
 
     bindProviderOf(::OnboardingScreen)
