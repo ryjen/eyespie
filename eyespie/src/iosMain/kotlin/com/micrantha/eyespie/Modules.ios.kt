@@ -20,7 +20,7 @@ import org.kodein.di.delegate
 
 fun iosModules(app: AppDelegate) = DI {
 
-    import(iosModelAssetModule())
+    import(iosModelAssetModule(app.modelDeliveryCapabilities))
 
     bindSingleton { Platform(app.networkMonitor) }
     delegate<FileSystem>().to<Platform>()
