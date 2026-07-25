@@ -1,0 +1,193 @@
+name: Apply PR 51 restoration fix
+
+on:
+  push:
+    branches:
+      - issue/24-ios-urlsession-native-transport
+
+permissions:
+  contents: write
+
+jobs:
+  apply-fix:
+    if: github.actor != 'github-actions[bot]'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout PR branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: issue/24-ios-urlsession-native-transport
+          fetch-depth: 0
+
+      - name: Apply suspended restoration fix
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          def replace_once(path: str, old: str, new: str) -> None:
+              target = Path(path)
+              text = target.read_text()
+              count = text.count(old)
+              if count != 1:
+                  raise SystemExit(f"expected one match in {path}, found {count}")
+              target.write_text(text.replace(old, new, 1))
+
+          replace_once(
+              "iosApp/iosApp/NetworkMonitor.swift",
+              '''protocol ModelAssetDownloadTask: AnyObject {
+              var taskIdentifier: Int { get }
+              var taskDescription: String? { get set }
+              var countOfBytesReceived: Int64 { get }
+              var countOfBytesExpectedToReceive: Int64 { get }
+              func resume()
+              func cancel()
+          }
+
+          extension URLSessionTask: ModelAssetDownloadTask {}
+          ''',
+              '''protocol ModelAssetDownloadTask: AnyObject {
+              var taskIdentifier: Int { get }
+              var taskDescription: String? { get set }
+              var countOfBytesReceived: Int64 { get }
+              var countOfBytesExpectedToReceive: Int64 { get }
+              var isSuspended: Bool { get }
+              func resume()
+              func cancel()
+          }
+
+          extension URLSessionTask: ModelAssetDownloadTask {
+              var isSuspended: Bool {
+                  state == .suspended
+              }
+          }
+
+          enum IosModelAssetTaskRestorationPolicy {
+              static func resumeIfSuspended(_ task: ModelAssetDownloadTask) {
+                  guard task.isSuspended else { return }
+                  task.resume()
+              }
+          }
+          ''',
+          )
+
+          replace_once(
+              "iosApp/iosApp/NetworkMonitor.swift",
+              '''                self.activeTask = restoredTask
+                          self.emitRestoredState(for: restoredTask)
+          ''',
+              '''                self.activeTask = restoredTask
+                          self.emitRestoredState(for: restoredTask)
+                          IosModelAssetTaskRestorationPolicy.resumeIfSuspended(restoredTask)
+          ''',
+          )
+
+          replace_once(
+              "iosApp/nativeTests/IosModelAssetTransportCoreTests.swift",
+              '''        testRestorationPlanning()
+                  testTaskInventory()
+          ''',
+              '''        testRestorationPlanning()
+                  testRestoredTaskResumePolicy()
+                  testTaskInventory()
+          ''',
+          )
+
+          replace_once(
+              "iosApp/nativeTests/IosModelAssetTransportCoreTests.swift",
+              '''    private static func testTaskInventory() {
+          ''',
+              '''    private static func testRestoredTaskResumePolicy() {
+                  let suspended = FakeModelAssetDownloadTask(
+                      taskIdentifier: 7,
+                      taskDescription: "expected",
+                      isSuspended: true
+                  )
+
+                  IosModelAssetTaskRestorationPolicy.resumeIfSuspended(suspended)
+                  IosModelAssetTaskRestorationPolicy.resumeIfSuspended(suspended)
+
+                  require(suspended.resumeCalls == 1, "suspended restored task must resume once")
+                  require(!suspended.isSuspended, "resumed task must no longer be suspended")
+
+                  let running = FakeModelAssetDownloadTask(
+                      taskIdentifier: 8,
+                      taskDescription: "expected",
+                      isSuspended: false
+                  )
+
+                  IosModelAssetTaskRestorationPolicy.resumeIfSuspended(running)
+
+                  require(running.resumeCalls == 0, "running restored task must not be resumed")
+              }
+
+              private static func testTaskInventory() {
+          ''',
+          )
+
+          replace_once(
+              "iosApp/nativeTests/IosModelAssetTransportCoreTests.swift",
+              '''private final class FakeModelAssetDownloadTask: ModelAssetDownloadTask {
+              let taskIdentifier: Int
+              var taskDescription: String?
+              let countOfBytesReceived: Int64 = 0
+              let countOfBytesExpectedToReceive: Int64 = -1
+              private(set) var wasCancelled = false
+
+              init(taskIdentifier: Int, taskDescription: String?) {
+                  self.taskIdentifier = taskIdentifier
+                  self.taskDescription = taskDescription
+              }
+
+              func resume() {}
+
+              func cancel() {
+                  wasCancelled = true
+              }
+          }
+          ''',
+              '''private final class FakeModelAssetDownloadTask: ModelAssetDownloadTask {
+              let taskIdentifier: Int
+              var taskDescription: String?
+              let countOfBytesReceived: Int64 = 0
+              let countOfBytesExpectedToReceive: Int64 = -1
+              var isSuspended: Bool
+              private(set) var resumeCalls = 0
+              private(set) var wasCancelled = false
+
+              init(
+                  taskIdentifier: Int,
+                  taskDescription: String?,
+                  isSuspended: Bool = false
+              ) {
+                  self.taskIdentifier = taskIdentifier
+                  self.taskDescription = taskDescription
+                  self.isSuspended = isSuspended
+              }
+
+              func resume() {
+                  resumeCalls += 1
+                  isSuspended = false
+              }
+
+              func cancel() {
+                  wasCancelled = true
+              }
+          }
+          ''',
+          )
+          PY
+
+          git diff --check
+
+      - name: Commit and push fix
+        shell: bash
+        run: |
+          set -euo pipefail
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git add iosApp/iosApp/NetworkMonitor.swift iosApp/nativeTests/IosModelAssetTransportCoreTests.swift
+          git commit -m "fix(ios): resume suspended restored model tasks"
+          git push origin HEAD:issue/24-ios-urlsession-native-transport
