@@ -220,7 +220,7 @@ class IosModelAssetRepositoryTest {
             capabilitySnapshot(urlSessionSupported = true, urlSessionConfigured = true),
         ),
         transport = transport,
-        scope = backgroundScope,
+        scope = this,
     )
 
     private fun capabilitiesFor(snapshot: IosModelDeliveryCapabilitySnapshot) =
