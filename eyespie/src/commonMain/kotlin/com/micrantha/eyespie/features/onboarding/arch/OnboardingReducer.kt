@@ -48,9 +48,14 @@ class OnboardingReducer : Reducer<OnboardingState> {
             error = null,
         )
 
-        is CapabilitiesLoaded -> state.copy(
-            capabilities = action.capabilities,
-        )
+        is CapabilitiesLoaded -> if (
+            state.requestInFlight == null &&
+            state.capabilities == action.previous
+        ) {
+            state.copy(capabilities = action.capabilities)
+        } else {
+            state
+        }
 
         is CapabilityRequestStarted -> if (
             state.requestInFlight == null &&
