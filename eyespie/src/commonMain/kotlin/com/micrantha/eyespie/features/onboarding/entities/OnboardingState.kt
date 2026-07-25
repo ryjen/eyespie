@@ -9,4 +9,6 @@ data class OnboardingState(
     val isInitializing: Boolean = true,
     val models: OnboardingModels? = null,
     val selectedModel: String? = null,
+    val capabilities: List<CapabilityState> = emptyList(),
+    val requestInFlight: OnboardingCapability? = null,
 )

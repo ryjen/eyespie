@@ -19,37 +19,20 @@ import com.micrantha.bluebell.arch.Dispatch
 import com.micrantha.bluebell.ui.components.StateRenderer
 import com.micrantha.bluebell.ui.theme.Dimensions
 import com.micrantha.eyespie.core.ui.Screen
+import com.micrantha.eyespie.core.ui.component.AppForegroundEffect
 import com.micrantha.eyespie.features.onboarding.components.ClickableAnimatedPagerIndicator
 import com.micrantha.eyespie.features.onboarding.components.RenderGenAI
+import com.micrantha.eyespie.features.onboarding.components.RenderPermissions
 import com.micrantha.eyespie.features.onboarding.components.RenderWelcome
 import com.micrantha.eyespie.features.onboarding.entities.OnboardingAction
 import com.micrantha.eyespie.features.onboarding.entities.OnboardingPage
 import com.micrantha.eyespie.features.onboarding.entities.OnboardingUiState
 import kotlinx.coroutines.delay
 
-// TODO: wizard like setup for first run
-// A) How to Play
-//   1) Scanning
-//   2) Sharing
-//   3) Guessing
-// B) Permissions Info
-//   1) Camera for scanning
-//   2) Notifications for game events and downloads
-//   3) Storage for GenAI
-//   4) Contacts for sharing
-// C) GenAI
-//   1) prompt user to download genAI models
-//   2) start background downloads
-//   3) notify user progress and completion
-// D) Social
-//   1) Invitations / contacts
-//   2) Link social media share
-//   3) More info in settings
 class OnboardingScreen : Screen, StateRenderer<OnboardingUiState> {
     @Composable
     override fun Content() {
         val screenModel = rememberScreenModel<OnboardingScreenModel>()
-
         val state by screenModel.state.collectAsState()
 
         Render(state, screenModel)
@@ -58,17 +41,25 @@ class OnboardingScreen : Screen, StateRenderer<OnboardingUiState> {
     @Composable
     override fun Render(
         state: OnboardingUiState,
-        dispatch: Dispatch
+        dispatch: Dispatch,
     ) {
         LaunchedEffect(Unit) {
             dispatch(OnboardingAction.Init)
         }
+        AppForegroundEffect {
+            dispatch(OnboardingAction.RefreshCapabilities)
+        }
 
         val pagerState = rememberPagerState(
             initialPage = state.page.ordinal,
-            pageCount = { OnboardingPage.entries.size }
+            pageCount = { OnboardingPage.entries.size },
         )
 
+        LaunchedEffect(state.page) {
+            if (pagerState.currentPage != state.page.ordinal) {
+                pagerState.animateScrollToPage(state.page.ordinal)
+            }
+        }
         LaunchedEffect(pagerState.currentPage) {
             delay(300)
             dispatch(OnboardingAction.PageChanged(pagerState.currentPage))
@@ -76,7 +67,7 @@ class OnboardingScreen : Screen, StateRenderer<OnboardingUiState> {
 
         Column(
             verticalArrangement = Arrangement.SpaceBetween,
-            modifier = Modifier.fillMaxSize()
+            modifier = Modifier.fillMaxSize(),
         ) {
             HorizontalPager(
                 modifier = Modifier.weight(1f).fillMaxSize(),
@@ -84,18 +75,19 @@ class OnboardingScreen : Screen, StateRenderer<OnboardingUiState> {
             ) { pageNum ->
                 Box(modifier = Modifier.fillMaxSize()) {
                     when (pageNum) {
-                        OnboardingPage.GenAI.ordinal -> RenderGenAI(state, dispatch)
                         OnboardingPage.Welcome.ordinal -> RenderWelcome(state, dispatch)
+                        OnboardingPage.Permissions.ordinal -> RenderPermissions(state, dispatch)
+                        OnboardingPage.GenAI.ordinal -> RenderGenAI(state, dispatch)
                     }
                 }
             }
 
             Row(
                 horizontalArrangement = Arrangement.Center,
-                modifier = Modifier.padding(Dimensions.screen).fillMaxWidth()
+                modifier = Modifier.padding(Dimensions.screen).fillMaxWidth(),
             ) {
                 ClickableAnimatedPagerIndicator(
-                    pagerState = pagerState
+                    pagerState = pagerState,
                 )
             }
         }
