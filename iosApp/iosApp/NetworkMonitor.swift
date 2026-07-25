@@ -55,12 +55,18 @@ extension URLSessionTask: ModelAssetDownloadTask {}
 
 protocol ModelAssetURLSession: AnyObject {
     func makeDownloadTask(with url: URL) -> ModelAssetDownloadTask
-    func getAllTasks(completionHandler: @escaping ([URLSessionTask]) -> Void)
+    func existingTasks(completionHandler: @escaping ([ModelAssetDownloadTask]) -> Void)
 }
 
 extension URLSession: ModelAssetURLSession {
     func makeDownloadTask(with url: URL) -> ModelAssetDownloadTask {
         downloadTask(with: url)
+    }
+
+    func existingTasks(completionHandler: @escaping ([ModelAssetDownloadTask]) -> Void) {
+        getAllTasks { tasks in
+            completionHandler(tasks.map { $0 as ModelAssetDownloadTask })
+        }
     }
 }
 
@@ -198,7 +204,7 @@ final class IosUrlSessionModelAssetTransport: NSObject, IosModelAssetTransport {
     private var session: ModelAssetURLSession!
     private var activeTask: ModelAssetDownloadTask?
     private var terminalTaskIdentifiers = Set<Int>()
-    private var backgroundCompletionHandler: (() -> Void)?
+    private var backgroundCompletionHandlers: [() -> Void] = []
 
     init(
         bundleIdentifier: String,
@@ -305,16 +311,12 @@ final class IosUrlSessionModelAssetTransport: NSObject, IosModelAssetTransport {
         }
 
         stateQueue.async {
-            let supersededHandler = self.backgroundCompletionHandler
-            self.backgroundCompletionHandler = completionHandler
-            if let supersededHandler {
-                DispatchQueue.main.async(execute: supersededHandler)
-            }
+            self.backgroundCompletionHandlers.append(completionHandler)
         }
     }
 
     private func restoreExistingBackgroundTask() {
-        session.getAllTasks { [weak self] tasks in
+        session.existingTasks { [weak self] tasks in
             guard let self else { return }
             self.stateQueue.async {
                 let matchingTasks = tasks
@@ -437,7 +439,7 @@ extension IosUrlSessionModelAssetTransport: URLSessionDownloadDelegate {
     }
 }
 
-extension IosUrlSessionModelAssetTransport: URLSessionTaskDelegate {
+extension IosUrlSessionModelAssetTransport {
     func urlSession(
         _ session: URLSession,
         task: URLSessionTask,
@@ -472,10 +474,12 @@ extension IosUrlSessionModelAssetTransport: URLSessionTaskDelegate {
 
     func urlSessionDidFinishEvents(forBackgroundURLSession session: URLSession) {
         stateQueue.async {
-            let completionHandler = self.backgroundCompletionHandler
-            self.backgroundCompletionHandler = nil
-            if let completionHandler {
-                DispatchQueue.main.async(execute: completionHandler)
+            let completionHandlers = self.backgroundCompletionHandlers
+            self.backgroundCompletionHandlers.removeAll(keepingCapacity: true)
+            guard !completionHandlers.isEmpty else { return }
+
+            DispatchQueue.main.async {
+                completionHandlers.forEach { $0() }
             }
         }
     }
