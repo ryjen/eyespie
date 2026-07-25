@@ -6,7 +6,12 @@ final class iOSAppDelegate: NSObject, UIApplicationDelegate {
         handleEventsForBackgroundURLSession identifier: String,
         completionHandler: @escaping () -> Void
     ) {
-        AppComposition.shared.modelAssetTransport.handleEventsForBackgroundSession(
+        guard let transport = AppComposition.shared.modelAssetTransport else {
+            completionHandler()
+            return
+        }
+
+        transport.handleEventsForBackgroundSession(
             identifier: identifier,
             completionHandler: completionHandler
         )
