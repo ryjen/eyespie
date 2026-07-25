@@ -127,7 +127,7 @@ private fun BoxWithConstraintsScope.RenderCameraAuthorization(
                 onClick = {
                     when (action) {
                         CapabilityAction.Request ->
-                            dispatch(ScanAction.RequestCameraAuthorization)
+                            dispatch(ScanAction.RequestCameraAuthorization())
 
                         CapabilityAction.OpenSettings ->
                             dispatch(ScanAction.OpenCameraSettings)
