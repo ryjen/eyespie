@@ -63,7 +63,12 @@ class ModelAssetVerifier private constructor(
     ): ModelAssetVerificationResult {
         cancellationCheck()
         val manifestContent = try {
-            fileSystem.source(manifestPath).buffer().use { it.readUtf8() }
+            val source = fileSystem.source(manifestPath).buffer()
+            try {
+                source.readUtf8()
+            } finally {
+                source.close()
+            }
         } catch (cancellation: CancellationException) {
             throw cancellation
         } catch (_: Throwable) {
@@ -131,15 +136,17 @@ class ModelAssetVerifier private constructor(
         }
         var actualBytes = 0L
         val actualDigest = try {
-            hashingSource.use { source ->
+            try {
                 val buffer = Buffer()
                 while (true) {
                     cancellationCheck()
-                    val read = source.read(buffer, BUFFER_SIZE)
+                    val read = hashingSource.read(buffer, BUFFER_SIZE)
                     if (read == -1L) break
                     actualBytes += read
                     buffer.clear()
                 }
+            } finally {
+                hashingSource.close()
             }
             hashingSource.hash.hex()
         } catch (cancellation: CancellationException) {
