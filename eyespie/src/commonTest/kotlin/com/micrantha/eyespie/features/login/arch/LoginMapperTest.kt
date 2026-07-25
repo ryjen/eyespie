@@ -6,6 +6,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 
 class LoginMapperTest {
 
@@ -61,7 +62,7 @@ class LoginMapperTest {
 
         val uiState = mapper.map(state)
 
-        assert(uiState.status is UiResult.Busy)
+        assertTrue(uiState.status is UiResult.Busy)
     }
 
     @Test
