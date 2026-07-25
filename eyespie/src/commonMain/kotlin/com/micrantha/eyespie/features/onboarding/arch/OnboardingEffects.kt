@@ -102,7 +102,15 @@ class OnboardingEffects(
     }
 
     private suspend fun refreshCapabilities(state: OnboardingState) {
-        dispatch(CapabilitiesLoaded(capabilityPermissionGateway.loadCapabilities(state.capabilities)))
+        if (state.requestInFlight != null) return
+
+        val previous = state.capabilities
+        dispatch(
+            CapabilitiesLoaded(
+                previous = previous,
+                capabilities = capabilityPermissionGateway.loadCapabilities(previous),
+            )
+        )
     }
 
     private suspend fun requestCapability(
