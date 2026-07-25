@@ -1,9 +1,16 @@
 package com.micrantha.eyespie.features.onboarding.data
 
 import com.micrantha.eyespie.features.onboarding.entities.CapabilityAuthorization
+import com.micrantha.eyespie.features.onboarding.entities.OnboardingCapability
+import dev.icerock.moko.permissions.Permission
 import dev.icerock.moko.permissions.PermissionState
+import dev.icerock.moko.permissions.test.PermissionsControllerMock
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.async
+import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 
 class CapabilityPermissionGatewayTest {
     @Test
@@ -39,8 +46,47 @@ class CapabilityPermissionGatewayTest {
         assertEquals(
             CapabilityAuthorization.SettingsRequired,
             PermissionState.NotGranted.toCapabilityAuthorization(
-                CapabilityAuthorization.SettingsRequired
+                CapabilityAuthorization.SettingsRequired,
             ),
         )
+    }
+
+    @Test
+    fun `duplicate request is ignored instead of queued`() = runTest {
+        val requestStarted = CompletableDeferred<Unit>()
+        val releaseRequest = CompletableDeferred<Unit>()
+        var requestCount = 0
+        val permissions = object : PermissionsControllerMock() {
+            override suspend fun providePermission(permission: Permission) {
+                requestCount += 1
+                requestStarted.complete(Unit)
+                releaseRequest.await()
+            }
+
+            override suspend fun isPermissionGranted(permission: Permission) = true
+
+            override suspend fun getPermissionState(permission: Permission) = PermissionState.Granted
+
+            override fun openAppSettings() = Unit
+        }
+        val gateway = MokoCapabilityPermissionGateway(permissions)
+
+        val first = async {
+            gateway.requestAuthorization(
+                OnboardingCapability.CameraScanning,
+                CapabilityAuthorization.NotRequested,
+            )
+        }
+        requestStarted.await()
+
+        val duplicate = gateway.requestAuthorization(
+            OnboardingCapability.CameraScanning,
+            CapabilityAuthorization.NotRequested,
+        )
+        assertNull(duplicate)
+
+        releaseRequest.complete(Unit)
+        assertEquals(CapabilityAuthorization.Granted, first.await())
+        assertEquals(1, requestCount)
     }
 }
