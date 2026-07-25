@@ -13,8 +13,9 @@ import kotlinx.coroutines.launch
 class IosModelAssetRepository(
     private val capabilities: IosModelDeliveryCapabilities,
     private val transport: IosModelAssetTransport = UnconfiguredIosModelAssetTransport,
-    private val scope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
+    parentScope: CoroutineScope = CoroutineScope(SupervisorJob() + Dispatchers.Default),
 ) : ModelAssetRepository {
+    private val scope = CoroutineScope(parentScope.coroutineContext + SupervisorJob())
     private val initialState = capabilities.snapshot().availability().initialModelAssetState()
     private val state = MutableStateFlow<ModelAssetState>(initialState)
     private var pendingArtifact: IosDownloadedArtifact? = null
