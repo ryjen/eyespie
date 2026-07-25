@@ -12,6 +12,7 @@ enum IosModelAssetTransportCoreTests {
         #endif
         testSingleActiveTaskAndStaleCallbacks()
         testRestorationPlanning()
+        testTaskInventory()
         testCancellation()
         testProgressMapping()
         testFailureMapping()
@@ -82,6 +83,40 @@ enum IosModelAssetTransportCoreTests {
         let whileActive = state.restorationPlan(candidateTaskIdentifiers: [2, 3, 4])
         require(whileActive.restoredTaskIdentifier == nil, "active task must not be replaced")
         require(whileActive.cancelledTaskIdentifiers == [2, 4], "duplicates must cancel")
+    }
+
+    private static func testTaskInventory() {
+        let matching = FakeModelAssetDownloadTask(
+            taskIdentifier: 1,
+            taskDescription: "expected"
+        )
+        let stale = FakeModelAssetDownloadTask(
+            taskIdentifier: 2,
+            taskDescription: "old-configuration"
+        )
+        let missingDescription = FakeModelAssetDownloadTask(
+            taskIdentifier: 3,
+            taskDescription: nil
+        )
+
+        let inventory = IosModelAssetTaskInventory.partition(
+            tasks: [stale, matching, missingDescription],
+            expectedTaskDescription: "expected"
+        )
+
+        require(
+            inventory.matchingTasks.map(\.taskIdentifier) == [1],
+            "only tasks for the current configuration may restore"
+        )
+        require(
+            Set(inventory.staleTasks.map(\.taskIdentifier)) == Set([2, 3]),
+            "tasks from older configurations must be stale"
+        )
+
+        inventory.staleTasks.forEach { $0.cancel() }
+        require(!matching.wasCancelled, "current task must not be cancelled")
+        require(stale.wasCancelled, "old configuration task must be cancelled")
+        require(missingDescription.wasCancelled, "unidentified session task must be cancelled")
     }
 
     private static func testCancellation() {
@@ -172,16 +207,18 @@ enum IosModelAssetTransportCoreTests {
             "cleanup must remove app-owned staging"
         )
 
-        do {
-            _ = try IosModelAssetStagingStore(
-                rootDirectory: root,
-                stagingFilename: "../escape"
-            )
-            fatalError("path traversal must be rejected")
-        } catch IosModelAssetStagingStore.StoreError.unsafeDestination {
-            // Expected.
-        } catch {
-            fatalError("unexpected traversal error: \(error)")
+        for unsafeFilename in ["../escape", "..\\escape"] {
+            do {
+                _ = try IosModelAssetStagingStore(
+                    rootDirectory: root,
+                    stagingFilename: unsafeFilename
+                )
+                fatalError("path traversal must be rejected")
+            } catch IosModelAssetStagingStore.StoreError.unsafeDestination {
+                // Expected.
+            } catch {
+                fatalError("unexpected traversal error: \(error)")
+            }
         }
     }
 
@@ -221,5 +258,24 @@ enum IosModelAssetTransportCoreTests {
         broker.drain(identifier: identifier).forEach { $0() }
         require(completions == 3, "all retained handlers must run after drain")
         require(broker.drain(identifier: identifier).isEmpty, "duplicate drain must be idempotent")
+    }
+}
+
+private final class FakeModelAssetDownloadTask: ModelAssetDownloadTask {
+    let taskIdentifier: Int
+    var taskDescription: String?
+    let countOfBytesReceived: Int64 = 0
+    let countOfBytesExpectedToReceive: Int64 = -1
+    private(set) var wasCancelled = false
+
+    init(taskIdentifier: Int, taskDescription: String?) {
+        self.taskIdentifier = taskIdentifier
+        self.taskDescription = taskDescription
+    }
+
+    func resume() {}
+
+    func cancel() {
+        wasCancelled = true
     }
 }
