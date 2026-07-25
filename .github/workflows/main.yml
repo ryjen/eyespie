@@ -141,11 +141,16 @@ jobs:
         run: cp env.example .env.local
 
       - name: Run Apple-target Kotlin tests
-        run: >-
-          ./gradlew
-          :app:iosSimulatorArm64Test
-          --no-daemon
-          --build-cache
+        shell: bash
+        run: |
+          set -o pipefail
+          mkdir -p build/reports/apple
+          ./gradlew \
+            :app:iosSimulatorArm64Test \
+            --no-daemon \
+            --build-cache \
+            --stacktrace \
+            2>&1 | tee build/reports/apple/gradle.log
 
       - name: Install locked CocoaPods dependencies
         shell: bash
@@ -173,6 +178,7 @@ jobs:
         with:
           name: eyespie-apple-diagnostics-${{ github.sha }}
           path: |
+            build/reports/apple/**
             **/build/reports/tests/**
             **/build/test-results/**
             **/build/reports/problems/**
