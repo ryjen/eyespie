@@ -60,6 +60,47 @@ class IosModelAssetRepositoryTest {
     }
 
     @Test
+    fun recoverableSchedulingFailureDoesNotRemainQueued() = runTest {
+        val transport = FakeIosModelAssetTransport(
+            scheduleFailure = IosModelAssetTransportException(
+                recoverable = true,
+                diagnosticCode = "model_delivery_schedule_temporarily_unavailable",
+            ),
+        )
+        val repository = repositoryFor(transport)
+
+        repository.requestDownload()
+
+        assertEquals(
+            ModelAssetState.Failed(
+                stage = FailureStage.Scheduling,
+                recoverable = true,
+                diagnosticCode = "model_delivery_schedule_temporarily_unavailable",
+            ),
+            repository.observe().first(),
+        )
+        repository.close()
+    }
+
+    @Test
+    fun unknownSchedulingFailureFailsClosed() = runTest {
+        val transport = FakeIosModelAssetTransport(scheduleFailure = IllegalStateException("boom"))
+        val repository = repositoryFor(transport)
+
+        repository.requestDownload()
+
+        assertEquals(
+            ModelAssetState.Failed(
+                stage = FailureStage.Scheduling,
+                recoverable = false,
+                diagnosticCode = "model_delivery_schedule_failed",
+            ),
+            repository.observe().first(),
+        )
+        repository.close()
+    }
+
+    @Test
     fun transportProgressMapsToSharedDownloadingState() = runTest {
         val transport = FakeIosModelAssetTransport()
         val repository = repositoryFor(transport)
@@ -74,7 +115,7 @@ class IosModelAssetRepositoryTest {
     }
 
     @Test
-    fun completedTransferEntersVerificationButNeverReady() = runTest {
+    fun completedTransferEntersVerificationAndRetainsArtifactHandoff() = runTest {
         val transport = FakeIosModelAssetTransport()
         val repository = repositoryFor(transport)
 
@@ -83,6 +124,10 @@ class IosModelAssetRepositoryTest {
         assertEquals(
             ModelAssetState.Verifying(verifiedBytes = 0, totalBytes = 128),
             repository.observe().first { it is ModelAssetState.Verifying },
+        )
+        assertEquals(
+            IosDownloadedArtifact(temporaryPath = "/tmp/model.part", totalBytes = 128),
+            repository.pendingDownloadedArtifact(),
         )
         assertNull(repository.resolveReadyModel())
         repository.close()
@@ -117,6 +162,7 @@ class IosModelAssetRepositoryTest {
         assertEquals(1, transport.cancelCalls)
         assertEquals(1, transport.cleanupCalls)
         assertEquals(ModelAssetState.NotInstalled, repository.observe().first())
+        assertNull(repository.pendingDownloadedArtifact())
         repository.close()
     }
 
@@ -176,7 +222,9 @@ class IosModelAssetRepositoryTest {
     )
 }
 
-private class FakeIosModelAssetTransport : IosModelAssetTransport {
+private class FakeIosModelAssetTransport(
+    private val scheduleFailure: Throwable? = null,
+) : IosModelAssetTransport {
     private val events = MutableSharedFlow<IosModelAssetTransportEvent>(extraBufferCapacity = 8)
 
     var scheduleCalls = 0
@@ -187,6 +235,7 @@ private class FakeIosModelAssetTransport : IosModelAssetTransport {
 
     override suspend fun schedule() {
         scheduleCalls += 1
+        scheduleFailure?.let { throw it }
     }
 
     override suspend fun cancel() {
