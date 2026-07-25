@@ -11,12 +11,24 @@ import kotlinx.coroutines.flow.Flow
 interface IosModelAssetTransport {
     fun observe(): Flow<IosModelAssetTransportEvent>
 
+    @Throws(IosModelAssetTransportException::class)
     suspend fun schedule()
 
     suspend fun cancel()
 
     suspend fun removeTemporaryArtifacts()
 }
+
+class IosModelAssetTransportException(
+    val recoverable: Boolean,
+    val diagnosticCode: String,
+    cause: Throwable? = null,
+) : Exception(diagnosticCode, cause)
+
+internal data class IosDownloadedArtifact(
+    val temporaryPath: String,
+    val totalBytes: Long,
+)
 
 sealed interface IosModelAssetTransportEvent {
     data object Idle : IosModelAssetTransportEvent
