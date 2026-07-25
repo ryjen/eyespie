@@ -1,5 +1,6 @@
 package com.micrantha.eyespie.model
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
@@ -46,6 +47,8 @@ class IosModelAssetRepository(
                 state.value = ModelAssetState.Queued()
                 try {
                     transport.schedule()
+                } catch (error: CancellationException) {
+                    throw error
                 } catch (error: IosModelAssetTransportException) {
                     state.value = ModelAssetState.Failed(
                         stage = FailureStage.Scheduling,
