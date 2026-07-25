@@ -63,20 +63,26 @@ class OnboardingReducer : Reducer<OnboardingState> {
             state
         }
 
-        is CapabilityRequestResolved -> state.copy(
-            capabilities = state.capabilities.map {
-                if (it.capability == action.capability) {
-                    it.copy(authorization = action.authorization)
-                } else {
-                    it
-                }
-            },
-            requestInFlight = state.requestInFlight.takeUnless { it == action.capability },
-        )
+        is CapabilityRequestResolved -> if (state.requestInFlight == action.capability) {
+            state.copy(
+                capabilities = state.capabilities.map {
+                    if (it.capability == action.capability) {
+                        it.copy(authorization = action.authorization)
+                    } else {
+                        it
+                    }
+                },
+                requestInFlight = null,
+            )
+        } else {
+            state
+        }
 
-        is CapabilityRequestFailed -> state.copy(
-            requestInFlight = state.requestInFlight.takeUnless { it == action.capability },
-        )
+        is CapabilityRequestFailed -> if (state.requestInFlight == action.capability) {
+            state.copy(requestInFlight = null)
+        } else {
+            state
+        }
 
         else -> state
     }
