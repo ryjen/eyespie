@@ -9,22 +9,18 @@ import com.micrantha.eyespie.features.onboarding.entities.OnboardingCapability
 import com.micrantha.eyespie.features.scan.entities.ScanAction.CameraAuthorizationLoaded
 import com.micrantha.eyespie.features.scan.entities.ScanAction.CameraAuthorizationRequestFailed
 import com.micrantha.eyespie.features.scan.entities.ScanAction.CameraAuthorizationRequestResolved
-import com.micrantha.eyespie.features.scan.entities.ScanAction.CameraAuthorizationRequestStarted
 import com.micrantha.eyespie.features.scan.entities.ScanAction.OpenCameraSettings
 import com.micrantha.eyespie.features.scan.entities.ScanAction.RefreshCameraAuthorization
 import com.micrantha.eyespie.features.scan.entities.ScanAction.RequestCameraAuthorization
 import com.micrantha.eyespie.features.scan.entities.ScanState
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.async
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
-import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 @OptIn(kotlinx.coroutines.ExperimentalCoroutinesApi::class)
@@ -95,11 +91,12 @@ class ScanCaptureEnvironmentTest {
     @Test
     fun `refresh is ignored while camera request is active`() = runTest {
         val fixture = fixture()
+        val request = RequestCameraAuthorization()
         fixture.environment.invoke(
             RefreshCameraAuthorization,
             ScanState(
                 cameraAuthorizationLoaded = true,
-                cameraRequestInFlight = true,
+                cameraRequestId = request.requestId,
             ),
         )
 
@@ -107,56 +104,94 @@ class ScanCaptureEnvironmentTest {
     }
 
     @Test
-    fun `explicit request dispatches started and resolved actions`() = runTest {
+    fun `immediate request result resolves the accepted request identity`() = runTest {
         val fixture = fixture()
         fixture.gateway.requestedAuthorization = CapabilityAuthorization.Denied
-        val state = ScanState(
+        val initial = ScanState(
             cameraAuthorizationLoaded = true,
             cameraAuthorization = CapabilityAuthorization.NotRequested,
         )
+        val request = RequestCameraAuthorization()
+        val accepted = fixture.environment.reduce(initial, request)
 
-        fixture.environment.invoke(RequestCameraAuthorization, state)
+        assertTrue(accepted.cameraRequestInFlight)
+        assertTrue(accepted.cameraRequestId === request.requestId)
+
+        fixture.environment.invoke(request, accepted)
 
         assertEquals(1, fixture.gateway.requestCalls)
-        assertTrue(fixture.dispatcher.actions.any { it is CameraAuthorizationRequestStarted })
-        assertEquals(
-            CapabilityAuthorization.Denied,
-            fixture.dispatcher.actions
-                .filterIsInstance<CameraAuthorizationRequestResolved>()
-                .last()
-                .authorization,
-        )
+        val resolvedAction = fixture.dispatcher.actions
+            .filterIsInstance<CameraAuthorizationRequestResolved>()
+            .last()
+        assertTrue(resolvedAction.requestId === request.requestId)
+        assertEquals(CapabilityAuthorization.Denied, resolvedAction.authorization)
+
+        val resolved = fixture.environment.reduce(accepted, resolvedAction)
+        assertFalse(resolved.cameraRequestInFlight)
+        assertEquals(CapabilityAuthorization.Denied, resolved.cameraAuthorization)
     }
 
     @Test
-    fun `request is ignored until authorization is loaded and when settings are required`() = runTest {
+    fun `unaccepted request intent cannot call native authorization`() = runTest {
         val fixture = fixture()
+        val unloadedRequest = RequestCameraAuthorization()
+        val unloaded = fixture.environment.reduce(ScanState(), unloadedRequest)
+        fixture.environment.invoke(unloadedRequest, unloaded)
 
-        fixture.environment.invoke(RequestCameraAuthorization, ScanState())
-        fixture.environment.invoke(
-            RequestCameraAuthorization,
-            ScanState(
-                cameraAuthorizationLoaded = true,
-                cameraAuthorization = CapabilityAuthorization.SettingsRequired,
-            ),
+        val settingsRequest = RequestCameraAuthorization()
+        val settingsRequired = ScanState(
+            cameraAuthorizationLoaded = true,
+            cameraAuthorization = CapabilityAuthorization.SettingsRequired,
         )
+        val rejected = fixture.environment.reduce(settingsRequired, settingsRequest)
+        fixture.environment.invoke(settingsRequest, rejected)
 
         assertEquals(0, fixture.gateway.requestCalls)
+        assertFalse(unloaded.cameraRequestInFlight)
+        assertFalse(rejected.cameraRequestInFlight)
     }
 
     @Test
-    fun `cancellation clears request and propagates`() = runTest {
+    fun `duplicate request identity is rejected before its effect runs`() = runTest {
         val fixture = fixture()
-        fixture.gateway.requestFailure = CancellationException("cancelled")
-        val state = ScanState(
+        val initial = ScanState(
             cameraAuthorizationLoaded = true,
             cameraAuthorization = CapabilityAuthorization.NotRequested,
         )
+        val first = RequestCameraAuthorization()
+        val second = RequestCameraAuthorization()
+        val accepted = fixture.environment.reduce(initial, first)
+        val duplicateRejected = fixture.environment.reduce(accepted, second)
+
+        assertTrue(duplicateRejected.cameraRequestId === first.requestId)
+
+        fixture.environment.invoke(second, duplicateRejected)
+        assertEquals(0, fixture.gateway.requestCalls)
+
+        fixture.environment.invoke(first, duplicateRejected)
+        assertEquals(1, fixture.gateway.requestCalls)
+    }
+
+    @Test
+    fun `cancellation clears matching request and propagates`() = runTest {
+        val fixture = fixture()
+        fixture.gateway.requestFailure = CancellationException("cancelled")
+        val initial = ScanState(
+            cameraAuthorizationLoaded = true,
+            cameraAuthorization = CapabilityAuthorization.NotRequested,
+        )
+        val request = RequestCameraAuthorization()
+        val accepted = fixture.environment.reduce(initial, request)
 
         assertFailsWith<CancellationException> {
-            fixture.environment.invoke(RequestCameraAuthorization, state)
+            fixture.environment.invoke(request, accepted)
         }
-        assertTrue(fixture.dispatcher.actions.any { it is CameraAuthorizationRequestFailed })
+
+        val failedAction = fixture.dispatcher.actions
+            .filterIsInstance<CameraAuthorizationRequestFailed>()
+            .last()
+        assertTrue(failedAction.requestId === request.requestId)
+        assertFalse(fixture.environment.reduce(accepted, failedAction).cameraRequestInFlight)
     }
 
     @Test
@@ -221,45 +256,30 @@ class ScanCaptureEnvironmentTest {
     }
 
     @Test
-    fun `request lifecycle updates only requestable loaded state`() {
+    fun `stale result cannot resolve a newer request`() {
         val fixture = fixture()
         val initial = ScanState(
             cameraAuthorizationLoaded = true,
-            cameraAuthorization = CapabilityAuthorization.NotRequested,
+            cameraAuthorization = CapabilityAuthorization.Denied,
+        )
+        val first = RequestCameraAuthorization()
+        val firstAccepted = fixture.environment.reduce(initial, first)
+        val firstFailed = fixture.environment.reduce(
+            firstAccepted,
+            CameraAuthorizationRequestFailed(first.requestId),
+        )
+        val second = RequestCameraAuthorization()
+        val secondAccepted = fixture.environment.reduce(firstFailed, second)
+
+        val staleResult = fixture.environment.reduce(
+            secondAccepted,
+            CameraAuthorizationRequestResolved(
+                requestId = first.requestId,
+                authorization = CapabilityAuthorization.Granted,
+            ),
         )
 
-        val requesting = fixture.environment.reduce(initial, CameraAuthorizationRequestStarted)
-        val resolved = fixture.environment.reduce(
-            requesting,
-            CameraAuthorizationRequestResolved(CapabilityAuthorization.Granted),
-        )
-
-        assertTrue(requesting.cameraRequestInFlight)
-        assertFalse(resolved.cameraRequestInFlight)
-        assertEquals(CapabilityAuthorization.Granted, resolved.cameraAuthorization)
-    }
-}
-
-class ScanCameraRequestCoordinatorTest {
-    @Test
-    fun `concurrent request is rejected instead of queued`() = runTest {
-        val coordinator = ScanCameraRequestCoordinator()
-        val entered = CompletableDeferred<Unit>()
-        val release = CompletableDeferred<Unit>()
-
-        val first = async {
-            coordinator.runExclusive {
-                entered.complete(Unit)
-                release.await()
-                "first"
-            }
-        }
-        entered.await()
-
-        val second = coordinator.runExclusive { "second" }
-        assertNull(second)
-
-        release.complete(Unit)
-        assertEquals("first", first.await())
+        assertEquals(secondAccepted, staleResult)
+        assertTrue(staleResult.cameraRequestId === second.requestId)
     }
 }
