@@ -16,7 +16,6 @@ import com.micrantha.eyespie.features.scan.entities.ScanAction.Back
 import com.micrantha.eyespie.features.scan.entities.ScanAction.CameraAuthorizationLoaded
 import com.micrantha.eyespie.features.scan.entities.ScanAction.CameraAuthorizationRequestFailed
 import com.micrantha.eyespie.features.scan.entities.ScanAction.CameraAuthorizationRequestResolved
-import com.micrantha.eyespie.features.scan.entities.ScanAction.CameraAuthorizationRequestStarted
 import com.micrantha.eyespie.features.scan.entities.ScanAction.OpenCameraSettings
 import com.micrantha.eyespie.features.scan.entities.ScanAction.RefreshCameraAuthorization
 import com.micrantha.eyespie.features.scan.entities.ScanAction.RequestCameraAuthorization
@@ -25,7 +24,6 @@ import com.micrantha.eyespie.features.scan.entities.ScanEditParams
 import com.micrantha.eyespie.features.scan.entities.ScanState
 import com.micrantha.eyespie.features.scan.ui.edit.ScanEditScreen
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.sync.Mutex
 import okio.Path
 
 class ScanCaptureEnvironment(
@@ -33,12 +31,11 @@ class ScanCaptureEnvironment(
     private val capabilityPermissionGateway: CapabilityPermissionGateway,
 ) : Reducer<ScanState>, Effect<ScanState>,
     Dispatcher by context.dispatcher {
-    private val cameraRequestCoordinator = ScanCameraRequestCoordinator()
 
     override suspend fun invoke(action: Action, state: ScanState) {
         when (action) {
             is RefreshCameraAuthorization -> refreshCameraAuthorization(state)
-            is RequestCameraAuthorization -> requestCameraAuthorization(state)
+            is RequestCameraAuthorization -> requestCameraAuthorization(action, state)
             is OpenCameraSettings -> {
                 if (state.cameraAuthorization == CapabilityAuthorization.SettingsRequired) {
                     capabilityPermissionGateway.openSettings(OnboardingCapability.CameraScanning)
@@ -75,28 +72,28 @@ class ScanCaptureEnvironment(
             state
         }
 
-        is CameraAuthorizationRequestStarted -> if (
+        is RequestCameraAuthorization -> if (
             state.cameraAuthorizationLoaded &&
             !state.cameraRequestInFlight &&
             state.cameraAuthorization.canRequestCamera()
         ) {
-            state.copy(cameraRequestInFlight = true)
+            state.copy(cameraRequestId = action.requestId)
         } else {
             state
         }
 
-        is CameraAuthorizationRequestResolved -> if (state.cameraRequestInFlight) {
+        is CameraAuthorizationRequestResolved -> if (state.cameraRequestId === action.requestId) {
             state.copy(
                 cameraAuthorization = action.authorization,
                 cameraAuthorizationLoaded = true,
-                cameraRequestInFlight = false,
+                cameraRequestId = null,
             )
         } else {
             state
         }
 
-        is CameraAuthorizationRequestFailed -> if (state.cameraRequestInFlight) {
-            state.copy(cameraRequestInFlight = false)
+        is CameraAuthorizationRequestFailed -> if (state.cameraRequestId === action.requestId) {
+            state.copy(cameraRequestId = null)
         } else {
             state
         }
@@ -138,45 +135,31 @@ class ScanCaptureEnvironment(
         )
     }
 
-    private suspend fun requestCameraAuthorization(state: ScanState) {
-        if (
-            !state.cameraAuthorizationLoaded ||
-            state.cameraRequestInFlight ||
-            !state.cameraAuthorization.canRequestCamera()
-        ) {
-            return
-        }
+    private suspend fun requestCameraAuthorization(
+        action: RequestCameraAuthorization,
+        state: ScanState,
+    ) {
+        if (state.cameraRequestId !== action.requestId) return
 
         try {
-            val authorization = cameraRequestCoordinator.runExclusive {
-                dispatch(CameraAuthorizationRequestStarted)
-                capabilityPermissionGateway.requestAuthorization(
-                    capability = OnboardingCapability.CameraScanning,
-                    previous = state.cameraAuthorization,
-                )
-            } ?: return
-            dispatch(CameraAuthorizationRequestResolved(authorization))
+            val authorization = capabilityPermissionGateway.requestAuthorization(
+                capability = OnboardingCapability.CameraScanning,
+                previous = state.cameraAuthorization,
+            )
+            dispatch(
+                CameraAuthorizationRequestResolved(
+                    requestId = action.requestId,
+                    authorization = authorization,
+                ),
+            )
         } catch (cancelled: CancellationException) {
-            dispatch(CameraAuthorizationRequestFailed)
+            dispatch(CameraAuthorizationRequestFailed(action.requestId))
             throw cancelled
         } catch (_: Throwable) {
-            dispatch(CameraAuthorizationRequestFailed)
+            dispatch(CameraAuthorizationRequestFailed(action.requestId))
         }
     }
 
     private fun CapabilityAuthorization.canRequestCamera(): Boolean =
         this == CapabilityAuthorization.NotRequested || this == CapabilityAuthorization.Denied
-}
-
-internal class ScanCameraRequestCoordinator {
-    private val mutex = Mutex()
-
-    suspend fun <T> runExclusive(block: suspend () -> T): T? {
-        if (!mutex.tryLock()) return null
-        return try {
-            block()
-        } finally {
-            mutex.unlock()
-        }
-    }
 }
