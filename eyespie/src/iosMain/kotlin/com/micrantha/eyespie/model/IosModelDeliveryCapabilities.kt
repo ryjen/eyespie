@@ -3,7 +3,7 @@ package com.micrantha.eyespie.model
 /**
  * Narrow platform seam used by the Kotlin repository before scheduling model delivery.
  *
- * Swift/native composition may replace the default implementation once transport wiring exists.
+ * Swift/native composition replaces the fail-closed default once transport wiring exists.
  */
 fun interface IosModelDeliveryCapabilities {
     fun snapshot(): IosModelDeliveryCapabilitySnapshot
@@ -33,7 +33,7 @@ data class IosModelDeliveryCapabilitySnapshot(
 internal object DefaultIosModelDeliveryCapabilities : IosModelDeliveryCapabilities {
     override fun snapshot() = IosModelDeliveryCapabilitySnapshot(
         backgroundUrlSessionSupported = true,
-        backgroundUrlSessionConfigured = true,
+        backgroundUrlSessionConfigured = false,
         backgroundAssetsSupported = false,
         backgroundAssetsConfigured = false,
     )
