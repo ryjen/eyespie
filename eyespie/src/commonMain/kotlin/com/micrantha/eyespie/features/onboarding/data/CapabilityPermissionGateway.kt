@@ -20,7 +20,7 @@ interface CapabilityPermissionGateway {
     suspend fun requestAuthorization(
         capability: OnboardingCapability,
         previous: CapabilityAuthorization,
-    ): CapabilityAuthorization?
+    ): CapabilityAuthorization
 
     fun openSettings(capability: OnboardingCapability)
 }
@@ -28,11 +28,11 @@ interface CapabilityPermissionGateway {
 class MokoCapabilityPermissionGateway(
     private val permissionsController: PermissionsController,
 ) : CapabilityPermissionGateway {
-    private val requestMutex = Mutex()
+    private val authorizationMutex = Mutex()
 
     override suspend fun loadCapabilities(
         previous: List<CapabilityState>,
-    ): List<CapabilityState> = requestMutex.withLock {
+    ): List<CapabilityState> = authorizationMutex.withLock {
         val cameraPrevious = previous.authorizationFor(OnboardingCapability.CameraScanning)
         val notificationsPrevious = previous.authorizationFor(OnboardingCapability.Notifications)
 
@@ -57,15 +57,10 @@ class MokoCapabilityPermissionGateway(
     override suspend fun requestAuthorization(
         capability: OnboardingCapability,
         previous: CapabilityAuthorization,
-    ): CapabilityAuthorization? {
-        if (!requestMutex.tryLock()) return null
-        return try {
-            when (capability) {
-                OnboardingCapability.CameraScanning -> requestCamera(previous)
-                OnboardingCapability.Notifications -> previous
-            }
-        } finally {
-            requestMutex.unlock()
+    ): CapabilityAuthorization = authorizationMutex.withLock {
+        when (capability) {
+            OnboardingCapability.CameraScanning -> requestCamera(previous)
+            OnboardingCapability.Notifications -> previous
         }
     }
 
