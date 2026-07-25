@@ -115,4 +115,36 @@ class OnboardingReducerTest {
         assertEquals(camera, result.capabilities.single())
         assertNull(result.requestInFlight)
     }
+
+    @Test
+    fun `stale resolved request is ignored`() {
+        val state = OnboardingState(capabilities = listOf(camera))
+
+        assertEquals(
+            state,
+            reducer.reduce(
+                state,
+                CapabilityRequestResolved(
+                    OnboardingCapability.CameraScanning,
+                    CapabilityAuthorization.Granted,
+                ),
+            ),
+        )
+    }
+
+    @Test
+    fun `stale failure cannot clear another active request`() {
+        val state = OnboardingState(
+            capabilities = listOf(camera, notifications),
+            requestInFlight = OnboardingCapability.CameraScanning,
+        )
+
+        assertEquals(
+            state,
+            reducer.reduce(
+                state,
+                CapabilityRequestFailed(OnboardingCapability.Notifications),
+            ),
+        )
+    }
 }
