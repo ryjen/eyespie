@@ -2,6 +2,7 @@ package com.micrantha.eyespie.features.onboarding.arch
 
 import com.micrantha.eyespie.features.onboarding.entities.CapabilityAuthorization
 import com.micrantha.eyespie.features.onboarding.entities.CapabilityState
+import com.micrantha.eyespie.features.onboarding.entities.OnboardingAction.CapabilitiesLoaded
 import com.micrantha.eyespie.features.onboarding.entities.OnboardingAction.CapabilityRequestFailed
 import com.micrantha.eyespie.features.onboarding.entities.OnboardingAction.CapabilityRequestResolved
 import com.micrantha.eyespie.features.onboarding.entities.OnboardingAction.CapabilityRequestStarted
@@ -39,6 +40,77 @@ class OnboardingReducerTest {
         val state = OnboardingState()
 
         assertEquals(state, reducer.reduce(state, PageChanged(Int.MAX_VALUE)))
+    }
+
+    @Test
+    fun `fresh capability refresh is applied when no request is active`() {
+        val previous = listOf(camera, notifications)
+        val refreshed = listOf(
+            camera.copy(authorization = CapabilityAuthorization.Granted),
+            notifications,
+        )
+        val state = OnboardingState(capabilities = previous)
+
+        assertEquals(
+            state.copy(capabilities = refreshed),
+            reducer.reduce(
+                state,
+                CapabilitiesLoaded(previous = previous, capabilities = refreshed),
+            ),
+        )
+    }
+
+    @Test
+    fun `capability refresh is ignored while a request is active`() {
+        val previous = listOf(camera, notifications)
+        val state = OnboardingState(
+            capabilities = previous,
+            requestInFlight = OnboardingCapability.CameraScanning,
+        )
+
+        assertEquals(
+            state,
+            reducer.reduce(
+                state,
+                CapabilitiesLoaded(
+                    previous = previous,
+                    capabilities = listOf(
+                        camera.copy(authorization = CapabilityAuthorization.Granted),
+                        notifications,
+                    ),
+                ),
+            ),
+        )
+    }
+
+    @Test
+    fun `stale foreground refresh cannot overwrite denied request result`() {
+        val previous = listOf(camera, notifications)
+        val requesting = OnboardingState(
+            capabilities = previous,
+            requestInFlight = OnboardingCapability.CameraScanning,
+        )
+        val resolved = reducer.reduce(
+            requesting,
+            CapabilityRequestResolved(
+                OnboardingCapability.CameraScanning,
+                CapabilityAuthorization.Denied,
+            ),
+        )
+
+        val afterStaleRefresh = reducer.reduce(
+            resolved,
+            CapabilitiesLoaded(
+                previous = previous,
+                capabilities = previous,
+            ),
+        )
+
+        assertEquals(resolved, afterStaleRefresh)
+        assertEquals(
+            CapabilityAuthorization.Denied,
+            afterStaleRefresh.capabilities.first().authorization,
+        )
     }
 
     @Test
