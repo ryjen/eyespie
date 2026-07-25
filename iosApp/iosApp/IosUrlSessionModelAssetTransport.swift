@@ -181,7 +181,7 @@ final class IosUrlSessionModelAssetTransport: NSObject, IosModelAssetTransport {
         configuration: IosModelAssetDownloadConfiguration = .deterministicTestAsset,
         stagingStore: IosModelAssetStagingStore? = nil,
         sessionFactory: SessionFactory? = nil
-    ) {
+    ) throws {
         self.configuration = configuration
         self.backgroundSessionIdentifier = Self.sessionIdentifier(
             bundleIdentifier: bundleIdentifier
@@ -189,9 +189,13 @@ final class IosUrlSessionModelAssetTransport: NSObject, IosModelAssetTransport {
         self.delegateQueue = OperationQueue()
         self.delegateQueue.name = "com.micrantha.eyespie.model-asset-url-session"
         self.delegateQueue.maxConcurrentOperationCount = 1
-        self.stagingStore = try! stagingStore ?? IosModelAssetStagingStore(
-            stagingFilename: configuration.stagingFilename
-        )
+        if let stagingStore {
+            self.stagingStore = stagingStore
+        } else {
+            self.stagingStore = try IosModelAssetStagingStore(
+                stagingFilename: configuration.stagingFilename
+            )
+        }
         super.init()
 
         let sessionConfiguration = Self.makeSessionConfiguration(
@@ -294,11 +298,15 @@ final class IosUrlSessionModelAssetTransport: NSObject, IosModelAssetTransport {
                     .filter { $0.taskDescription == self.configuration.taskDescription }
                     .sorted { $0.taskIdentifier < $1.taskIdentifier }
 
-                guard self.activeTask == nil, let restoredTask = matchingTasks.last else {
-                    matchingTasks.forEach { $0.cancel() }
-                    if self.activeTask == nil {
-                        self.eventStream.emitIdle()
-                    }
+                if let activeTask = self.activeTask {
+                    matchingTasks
+                        .filter { $0.taskIdentifier != activeTask.taskIdentifier }
+                        .forEach { $0.cancel() }
+                    return
+                }
+
+                guard let restoredTask = matchingTasks.last else {
+                    self.eventStream.emitIdle()
                     return
                 }
 
@@ -338,6 +346,7 @@ final class IosUrlSessionModelAssetTransport: NSObject, IosModelAssetTransport {
 
     private func finishCurrentTask(taskIdentifier: Int) {
         terminalTaskIdentifiers.insert(taskIdentifier)
+        explicitlyCancelledTaskIdentifiers.remove(taskIdentifier)
         if activeTask?.taskIdentifier == taskIdentifier {
             activeTask = nil
         }
@@ -421,7 +430,7 @@ extension IosUrlSessionModelAssetTransport: URLSessionTaskDelegate {
 
             if let error {
                 if (error as? URLError)?.code == .cancelled,
-                   self.explicitlyCancelledTaskIdentifiers.remove(taskIdentifier) != nil {
+                   self.explicitlyCancelledTaskIdentifiers.contains(taskIdentifier) {
                     self.finishCurrentTask(taskIdentifier: taskIdentifier)
                     self.eventStream.emitCancelled()
                     return
