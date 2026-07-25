@@ -69,10 +69,7 @@ class CapabilityPermissionGatewayTest {
             CapabilityAuthorization.NotRequested,
         )
 
-        assertEquals(
-            currentCameraAuthorization(permissions, CapabilityAuthorization.NotRequested),
-            result,
-        )
+        assertEquals(CapabilityAuthorization.Granted, result)
         assertEquals(1, requestCount)
     }
 }
