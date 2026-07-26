@@ -1,6 +1,5 @@
 package com.micrantha.eyespie.model
 
-import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 
 /**
@@ -12,7 +11,7 @@ import kotlinx.coroutines.flow.Flow
 interface IosModelAssetTransport {
     fun observe(): Flow<IosModelAssetTransportEvent>
 
-    @Throws(IosModelAssetTransportException::class, CancellationException::class)
+    @Throws(IosModelAssetTransportException::class)
     suspend fun schedule()
 
     suspend fun cancel()
