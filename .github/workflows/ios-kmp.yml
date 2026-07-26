@@ -181,9 +181,72 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
+  ios-app-consumer:
+    name: ios-app-consumer
+    needs: [classify-ios-kmp, ios-kmp-build]
+    if: needs.classify-ios-kmp.outputs.required == 'true'
+    runs-on: macos-15
+    timeout-minutes: 15
+    steps:
+      - name: Download shared iOS simulator application
+        uses: actions/download-artifact@d3f86a106a0bac45b974a628896c90dbdf5c8093 # v4.3.0
+        with:
+          name: eyespie-ios-simulator-app-${{ github.sha }}
+          path: build/shared-ios-app
+
+      - name: Validate downloaded application without rebuilding
+        id: app
+        shell: bash
+        run: |
+          set -euo pipefail
+          mapfile -d '' products < <(find build/shared-ios-app -type d -name '*.app' -print0)
+          if (( ${#products[@]} != 1 )); then
+            printf 'expected exactly one downloaded iOS app, found %d\n' "${#products[@]}" >&2
+            exit 1
+          fi
+
+          app_path="${products[0]}"
+          info_plist="$app_path/Info.plist"
+          bundle_id="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$info_plist")"
+          executable="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$info_plist")"
+
+          test -n "$bundle_id"
+          test -x "$app_path/$executable"
+          file "$app_path/$executable"
+
+          printf 'path=%s\n' "$app_path" >> "$GITHUB_OUTPUT"
+          printf 'bundle_id=%s\n' "$bundle_id" >> "$GITHUB_OUTPUT"
+
+      - name: Install downloaded application in a simulator
+        shell: bash
+        env:
+          APP_PATH: ${{ steps.app.outputs.path }}
+          BUNDLE_ID: ${{ steps.app.outputs.bundle_id }}
+        run: |
+          set -euo pipefail
+          device_id="$(python3 - <<'PY'
+          import json
+          import subprocess
+
+          payload = json.loads(subprocess.check_output(["xcrun", "simctl", "list", "devices", "available", "-j"]))
+          for devices in payload["devices"].values():
+              for device in devices:
+                  if device.get("isAvailable") and "iPhone" in device.get("name", ""):
+                      print(device["udid"])
+                      raise SystemExit(0)
+          raise SystemExit("no available iPhone simulator found")
+          PY
+          )"
+
+          xcrun simctl boot "$device_id" 2>/dev/null || true
+          xcrun simctl bootstatus "$device_id" -b
+          xcrun simctl install "$device_id" "$APP_PATH"
+          xcrun simctl get_app_container "$device_id" "$BUNDLE_ID" app
+          xcrun simctl shutdown "$device_id"
+
   ios-kmp:
     name: ios-kmp
-    needs: [classify-ios-kmp, ios-kmp-build]
+    needs: [classify-ios-kmp, ios-kmp-build, ios-app-consumer]
     if: always()
     runs-on: ubuntu-latest
     timeout-minutes: 5
@@ -194,6 +257,7 @@ jobs:
           REQUIRED: ${{ needs.classify-ios-kmp.outputs.required }}
           CLASSIFY_RESULT: ${{ needs.classify-ios-kmp.result }}
           BUILD_RESULT: ${{ needs.ios-kmp-build.result }}
+          CONSUMER_RESULT: ${{ needs.ios-app-consumer.result }}
         run: |
           set -euo pipefail
 
@@ -202,14 +266,22 @@ jobs:
             exit 1
           fi
 
-          if [[ "$REQUIRED" == "true" && "$BUILD_RESULT" != "success" ]]; then
-            echo "Required iOS/KMP validation did not pass: $BUILD_RESULT" >&2
-            exit 1
+          if [[ "$REQUIRED" == "true" ]]; then
+            if [[ "$BUILD_RESULT" != "success" ]]; then
+              echo "Required iOS/KMP build did not pass: $BUILD_RESULT" >&2
+              exit 1
+            fi
+            if [[ "$CONSUMER_RESULT" != "success" ]]; then
+              echo "Shared iOS app consumer did not pass: $CONSUMER_RESULT" >&2
+              exit 1
+            fi
           fi
 
-          if [[ "$REQUIRED" == "false" && "$BUILD_RESULT" != "skipped" ]]; then
-            echo "Unexpected iOS/KMP worker result for unrelated changes: $BUILD_RESULT" >&2
-            exit 1
+          if [[ "$REQUIRED" == "false" ]]; then
+            if [[ "$BUILD_RESULT" != "skipped" || "$CONSUMER_RESULT" != "skipped" ]]; then
+              echo "Unexpected iOS/KMP worker results for unrelated changes: build=$BUILD_RESULT consumer=$CONSUMER_RESULT" >&2
+              exit 1
+            fi
           fi
 
-          echo "iOS/KMP gate passed (required=$REQUIRED, worker=$BUILD_RESULT)."
+          echo "iOS/KMP gate passed (required=$REQUIRED, build=$BUILD_RESULT, consumer=$CONSUMER_RESULT)."
