@@ -130,6 +130,18 @@ jobs:
         working-directory: iosApp
         run: pod install
 
+      - name: Normalize Xcode Kotlin module path
+        shell: bash
+        run: |
+          set -euo pipefail
+          project_file=iosApp/iosApp.xcodeproj/project.pbxproj
+          sed -i '' 's/:eyespie:embedAndSignAppleFrameworkForXcode/:app:embedAndSignAppleFrameworkForXcode/g' "$project_file"
+          grep -Fq './gradlew :app:embedAndSignAppleFrameworkForXcode' "$project_file"
+          if grep -Fq ':eyespie:embedAndSignAppleFrameworkForXcode' "$project_file"; then
+            echo 'Obsolete Gradle project path remains in Xcode build phase' >&2
+            exit 1
+          fi
+
       - name: Build iOS application once
         shell: bash
         run: |
