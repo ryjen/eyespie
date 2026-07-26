@@ -1,6 +1,8 @@
 name: Staging
+
 permissions:
   contents: read
+
 on:
   push:
     branches:
@@ -18,47 +20,10 @@ on:
   workflow_dispatch:
 
 jobs:
-  supabase:
-    runs-on: ubuntu-latest
-    environment: staging
-
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-
-      - uses: ./.github/actions/supabase
-        with:
-          access_token: ${{ secrets.SUPABASE_ACCESS_TOKEN }}
-          project_id: ${{ secrets.SUPABASE_PROJECT_ID }}
-          database_url: ${{ secrets.SUPABASE_DB_URL }}
-
-  mobile:
-    runs-on: macos-latest
-    environment: staging
-
-    steps:
-      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-
-      - name: Create build config
-        uses: ./.github/actions/configure-build
-        id: build-config
-        with:
-          android_keystore: ${{ secrets.ANDROID_STORE_FILE }}
-          config: ${{ secrets.APP_CONFIG }}
-          login_email: ${{ inputs.login_email }}
-          login_password: ${{ inputs.login_password }}
-
-      - uses: maierj/fastlane-action@182983d8f94bad9884001c03c1c2786f4c7165ed # v3.2.0
-        with:
-          lane: "distribute_staging"
-        env:
-          APPLE_CONNECT_ID: "${{ secrets.APPLE_CONNECT_ID }}"
-          APPLE_TEAM_ID: "${{ secrets.APPLE_TEAM_ID }}"
-          APPLE_USERNAME: "${{ secrets.APPLE_USERNAME }}"
-          ANDROID_STORE_FILE: "${{ steps.build-config.outputs.android_keystore }}"
-          ANDROID_STORE_PASSWORD: "${{ secrets.ANDROID_STORE_PASSWORD }}"
-          ANDROID_KEY_ALIAS: "${{ secrets.ANDROID_KEY_ALIAS }}"
-          ANDROID_KEY_PASSWORD: "${{ secrets.ANDROID_KEY_PASSWORD }}"
+  deploy:
+    uses: ./.github/workflows/deploy-environment.yml
+    with:
+      deployment_environment: staging
+      fastlane_lane: distribute_staging
+      login_email: ${{ inputs.login_email }}
+      login_password: ${{ inputs.login_password }}
