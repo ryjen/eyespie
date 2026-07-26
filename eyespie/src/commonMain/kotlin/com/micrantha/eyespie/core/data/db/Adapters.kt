@@ -1,10 +1,10 @@
 package com.micrantha.eyespie.core.data.db
 
 import app.cash.sqldelight.ColumnAdapter
-import kotlinx.datetime.Instant
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
 import kotlin.time.ExperimentalTime
+import kotlin.time.Instant
 
 @OptIn(ExperimentalTime::class)
 val instantAdapter = object : ColumnAdapter<Instant, String> {
