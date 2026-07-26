@@ -6,7 +6,7 @@ import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
 
 @OptIn(ExperimentalTime::class)
-data class Game(
+data class Game internal constructor(
     override val id: String,
     override val createdAt: Instant,
     val name: String,
@@ -22,7 +22,7 @@ data class Game(
         val thing: IntRange
     )
 
-    data class Listing(
+    data class Listing internal constructor(
         override val id: String,
         val nodeId: String,
         override val createdAt: Instant,
