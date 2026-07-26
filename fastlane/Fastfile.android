@@ -2,12 +2,26 @@ fastlane_require 'semantic'
 fastlane_require 'semantic/core_ext'
 
 platform :android do
+  desc "Validate model metadata and Android bundle validator contracts"
+  lane :validate do
+    sh("python3 scripts/stage_android_model_artifact.py verify")
+    sh("python3 -m unittest scripts.tests.test_validate_android_bundle")
+  end
 
-  before_all do
-    # Ensure git status is clean
-    #ensure_git_status_clean
-    # Update all dependencies
-    gradle(task: "clean")
+  desc "Run Android unit and snapshot tests"
+  lane :test do
+    gradle(
+      tasks: [
+        ":bluebell:testDebugUnitTest",
+        ":app:testDebugUnitTest"
+      ],
+      flags: "--no-daemon --parallel --build-cache --configuration-cache"
+    )
+  end
+
+  desc "Build and verify the debug app bundle and model asset-pack topology"
+  lane :bundle_debug do
+    sh("scripts/ci/verify_android_bundle.sh")
   end
 
   desc "Build Android Debug APK"
@@ -17,10 +31,10 @@ platform :android do
       build_type: "Debug",
       print_command: false,
       properties: {
-	"android.injected.signing.store.file" => ENV["ANDROID_STORE_FILE"],
-	"android.injected.signing.store.password" => ENV["ANDROID_STORE_PASSWORD"],
-	"android.injected.signing.key.alias" => ENV["ANDROID_KEY_ALIAS"],
-	"android.injected.signing.key.password" => ENV["ANDROID_KEY_PASSWORD"],
+        "android.injected.signing.store.file" => ENV["ANDROID_STORE_FILE"],
+        "android.injected.signing.store.password" => ENV["ANDROID_STORE_PASSWORD"],
+        "android.injected.signing.key.alias" => ENV["ANDROID_KEY_ALIAS"],
+        "android.injected.signing.key.password" => ENV["ANDROID_KEY_PASSWORD"],
       }
     )
   end
@@ -32,23 +46,23 @@ platform :android do
       build_type: "Release",
       print_command: false,
       properties: {
-	"android.injected.signing.store.file" => ENV["ANDROID_STORE_FILE"],
-	"android.injected.signing.store.password" => ENV["ANDROID_STORE_PASSWORD"],
-	"android.injected.signing.key.alias" => ENV["ANDROID_KEY_ALIAS"],
-	"android.injected.signing.key.password" => ENV["ANDROID_KEY_PASSWORD"],
+        "android.injected.signing.store.file" => ENV["ANDROID_STORE_FILE"],
+        "android.injected.signing.store.password" => ENV["ANDROID_STORE_PASSWORD"],
+        "android.injected.signing.key.alias" => ENV["ANDROID_KEY_ALIAS"],
+        "android.injected.signing.key.password" => ENV["ANDROID_KEY_PASSWORD"],
       }
     )
   end
 
   desc "Distribute Android APK to production"
-  lane :distribute_production do
+  lane :distribute_production do |options|
     version_code = options[:version_code] || android_get_version_code(
-      gradle_file: "./composeApp/build.gradle.kts"
+      gradle_file: "./eyespie/build.gradle.kts"
     )
 
     version_name = options[:version_name] || android_get_version_name(
-      gradle_file: "./composeApp/build.gradle.kts"
-    ).
+      gradle_file: "./eyespie/build.gradle.kts"
+    )
 
     upload_to_play_store(
       track: 'beta',
@@ -60,20 +74,17 @@ platform :android do
       skip_upload_changelogs: false
     )
 
-    # Add a git tag
     add_git_tag(
       tag: "android-production-#{version_name}"
     )
 
-    # Push the tag
     push_git_tags
   end
-
 
   desc "Distribute Android APK to staging"
   lane :distribute_staging do |options|
     version_code = options[:version_code] || android_get_version_code(
-      gradle_file: "./composeApp/build.gradle.kts"
+      gradle_file: "./eyespie/build.gradle.kts"
     )
 
     upload_to_play_store(
@@ -89,25 +100,21 @@ platform :android do
 
   desc "Distribute Android APK to development"
   lane :distribute_development do |options|
-
-    # Increment version code
     version_code = options[:version_code] || android_get_version_code(
-      gradle_file: "./composeApp/build.gradle.kts"
+      gradle_file: "./eyespie/build.gradle.kts"
     )
 
     version_name = android_get_version_name(
-      gradle_file: "./composeApp/build.gradle.kts"
+      gradle_file: "./eyespie/build.gradle.kts"
     )
 
     android_set_version_code(
-      gradle_file: "./composeApp/build.gradle.kts",
+      gradle_file: "./eyespie/build.gradle.kts",
       version_code: version_code.to_i + 1
     )
 
-    # Build the release APK
     build_release
 
-    # Upload to Play Store internal testing track
     upload_to_play_store(
       track: 'internal',
       release_status: 'draft',
@@ -116,26 +123,7 @@ platform :android do
       skip_upload_screenshots: true,
       skip_upload_changelogs: false,
       version_name: version_name,
-      mapping: "./composeApp/build/outputs/mapping/release/mapping.txt"
+      mapping: "./eyespie/build/outputs/mapping/release/mapping.txt"
     )
-  end
-
-  after_all do |lane|
-    # Clean up any files generated during the lane
-    clean_build_artifacts
-
-    # Notify on success
-    #slack(
-    #  message: "Successfully deployed new Android version!"
-    #) if ENV['SLACK_URL']
-  end
-
-  # Runs if there was an error
-  error do |lane, exception|
-    # Notify on failure
-    #slack(
-    #  message: "Error deploying Android version: #{exception.message}",
-    #  success: false
-    #) if ENV['SLACK_URL']
   end
 end
