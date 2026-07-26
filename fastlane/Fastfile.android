@@ -21,7 +21,7 @@ platform :android do
 
   desc "Build and verify the debug app bundle and model asset-pack topology"
   lane :bundle_debug do
-    sh("scripts/ci/verify_android_bundle.sh")
+    sh("bash scripts/ci/verify_android_bundle.sh")
   end
 
   desc "Build Android Debug APK"
