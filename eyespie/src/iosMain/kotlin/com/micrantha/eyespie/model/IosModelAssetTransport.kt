@@ -23,8 +23,7 @@ interface IosModelAssetTransport {
 class IosModelAssetTransportException(
     val recoverable: Boolean,
     val diagnosticCode: String,
-    cause: Throwable? = null,
-) : Exception(diagnosticCode, cause)
+) : Exception(diagnosticCode)
 
 internal data class IosDownloadedArtifact(
     val temporaryPath: String,
