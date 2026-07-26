@@ -13,7 +13,7 @@ Substantial validation logic remains in directly testable repository scripts. Fa
 
 `main` is the sole supported integration branch and pull-request target.
 
-Feature branches receive canonical verification by opening a pull request to `main`. The repository does not maintain a parallel `develop` integration branch or feature-to-feature verification workflow. Staging and production remain explicit environment-deployment paths and do not replace pull-request verification.
+Feature branches receive canonical verification by opening a pull request to `main`. The repository does not maintain a parallel `develop` integration branch or feature-to-feature verification workflow. Staging remains an explicit environment-deployment path. Production is part of the canonical `main` workflow and cannot run independently of successful same-commit verification.
 
 ## Canonical verification commands
 
@@ -95,13 +95,29 @@ xcodebuild \
 
 This is intentionally named `verify`, not `test`, because the current contract proves compilation/linkage rather than executing an iOS test suite. The lane does not initialize Xcode-version management, App Store Connect authentication, provisioning profiles, or other distribution credentials.
 
+## Deployment orchestration
+
+`.github/workflows/deploy-environment.yml` is the shared reusable deployment implementation. It keeps Supabase and mobile deployment as separate jobs and resolves environment-scoped credentials only inside jobs bound to the selected protected environment.
+
+- `staging.yml` hard-codes the `staging` environment and `distribute_staging` lane.
+- `main.yml` hard-codes the `production` environment and `distribute_production` lane.
+- No caller uses `secrets: inherit`.
+
+Production uses same-workflow dependency gating:
+
+```text
+validate -> android-tests -> android-bundle -> production
+```
+
+The production job runs only for a push to `refs/heads/main`. Pull requests, failed or cancelled dependencies, superseded runs, and non-`main` refs cannot start production. The reusable deployment workflow checks out the same `github.sha` verified by the preceding jobs.
+
 ## Workflow inventory
 
 | Workflow | Current triggers | Classification | Runner / secrets | Current build interface | Disposition |
 |---|---|---|---|---|---|
-| `main.yml` | PRs and pushes to `main` | Active verification | Linux; no protected distribution environment | Canonical Fastlane validation, test, and bundle lanes | Retain as the required PR/post-merge verification path |
-| `staging.yml` | `integration/**` pushes; callable/manual | Environment deployment | macOS plus staging secrets; Ubuntu Supabase deployment | Fastlane distribution plus composite Supabase action | Preserve until shared deployment orchestration slice |
-| `production.yml` | pushes to `main`; callable/manual | Environment deployment | macOS plus production secrets; Ubuntu Supabase deployment | Fastlane distribution plus composite Supabase action | Later slice: gate on successful same-commit verification and share deployment setup |
+| `main.yml` | PRs and pushes to `main` | Verification and commit-bound production | Linux verification; protected production deployment after success | Canonical Fastlane validation, test, bundle, and production lanes | Required PR/post-merge path; production depends on successful same-run verification |
+| `staging.yml` | `integration/**` pushes; callable/manual | Environment deployment | Protected staging environment | Shared deployment workflow with `distribute_staging` | Retain |
+| `deploy-environment.yml` | Reusable only | Shared deployment orchestration | Environment-bound Ubuntu and macOS jobs | Supabase action plus canonical distribution lane | Retain; callers hard-code environment and lane |
 | `sbom.yml` | PRs/pushes to `main`, tags, manual | Independent supply-chain workflow | Linux classifier and macOS generation; release permissions where applicable | Direct Gradle, CocoaPods and repository validation | Retain GitHub-specific publication/attestation; reconcile preparation later |
 | `workflow-security.yml` | workflow/action/dependabot changes; manual | Independent security workflow | Linux; read-only token | Zizmor | Retain independently; not application build semantics |
 | `codex-code-review.yml.disabled` | Disabled | Inactive | None | None | Keep disabled or delete separately; out of scope for application CI consolidation |
@@ -110,12 +126,14 @@ Removed obsolete workflows:
 
 - `test.yml`: duplicated verification for `feature/**` branch flows on macOS and required the protected `test` environment.
 - `development.yml`: duplicated verification for the unsupported `develop` branch, required protected development configuration, and contained a permanently disabled Supabase job.
+- `production.yml`: provided independent push, manual, and callable production entry points that could bypass same-commit verification.
 
 ## Security invariants
 
 - Verification lanes do not read signing, Play Store, App Store Connect, Supabase, or production application secrets.
 - Ordinary pull-request verification does not require a protected environment.
 - Distribution authentication remains confined to distribution lanes and protected GitHub environments.
+- Production cannot begin unless canonical verification succeeds for the same `main` workflow run and commit.
 - Existing clean/Xcode-selection/artifact-cleanup hooks remain active for non-verification lanes but are excluded from verification lanes.
 - GitHub Actions remains responsible for rejecting unsafe event paths and controlling secret availability.
 - Checkout credentials remain disabled unless a narrowly scoped write operation requires them.
@@ -123,6 +141,4 @@ Removed obsolete workflows:
 
 ## Follow-up slices
 
-1. Extract shared staging/production deployment orchestration.
-2. Gate production on successful verification of the same commit.
-3. Reconcile SBOM preparation and record before/after CI performance measurements.
+1. Reconcile SBOM preparation and record before/after CI performance measurements.
