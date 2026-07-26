@@ -199,7 +199,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          mapfile -d '' products < <(find build/shared-ios-app -type d -name '*.app' -print0)
+          products=()
+          while IFS= read -r -d '' product; do
+            products+=("$product")
+          done < <(find build/shared-ios-app -type d -name '*.app' -print0)
           if (( ${#products[@]} != 1 )); then
             printf 'expected exactly one downloaded iOS app, found %d\n' "${#products[@]}" >&2
             exit 1
