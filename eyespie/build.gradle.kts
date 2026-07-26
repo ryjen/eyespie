@@ -1,3 +1,5 @@
+import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
+
 plugins {
     alias(libs.plugins.androidApplication)
     alias(libs.plugins.nativeCocoapods)
@@ -36,6 +38,9 @@ kotlin {
         framework {
             baseName = "eyespie"
             isStatic = true
+            binaryOption("bundleId", "com.micrantha.eyespie")
+            @OptIn(ExperimentalKotlinGradlePluginApi::class)
+            exportKdoc.set(false)
         }
 
         pod("MediaPipeTasksVision")
@@ -55,6 +60,8 @@ kotlin {
             baseName = "eyespie"
             isStatic = true
             binaryOption("bundleId", "com.micrantha.eyespie")
+            @OptIn(ExperimentalKotlinGradlePluginApi::class)
+            exportKdoc.set(false)
         }
     }
 
