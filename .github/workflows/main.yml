@@ -35,14 +35,20 @@ jobs:
         with:
           cache-read-only: ${{ github.ref != 'refs/heads/main' }}
 
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@95ef2b042f9d7a56d8268cba8559e2842e2ad01b # v1
+        with:
+          ruby-version: "3.2"
+          bundler-cache: true
+
       - name: Create build configuration
         run: cp env.example .env.local
 
-      - name: Verify model metadata contract
-        run: python3 scripts/stage_android_model_artifact.py verify
+      - name: Validate Fastlane configuration
+        run: bundle exec fastlane lanes
 
-      - name: Test Android bundle topology validator
-        run: python3 -m unittest scripts.tests.test_validate_android_bundle
+      - name: Run canonical validation lane
+        run: bundle exec fastlane android validate
 
       - name: Compile Android production and unit-test sources
         run: >-
