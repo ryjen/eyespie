@@ -1,10 +1,13 @@
 package com.micrantha.eyespie.features.scan.ui.capture
 
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.BoxWithConstraintsScope
+import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.sizeIn
@@ -12,9 +15,11 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChevronLeft
 import androidx.compose.material.icons.filled.PhotoCamera
+import androidx.compose.material3.Button
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -29,46 +34,107 @@ import com.micrantha.bluebell.arch.Dispatch
 import com.micrantha.bluebell.ui.components.StateRenderer
 import com.micrantha.bluebell.ui.components.status.LoadingContent
 import com.micrantha.bluebell.ui.theme.Dimensions
+import com.micrantha.eyespie.core.ui.component.AppForegroundEffect
 import com.micrantha.eyespie.core.ui.component.LocationEnabledEffect
+import com.micrantha.eyespie.features.onboarding.entities.CapabilityAction
 import com.micrantha.eyespie.features.scan.entities.ScanAction
 import com.micrantha.eyespie.features.scan.entities.ScanUiState
 import com.micrantha.eyespie.platform.scan.CameraCapture
 import dev.icerock.moko.permissions.Permission
 import dev.icerock.moko.permissions.PermissionsController
-import dev.icerock.moko.permissions.camera.CAMERA
 import dev.icerock.moko.permissions.location.LOCATION
 import org.kodein.di.compose.rememberInstance
 
 class ScanCaptureScreen : Screen, StateRenderer<ScanUiState> {
     @Composable
     override fun Content() {
+        val screenModel: ScanCaptureScreenModel = rememberScreenModel()
         val permissions by rememberInstance<PermissionsController>()
+        val state by screenModel.state.collectAsState()
 
         LaunchedEffect(Unit) {
-            permissions.providePermission(Permission.CAMERA)
+            screenModel.dispatch(ScanAction.RefreshCameraAuthorization)
             permissions.providePermission(Permission.LOCATION)
         }
-
-        val screenModel: ScanCaptureScreenModel = rememberScreenModel()
-
-        val state by screenModel.state.collectAsState()
 
         Render(state, screenModel)
     }
 
     @Composable
     override fun Render(state: ScanUiState, dispatch: Dispatch) {
-
         LocationEnabledEffect(dispatch = dispatch)
+        AppForegroundEffect {
+            dispatch(ScanAction.RefreshCameraAuthorization)
+        }
 
         BoxWithConstraints(
             modifier = Modifier.fillMaxSize().background(Color.Transparent),
-            contentAlignment = Alignment.Center
+            contentAlignment = Alignment.Center,
         ) {
             when {
-                state.busy -> LoadingContent()
-                // TODO: select regions and retry
-                else -> RenderCamera(state, dispatch)
+                state.busy || !state.cameraAuthorizationLoaded -> LoadingContent()
+                state.cameraReady -> RenderCamera(state, dispatch)
+                else -> RenderCameraAuthorization(state, dispatch)
+            }
+        }
+    }
+}
+
+@Composable
+private fun BoxWithConstraintsScope.RenderCameraAuthorization(
+    state: ScanUiState,
+    dispatch: Dispatch,
+) {
+    RenderBackButton(
+        dispatch = dispatch,
+        tint = MaterialTheme.colorScheme.onSurface,
+    )
+
+    Column(
+        modifier = Modifier.align(Alignment.Center)
+            .fillMaxWidth()
+            .padding(Dimensions.screen),
+        horizontalAlignment = Alignment.CenterHorizontally,
+        verticalArrangement = Arrangement.spacedBy(Dimensions.Padding.medium),
+    ) {
+        Text(
+            text = "Camera access for scanning",
+            style = MaterialTheme.typography.headlineSmall,
+        )
+        Text(
+            text = "Eyespie uses the camera only when you choose to scan a real-world scene or object.",
+            style = MaterialTheme.typography.bodyLarge,
+        )
+        Text(
+            text = "Without camera access, scanning is unavailable, but you can return to the rest of the app.",
+            style = MaterialTheme.typography.bodyMedium,
+        )
+        Text(
+            text = "Camera access does not grant photo-library access. Captured data follows the active scan flow.",
+            style = MaterialTheme.typography.bodyMedium,
+        )
+        Text(
+            text = state.cameraStatus,
+            style = MaterialTheme.typography.labelLarge,
+        )
+
+        val action = state.cameraAction
+        val actionLabel = state.cameraActionLabel
+        if (action != null && actionLabel != null) {
+            Button(
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !state.cameraRequestInFlight,
+                onClick = {
+                    when (action) {
+                        CapabilityAction.Request ->
+                            dispatch(ScanAction.RequestCameraAuthorization())
+
+                        CapabilityAction.OpenSettings ->
+                            dispatch(ScanAction.OpenCameraSettings)
+                    }
+                },
+            ) {
+                Text(actionLabel)
             }
         }
     }
@@ -77,44 +143,57 @@ class ScanCaptureScreen : Screen, StateRenderer<ScanUiState> {
 @Composable
 private fun BoxWithConstraintsScope.RenderCamera(
     state: ScanUiState,
-    dispatch: Dispatch
+    dispatch: Dispatch,
+) {
+    CameraCapture(
+        modifier = Modifier.align(Alignment.TopCenter).fillMaxSize(),
+        onCameraImage = { path ->
+            dispatch(path)
+        },
+    ) { action ->
+        Row(
+            modifier = Modifier.align(Alignment.BottomCenter)
+                .padding(bottom = Dimensions.Padding.large),
+        ) {
+            IconButton(
+                modifier = Modifier.background(
+                    MaterialTheme.colorScheme.surface.copy(alpha = 0.5f),
+                    RoundedCornerShape(Dimensions.Border.mediumLarge),
+                ).sizeIn(Dimensions.touchable),
+                enabled = state.enabled,
+                onClick = action,
+            ) {
+                Icon(
+                    imageVector = Icons.Default.PhotoCamera,
+                    tint = MaterialTheme.colorScheme.onSurface,
+                    contentDescription = "Capture",
+                )
+            }
+        }
+    }
+
+    RenderBackButton(
+        dispatch = dispatch,
+        tint = MaterialTheme.colorScheme.surface,
+    )
+}
+
+@Composable
+private fun BoxWithConstraintsScope.RenderBackButton(
+    dispatch: Dispatch,
+    tint: Color,
 ) {
     TextButton(
         modifier = Modifier.align(Alignment.TopStart).size(Dimensions.touchable)
             .padding(top = Dimensions.screen, start = Dimensions.screen),
         onClick = {
             dispatch(ScanAction.Back)
-        }) {
+        },
+    ) {
         Icon(
             imageVector = Icons.Default.ChevronLeft,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.surface
+            contentDescription = "Back",
+            tint = tint,
         )
-    }
-    CameraCapture(
-        modifier = Modifier.align(Alignment.TopCenter).fillMaxSize(),
-        onCameraImage = { path ->
-            dispatch(path)
-        }
-    ) { action ->
-        Row(
-            modifier = Modifier.align(Alignment.BottomCenter)
-                .padding(bottom = Dimensions.Padding.large)
-        ) {
-            IconButton(
-                modifier = Modifier.background(
-                    MaterialTheme.colorScheme.surface.copy(alpha = 0.5f),
-                    RoundedCornerShape(Dimensions.Border.mediumLarge)
-                ).sizeIn(Dimensions.touchable),
-                enabled = state.enabled,
-                onClick = action
-            ) {
-                Icon(
-                    imageVector = Icons.Default.PhotoCamera,
-                    tint = MaterialTheme.colorScheme.onSurface,
-                    contentDescription = "Capture"
-                )
-            }
-        }
     }
 }
