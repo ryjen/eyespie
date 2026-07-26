@@ -2,8 +2,16 @@ fastlane_require 'semantic'
 fastlane_require 'semantic/core_ext'
 
 platform :ios do
+  before_all do |lane|
+    xcversion(version: "~> 15.0") unless lane == :verify
+  end
+
+  after_all do |lane|
+    clean_build_artifacts unless lane == :verify
+  end
+
   desc "Build the iOS app for the simulator without signing"
-  lane :test do
+  lane :verify do
     sh(
       "xcodebuild",
       "-workspace", "iosApp/iosApp.xcworkspace",
