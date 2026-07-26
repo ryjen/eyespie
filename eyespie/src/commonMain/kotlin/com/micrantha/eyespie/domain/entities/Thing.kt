@@ -5,7 +5,7 @@ import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
 
 @OptIn(ExperimentalTime::class)
-data class Thing(
+data class Thing internal constructor(
     override val id: String,
     override val createdAt: Instant,
     val createdBy: Player.Ref,
@@ -16,13 +16,13 @@ data class Thing(
     val embedding: Embedding? = null
 ) : Entity, Creatable {
 
-    data class Guess(
+    data class Guess internal constructor(
         val at: Instant,
         val by: Player.Ref,
         val correct: Boolean
     )
 
-    data class Listing(
+    data class Listing internal constructor(
         override val id: String,
         val nodeId: String,
         override val createdAt: Instant,
