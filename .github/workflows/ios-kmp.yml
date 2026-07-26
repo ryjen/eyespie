@@ -130,7 +130,7 @@ jobs:
         working-directory: iosApp
         run: pod install
 
-      - name: Build iOS application with Kotlin framework
+      - name: Build iOS application once
         shell: bash
         run: |
           set -o pipefail
@@ -140,8 +140,31 @@ jobs:
             -configuration Debug \
             -sdk iphonesimulator \
             -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath "$PWD/build/ios-derived-data" \
             CODE_SIGNING_ALLOWED=NO \
             build 2>&1 | tee build-ios-xcode.log
+
+      - name: Resolve single iOS application product
+        id: ios_product
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          products=(build/ios-derived-data/Build/Products/Debug-iphonesimulator/*.app)
+          if (( ${#products[@]} != 1 )); then
+            printf 'expected exactly one iOS simulator app, found %d\n' "${#products[@]}" >&2
+            printf 'candidate: %s\n' "${products[@]:-none}" >&2
+            exit 1
+          fi
+          printf 'path=%s\n' "${products[0]}" >> "$GITHUB_OUTPUT"
+
+      - name: Upload shared iOS simulator application
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: eyespie-ios-simulator-app-${{ github.sha }}
+          path: ${{ steps.ios_product.outputs.path }}
+          if-no-files-found: error
+          retention-days: 1
 
       - name: Upload iOS KMP diagnostics
         if: failure()
