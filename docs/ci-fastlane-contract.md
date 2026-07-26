@@ -33,6 +33,15 @@ python3 -m unittest scripts.tests.test_validate_android_bundle
 
 It is platform-neutral and does not require signing or distribution credentials.
 
+The existing `validate` GitHub Actions job parses the locked Fastlane configuration and invokes this lane:
+
+```bash
+bundle exec fastlane lanes
+bundle exec fastlane android validate
+```
+
+This preserves the required `validate` check name while ensuring the canonical Fastlane contract itself is exercised before later workflow migration.
+
 ### Android tests
 
 `android test` invokes the existing unit and snapshot-test contract:
@@ -80,7 +89,7 @@ This is intentionally named `verify`, not `test`, because the current contract p
 
 | Workflow | Current triggers | Classification | Runner / secrets | Current build interface | Proposed disposition |
 |---|---|---|---|---|---|
-| `main.yml` | PRs and pushes to `main` | Active verification | Linux; no protected distribution environment | Direct Gradle and repository scripts | Later slice: delegate application semantics to the canonical Fastlane lanes while preserving job names and diagnostics |
+| `main.yml` | PRs and pushes to `main` | Active verification | Linux; no protected distribution environment | Direct Gradle plus canonical Fastlane validation | Later slice: delegate remaining application semantics to canonical Fastlane lanes while preserving job names and diagnostics |
 | `test.yml` | `feature/**` pushes and PRs targeting `feature/**`; callable/manual | Obsolete candidate | macOS; `test` environment config | Top-level `fastlane test` | Confirm branch-flow use, then remove unless feature-to-feature PRs are supported |
 | `development.yml` | `develop` pushes/PRs; callable/manual | Obsolete or manual-only candidate | macOS; development environment and app configuration | Top-level `fastlane test`; disabled Supabase job | Confirm whether `develop` remains supported; otherwise remove rather than refactor |
 | `staging.yml` | `integration/**` pushes; callable/manual | Environment deployment | macOS plus staging secrets; Ubuntu Supabase deployment | Fastlane distribution plus composite Supabase action | Preserve until shared deployment orchestration slice |
@@ -100,7 +109,7 @@ This is intentionally named `verify`, not `test`, because the current contract p
 
 ## Follow-up slices
 
-1. Migrate `main.yml` to the canonical Fastlane lanes while preserving required job names.
+1. Migrate the remaining `main.yml` jobs to canonical Fastlane lanes while preserving required job names.
 2. Remove or retain `test.yml` and `development.yml` based on confirmed branch strategy.
 3. Extract shared staging/production deployment orchestration.
 4. Gate production on successful verification of the same commit.
