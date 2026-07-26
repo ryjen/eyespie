@@ -36,7 +36,9 @@ lane :sbom_ios_prepare do
     tasks: [":app:podspec", ":app:generateDummyFramework"],
     flags: "--no-daemon --build-cache"
   )
-  sh("pod", "install", "--deployment", "--project-directory=#{File.join(repo_root, 'iosApp')}")
+  Dir.chdir(repo_root) do
+    sh("pod install --deployment --project-directory=iosApp")
+  end
 end
 
 desc "Build Debug iOS and Android"
