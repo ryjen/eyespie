@@ -2,6 +2,8 @@ fastlane_require 'semantic'
 fastlane_require 'semantic/core_ext'
 
 platform :ios do
+  repo_root = File.expand_path('..', __dir__)
+
   before_all do |lane|
     xcversion(version: "~> 15.0") unless lane == :verify
   end
@@ -14,7 +16,7 @@ platform :ios do
   lane :verify do
     sh(
       "xcodebuild",
-      "-workspace", "iosApp/iosApp.xcworkspace",
+      "-workspace", File.join(repo_root, "iosApp", "iosApp.xcworkspace"),
       "-scheme", "iosApp",
       "-configuration", "Debug",
       "-sdk", "iphonesimulator",
