@@ -17,8 +17,10 @@ All commands use the committed `Gemfile.lock`:
 bundle exec fastlane android validate
 bundle exec fastlane android test
 bundle exec fastlane android bundle_debug
-bundle exec fastlane ios test
+bundle exec fastlane ios verify
 ```
+
+Android build/test lanes preserve an existing `.env.local` and copy `env.example` only when the file is absent. Verification therefore works from a clean checkout without overwriting caller-provided configuration.
 
 ### Android validation
 
@@ -29,7 +31,7 @@ python3 scripts/stage_android_model_artifact.py verify
 python3 -m unittest scripts.tests.test_validate_android_bundle
 ```
 
-It is platform-neutral, uses checked-in safe configuration, and does not require signing or distribution credentials.
+It is platform-neutral and does not require signing or distribution credentials.
 
 ### Android tests
 
@@ -59,7 +61,7 @@ It is platform-neutral, uses checked-in safe configuration, and does not require
 
 ### iOS verification
 
-`ios test` performs an unsigned simulator build:
+`ios verify` performs an unsigned simulator build:
 
 ```bash
 xcodebuild \
@@ -72,7 +74,7 @@ xcodebuild \
   build
 ```
 
-The lane must not initialize App Store Connect authentication, provisioning profiles, or other distribution credentials.
+This is intentionally named `verify`, not `test`, because the current contract proves compilation/linkage rather than executing an iOS test suite. The lane does not initialize Xcode-version management, App Store Connect authentication, provisioning profiles, or other distribution credentials.
 
 ## Workflow inventory
 
@@ -91,10 +93,10 @@ The lane must not initialize App Store Connect authentication, provisioning prof
 
 - Verification lanes do not read signing, Play Store, App Store Connect, Supabase, or production application secrets.
 - Distribution authentication remains confined to distribution lanes and protected GitHub environments.
+- Existing clean/Xcode-selection/artifact-cleanup hooks remain active for legacy non-verification lanes but are excluded from verification lanes.
 - GitHub Actions remains responsible for rejecting unsafe event paths and controlling secret availability.
 - Checkout credentials remain disabled unless a narrowly scoped write operation requires them.
 - Downloaded tools are pinned and checksum-verified.
-- Fastlane global hooks must not perform destructive cleans, initialize distribution authentication, or erase diagnostics for verification lanes.
 
 ## Follow-up slices
 
