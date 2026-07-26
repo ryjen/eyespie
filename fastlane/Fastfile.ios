@@ -2,12 +2,18 @@ fastlane_require 'semantic'
 fastlane_require 'semantic/core_ext'
 
 platform :ios do
-
-  before_all do
-    # Ensure git status is clean
-    #ensure_git_status_clean
-    # Verify Xcode version
-    xcversion(version: "~> 15.0")
+  desc "Build the iOS app for the simulator without signing"
+  lane :test do
+    sh(
+      "xcodebuild",
+      "-workspace", "iosApp/iosApp.xcworkspace",
+      "-scheme", "iosApp",
+      "-configuration", "Debug",
+      "-sdk", "iphonesimulator",
+      "-destination", "generic/platform=iOS Simulator",
+      "CODE_SIGNING_ALLOWED=NO",
+      "build"
+    )
   end
 
   desc "Build iOS Release"
@@ -26,18 +32,15 @@ platform :ios do
 
   desc "Distribute iOS via AppStore"
   lane :distribute_production do |options|
-
     version_number = options[:version_number] || ios_get_version(
       xcodeproj: "iosApp/iosApp.xcodeproj"
     )
 
-    # Build and upload to TestFlight first
     testflight(
       apple_id: ENV["APPLE_CONNECT_ID"],
       changelog: options[:changelog] || ENV["APPLE_CHANGELOG"]
     )
 
-    # Submit for App Store Review
     upload_to_app_store(
       app_version: version_number,
       submit_for_review: true,
@@ -45,7 +48,7 @@ platform :ios do
       force: true,
       skip_metadata: false,
       skip_screenshots: false,
-      skip_binary_upload: true,  # Already uploaded via TestFlight
+      skip_binary_upload: true,
       submission_information: {
         add_id_info_uses_idfa: false,
         export_compliance_uses_encryption: false,
@@ -54,12 +57,10 @@ platform :ios do
       precheck_include_in_app_purchases: true
     )
 
-    # Add a git tag
     add_git_tag(
       tag: "ios-appstore-#{version_number}"
     )
 
-    # Push the tag
     push_git_tags
   end
 
@@ -78,13 +79,11 @@ platform :ios do
       xcodeproj: "iosApp/iosApp.xcodeproj"
     ).to_version.increment!(:patch)
 
-    # Update version number
     ios_set_version(
       version_number: version_number,
       xcodeproj: "./iosApp/iosApp.xcodeproj"
     )
 
-    # Update provisioning profiles
     match(
       type: "appstore",
       readonly: true,
@@ -93,7 +92,6 @@ platform :ios do
       ]
     )
 
-    # Build the app
     build_ios_app(
       scheme: "Eyespie",
       export_method: "app-store",
@@ -107,7 +105,6 @@ platform :ios do
       }
     )
 
-    # Upload to TestFlight
     upload_to_testflight(
       skip_waiting_for_build_processing: true,
       apple_id: ENV["APPLE_CONNECT_ID"],
@@ -131,7 +128,6 @@ platform :ios do
       xcodeproj: "./iosApp/iosApp.xcodeproj"
     )
 
-    # Update provisioning profiles
     match(
       type: "enterprise",
       readonly: true,
@@ -140,7 +136,6 @@ platform :ios do
       ]
     )
 
-    # Build the app
     build_ios_app(
       scheme: "Eyespie",
       export_method: "enterprise",
@@ -154,7 +149,6 @@ platform :ios do
       }
     )
 
-    # Upload to TestFlight
     upload_to_testflight(
       skip_waiting_for_build_processing: true,
       apple_id: ENV["APPLE_CONNECT_ID"],
@@ -169,7 +163,6 @@ platform :ios do
 
   desc "Update App Store metadata"
   lane :metadata do
-    # Fetch latest metadata and screenshots from App Store
     deliver(
       skip_binary_upload: true,
       skip_app_version_update: true,
@@ -181,7 +174,6 @@ platform :ios do
 
   desc "Sync certificates and profiles"
   lane :sync_certificates do
-    # Sync development certificates
     match(
       type: "development",
       force_for_new_devices: true,
@@ -190,7 +182,6 @@ platform :ios do
       ]
     )
 
-    # Sync AppStore certificates
     match(
       type: "appstore",
       force_for_new_devices: true,
@@ -198,26 +189,5 @@ platform :ios do
         "com.micrantha.eyespie"
       ]
     )
-  end
-
-  # Runs after every lane
-  after_all do |lane|
-    # Clean up build artifacts
-    clean_build_artifacts
-
-    # Notify on success
-    #slack(
-    #  message: "Successfully deployed new iOS version!",
-    #  success: true
-    #) if ENV['SLACK_URL']
-  end
-
-  # Runs if there was an error
-  error do |lane, exception|
-    # Notify on failure
-    #slack(
-    #  message: "Error deploying iOS version: #{exception.message}",
-    #  success: false
-    #) if ENV['SLACK_URL']
   end
 end
