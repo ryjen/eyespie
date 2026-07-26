@@ -1,9 +1,12 @@
 package com.micrantha.bluebell.observability.entity
 
+import kotlin.experimental.ExperimentalObjCRefinement
+import kotlin.native.HiddenFromObjC
 import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
 
-@OptIn(ExperimentalTime::class)
+@OptIn(ExperimentalTime::class, ExperimentalObjCRefinement::class)
+@HiddenFromObjC
 sealed interface TelemetryEvent {
     val eventId: String
     val timestamp: Instant
