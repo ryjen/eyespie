@@ -151,3 +151,12 @@ jobs:
           path: eyespie/build/outputs/bundle/debug/*.aab
           if-no-files-found: error
           retention-days: 7
+
+  production:
+    name: production
+    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
+    needs: android-bundle
+    uses: ./.github/workflows/deploy-environment.yml
+    with:
+      deployment_environment: production
+      fastlane_lane: distribute_production
