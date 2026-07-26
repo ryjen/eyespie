@@ -1,5 +1,7 @@
 package com.micrantha.bluebell.observability.entity
 
+import kotlin.experimental.ExperimentalObjCRefinement
+import kotlin.native.HiddenFromObjC
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.seconds
 import kotlin.time.ExperimentalTime
@@ -52,8 +54,8 @@ data class ValidationWarning(
     val suggestion: String? = null
 )
 
-
-@OptIn(ExperimentalTime::class)
+@OptIn(ExperimentalTime::class, ExperimentalObjCRefinement::class)
+@HiddenFromObjC
 data class EventSpan(
     val spanId: String,
     val name: String,
@@ -63,7 +65,8 @@ data class EventSpan(
     val events: List<TelemetryEvent> = emptyList()
 )
 
-@OptIn(ExperimentalTime::class)
+@OptIn(ExperimentalTime::class, ExperimentalObjCRefinement::class)
+@HiddenFromObjC
 data class Campaign(
     val campaignId: String,
     val name: String,
@@ -72,7 +75,8 @@ data class Campaign(
     val targetEvents: Set<String> = emptySet()
 )
 
-@OptIn(ExperimentalTime::class)
+@OptIn(ExperimentalTime::class, ExperimentalObjCRefinement::class)
+@HiddenFromObjC
 data class TimeRange(val start: Instant, val end: Instant)
 
 data class EventFilter(
@@ -83,7 +87,8 @@ data class EventFilter(
     val eventTypes: List<String>? = null
 )
 
-@OptIn(ExperimentalTime::class)
+@OptIn(ExperimentalTime::class, ExperimentalObjCRefinement::class)
+@HiddenFromObjC
 data class DestinationStatus(
     val isEnabled: Boolean,
     val isHealthy: Boolean,
@@ -91,7 +96,8 @@ data class DestinationStatus(
     val pendingEvents: Int = 0
 )
 
-@OptIn(ExperimentalTime::class)
+@OptIn(ExperimentalTime::class, ExperimentalObjCRefinement::class)
+@HiddenFromObjC
 data class DestinationContext(
     val campaigns: List<Campaign> = emptyList(),
     val spanId: String? = null,
@@ -129,6 +135,8 @@ enum class Destination {
     FIREBASE, MIXPANEL, NEW_RELIC, SUPABASE, LOCAL_DB, CLOUD_STORAGE
 }
 
+@OptIn(ExperimentalObjCRefinement::class)
+@HiddenFromObjC
 data class BatchResult(
     val totalEvents: Int,
     val successfulEvents: Int,
@@ -137,6 +145,8 @@ data class BatchResult(
     val processingTimeMs: Long
 )
 
+@OptIn(ExperimentalObjCRefinement::class)
+@HiddenFromObjC
 data class EventFailure(
     val event: TelemetryEvent,
     val reason: String,
@@ -170,14 +180,16 @@ data class FlushResult(
     val error: String? = null
 )
 
-@OptIn(ExperimentalTime::class)
+@OptIn(ExperimentalTime::class, ExperimentalObjCRefinement::class)
+@HiddenFromObjC
 data class HealthStatus(
     val isHealthy: Boolean,
     val lastCheck: Instant,
     val details: Map<String, String> = emptyMap()
 )
 
-@OptIn(ExperimentalTime::class)
+@OptIn(ExperimentalTime::class, ExperimentalObjCRefinement::class)
+@HiddenFromObjC
 data class DestinationMetrics(
     val totalSent: Long,
     val totalFailed: Long,
@@ -186,7 +198,8 @@ data class DestinationMetrics(
     val avgLatencyMs: Double = 0.0
 )
 
-@OptIn(ExperimentalTime::class)
+@OptIn(ExperimentalTime::class, ExperimentalObjCRefinement::class)
+@HiddenFromObjC
 data class RetryableEvent(
     val event: TelemetryEvent,
     val destination: Destination,
@@ -197,7 +210,8 @@ data class RetryableEvent(
     val lastError: String? = null
 )
 
-@OptIn(ExperimentalTime::class)
+@OptIn(ExperimentalTime::class, ExperimentalObjCRefinement::class)
+@HiddenFromObjC
 data class CachedEvent(
     val event: TelemetryEvent,
     val cachedAt: Instant
@@ -208,7 +222,6 @@ data class CacheConfig(
     val evictionBatchSize: Int = 100
 )
 
-// Destination Configs
 sealed interface DestinationConfig {
     val enabled: Boolean
 }
