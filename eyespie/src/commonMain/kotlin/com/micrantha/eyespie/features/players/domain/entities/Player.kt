@@ -3,11 +3,14 @@ package com.micrantha.eyespie.features.players.domain.entities
 import com.micrantha.eyespie.domain.entities.Creatable
 import com.micrantha.eyespie.domain.entities.Entity
 import com.micrantha.eyespie.domain.entities.Location
+import kotlin.experimental.ExperimentalObjCRefinement
+import kotlin.native.HiddenFromObjC
 import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
 
-@OptIn(ExperimentalTime::class)
-data class Player internal constructor(
+@OptIn(ExperimentalTime::class, ExperimentalObjCRefinement::class)
+@HiddenFromObjC
+data class Player(
     override val id: String,
     override val createdAt: Instant,
     val name: Name,
@@ -35,7 +38,7 @@ data class Player internal constructor(
         val name: String,
     )
 
-    data class Listing internal constructor(
+    data class Listing(
         override val id: String,
         val nodeId: String,
         override val createdAt: Instant,
