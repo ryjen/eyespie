@@ -124,7 +124,7 @@ jobs:
             --stacktrace 2>&1 | tee build-ios-gradle.log
 
       - name: Generate CocoaPods dummy framework
-        run: ./gradlew :eyespie:generateDummyFramework --no-daemon --stacktrace
+        run: ./gradlew :app:generateDummyFramework --no-daemon --stacktrace
 
       - name: Install iOS application pods
         working-directory: iosApp
