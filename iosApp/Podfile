@@ -2,11 +2,13 @@ platform :ios, '15.0'
 
 source 'https://cdn.cocoapods.org'
 
-target 'iosApp' do
-  use_frameworks!
+MEDIA_PIPE_VERSION = '0.10.24'
 
-  pod 'MediaPipeTasksVision'
-  pod 'MediaPipeTasksGenAI'
+target 'iosApp' do
+  use_frameworks! :linkage => :static
+
+  pod 'MediaPipeTasksVision', MEDIA_PIPE_VERSION
+  pod 'MediaPipeTasksGenAI', MEDIA_PIPE_VERSION
 
   pod 'eyespie', :path => '../eyespie'
 end
