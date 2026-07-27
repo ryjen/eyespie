@@ -1,0 +1,270 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#edf4ef">
+  <meta name="description" content="Eyespie is an outdoor I Spy game where players create visual challenges and use on-device machine vision to generate clues and verify guesses.">
+  <meta property="og:title" content="Eyespie — Look closer. Go explore.">
+  <meta property="og:description" content="A cross-platform outdoor observation game powered by on-device machine vision.">
+  <meta property="og:type" content="website">
+  <title>Eyespie — Look closer. Go explore.</title>
+  <link rel="stylesheet" href="./styles.css">
+  <script src="./site.js" defer></script>
+</head>
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+
+  <header class="site-header">
+    <div class="shell nav-wrap">
+      <a class="brand" href="#top" aria-label="Eyespie home">
+        <span class="brand-mark" aria-hidden="true">
+          <svg viewBox="0 0 64 64" role="img">
+            <path d="M7 33c6-12 15-18 25-18s19 6 25 18c-6 11-15 17-25 17S13 44 7 33Z" fill="none" stroke="currentColor" stroke-width="5" stroke-linejoin="round"/>
+            <circle cx="32" cy="33" r="10" fill="none" stroke="currentColor" stroke-width="5"/>
+            <path d="M38 14 44 5M47 18l9-5M18 18 9 12" fill="none" stroke="currentColor" stroke-width="4" stroke-linecap="round"/>
+          </svg>
+        </span>
+        <span>Eyespie</span>
+      </a>
+
+      <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="site-nav">
+        <span class="sr-only">Toggle navigation</span>
+        <span></span><span></span><span></span>
+      </button>
+
+      <nav id="site-nav" class="site-nav" aria-label="Primary navigation">
+        <a href="#play">How to play</a>
+        <a href="#goals">Goals</a>
+        <a href="#architecture">Architecture</a>
+        <a href="#implementation">Implementation</a>
+        <a class="nav-cta" href="https://github.com/ryjen/eyespie">View on GitHub</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="main">
+    <section id="top" class="shell hero section-space">
+      <div class="hero-art" aria-hidden="true">
+        <div class="landscape-card">
+          <svg viewBox="0 0 520 520">
+            <defs>
+              <linearGradient id="sky" x1="0" y1="0" x2="0" y2="1">
+                <stop offset="0" stop-color="#dbeaf7"/>
+                <stop offset="1" stop-color="#f9f7ef"/>
+              </linearGradient>
+              <linearGradient id="hill" x1="0" y1="0" x2="1" y2="1">
+                <stop offset="0" stop-color="#96b69c"/>
+                <stop offset="1" stop-color="#426f61"/>
+              </linearGradient>
+            </defs>
+            <rect width="520" height="520" rx="56" fill="url(#sky)"/>
+            <circle cx="397" cy="105" r="42" fill="#f5cd6d" opacity=".9"/>
+            <path d="M0 330C91 225 172 226 267 330c76-75 156-80 253 18v172H0Z" fill="#b8cfbc"/>
+            <path d="M0 395c102-98 208-107 318 5 69-63 136-64 202-8v128H0Z" fill="url(#hill)"/>
+            <path d="M228 520c1-87 16-151 45-193 31-46 77-71 139-76" fill="none" stroke="#e9dfc7" stroke-width="34" stroke-linecap="round"/>
+            <g transform="translate(93 164)">
+              <path d="M0 74c23-48 57-72 101-72 43 0 78 24 103 72-25 45-59 68-103 68-44 0-78-23-101-68Z" fill="#fbfaf5" stroke="#213d3b" stroke-width="10" stroke-linejoin="round"/>
+              <circle cx="101" cy="74" r="35" fill="#91afa3" stroke="#213d3b" stroke-width="10"/>
+              <circle cx="101" cy="74" r="13" fill="#213d3b"/>
+              <circle cx="113" cy="61" r="7" fill="#fff"/>
+            </g>
+            <g transform="translate(338 312)">
+              <rect x="0" y="22" width="88" height="52" rx="18" fill="#e8a65a" stroke="#213d3b" stroke-width="7"/>
+              <path d="M19 22 31 0h31l13 22" fill="#e8a65a" stroke="#213d3b" stroke-width="7" stroke-linejoin="round"/>
+              <circle cx="22" cy="76" r="12" fill="#213d3b"/>
+              <circle cx="68" cy="76" r="12" fill="#213d3b"/>
+              <rect x="12" y="34" width="22" height="14" rx="3" fill="#dbeaf7"/>
+              <rect x="52" y="34" width="22" height="14" rx="3" fill="#dbeaf7"/>
+            </g>
+          </svg>
+        </div>
+      </div>
+
+      <div class="hero-copy">
+        <p class="eyebrow">Outdoor play · machine vision · shared discovery</p>
+        <h1>Look closer.<br>Go explore.</h1>
+        <p class="lede">Eyespie turns the classic observation game into a mobile outdoor adventure. Create visual challenges, share clues, and prove a match with a photo—using privacy-conscious, on-device machine vision where possible.</p>
+        <div class="button-row">
+          <a class="button" href="#play">See how it plays</a>
+          <a class="button button-outline" href="#implementation">Explore the build</a>
+          <a class="button button-outline" href="https://github.com/ryjen/eyespie">Source code</a>
+        </div>
+        <div class="hero-facts" aria-label="Project summary">
+          <div><strong>Kotlin Multiplatform</strong><span>Shared Android and iOS product logic</span></div>
+          <div><strong>On-device ML</strong><span>Clues, detection, and image matching</span></div>
+          <div><strong>Location-aware</strong><span>Challenges tied to places and journeys</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="shell signal-grid" aria-label="Eyespie principles">
+      <article class="signal-card"><p class="eyebrow">The activity</p><h2>Notice the world</h2><p>Eyespie rewards observation, curiosity, and getting outside—not passive screen time.</p></article>
+      <article class="signal-card"><p class="eyebrow">The technology</p><h2>AI as referee</h2><p>Machine vision supports clue generation and validates guesses without replacing the human game.</p></article>
+      <article class="signal-card"><p class="eyebrow">The design</p><h2>Works on the journey</h2><p>Challenges can be created while walking, cycling, travelling, or exploring a neighbourhood.</p></article>
+    </section>
+
+    <section id="play" class="shell section section-space">
+      <div class="section-heading">
+        <p class="eyebrow">How to play</p>
+        <h2>A familiar game with a verifiable loop.</h2>
+        <p>One player spots something. Everyone else follows the clues, explores the area, and captures their own evidence.</p>
+      </div>
+
+      <ol class="play-grid">
+        <li class="play-card"><span class="step">01</span><div class="mini-icon">◎</div><h3>Spot something</h3><p>Take a photo of an interesting object, landmark, pattern, or local detail.</p></li>
+        <li class="play-card"><span class="step">02</span><div class="mini-icon">✦</div><h3>Build the clue</h3><p>Use AI-assisted labels and adjustable image obfuscation to set the challenge difficulty.</p></li>
+        <li class="play-card"><span class="step">03</span><div class="mini-icon">⌖</div><h3>Share the hunt</h3><p>Publish to friends, teams, nearby players, or a location-bound game mode.</p></li>
+        <li class="play-card"><span class="step">04</span><div class="mini-icon">◉</div><h3>Capture a match</h3><p>Guessers photograph what they found. Image embeddings compare their evidence with the original.</p></li>
+        <li class="play-card"><span class="step">05</span><div class="mini-icon">↗</div><h3>Earn and continue</h3><p>Correct matches contribute to points, streaks, achievements, and local leaderboards.</p></li>
+      </ol>
+    </section>
+
+    <section id="goals" class="band section-space">
+      <div class="shell">
+        <div class="section-heading">
+          <p class="eyebrow">Product goals</p>
+          <h2>Technology that gets out of the way.</h2>
+          <p>The project is designed around a social outdoor game first. The ML, backend, and platform architecture exist to make that loop fair, accessible, resilient, and fun.</p>
+        </div>
+
+        <div class="goal-grid">
+          <article><span>01</span><h3>Encourage active exploration</h3><p>Create a reason to walk a block farther, notice a hidden detail, or share a place with someone else.</p></article>
+          <article><span>02</span><h3>Make challenges easy to create</h3><p>Generate useful clues and difficulty controls from a camera capture without requiring content-authoring expertise.</p></article>
+          <article><span>03</span><h3>Verify without spoiling</h3><p>Use similarity scoring as a referee while keeping the answer concealed until the round is resolved.</p></article>
+          <article><span>04</span><h3>Respect constrained devices</h3><p>Support optional model delivery, offline capture, fail-closed readiness, and platform-specific resource limits.</p></article>
+          <article><span>05</span><h3>Share most code, not every compromise</h3><p>Use Kotlin Multiplatform for domain and UI foundations while retaining native seams for camera, networking, storage, and model delivery.</p></article>
+          <article><span>06</span><h3>Build toward safe community play</h3><p>Keep location, account, moderation, privacy, and abuse controls explicit as social modes mature.</p></article>
+        </div>
+      </div>
+    </section>
+
+    <section id="architecture" class="shell section section-space">
+      <div class="section-heading">
+        <p class="eyebrow">Architecture</p>
+        <h2>Shared game logic with explicit platform boundaries.</h2>
+        <p>Eyespie uses a layered Kotlin Multiplatform architecture. Shared code owns product behaviour; native adapters own capabilities that differ materially across Android and iOS.</p>
+      </div>
+
+      <div class="architecture-panel">
+        <div class="architecture-flow" role="img" aria-label="Architecture flow from Compose user interface through shared feature and domain layers to platform services, on-device machine learning, local storage, and Supabase services">
+          <div class="arch-layer arch-ui"><span>Experience</span><strong>Compose Multiplatform UI</strong><small>Onboarding · Dashboard · Challenge · Scan · Guess · Players</small></div>
+          <div class="arch-arrow">↓</div>
+          <div class="arch-layer arch-state"><span>Application</span><strong>Bluebell state and navigation</strong><small>Store · Reducer · Effects · Screen models · Capability state</small></div>
+          <div class="arch-arrow">↓</div>
+          <div class="arch-layer arch-domain"><span>Shared domain</span><strong>Game rules and repository contracts</strong><small>Challenges · Clues · Matching · Players · Location · Rewards</small></div>
+          <div class="arch-arrow split">↙ ↓ ↘</div>
+          <div class="arch-bottom">
+            <div class="arch-layer"><span>Device</span><strong>Native platform services</strong><small>Camera · GPS · Network · Notifications · File lifecycle</small></div>
+            <div class="arch-layer"><span>Intelligence</span><strong>On-device ML pipeline</strong><small>MediaPipe / TensorFlow Lite · Detection · Embeddings · Verification</small></div>
+            <div class="arch-layer"><span>Data</span><strong>Local + remote repositories</strong><small>SQLDelight · Ktor · Supabase Auth / Database / Storage / Realtime</small></div>
+          </div>
+        </div>
+
+        <aside class="architecture-notes">
+          <p class="eyebrow">Design boundaries</p>
+          <h3>Fail closed at capability edges.</h3>
+          <ul>
+            <li>Downloaded model artifacts are not considered ready until verification succeeds.</li>
+            <li>Cancellation and partial downloads restore capability-derived state rather than assuming success.</li>
+            <li>Platform adapters expose typed outcomes instead of leaking native implementation details into gameplay.</li>
+            <li>Optional assets can be delivered independently from the base application package.</li>
+          </ul>
+        </aside>
+      </div>
+    </section>
+
+    <section id="implementation" class="band band-blue section-space">
+      <div class="shell">
+        <div class="section-heading">
+          <p class="eyebrow">Implementation</p>
+          <h2>An active cross-platform build, not a concept mockup.</h2>
+          <p>The repository contains the mobile application, shared architecture, platform integrations, local persistence, backend schema, model packaging, and release automation.</p>
+        </div>
+
+        <div class="status-grid">
+          <article class="status-card">
+            <div class="status-heading"><span class="status-dot live"></span><strong>Implemented foundation</strong></div>
+            <ul>
+              <li>Kotlin Multiplatform and Compose application structure</li>
+              <li>Bluebell Store / Reducer / Effect state architecture</li>
+              <li>Authentication, dashboard, challenge, scan, guess, player, and onboarding feature packages</li>
+              <li>SQLDelight local data and repository boundaries</li>
+              <li>Supabase, Ktor, realtime, storage, and GraphQL integrations</li>
+              <li>Android and iOS model-delivery lifecycle foundations</li>
+              <li>CI, Fastlane, SBOM, and platform build automation</li>
+            </ul>
+          </article>
+
+          <article class="status-card">
+            <div class="status-heading"><span class="status-dot growing"></span><strong>In active development</strong></div>
+            <ul>
+              <li>Production-ready on-device model packaging and verification</li>
+              <li>Native iOS transport, storage, and MediaPipe integration hardening</li>
+              <li>Reliable cross-platform match scoring and capability reporting</li>
+              <li>Permission onboarding with clear per-capability explanations</li>
+              <li>Offline and interrupted-transfer recovery paths</li>
+            </ul>
+          </article>
+
+          <article class="status-card">
+            <div class="status-heading"><span class="status-dot planned"></span><strong>Product direction</strong></div>
+            <ul>
+              <li>Friend, team, local, and seasonal challenge feeds</li>
+              <li>Geo-fenced hunts and hidden local gems</li>
+              <li>Streaks, badges, leaderboards, and themed challenge packs</li>
+              <li>Accessible audio clues and personalization controls</li>
+              <li>Community safety, moderation, reporting, and privacy controls</li>
+            </ul>
+          </article>
+        </div>
+
+        <div class="stack-strip" aria-label="Technology stack">
+          <span>Kotlin</span><span>Compose Multiplatform</span><span>SQLDelight</span><span>Ktor</span><span>Supabase</span><span>MediaPipe</span><span>TensorFlow Lite</span><span>Kodein</span><span>Voyager</span><span>Fastlane</span>
+        </div>
+      </div>
+    </section>
+
+    <section class="shell principles section-space">
+      <div class="section-heading">
+        <p class="eyebrow">Engineering principles</p>
+        <h2>Built for the conditions of a real mobile game.</h2>
+      </div>
+      <div class="principle-grid">
+        <article><h3>Offline-aware</h3><p>Capture and local state should survive weak connectivity, with explicit synchronization when service returns.</p></article>
+        <article><h3>Privacy-conscious</h3><p>Prefer local inference for visual analysis and minimize the movement of sensitive image and location data.</p></article>
+        <article><h3>Observable</h3><p>Model readiness, transfers, verification failures, and gameplay effects need diagnosable state—not silent fallbacks.</p></article>
+        <article><h3>Portable, not lowest-common-denominator</h3><p>Share durable product logic while using platform-native APIs where lifecycle and security semantics differ.</p></article>
+      </div>
+    </section>
+
+    <section class="shell final-cta section-space">
+      <div>
+        <p class="eyebrow">Open development</p>
+        <h2>Follow the project from architecture to field play.</h2>
+        <p>Eyespie is under active development. The repository tracks the implementation, platform work, decisions, tests, and delivery progress.</p>
+      </div>
+      <div class="button-row">
+        <a class="button" href="https://github.com/ryjen/eyespie">Explore the repository</a>
+        <a class="button button-outline" href="https://github.com/ryjen/eyespie/issues">View project issues</a>
+      </div>
+    </section>
+  </main>
+
+  <footer class="site-footer">
+    <div class="shell footer-wrap">
+      <div>
+        <a class="brand footer-brand" href="#top"><span class="brand-mark" aria-hidden="true">◉</span><span>Eyespie</span></a>
+        <p>An outdoor observation game with machine vision for clues and proof.</p>
+      </div>
+      <div class="footer-links">
+        <a href="#play">How to play</a>
+        <a href="#architecture">Architecture</a>
+        <a href="#implementation">Implementation</a>
+        <a href="https://github.com/ryjen/eyespie">GitHub</a>
+      </div>
+      <p class="copyright">GPL-3.0 · Built in the open</p>
+    </div>
+  </footer>
+</body>
+</html>
