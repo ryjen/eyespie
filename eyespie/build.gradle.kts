@@ -44,7 +44,7 @@ kotlin {
             exportKdoc.set(false)
         }
 
-        pod("MediaPipeTasksVision", "0.10.24")
+        pod("MediaPipeTasksVision", "0.10.21")
         pod("MediaPipeTasksGenAI", "0.10.24")
     }
 
