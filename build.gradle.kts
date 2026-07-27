@@ -18,7 +18,7 @@ plugins {
 
 allprojects {
     configurations.configureEach {
-        resolutionStrategy.force("org.jetbrains.kotlinx:kotlinx-datetime:0.7.1")
+        resolutionStrategy.force("org.jetbrains.kotlinx:kotlinx-datetime:0.6.2")
     }
 
     tasks.cyclonedxDirectBom {
