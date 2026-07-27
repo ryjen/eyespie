@@ -7,6 +7,7 @@ on:
     paths:
       - "site/**"
       - "scripts/validate_public_site.py"
+      - "tests/public_site.spec.js"
       - ".github/workflows/pages.yml"
   pull_request:
     branches:
@@ -14,6 +15,7 @@ on:
     paths:
       - "site/**"
       - "scripts/validate_public_site.py"
+      - "tests/public_site.spec.js"
       - ".github/workflows/pages.yml"
   workflow_dispatch:
 
@@ -27,7 +29,7 @@ jobs:
   build:
     name: Validate and package
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 15
     permissions:
       contents: read
     steps:
@@ -38,6 +40,35 @@ jobs:
 
       - name: Validate static site
         run: python3 scripts/validate_public_site.py
+
+      - name: Install browser smoke-test tooling
+        run: |
+          npm install --no-save --ignore-scripts @playwright/test@1.55.0
+          npx playwright install --with-deps chromium
+
+      - name: Run browser smoke tests
+        run: |
+          set -euo pipefail
+          python3 -m http.server 4173 --directory site > /tmp/eyespie-site.log 2>&1 &
+          server_pid=$!
+          trap 'kill "$server_pid"' EXIT
+
+          for attempt in {1..20}; do
+            if curl --fail --silent --show-error http://127.0.0.1:4173/ > /dev/null; then
+              break
+            fi
+            if ! kill -0 "$server_pid" 2>/dev/null; then
+              cat /tmp/eyespie-site.log
+              exit 1
+            fi
+            sleep 0.25
+          done
+
+          curl --fail --silent --show-error http://127.0.0.1:4173/ > /dev/null
+          npx playwright test tests/public_site.spec.js \
+            --browser=chromium \
+            --workers=1 \
+            --reporter=line
 
       - name: Upload site
         if: github.event_name != 'pull_request'
