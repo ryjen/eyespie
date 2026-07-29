@@ -52,7 +52,7 @@ turbine = "1.2.0"
 mockk = "1.13.13"
 roborazzi = "1.64.0"
 robolectric = "4.14.1"
-sqldelight = "2.0.2"
+sqldelight = "2.3.2"
 cyclonedx = "3.2.4"
 
 [plugins]
