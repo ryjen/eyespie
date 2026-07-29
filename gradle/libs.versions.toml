@@ -2,7 +2,7 @@
 
 cache4k = "0.14.0"
 cameraExtensions = "1.6.1"
-compose = "1.10.3"
+compose = "1.11.1"
 compose-plugin = "1.10.3"
 compose-material3 = "1.10.0-alpha05"
 compose-icons = "1.7.3"
