@@ -1,0 +1,84 @@
+name: SBOM Fastlane Contract
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "fastlane/**"
+      - "Gemfile"
+      - "Gemfile.lock"
+      - "env.example"
+      - "build.gradle.kts"
+      - "settings.gradle.kts"
+      - "gradle/**"
+      - "eyespie/**"
+      - "iosApp/Podfile"
+      - "iosApp/Podfile.lock"
+      - ".github/workflows/sbom-fastlane-contract.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: eyespie-sbom-fastlane-contract-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    name: verify
+    runs-on: macos-latest
+    timeout-minutes: 30
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5.6.0
+        with:
+          java-version: "21"
+          distribution: temurin
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@3f131e8634966bd73d06cc69884922b02e6faf92 # v6
+        with:
+          cache-read-only: true
+
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@95ef2b042f9d7a56d8268cba8559e2842e2ad01b # v1
+        with:
+          ruby-version: "3.2"
+          bundler-cache: true
+
+      - name: Verify existing configuration is preserved
+        shell: bash
+        run: |
+          set -euo pipefail
+          printf 'SBOM_CONTRACT_SENTINEL=true\n' > .env.local
+          cp .env.local "$RUNNER_TEMP/expected-env.local"
+
+      - name: Run canonical Android SBOM lane
+        run: bundle exec fastlane sbom_android
+
+      - name: Verify Android SBOM output
+        shell: bash
+        run: |
+          set -euo pipefail
+          cmp "$RUNNER_TEMP/expected-env.local" .env.local
+          test -s build/reports/sbom/eyespie-gradle.cdx.json
+          ruby -rjson -e 'bom = JSON.parse(File.read(ARGV.fetch(0))); abort "not CycloneDX" unless bom["bomFormat"] == "CycloneDX"' build/reports/sbom/eyespie-gradle.cdx.json
+
+      - name: Run canonical CocoaPods preparation lane
+        run: bundle exec fastlane sbom_ios_prepare
+
+      - name: Verify CocoaPods preparation contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          cmp "$RUNNER_TEMP/expected-env.local" .env.local
+          test -s eyespie/eyespie.podspec
+          test -s iosApp/Podfile.lock
+          git diff --exit-code -- eyespie/eyespie.podspec iosApp/Podfile.lock

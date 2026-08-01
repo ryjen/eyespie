@@ -1,3 +1,4 @@
+require 'fileutils'
 
 platform :ios do
   import('./Fastfile.ios')
@@ -8,6 +9,39 @@ platform :android do
 end
 
 import('./Fastfile.supabase')
+
+repo_root = File.expand_path('..', __dir__)
+
+private_lane :prepare_sbom_config do
+  env_path = File.join(repo_root, '.env.local')
+  example_path = File.join(repo_root, 'env.example')
+  FileUtils.cp(example_path, env_path) unless File.exist?(env_path)
+end
+
+desc "Generate the production Gradle and Kotlin Multiplatform CycloneDX SBOM"
+lane :sbom_android do
+  prepare_sbom_config
+  gradle(
+    project_dir: repo_root,
+    tasks: [":app:cyclonedxDirectBom"],
+    flags: "--no-daemon --parallel --build-cache --configuration-cache"
+  )
+end
+
+desc "Prepare the locked CocoaPods dependency graph for SBOM generation"
+lane :sbom_ios_prepare do
+  prepare_sbom_config
+  gradle(
+    project_dir: repo_root,
+    tasks: [":app:podspec", ":app:generateDummyFramework"],
+    flags: "--no-daemon --build-cache"
+  )
+  Dir.chdir(repo_root) do
+    Bundler.with_unbundled_env do
+      sh("pod install --deployment --project-directory=iosApp")
+    end
+  end
+end
 
 desc "Build Debug iOS and Android"
 lane :build_debug do |options|
