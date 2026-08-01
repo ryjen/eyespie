@@ -49,7 +49,7 @@ jobs:
           changed_files="$(git diff --name-only "$BASE_SHA" "$HEAD_SHA")"
           printf '%s\n' "$changed_files"
 
-          relevant_pattern='(^|/)(gradle\.properties|gradle\.lockfile|settings\.gradle(\.kts)?|build\.gradle(\.kts)?|libs\.versions\.toml|gradle-wrapper\.properties|gradle-wrapper\.jar|gradlew(\.bat)?|Podfile|Podfile\.lock|.*\.podspec)$|^buildSrc/|^gradle/|^\.github/workflows/sbom\.yml$|^scripts/.*sbom|^model-pack/|^iosApp/Podfile|^eyespie/eyespie\.podspec$'
+          relevant_pattern='(^|/)(gradle\.properties|gradle\.lockfile|settings\.gradle(\.kts)?|build\.gradle(\.kts)?|libs\.versions\.toml|gradle-wrapper\.properties|gradle-wrapper\.jar|gradlew(\.bat)?|Podfile|Podfile\.lock|.*\.podspec)$|^buildSrc/|^gradle/|^fastlane/|^Gemfile(\.lock)?$|^\.github/workflows/sbom(-fastlane-contract)?\.yml$|^scripts/.*sbom|^model-pack/|^iosApp/Podfile|^eyespie/eyespie\.podspec$'
 
           if grep -Eq "$relevant_pattern" <<< "$changed_files"; then
             echo "generate=true" >> "$GITHUB_OUTPUT"
@@ -101,20 +101,17 @@ jobs:
         with:
           cache-read-only: ${{ github.ref != 'refs/heads/main' }}
 
-      - name: Create build configuration
-        run: cp env.example .env.local
+      - name: Set up Ruby
+        uses: ruby/setup-ruby@95ef2b042f9d7a56d8268cba8559e2842e2ad01b # v1
+        with:
+          ruby-version: "3.2"
+          bundler-cache: true
 
       - name: Generate Gradle and Kotlin Multiplatform SBOM
         shell: bash
         run: |
           set -o pipefail
-          if ! ./gradlew \
-            :app:cyclonedxDirectBom \
-            --no-daemon \
-            --parallel \
-            --build-cache \
-            --configuration-cache \
-            >gradle-sbom.log 2>&1; then
+          if ! bundle exec fastlane sbom_android >gradle-sbom.log 2>&1; then
             tail -n 120 gradle-sbom.log
             exit 1
           fi
@@ -215,14 +212,7 @@ jobs:
         shell: bash
         run: |
           set -o pipefail
-          if ! {
-            ./gradlew \
-              :app:podspec \
-              :app:generateDummyFramework \
-              --no-daemon \
-              --build-cache
-            pod install --deployment --project-directory=iosApp
-          } >cocoapods-prepare.log 2>&1; then
+          if ! bundle exec fastlane sbom_ios_prepare >cocoapods-prepare.log 2>&1; then
             tail -n 120 cocoapods-prepare.log
             exit 1
           fi
