@@ -40,7 +40,10 @@ lane :sbom_ios_prepare do
   Dir.chdir(repo_root) do
     Bundler.with_unbundled_env do
       homebrew_prefix = sh("brew --prefix", log: false).strip
-      pod_executable = File.join(homebrew_prefix, "bin", "pod")
+      homebrew_ruby = File.join(homebrew_prefix, "opt", "ruby", "bin", "ruby")
+      gem_bindir = sh("#{Shellwords.escape(homebrew_ruby)} -e 'print Gem.bindir'", log: false).strip
+      pod_executable = File.join(gem_bindir, "pod")
+      UI.user_error!("Homebrew CocoaPods executable not found at #{pod_executable}") unless File.executable?(pod_executable)
       sh("#{Shellwords.escape(pod_executable)} install --deployment --project-directory=iosApp")
     end
   end
