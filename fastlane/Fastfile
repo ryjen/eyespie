@@ -37,7 +37,9 @@ lane :sbom_ios_prepare do
     flags: "--no-daemon --build-cache"
   )
   Dir.chdir(repo_root) do
-    sh("pod install --deployment --project-directory=iosApp")
+    Bundler.with_unbundled_env do
+      sh("pod install --deployment --project-directory=iosApp")
+    end
   end
 end
 
