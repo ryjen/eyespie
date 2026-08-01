@@ -1,4 +1,5 @@
 require 'fileutils'
+require 'shellwords'
 
 platform :ios do
   import('./Fastfile.ios')
@@ -38,7 +39,9 @@ lane :sbom_ios_prepare do
   )
   Dir.chdir(repo_root) do
     Bundler.with_unbundled_env do
-      sh("pod install --deployment --project-directory=iosApp")
+      homebrew_prefix = sh("brew --prefix", log: false).strip
+      pod_executable = File.join(homebrew_prefix, "bin", "pod")
+      sh("#{Shellwords.escape(pod_executable)} install --deployment --project-directory=iosApp")
     end
   end
 end
