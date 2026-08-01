@@ -15,6 +15,7 @@ INDEX = SITE / "index.html"
 REQUIRED_FILES = (
     INDEX,
     SITE / "styles.css",
+    SITE / "travel-spy.css",
     SITE / "site.js",
     SITE / ".nojekyll",
 )
