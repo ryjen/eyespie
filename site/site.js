@@ -1,3 +1,8 @@
+const themeStylesheet = document.createElement('link');
+themeStylesheet.rel = 'stylesheet';
+themeStylesheet.href = './travel-spy.css';
+document.head.append(themeStylesheet);
+
 const toggle = document.querySelector('.nav-toggle');
 const navigation = document.querySelector('.site-nav');
 
