@@ -92,7 +92,7 @@ jobs:
           grep -Fxq 'kotlin = "2.2.21"' "$catalog"
           grep -Fxq 'kamelImage = "1.0.8"' "$catalog"
           grep -Fxq 'kotlinxSerializationJson = "1.9.0"' "$catalog"
-          grep -Fxq 'supabaseKt = "3.2.0"' "$catalog"
+          grep -Fxq 'supabaseKt = "3.2.6"' "$catalog"
 
       - name: Generate Kotlin podspec and framework
         run: |
