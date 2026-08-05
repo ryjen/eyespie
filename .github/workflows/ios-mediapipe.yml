@@ -96,8 +96,9 @@ jobs:
             EyespieMediaPipeTasksGenAI; do
             grep -Fq "$pod" iosApp/Podfile
             grep -Fq "$pod" eyespie/build.gradle.kts
+            grep -Fq 'spec.version = version' "iosApp/MediaPipePodspecs/${pod}.podspec"
+            grep -Fq '0.10.26.1' "iosApp/MediaPipePodspecs/${pod}.podspec"
           done
-          grep -Fq "0.10.26.1" iosApp/Podfile
           grep -Fq "0.10.26.1" eyespie/build.gradle.kts
 
       - name: Generate Kotlin CocoaPods framework
