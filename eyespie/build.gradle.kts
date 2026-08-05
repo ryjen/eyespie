@@ -38,8 +38,29 @@ kotlin {
             isStatic = true
         }
 
-        pod("MediaPipeTasksVision")
-        pod("MediaPipeTasksGenAI")
+        pod("EyespieMediaPipeTasksCommon") {
+            version = "0.10.26.1"
+            source = path(project.file("../iosApp/MediaPipePodspecs/EyespieMediaPipeTasksCommon.podspec"))
+            packageName = "MediaPipeTasksCommon"
+        }
+        pod("EyespieMediaPipeTasksVision") {
+            version = "0.10.26.1"
+            source = path(project.file("../iosApp/MediaPipePodspecs/EyespieMediaPipeTasksVision.podspec"))
+            packageName = "MediaPipeTasksVision"
+            useInteropBindingFrom("EyespieMediaPipeTasksCommon")
+        }
+        pod("EyespieMediaPipeTasksGenAIC") {
+            version = "0.10.26.1"
+            source = path(project.file("../iosApp/MediaPipePodspecs/EyespieMediaPipeTasksGenAIC.podspec"))
+            packageName = "MediaPipeTasksGenAIC"
+            useInteropBindingFrom("EyespieMediaPipeTasksCommon")
+        }
+        pod("EyespieMediaPipeTasksGenAI") {
+            version = "0.10.26.1"
+            source = path(project.file("../iosApp/MediaPipePodspecs/EyespieMediaPipeTasksGenAI.podspec"))
+            packageName = "MediaPipeTasksGenAI"
+            useInteropBindingFrom("EyespieMediaPipeTasksGenAIC")
+        }
     }
 
     applyDefaultHierarchyTemplate()
