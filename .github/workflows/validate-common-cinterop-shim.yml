@@ -86,21 +86,18 @@ jobs:
                       source = path(project.file("../iosApp/MediaPipePodspecs"))
                       headers = "MediaPipeTasksVision.h"
                       packageName = "MediaPipeTasksVision"
-                      extraOpts += listOf("-compiler-option", "-fmodules")
                   }
                   pod("EyespieMediaPipeTasksGenAIC") {
                       version = "0.10.26.1"
                       source = path(project.file("../iosApp/MediaPipePodspecs"))
                       headers = "MediaPipeTasksGenAIC.h"
                       packageName = "MediaPipeTasksGenAIC"
-                      extraOpts += listOf("-compiler-option", "-fmodules")
                   }
                   pod("EyespieMediaPipeTasksGenAI") {
                       version = "0.10.26.1"
                       source = path(project.file("../iosApp/MediaPipePodspecs"))
                       headers = "MediaPipeTasksGenAI.h"
                       packageName = "MediaPipeTasksGenAI"
-                      extraOpts += listOf("-compiler-option", "-fmodules")
                       useInteropBindingFrom("EyespieMediaPipeTasksGenAIC")
                   }'''
           if text.count(old) != 1:
