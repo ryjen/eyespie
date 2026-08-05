@@ -54,13 +54,14 @@ jobs:
           set -euo pipefail
           version="0.10.26.1"
           lockfile="iosApp/Podfile.lock"
+
           for pod in \
             EyespieMediaPipeTasksCommon \
             EyespieMediaPipeTasksVision \
             EyespieMediaPipeTasksGenAIC \
             EyespieMediaPipeTasksGenAI; do
             podspec="iosApp/MediaPipePodspecs/${pod}.podspec"
-            for file in iosApp/Podfile eyespie/build.gradle.kts "$podspec"; do
+            for file in iosApp/Podfile "$podspec"; do
               if ! grep -Fq "$pod" "$file"; then
                 echo "$file does not declare $pod" >&2
                 exit 1
@@ -72,6 +73,19 @@ jobs:
             fi
             if ! grep -Fq "$pod ($version)" "$lockfile"; then
               echo "$lockfile does not lock $pod at $version" >&2
+              exit 1
+            fi
+          done
+
+          for pod in EyespieMediaPipeTasksVision EyespieMediaPipeTasksGenAI; do
+            if ! grep -Fq "pod(\"$pod\")" eyespie/build.gradle.kts; then
+              echo "Kotlin CocoaPods does not bind API pod $pod" >&2
+              exit 1
+            fi
+          done
+          for pod in EyespieMediaPipeTasksCommon EyespieMediaPipeTasksGenAIC; do
+            if grep -Fq "pod(\"$pod\")" eyespie/build.gradle.kts; then
+              echo "Kotlin CocoaPods must not generate cinterop for implementation pod $pod" >&2
               exit 1
             fi
           done
@@ -108,12 +122,14 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          for pod in \
-            EyespieMediaPipeTasksCommon \
-            EyespieMediaPipeTasksVision \
-            EyespieMediaPipeTasksGenAIC \
-            EyespieMediaPipeTasksGenAI; do
+          for pod in EyespieMediaPipeTasksVision EyespieMediaPipeTasksGenAI; do
             grep -Fq "spec.dependency '$pod'" eyespie/eyespie.podspec
+          done
+          for pod in EyespieMediaPipeTasksCommon EyespieMediaPipeTasksGenAIC; do
+            if grep -Fq "spec.dependency '$pod'" eyespie/eyespie.podspec; then
+              echo "Generated eyespie podspec directly declares implementation pod $pod" >&2
+              exit 1
+            fi
           done
           if grep -Eq "spec\.dependency 'MediaPipeTasks(Common|Vision|GenAIC|GenAI)'" eyespie/eyespie.podspec; then
             echo "Generated eyespie podspec still declares official MediaPipe pods" >&2
