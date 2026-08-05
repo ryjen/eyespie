@@ -9,8 +9,10 @@ Pod::Spec.new do |spec|
     spec.vendored_frameworks      = 'build/cocoapods/framework/eyespie.framework'
     spec.libraries                = 'c++'
     spec.ios.deployment_target    = '15.0'
-    spec.dependency 'MediaPipeTasksGenAI'
-    spec.dependency 'MediaPipeTasksVision'
+    spec.dependency 'EyespieMediaPipeTasksCommon', '= 0.10.26.1'
+    spec.dependency 'EyespieMediaPipeTasksVision', '= 0.10.26.1'
+    spec.dependency 'EyespieMediaPipeTasksGenAIC', '= 0.10.26.1'
+    spec.dependency 'EyespieMediaPipeTasksGenAI', '= 0.10.26.1'
                 
     if !Dir.exist?('build/cocoapods/framework/eyespie.framework') || Dir.empty?('build/cocoapods/framework/eyespie.framework')
         raise "
