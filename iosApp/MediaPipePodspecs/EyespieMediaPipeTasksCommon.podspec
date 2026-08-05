@@ -1,3 +1,4 @@
+# Eyespie-pinned MediaPipe iOS distribution built from the immutable 0.10.26.1 release.
 Pod::Spec.new do |spec|
   spec.name = "EyespieMediaPipeTasksCommon"
   spec.version = ENV.fetch("POD_VERSION", "0.10.26.1")
