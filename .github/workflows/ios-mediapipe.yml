@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - "eyespie/build.gradle.kts"
+      - "gradle/libs.versions.toml"
       - "iosApp/**"
       - ".github/workflows/ios-mediapipe.yml"
   workflow_dispatch:
@@ -73,6 +74,16 @@ jobs:
             echo "Kotlin CocoaPods still declares official MediaPipe pods" >&2
             exit 1
           fi
+
+      - name: Assert Kotlin 2.2 Apple compatibility pins
+        shell: bash
+        run: |
+          set -euo pipefail
+          catalog="gradle/libs.versions.toml"
+          grep -Fxq 'kotlin = "2.2.21"' "$catalog"
+          grep -Fxq 'kamelImage = "1.0.8"' "$catalog"
+          grep -Fxq 'kotlinxSerializationJson = "1.9.0"' "$catalog"
+          grep -Fxq 'supabaseKt = "3.4.1"' "$catalog"
 
       - name: Generate Kotlin podspec and framework
         run: |
