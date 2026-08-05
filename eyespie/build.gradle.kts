@@ -41,23 +41,27 @@ kotlin {
         pod("EyespieMediaPipeTasksCommon") {
             version = "0.10.26.1"
             source = path(project.file("../iosApp/MediaPipePodspecs"))
+            moduleName = "MediaPipeTasksCommon"
             packageName = "MediaPipeTasksCommon"
         }
         pod("EyespieMediaPipeTasksVision") {
             version = "0.10.26.1"
             source = path(project.file("../iosApp/MediaPipePodspecs"))
+            moduleName = "MediaPipeTasksVision"
             packageName = "MediaPipeTasksVision"
             useInteropBindingFrom("EyespieMediaPipeTasksCommon")
         }
         pod("EyespieMediaPipeTasksGenAIC") {
             version = "0.10.26.1"
             source = path(project.file("../iosApp/MediaPipePodspecs"))
+            moduleName = "MediaPipeTasksGenAIC"
             packageName = "MediaPipeTasksGenAIC"
             useInteropBindingFrom("EyespieMediaPipeTasksCommon")
         }
         pod("EyespieMediaPipeTasksGenAI") {
             version = "0.10.26.1"
             source = path(project.file("../iosApp/MediaPipePodspecs"))
+            moduleName = "MediaPipeTasksGenAI"
             packageName = "MediaPipeTasksGenAI"
             useInteropBindingFrom("EyespieMediaPipeTasksGenAIC")
         }
