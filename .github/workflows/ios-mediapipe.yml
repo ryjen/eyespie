@@ -53,6 +53,7 @@ jobs:
         run: |
           set -euo pipefail
           version="0.10.26.1"
+          lockfile="iosApp/Podfile.lock"
           for pod in \
             EyespieMediaPipeTasksCommon \
             EyespieMediaPipeTasksVision \
@@ -69,9 +70,17 @@ jobs:
               echo "$podspec does not default POD_VERSION to $version" >&2
               exit 1
             fi
+            if ! grep -Fq "$pod ($version)" "$lockfile"; then
+              echo "$lockfile does not lock $pod at $version" >&2
+              exit 1
+            fi
           done
           if grep -Eq 'pod\("MediaPipeTasks(Vision|GenAI)"\)' eyespie/build.gradle.kts; then
             echo "Kotlin CocoaPods still declares official MediaPipe pods" >&2
+            exit 1
+          fi
+          if grep -Eq '^  - MediaPipeTasks(Common|Vision|GenAIC|GenAI)' "$lockfile"; then
+            echo "Checked-in lockfile still contains official MediaPipe pods" >&2
             exit 1
           fi
 
