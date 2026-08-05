@@ -1,0 +1,94 @@
+name: Repair MediaPipe source contract
+
+on:
+  push:
+    branches:
+      - agent/mediapipe-ios-0.10.26.1
+    paths:
+      - .github/workflows/repair-mediapipe-source.yml
+
+permissions:
+  contents: write
+
+jobs:
+  repair:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: true
+
+      - name: Commit authoritative MediaPipe dependency graph
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          gradle = Path("eyespie/build.gradle.kts")
+          text = gradle.read_text()
+          old = '''        pod("MediaPipeTasksVision")
+                  pod("MediaPipeTasksGenAI")'''
+          new = '''        pod("EyespieMediaPipeTasksCommon") {
+                      version = "0.10.26.1"
+                      source = path(project.file("../iosApp/MediaPipePodspecs/EyespieMediaPipeTasksCommon.podspec"))
+                      packageName = "MediaPipeTasksCommon"
+                  }
+                  pod("EyespieMediaPipeTasksVision") {
+                      version = "0.10.26.1"
+                      source = path(project.file("../iosApp/MediaPipePodspecs/EyespieMediaPipeTasksVision.podspec"))
+                      packageName = "MediaPipeTasksVision"
+                      useInteropBindingFrom("EyespieMediaPipeTasksCommon")
+                  }
+                  pod("EyespieMediaPipeTasksGenAIC") {
+                      version = "0.10.26.1"
+                      source = path(project.file("../iosApp/MediaPipePodspecs/EyespieMediaPipeTasksGenAIC.podspec"))
+                      packageName = "MediaPipeTasksGenAIC"
+                      useInteropBindingFrom("EyespieMediaPipeTasksCommon")
+                  }
+                  pod("EyespieMediaPipeTasksGenAI") {
+                      version = "0.10.26.1"
+                      source = path(project.file("../iosApp/MediaPipePodspecs/EyespieMediaPipeTasksGenAI.podspec"))
+                      packageName = "MediaPipeTasksGenAI"
+                      useInteropBindingFrom("EyespieMediaPipeTasksGenAIC")
+                  }'''
+          if text.count(old) != 1:
+              raise SystemExit("expected exactly one legacy Gradle MediaPipe pod block")
+          gradle.write_text(text.replace(old, new))
+
+          podspec = Path("eyespie/eyespie.podspec")
+          text = podspec.read_text()
+          old = "    spec.dependency 'MediaPipeTasksGenAI'\n    spec.dependency 'MediaPipeTasksVision'"
+          new = "\n".join([
+              "    spec.dependency 'EyespieMediaPipeTasksCommon', '= 0.10.26.1'",
+              "    spec.dependency 'EyespieMediaPipeTasksVision', '= 0.10.26.1'",
+              "    spec.dependency 'EyespieMediaPipeTasksGenAIC', '= 0.10.26.1'",
+              "    spec.dependency 'EyespieMediaPipeTasksGenAI', '= 0.10.26.1'",
+          ])
+          if text.count(old) != 1:
+              raise SystemExit("expected exactly one legacy generated podspec dependency block")
+          podspec.write_text(text.replace(old, new))
+
+          workflow = Path(".github/workflows/ios-mediapipe.yml")
+          text = workflow.read_text()
+          start_marker = "      - name: Configure Kotlin CocoaPods dependencies for integration test\n"
+          end_marker = "      - name: Assert MediaPipe pod contract\n"
+          if text.count(start_marker) != 1 or text.count(end_marker) != 1:
+              raise SystemExit("expected unique integration workflow markers")
+          start = text.index(start_marker)
+          end = text.index(end_marker, start)
+          workflow.write_text(text[:start] + text[end:])
+          PY
+
+          rm .github/workflows/repair-mediapipe-source.yml
+          git diff --check
+          git diff -- . ':(exclude)eyespie/eyespie.podspec' | sed -n '1,240p'
+          grep -n "spec.dependency" eyespie/eyespie.podspec
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "fix(ios): commit namespaced MediaPipe dependency graph"
+          git push origin HEAD:agent/mediapipe-ios-0.10.26.1
