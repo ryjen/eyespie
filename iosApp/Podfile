@@ -2,15 +2,13 @@ platform :ios, '15.0'
 
 source 'https://cdn.cocoapods.org'
 
-MEDIAPIPE_VERSION = '0.10.26.1'
-
 target 'iosApp' do
   use_frameworks! :linkage => :static
 
-  pod 'EyespieMediaPipeTasksCommon', MEDIAPIPE_VERSION, :podspec => 'MediaPipePodspecs/EyespieMediaPipeTasksCommon.podspec'
-  pod 'EyespieMediaPipeTasksVision', MEDIAPIPE_VERSION, :podspec => 'MediaPipePodspecs/EyespieMediaPipeTasksVision.podspec'
-  pod 'EyespieMediaPipeTasksGenAIC', MEDIAPIPE_VERSION, :podspec => 'MediaPipePodspecs/EyespieMediaPipeTasksGenAIC.podspec'
-  pod 'EyespieMediaPipeTasksGenAI', MEDIAPIPE_VERSION, :podspec => 'MediaPipePodspecs/EyespieMediaPipeTasksGenAI.podspec'
+  pod 'EyespieMediaPipeTasksCommon', :podspec => 'MediaPipePodspecs/EyespieMediaPipeTasksCommon.podspec'
+  pod 'EyespieMediaPipeTasksVision', :podspec => 'MediaPipePodspecs/EyespieMediaPipeTasksVision.podspec'
+  pod 'EyespieMediaPipeTasksGenAIC', :podspec => 'MediaPipePodspecs/EyespieMediaPipeTasksGenAIC.podspec'
+  pod 'EyespieMediaPipeTasksGenAI', :podspec => 'MediaPipePodspecs/EyespieMediaPipeTasksGenAI.podspec'
 
   pod 'eyespie', :path => '../eyespie'
 end
