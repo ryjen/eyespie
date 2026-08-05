@@ -27,30 +27,20 @@ jobs:
           python3 - <<'PY'
           from pathlib import Path
 
-          replacements = {
-              Path("gradle/libs.versions.toml"): (
-                  'supabaseKt = "3.4.1"',
-                  'supabaseKt = "3.2.6"',
-              ),
-              Path(".github/workflows/ios-mediapipe.yml"): (
-                  "grep -Fxq 'supabaseKt = \"3.4.1\"' \"$catalog\"",
-                  "grep -Fxq 'supabaseKt = \"3.2.6\"' \"$catalog\"",
-              ),
-          }
-          for path, (old, new) in replacements.items():
-              text = path.read_text()
-              if text.count(old) != 1:
-                  raise SystemExit(f"expected exactly one occurrence of {old!r} in {path}")
-              path.write_text(text.replace(old, new))
+          path = Path("gradle/libs.versions.toml")
+          text = path.read_text()
+          old = 'supabaseKt = "3.2.0"'
+          new = 'supabaseKt = "3.2.6"'
+          if text.count(old) != 1:
+              raise SystemExit(f"expected exactly one occurrence of {old!r}")
+          path.write_text(text.replace(old, new))
           PY
 
-          rm .github/workflows/pin-supabase-kotlin22.yml
           git diff --check
           grep -Fx 'supabaseKt = "3.2.6"' gradle/libs.versions.toml
-          grep -F 'supabaseKt = "3.2.6"' .github/workflows/ios-mediapipe.yml
 
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A
-          git commit -m "fix(apple): pin Supabase to Kotlin 2.2 ABI"
+          git add gradle/libs.versions.toml
+          git commit -m "fix(apple): pin Supabase 3.2.6 for Kotlin 2.2"
           git push origin HEAD:agent/mediapipe-ios-0.10.26.1
