@@ -47,15 +47,58 @@ jobs:
       - name: Create build configuration
         run: cp env.example .env.local
 
+      - name: Configure Kotlin CocoaPods dependencies for integration test
+        shell: bash
+        run: |
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path("eyespie/build.gradle.kts")
+          text = path.read_text()
+          old = '''        pod("MediaPipeTasksVision")
+                  pod("MediaPipeTasksGenAI")'''
+          new = '''        pod("EyespieMediaPipeTasksCommon") {
+                      version = "0.10.26.1"
+                      source = path(project.file("../iosApp/MediaPipePodspecs/EyespieMediaPipeTasksCommon.podspec"))
+                      packageName = "MediaPipeTasksCommon"
+                  }
+                  pod("EyespieMediaPipeTasksVision") {
+                      version = "0.10.26.1"
+                      source = path(project.file("../iosApp/MediaPipePodspecs/EyespieMediaPipeTasksVision.podspec"))
+                      packageName = "MediaPipeTasksVision"
+                      useInteropBindingFrom("EyespieMediaPipeTasksCommon")
+                  }
+                  pod("EyespieMediaPipeTasksGenAIC") {
+                      version = "0.10.26.1"
+                      source = path(project.file("../iosApp/MediaPipePodspecs/EyespieMediaPipeTasksGenAIC.podspec"))
+                      packageName = "MediaPipeTasksGenAIC"
+                      useInteropBindingFrom("EyespieMediaPipeTasksCommon")
+                  }
+                  pod("EyespieMediaPipeTasksGenAI") {
+                      version = "0.10.26.1"
+                      source = path(project.file("../iosApp/MediaPipePodspecs/EyespieMediaPipeTasksGenAI.podspec"))
+                      packageName = "MediaPipeTasksGenAI"
+                      useInteropBindingFrom("EyespieMediaPipeTasksGenAIC")
+                  }'''
+          if old not in text:
+              raise SystemExit("expected MediaPipe pod declarations were not found")
+          path.write_text(text.replace(old, new))
+          PY
+
       - name: Assert MediaPipe pod contract
         shell: bash
         run: |
           set -euo pipefail
-          grep -Fq "EyespieMediaPipeTasksCommon" iosApp/Podfile
-          grep -Fq "EyespieMediaPipeTasksVision" iosApp/Podfile
-          grep -Fq "EyespieMediaPipeTasksGenAIC" iosApp/Podfile
-          grep -Fq "EyespieMediaPipeTasksGenAI" iosApp/Podfile
+          for pod in \
+            EyespieMediaPipeTasksCommon \
+            EyespieMediaPipeTasksVision \
+            EyespieMediaPipeTasksGenAIC \
+            EyespieMediaPipeTasksGenAI; do
+            grep -Fq "$pod" iosApp/Podfile
+            grep -Fq "$pod" eyespie/build.gradle.kts
+          done
           grep -Fq "0.10.26.1" iosApp/Podfile
+          grep -Fq "0.10.26.1" eyespie/build.gradle.kts
 
       - name: Generate Kotlin CocoaPods framework
         run: ./gradlew :app:generateDummyFramework --no-daemon --stacktrace
