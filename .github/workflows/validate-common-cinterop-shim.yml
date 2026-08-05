@@ -8,7 +8,7 @@ on:
       - .github/workflows/validate-common-cinterop-shim.yml
 
 permissions:
-  contents: write
+  contents: read
 
 jobs:
   validate:
@@ -18,7 +18,7 @@ jobs:
       - name: Checkout branch
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          persist-credentials: true
+          persist-credentials: false
 
       - name: Set up JDK 21
         uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5.6.0
@@ -34,7 +34,7 @@ jobs:
       - name: Set up CocoaPods
         run: sudo gem install cocoapods -v 1.17.0 --no-document
 
-      - name: Configure and compile all four local pods
+      - name: Configure four-pod cinterop graph
         shell: bash
         run: |
           set -euo pipefail
@@ -42,7 +42,6 @@ jobs:
 
           cat > iosApp/MediaPipePodspecs/EyespieMediaPipeTasksCommonInterop.h <<'EOF'
           #pragma once
-
           /* Common has no public API; retain it in the synthetic pod graph. */
           EOF
 
@@ -67,33 +66,34 @@ jobs:
                       packageName = "MediaPipeTasksGenAI"
                       extraOpts += listOf("-compiler-option", "-fmodules")
                   }'''
-          new = '''        // Declare all local pods so Kotlin's synthetic Podfile resolves the
-                  // complete graph. Use absolute XCFramework headers for cinterop.
-                  val mediaPipeSyntheticPods = layout.buildDirectory.dir("cocoapods/synthetic/ios/Pods").get().asFile
+          new = '''        val mediaPipeFallbackHeader = project.file("../iosApp/MediaPipePodspecs/EyespieMediaPipeTasksCommonInterop.h").absolutePath
+                  fun mediaPipeHeader(property: String): String =
+                      providers.gradleProperty(property).orNull ?: mediaPipeFallbackHeader
+
                   pod("EyespieMediaPipeTasksCommon") {
                       version = "0.10.26.1"
                       source = path(project.file("../iosApp/MediaPipePodspecs"))
-                      headers = project.file("../iosApp/MediaPipePodspecs/EyespieMediaPipeTasksCommonInterop.h").absolutePath
+                      headers = mediaPipeFallbackHeader
                       packageName = "MediaPipeTasksCommon"
                   }
                   pod("EyespieMediaPipeTasksVision") {
                       version = "0.10.26.1"
                       source = path(project.file("../iosApp/MediaPipePodspecs"))
-                      headers = mediaPipeSyntheticPods.resolve("EyespieMediaPipeTasksVision/frameworks/MediaPipeTasksVision.xcframework/ios-arm64_x86_64-simulator/MediaPipeTasksVision.framework/Headers/MediaPipeTasksVision.h").absolutePath
+                      headers = mediaPipeHeader("mediapipeVisionHeader")
                       packageName = "MediaPipeTasksVision"
                       useInteropBindingFrom("EyespieMediaPipeTasksCommon")
                   }
                   pod("EyespieMediaPipeTasksGenAIC") {
                       version = "0.10.26.1"
                       source = path(project.file("../iosApp/MediaPipePodspecs"))
-                      headers = mediaPipeSyntheticPods.resolve("EyespieMediaPipeTasksGenAIC/frameworks/MediaPipeTasksGenAIC.xcframework/ios-arm64_x86_64-simulator/MediaPipeTasksGenAIC.framework/Headers/MediaPipeTasksGenAIC.h").absolutePath
+                      headers = mediaPipeHeader("mediapipeGenAICHeader")
                       packageName = "MediaPipeTasksGenAIC"
                       useInteropBindingFrom("EyespieMediaPipeTasksCommon")
                   }
                   pod("EyespieMediaPipeTasksGenAI") {
                       version = "0.10.26.1"
                       source = path(project.file("../iosApp/MediaPipePodspecs"))
-                      headers = mediaPipeSyntheticPods.resolve("EyespieMediaPipeTasksGenAI/frameworks/MediaPipeTasksGenAI.xcframework/ios-arm64_x86_64-simulator/MediaPipeTasksGenAI.framework/Headers/MediaPipeTasksGenAI.h").absolutePath
+                      headers = mediaPipeHeader("mediapipeGenAIHeader")
                       packageName = "MediaPipeTasksGenAI"
                       useInteropBindingFrom("EyespieMediaPipeTasksGenAIC")
                   }'''
@@ -102,36 +102,50 @@ jobs:
           path.write_text(text.replace(old, new))
           PY
 
+      - name: Install synthetic pods and discover headers
+        id: headers
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./gradlew :app:podInstallSyntheticIos --no-daemon --no-configuration-cache --stacktrace
+
+          root="$PWD/eyespie/build/cocoapods"
+          find "$root" -type f -name 'MediaPipeTasks*.h' -print | sort
+
+          vision="$(find "$root" -type f -name 'MediaPipeTasksVision.h' -print -quit)"
+          genaic="$(find "$root" -type f -name 'MediaPipeTasksGenAIC.h' -print -quit)"
+          genai="$(find "$root" -type f -name 'MediaPipeTasksGenAI.h' -print -quit)"
+          test -n "$vision"
+          test -n "$genaic"
+          test -n "$genai"
+          printf 'vision=%s\n' "$vision" >> "$GITHUB_OUTPUT"
+          printf 'genaic=%s\n' "$genaic" >> "$GITHUB_OUTPUT"
+          printf 'genai=%s\n' "$genai" >> "$GITHUB_OUTPUT"
+
+      - name: Compile Kotlin with discovered headers
+        shell: bash
+        run: |
+          set -euo pipefail
           ./gradlew \
             :app:podspec \
             :app:generateDummyFramework \
             :app:compileKotlinIosSimulatorArm64 \
             :app:compileTestKotlinIosSimulatorArm64 \
+            -PmediapipeVisionHeader='${{ steps.headers.outputs.vision }}' \
+            -PmediapipeGenAICHeader='${{ steps.headers.outputs.genaic }}' \
+            -PmediapipeGenAIHeader='${{ steps.headers.outputs.genai }}' \
             --no-daemon \
+            --no-configuration-cache \
             --stacktrace
 
-          (
-            cd iosApp
-            rm -rf Pods Podfile.lock
-            pod install --repo-update
-          )
-
-          git diff --check
+      - name: Verify generated graph
+        shell: bash
+        run: |
+          set -euo pipefail
           for pod in \
             EyespieMediaPipeTasksCommon \
             EyespieMediaPipeTasksVision \
             EyespieMediaPipeTasksGenAIC \
             EyespieMediaPipeTasksGenAI; do
             grep -F "spec.dependency '$pod'" eyespie/eyespie.podspec
-            grep -F "$pod (0.10.26.1)" iosApp/Podfile.lock
           done
-
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add \
-            eyespie/build.gradle.kts \
-            eyespie/eyespie.podspec \
-            iosApp/MediaPipePodspecs/EyespieMediaPipeTasksCommonInterop.h \
-            iosApp/Podfile.lock
-          git commit -m "fix(ios): bind MediaPipe pods through absolute headers"
-          git push origin HEAD:agent/mediapipe-ios-0.10.26.1
