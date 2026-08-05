@@ -20,43 +20,25 @@ jobs:
         with:
           persist-credentials: true
 
-      - name: Commit authoritative MediaPipe dependency graph
+      - name: Commit authoritative generated podspec and validation workflow
         shell: bash
         run: |
           set -euo pipefail
           python3 - <<'PY'
           from pathlib import Path
 
-          gradle = Path("eyespie/build.gradle.kts")
-          text = gradle.read_text()
-          old = '''        pod("MediaPipeTasksVision")
-                  pod("MediaPipeTasksGenAI")'''
-          new = '''        pod("EyespieMediaPipeTasksCommon") {
-                      version = "0.10.26.1"
-                      source = path(project.file("../iosApp/MediaPipePodspecs/EyespieMediaPipeTasksCommon.podspec"))
-                      packageName = "MediaPipeTasksCommon"
-                  }
-                  pod("EyespieMediaPipeTasksVision") {
-                      version = "0.10.26.1"
-                      source = path(project.file("../iosApp/MediaPipePodspecs/EyespieMediaPipeTasksVision.podspec"))
-                      packageName = "MediaPipeTasksVision"
-                      useInteropBindingFrom("EyespieMediaPipeTasksCommon")
-                  }
-                  pod("EyespieMediaPipeTasksGenAIC") {
-                      version = "0.10.26.1"
-                      source = path(project.file("../iosApp/MediaPipePodspecs/EyespieMediaPipeTasksGenAIC.podspec"))
-                      packageName = "MediaPipeTasksGenAIC"
-                      useInteropBindingFrom("EyespieMediaPipeTasksCommon")
-                  }
-                  pod("EyespieMediaPipeTasksGenAI") {
-                      version = "0.10.26.1"
-                      source = path(project.file("../iosApp/MediaPipePodspecs/EyespieMediaPipeTasksGenAI.podspec"))
-                      packageName = "MediaPipeTasksGenAI"
-                      useInteropBindingFrom("EyespieMediaPipeTasksGenAIC")
-                  }'''
-          if text.count(old) != 1:
-              raise SystemExit("expected exactly one legacy Gradle MediaPipe pod block")
-          gradle.write_text(text.replace(old, new))
+          gradle = Path("eyespie/build.gradle.kts").read_text()
+          required = [
+              "EyespieMediaPipeTasksCommon",
+              "EyespieMediaPipeTasksVision",
+              "EyespieMediaPipeTasksGenAIC",
+              "EyespieMediaPipeTasksGenAI",
+          ]
+          missing = [pod for pod in required if f'pod("{pod}")' not in gradle]
+          if missing:
+              raise SystemExit(f"Gradle is missing namespaced pods: {missing}")
+          if 'pod("MediaPipeTasksVision")' in gradle or 'pod("MediaPipeTasksGenAI")' in gradle:
+              raise SystemExit("Gradle still declares official MediaPipe pods")
 
           podspec = Path("eyespie/eyespie.podspec")
           text = podspec.read_text()
@@ -84,11 +66,14 @@ jobs:
 
           rm .github/workflows/repair-mediapipe-source.yml
           git diff --check
-          git diff -- . ':(exclude)eyespie/eyespie.podspec' | sed -n '1,240p'
           grep -n "spec.dependency" eyespie/eyespie.podspec
+          if grep -Fq "Configure Kotlin CocoaPods dependencies for integration test" .github/workflows/ios-mediapipe.yml; then
+            echo "transient source mutation step remains" >&2
+            exit 1
+          fi
 
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
-          git commit -m "fix(ios): commit namespaced MediaPipe dependency graph"
+          git commit -m "fix(ios): align generated podspec with namespaced pods"
           git push origin HEAD:agent/mediapipe-ios-0.10.26.1
