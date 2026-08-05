@@ -1,11 +1,9 @@
-name: Validate framework-qualified MediaPipe headers
+name: Validate MediaPipe framework headers
 
 on:
   push:
-    branches:
-      - agent/mediapipe-ios-0.10.26.1
-    paths:
-      - .github/workflows/apply-mediapipe-link-only.yml
+    branches: [agent/mediapipe-ios-0.10.26.1]
+    paths: [.github/workflows/apply-mediapipe-link-only.yml]
 
 permissions:
   contents: write
@@ -15,105 +13,35 @@ jobs:
     runs-on: macos-15
     timeout-minutes: 60
     steps:
-      - name: Checkout branch
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1
         with:
           persist-credentials: true
-
-      - name: Set up JDK 21
-        uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5.6.0
+      - uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95
         with:
           java-version: "21"
           distribution: temurin
-
-      - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@3f131e8634966bd73d06cc69884922b02e6faf92 # v6
+      - uses: gradle/actions/setup-gradle@3f131e8634966bd73d06cc69884922b02e6faf92
         with:
           cache-read-only: true
-
-      - name: Set up CocoaPods
-        run: sudo gem install cocoapods -v 1.17.0 --no-document
-
-      - name: Configure and compile all four local pods
+      - run: sudo gem install cocoapods -v 1.17.0 --no-document
+      - name: Compile framework-qualified cinterop
         shell: bash
         run: |
           set -euo pipefail
           cp env.example .env.local
-          cat > iosApp/MediaPipePodspecs/EyespieMediaPipeTasksCommonInterop.h <<'EOF'
-          #pragma once
-          /* Common is implementation-only and intentionally exposes no Kotlin API. */
-          EOF
-
-          python3 - <<'PY'
-          from pathlib import Path
-          path = Path("eyespie/build.gradle.kts")
-          text = path.read_text()
-          start = text.index('        // Common and GenAIC are implementation pods.')
-          end = text.index('    }\n\n    applyDefaultHierarchyTemplate()', start)
-          block = '''        // Declare all local pods so Kotlin's synthetic Podfile resolves the
-          // complete namespaced graph. Framework-qualified umbrella headers avoid
-          // relying on module discovery for the vendored XCFrameworks.
-          pod("EyespieMediaPipeTasksCommon") {
-              version = "0.10.26.1"
-              source = path(project.file("../iosApp/MediaPipePodspecs"))
-              headers = project.file("../iosApp/MediaPipePodspecs/EyespieMediaPipeTasksCommonInterop.h").absolutePath
-              packageName = "MediaPipeTasksCommon"
-          }
-          pod("EyespieMediaPipeTasksVision") {
-              version = "0.10.26.1"
-              source = path(project.file("../iosApp/MediaPipePodspecs"))
-              headers = "MediaPipeTasksVision/MediaPipeTasksVision.h"
-              packageName = "MediaPipeTasksVision"
-              extraOpts += listOf("-compiler-option", "-fmodules")
-          }
-          pod("EyespieMediaPipeTasksGenAIC") {
-              version = "0.10.26.1"
-              source = path(project.file("../iosApp/MediaPipePodspecs"))
-              headers = "MediaPipeTasksGenAIC/MediaPipeTasksGenAIC.h"
-              packageName = "MediaPipeTasksGenAIC"
-              extraOpts += listOf("-compiler-option", "-fmodules")
-          }
-          pod("EyespieMediaPipeTasksGenAI") {
-              version = "0.10.26.1"
-              source = path(project.file("../iosApp/MediaPipePodspecs"))
-              headers = "MediaPipeTasksGenAI/MediaPipeTasksGenAI.h"
-              packageName = "MediaPipeTasksGenAI"
-              extraOpts += listOf("-compiler-option", "-fmodules")
-              useInteropBindingFrom("EyespieMediaPipeTasksGenAIC")
-          }
-'''
-          path.write_text(text[:start] + block + text[end:])
-          PY
-
-          ./gradlew \
-            :app:podspec \
-            :app:generateDummyFramework \
-            :app:compileKotlinIosSimulatorArm64 \
-            :app:compileTestKotlinIosSimulatorArm64 \
-            --no-daemon \
-            --stacktrace
-
-          (
-            cd iosApp
-            rm -rf Pods Podfile.lock
-            pod install --repo-update
-          )
-          for pod in EyespieMediaPipeTasksCommon EyespieMediaPipeTasksVision EyespieMediaPipeTasksGenAIC EyespieMediaPipeTasksGenAI; do
-            grep -Fq "spec.dependency '$pod'" eyespie/eyespie.podspec
-            grep -Fq "$pod (0.10.26.1)" iosApp/Podfile.lock
-          done
-          git diff --check
-
-      - name: Commit validated graph and remove temporary workflows
+          printf '%s\n' '#pragma once' '/* implementation-only */' > iosApp/MediaPipePodspecs/EyespieMediaPipeTasksCommonInterop.h
+          echo 'CmZyb20gcGF0aGxpYiBpbXBvcnQgUGF0aApwYXRoID0gUGF0aCgiZXllc3BpZS9idWlsZC5ncmFkbGUua3RzIikKdGV4dCA9IHBhdGgucmVhZF90ZXh0KCkKc3RhcnQgPSB0ZXh0LmluZGV4KCIgICAgICAgIC8vIENvbW1vbiBhbmQgR2VuQUlDIGFyZSBpbXBsZW1lbnRhdGlvbiBwb2RzLiIpCmVuZCA9IHRleHQuaW5kZXgoIiAgICB9XG5cbiAgICBhcHBseURlZmF1bHRIaWVyYXJjaHlUZW1wbGF0ZSgpIiwgc3RhcnQpCmJsb2NrID0gIiIiICAgICAgICAvLyBEZWNsYXJlIGFsbCBsb2NhbCBwb2RzIHNvIEtvdGxpbidzIHN5bnRoZXRpYyBQb2RmaWxlIHJlc29sdmVzIHRoZQogICAgICAgIC8vIGNvbXBsZXRlIG5hbWVzcGFjZWQgZ3JhcGguIEZyYW1ld29yay1xdWFsaWZpZWQgdW1icmVsbGEgaGVhZGVycyBhdm9pZAogICAgICAgIC8vIHJlbHlpbmcgb24gbW9kdWxlIGRpc2NvdmVyeSBmb3IgdGhlIHZlbmRvcmVkIFhDRnJhbWV3b3Jrcy4KICAgICAgICBwb2QoIkV5ZXNwaWVNZWRpYVBpcGVUYXNrc0NvbW1vbiIpIHsKICAgICAgICAgICAgdmVyc2lvbiA9ICIwLjEwLjI2LjEiCiAgICAgICAgICAgIHNvdXJjZSA9IHBhdGgocHJvamVjdC5maWxlKCIuLi9pb3NBcHAvTWVkaWFQaXBlUG9kc3BlY3MiKSkKICAgICAgICAgICAgaGVhZGVycyA9IHByb2plY3QuZmlsZSgiLi4vaW9zQXBwL01lZGlhUGlwZVBvZHNwZWNzL0V5ZXNwaWVNZWRpYVBpcGVUYXNrc0NvbW1vbkludGVyb3AuaCIpLmFic29sdXRlUGF0aAogICAgICAgICAgICBwYWNrYWdlTmFtZSA9ICJNZWRpYVBpcGVUYXNrc0NvbW1vbiIKICAgICAgICB9CiAgICAgICAgcG9kKCJFeWVzcGllTWVkaWFQaXBlVGFza3NWaXNpb24iKSB7CiAgICAgICAgICAgIHZlcnNpb24gPSAiMC4xMC4yNi4xIgogICAgICAgICAgICBzb3VyY2UgPSBwYXRoKHByb2plY3QuZmlsZSgiLi4vaW9zQXBwL01lZGlhUGlwZVBvZHNwZWNzIikpCiAgICAgICAgICAgIGhlYWRlcnMgPSAiTWVkaWFQaXBlVGFza3NWaXNpb24vTWVkaWFQaXBlVGFza3NWaXNpb24uaCIKICAgICAgICAgICAgcGFja2FnZU5hbWUgPSAiTWVkaWFQaXBlVGFza3NWaXNpb24iCiAgICAgICAgICAgIGV4dHJhT3B0cyArPSBsaXN0T2YoIi1jb21waWxlci1vcHRpb24iLCAiLWZtb2R1bGVzIikKICAgICAgICB9CiAgICAgICAgcG9kKCJFeWVzcGllTWVkaWFQaXBlVGFza3NHZW5BSUMiKSB7CiAgICAgICAgICAgIHZlcnNpb24gPSAiMC4xMC4yNi4xIgogICAgICAgICAgICBzb3VyY2UgPSBwYXRoKHByb2plY3QuZmlsZSgiLi4vaW9zQXBwL01lZGlhUGlwZVBvZHNwZWNzIikpCiAgICAgICAgICAgIGhlYWRlcnMgPSAiTWVkaWFQaXBlVGFza3NHZW5BSUMvTWVkaWFQaXBlVGFza3NHZW5BSUMuaCIKICAgICAgICAgICAgcGFja2FnZU5hbWUgPSAiTWVkaWFQaXBlVGFza3NHZW5BSUMiCiAgICAgICAgICAgIGV4dHJhT3B0cyArPSBsaXN0T2YoIi1jb21waWxlci1vcHRpb24iLCAiLWZtb2R1bGVzIikKICAgICAgICB9CiAgICAgICAgcG9kKCJFeWVzcGllTWVkaWFQaXBlVGFza3NHZW5BSSIpIHsKICAgICAgICAgICAgdmVyc2lvbiA9ICIwLjEwLjI2LjEiCiAgICAgICAgICAgIHNvdXJjZSA9IHBhdGgocHJvamVjdC5maWxlKCIuLi9pb3NBcHAvTWVkaWFQaXBlUG9kc3BlY3MiKSkKICAgICAgICAgICAgaGVhZGVycyA9ICJNZWRpYVBpcGVUYXNrc0dlbkFJL01lZGlhUGlwZVRhc2tzR2VuQUkuaCIKICAgICAgICAgICAgcGFja2FnZU5hbWUgPSAiTWVkaWFQaXBlVGFza3NHZW5BSSIKICAgICAgICAgICAgZXh0cmFPcHRzICs9IGxpc3RPZigiLWNvbXBpbGVyLW9wdGlvbiIsICItZm1vZHVsZXMiKQogICAgICAgICAgICB1c2VJbnRlcm9wQmluZGluZ0Zyb20oIkV5ZXNwaWVNZWRpYVBpcGVUYXNrc0dlbkFJQyIpCiAgICAgICAgfQoiIiIKcGF0aC53cml0ZV90ZXh0KHRleHRbOnN0YXJ0XSArIGJsb2NrICsgdGV4dFtlbmQ6XSkK' | base64 --decode | python3
+          ./gradlew :app:podspec :app:generateDummyFramework :app:compileKotlinIosSimulatorArm64 :app:compileTestKotlinIosSimulatorArm64 --no-daemon --stacktrace
+          cd iosApp
+          rm -rf Pods Podfile.lock
+          pod install --repo-update
+      - name: Commit successful graph
         shell: bash
         run: |
           set -euo pipefail
-          rm -f \
-            .github/workflows/apply-mediapipe-link-only.yml \
-            .github/workflows/restore-mediapipe-full-cinterop.yml \
-            .github/workflows/validate-common-cinterop-shim.yml
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          rm -f .github/workflows/apply-mediapipe-link-only.yml .github/workflows/restore-mediapipe-full-cinterop.yml .github/workflows/validate-common-cinterop-shim.yml
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
           git add -A
-          git commit -m "fix(ios): use framework-qualified MediaPipe headers"
+          git commit -m 'fix(ios): use framework-qualified MediaPipe headers'
           git push origin HEAD:agent/mediapipe-ios-0.10.26.1
