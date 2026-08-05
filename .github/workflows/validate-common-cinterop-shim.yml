@@ -43,12 +43,7 @@ jobs:
           cat > iosApp/MediaPipePodspecs/EyespieMediaPipeTasksCommonInterop.h <<'EOF'
           #pragma once
 
-          /*
-           * MediaPipeTasksCommon is a static implementation framework with no
-           * public API headers. Kotlin needs a non-empty cinterop header so the
-           * local pod remains in the synthetic CocoaPods graph and is linked,
-           * without inventing a public Common API.
-           */
+          /* Common has no public API; retain it in the synthetic pod graph. */
           EOF
 
           python3 - <<'PY'
@@ -72,9 +67,9 @@ jobs:
                       packageName = "MediaPipeTasksGenAI"
                       extraOpts += listOf("-compiler-option", "-fmodules")
                   }'''
-          new = '''        // All four local pods are declared so Kotlin's synthetic Podfile can
-                  // resolve their exact local podspec dependency graph. Explicit headers avoid
-                  // relying on framework-module discovery; Common uses a no-op interop header.
+          new = '''        // Declare all local pods so Kotlin's synthetic Podfile resolves the
+                  // complete graph. Use absolute XCFramework headers for cinterop.
+                  val mediaPipeSyntheticPods = layout.buildDirectory.dir("cocoapods/synthetic/ios/Pods").get().asFile
                   pod("EyespieMediaPipeTasksCommon") {
                       version = "0.10.26.1"
                       source = path(project.file("../iosApp/MediaPipePodspecs"))
@@ -84,19 +79,21 @@ jobs:
                   pod("EyespieMediaPipeTasksVision") {
                       version = "0.10.26.1"
                       source = path(project.file("../iosApp/MediaPipePodspecs"))
-                      headers = "MediaPipeTasksVision.h"
+                      headers = mediaPipeSyntheticPods.resolve("EyespieMediaPipeTasksVision/frameworks/MediaPipeTasksVision.xcframework/ios-arm64_x86_64-simulator/MediaPipeTasksVision.framework/Headers/MediaPipeTasksVision.h").absolutePath
                       packageName = "MediaPipeTasksVision"
+                      useInteropBindingFrom("EyespieMediaPipeTasksCommon")
                   }
                   pod("EyespieMediaPipeTasksGenAIC") {
                       version = "0.10.26.1"
                       source = path(project.file("../iosApp/MediaPipePodspecs"))
-                      headers = "MediaPipeTasksGenAIC.h"
+                      headers = mediaPipeSyntheticPods.resolve("EyespieMediaPipeTasksGenAIC/frameworks/MediaPipeTasksGenAIC.xcframework/ios-arm64_x86_64-simulator/MediaPipeTasksGenAIC.framework/Headers/MediaPipeTasksGenAIC.h").absolutePath
                       packageName = "MediaPipeTasksGenAIC"
+                      useInteropBindingFrom("EyespieMediaPipeTasksCommon")
                   }
                   pod("EyespieMediaPipeTasksGenAI") {
                       version = "0.10.26.1"
                       source = path(project.file("../iosApp/MediaPipePodspecs"))
-                      headers = "MediaPipeTasksGenAI.h"
+                      headers = mediaPipeSyntheticPods.resolve("EyespieMediaPipeTasksGenAI/frameworks/MediaPipeTasksGenAI.xcframework/ios-arm64_x86_64-simulator/MediaPipeTasksGenAI.framework/Headers/MediaPipeTasksGenAI.h").absolutePath
                       packageName = "MediaPipeTasksGenAI"
                       useInteropBindingFrom("EyespieMediaPipeTasksGenAIC")
                   }'''
@@ -136,5 +133,5 @@ jobs:
             eyespie/eyespie.podspec \
             iosApp/MediaPipePodspecs/EyespieMediaPipeTasksCommonInterop.h \
             iosApp/Podfile.lock
-          git commit -m "fix(ios): bind MediaPipe pods through explicit headers"
+          git commit -m "fix(ios): bind MediaPipe pods through absolute headers"
           git push origin HEAD:agent/mediapipe-ios-0.10.26.1
