@@ -1,0 +1,143 @@
+name: iOS MediaPipe Integration
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "eyespie/build.gradle.kts"
+      - "iosApp/**"
+      - ".github/workflows/ios-mediapipe.yml"
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ios-mediapipe-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  ios-mediapipe:
+    name: ios-mediapipe
+    runs-on: macos-15
+    timeout-minutes: 60
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5.6.0
+        with:
+          java-version: "21"
+          distribution: temurin
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@3f131e8634966bd73d06cc69884922b02e6faf92 # v6
+        with:
+          cache-read-only: true
+
+      - name: Set up CocoaPods
+        run: |
+          sudo gem install cocoapods -v 1.17.0 --no-document
+          pod --version
+
+      - name: Create build configuration
+        run: cp env.example .env.local
+
+      - name: Assert MediaPipe pod contract
+        shell: bash
+        run: |
+          set -euo pipefail
+          grep -Fq "EyespieMediaPipeTasksCommon" iosApp/Podfile
+          grep -Fq "EyespieMediaPipeTasksVision" iosApp/Podfile
+          grep -Fq "EyespieMediaPipeTasksGenAIC" iosApp/Podfile
+          grep -Fq "EyespieMediaPipeTasksGenAI" iosApp/Podfile
+          grep -Fq "0.10.26.1" iosApp/Podfile
+
+      - name: Generate Kotlin CocoaPods framework
+        run: ./gradlew :app:generateDummyFramework --no-daemon --stacktrace
+
+      - name: Install pods from released podspecs
+        working-directory: iosApp
+        run: |
+          rm -rf Pods Podfile.lock
+          pod install --repo-update --verbose
+
+      - name: Verify resolved MediaPipe graph
+        working-directory: iosApp
+        shell: bash
+        run: |
+          set -euo pipefail
+          for pod in \
+            EyespieMediaPipeTasksCommon \
+            EyespieMediaPipeTasksVision \
+            EyespieMediaPipeTasksGenAIC \
+            EyespieMediaPipeTasksGenAI; do
+            grep -Fq "$pod (0.10.26.1)" Podfile.lock
+          done
+          if grep -Eq '^  - MediaPipeTasks(Common|Vision|GenAIC|GenAI)' Podfile.lock; then
+            echo "Official mixed-version MediaPipe pods unexpectedly resolved" >&2
+            exit 1
+          fi
+          cat Podfile.lock
+
+      - name: Compile Kotlin for iOS simulator
+        run: |
+          ./gradlew \
+            :app:compileKotlinIosSimulatorArm64 \
+            :app:compileTestKotlinIosSimulatorArm64 \
+            --no-daemon \
+            --stacktrace
+
+      - name: Build iOS simulator application
+        shell: bash
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -workspace iosApp/iosApp.xcworkspace \
+            -scheme iosApp \
+            -configuration Debug \
+            -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath "$PWD/build/ios-mediapipe-derived-data" \
+            CODE_SIGNING_ALLOWED=NO \
+            build 2>&1 | tee build-ios-mediapipe.log
+
+      - name: Verify application product
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          products=(build/ios-mediapipe-derived-data/Build/Products/Debug-iphonesimulator/*.app)
+          if (( ${#products[@]} != 1 )); then
+            printf 'expected exactly one simulator app, found %d\n' "${#products[@]}" >&2
+            exit 1
+          fi
+          app="${products[0]}"
+          executable="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$app/Info.plist")"
+          test -x "$app/$executable"
+          file "$app/$executable"
+
+      - name: Summarize failure
+        if: failure()
+        shell: bash
+        run: |
+          {
+            echo "## iOS MediaPipe diagnostics"
+            echo
+            if [[ -f iosApp/Podfile.lock ]]; then
+              echo '### Podfile.lock'
+              echo '```text'
+              cat iosApp/Podfile.lock
+              echo '```'
+            fi
+            if [[ -f build-ios-mediapipe.log ]]; then
+              echo '### Xcode tail'
+              echo '```text'
+              tail -n 250 build-ios-mediapipe.log
+              echo '```'
+            fi
+          } >> "$GITHUB_STEP_SUMMARY"
