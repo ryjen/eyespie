@@ -121,6 +121,7 @@ jobs:
       - name: Install pods from released podspecs
         working-directory: iosApp
         run: |
+          cp Podfile.lock "$RUNNER_TEMP/Podfile.lock.committed"
           rm -rf Pods Podfile.lock
           pod install --repo-update --verbose
 
@@ -138,6 +139,11 @@ jobs:
           done
           if grep -Eq '^  - MediaPipeTasks(Common|Vision|GenAIC|GenAI)' Podfile.lock; then
             echo "Official mixed-version MediaPipe pods unexpectedly resolved" >&2
+            exit 1
+          fi
+          if ! cmp -s "$RUNNER_TEMP/Podfile.lock.committed" Podfile.lock; then
+            echo "Clean CocoaPods resolution differs from the committed lockfile" >&2
+            diff -u "$RUNNER_TEMP/Podfile.lock.committed" Podfile.lock || true
             exit 1
           fi
           cat Podfile.lock
