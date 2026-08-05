@@ -89,17 +89,28 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          version="0.10.26.1"
           for pod in \
             EyespieMediaPipeTasksCommon \
             EyespieMediaPipeTasksVision \
             EyespieMediaPipeTasksGenAIC \
             EyespieMediaPipeTasksGenAI; do
-            grep -Fq "$pod" iosApp/Podfile
-            grep -Fq "$pod" eyespie/build.gradle.kts
-            grep -Fq 'spec.version = version' "iosApp/MediaPipePodspecs/${pod}.podspec"
-            grep -Fq '0.10.26.1' "iosApp/MediaPipePodspecs/${pod}.podspec"
+            podspec="iosApp/MediaPipePodspecs/${pod}.podspec"
+            for file in iosApp/Podfile eyespie/build.gradle.kts "$podspec"; do
+              if ! grep -Fq "$pod" "$file"; then
+                echo "$file does not declare $pod" >&2
+                exit 1
+              fi
+            done
+            if ! grep -Fq 'spec.version = ENV.fetch("POD_VERSION", "0.10.26.1")' "$podspec"; then
+              echo "$podspec does not default POD_VERSION to $version" >&2
+              exit 1
+            fi
           done
-          grep -Fq "0.10.26.1" eyespie/build.gradle.kts
+          if ! grep -Fq "$version" eyespie/build.gradle.kts; then
+            echo "eyespie/build.gradle.kts does not pin MediaPipe $version" >&2
+            exit 1
+          fi
 
       - name: Generate Kotlin CocoaPods framework
         run: ./gradlew :app:generateDummyFramework --no-daemon --stacktrace
