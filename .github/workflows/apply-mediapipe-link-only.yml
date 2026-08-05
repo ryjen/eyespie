@@ -1,4 +1,4 @@
-name: Apply MediaPipe link-only implementation pods
+name: Validate framework-qualified MediaPipe headers
 
 on:
   push:
@@ -11,7 +11,7 @@ permissions:
   contents: write
 
 jobs:
-  apply:
+  validate:
     runs-on: macos-15
     timeout-minutes: 60
     steps:
@@ -34,118 +34,55 @@ jobs:
       - name: Set up CocoaPods
         run: sudo gem install cocoapods -v 1.17.0 --no-document
 
-      - name: Apply and validate link-only graph
+      - name: Configure and compile all four local pods
         shell: bash
         run: |
           set -euo pipefail
           cp env.example .env.local
+          cat > iosApp/MediaPipePodspecs/EyespieMediaPipeTasksCommonInterop.h <<'EOF'
+          #pragma once
+          /* Common is implementation-only and intentionally exposes no Kotlin API. */
+          EOF
 
           python3 - <<'PY'
           from pathlib import Path
-
-          build = Path("eyespie/build.gradle.kts")
-          text = build.read_text()
-          old = '''        // Common and GenAIC are implementation pods. Their API pods pull them
-                  // transitively, so Kotlin cinterop is generated only for public frameworks.
-                  pod("EyespieMediaPipeTasksVision") {
-                      version = "0.10.26.1"
-                      source = path(project.file("../iosApp/MediaPipePodspecs"))
-                      moduleName = "MediaPipeTasksVision"
-                      packageName = "MediaPipeTasksVision"
-                      extraOpts += listOf("-compiler-option", "-fmodules")
-                  }
-                  pod("EyespieMediaPipeTasksGenAI") {
-                      version = "0.10.26.1"
-                      source = path(project.file("../iosApp/MediaPipePodspecs"))
-                      moduleName = "MediaPipeTasksGenAI"
-                      packageName = "MediaPipeTasksGenAI"
-                      extraOpts += listOf("-compiler-option", "-fmodules")
-                  }'''
-          new = '''        // Declare all local pods so Kotlin's synthetic Podfile can resolve the
-                  // complete namespaced graph. Common and GenAIC are implementation/link pods;
-                  // only Vision and GenAI expose Kotlin cinterop APIs.
-                  pod("EyespieMediaPipeTasksCommon") {
-                      version = "0.10.26.1"
-                      source = path(project.file("../iosApp/MediaPipePodspecs"))
-                      linkOnly = true
-                  }
-                  pod("EyespieMediaPipeTasksVision") {
-                      version = "0.10.26.1"
-                      source = path(project.file("../iosApp/MediaPipePodspecs"))
-                      moduleName = "MediaPipeTasksVision"
-                      packageName = "MediaPipeTasksVision"
-                      extraOpts += listOf("-compiler-option", "-fmodules")
-                  }
-                  pod("EyespieMediaPipeTasksGenAIC") {
-                      version = "0.10.26.1"
-                      source = path(project.file("../iosApp/MediaPipePodspecs"))
-                      linkOnly = true
-                  }
-                  pod("EyespieMediaPipeTasksGenAI") {
-                      version = "0.10.26.1"
-                      source = path(project.file("../iosApp/MediaPipePodspecs"))
-                      moduleName = "MediaPipeTasksGenAI"
-                      packageName = "MediaPipeTasksGenAI"
-                      extraOpts += listOf("-compiler-option", "-fmodules")
-                  }'''
-          if text.count(old) != 1:
-              raise SystemExit("expected API-only MediaPipe block exactly once")
-          build.write_text(text.replace(old, new))
-
-          workflow = Path(".github/workflows/ios-mediapipe.yml")
-          text = workflow.read_text()
-          old = '''          for pod in EyespieMediaPipeTasksVision EyespieMediaPipeTasksGenAI; do
-                      if ! grep -Fq "pod(\\\"$pod\\\")" eyespie/build.gradle.kts; then
-                        echo "Kotlin CocoaPods does not bind API pod $pod" >&2
-                        exit 1
-                      fi
-                    done
-                    for pod in EyespieMediaPipeTasksCommon EyespieMediaPipeTasksGenAIC; do
-                      if grep -Fq "pod(\\\"$pod\\\")" eyespie/build.gradle.kts; then
-                        echo "Kotlin CocoaPods must not generate cinterop for implementation pod $pod" >&2
-                        exit 1
-                      fi
-                    done'''
-          new = '''          for pod in \\
-                      EyespieMediaPipeTasksCommon \\
-                      EyespieMediaPipeTasksVision \\
-                      EyespieMediaPipeTasksGenAIC \\
-                      EyespieMediaPipeTasksGenAI; do
-                      if ! grep -Fq "pod(\\\"$pod\\\")" eyespie/build.gradle.kts; then
-                        echo "Kotlin CocoaPods does not declare $pod" >&2
-                        exit 1
-                      fi
-                    done
-                    for pod in EyespieMediaPipeTasksCommon EyespieMediaPipeTasksGenAIC; do
-                      block="$(sed -n "/pod(\\\"$pod\\\") {/,/^[[:space:]]*}/p" eyespie/build.gradle.kts)"
-                      grep -Fq 'linkOnly = true' <<<"$block" || {
-                        echo "$pod must remain link-only" >&2
-                        exit 1
-                      }
-                    done'''
-          if text.count(old) != 1:
-              raise SystemExit("expected API-only source assertion exactly once")
-          text = text.replace(old, new)
-
-          old = '''          for pod in EyespieMediaPipeTasksVision EyespieMediaPipeTasksGenAI; do
-                      grep -Fq "spec.dependency '$pod'" eyespie/eyespie.podspec
-                    done
-                    for pod in EyespieMediaPipeTasksCommon EyespieMediaPipeTasksGenAIC; do
-                      if grep -Fq "spec.dependency '$pod'" eyespie/eyespie.podspec; then
-                        echo "Generated eyespie podspec directly declares implementation pod $pod" >&2
-                        exit 1
-                      fi
-                    done'''
-          new = '''          for pod in \\
-                      EyespieMediaPipeTasksCommon \\
-                      EyespieMediaPipeTasksVision \\
-                      EyespieMediaPipeTasksGenAIC \\
-                      EyespieMediaPipeTasksGenAI; do
-                      grep -Fq "spec.dependency '$pod'" eyespie/eyespie.podspec
-                    done'''
-          if text.count(old) != 1:
-              raise SystemExit("expected API-only generated podspec assertion exactly once")
-          workflow.write_text(text.replace(old, new))
+          path = Path("eyespie/build.gradle.kts")
+          text = path.read_text()
+          start = text.index('        // Common and GenAIC are implementation pods.')
+          end = text.index('    }\n\n    applyDefaultHierarchyTemplate()', start)
+          block = '''        // Declare all local pods so Kotlin's synthetic Podfile resolves the
+          // complete namespaced graph. Framework-qualified umbrella headers avoid
+          // relying on module discovery for the vendored XCFrameworks.
+          pod("EyespieMediaPipeTasksCommon") {
+              version = "0.10.26.1"
+              source = path(project.file("../iosApp/MediaPipePodspecs"))
+              headers = project.file("../iosApp/MediaPipePodspecs/EyespieMediaPipeTasksCommonInterop.h").absolutePath
+              packageName = "MediaPipeTasksCommon"
+          }
+          pod("EyespieMediaPipeTasksVision") {
+              version = "0.10.26.1"
+              source = path(project.file("../iosApp/MediaPipePodspecs"))
+              headers = "MediaPipeTasksVision/MediaPipeTasksVision.h"
+              packageName = "MediaPipeTasksVision"
+              extraOpts += listOf("-compiler-option", "-fmodules")
+          }
+          pod("EyespieMediaPipeTasksGenAIC") {
+              version = "0.10.26.1"
+              source = path(project.file("../iosApp/MediaPipePodspecs"))
+              headers = "MediaPipeTasksGenAIC/MediaPipeTasksGenAIC.h"
+              packageName = "MediaPipeTasksGenAIC"
+              extraOpts += listOf("-compiler-option", "-fmodules")
+          }
+          pod("EyespieMediaPipeTasksGenAI") {
+              version = "0.10.26.1"
+              source = path(project.file("../iosApp/MediaPipePodspecs"))
+              headers = "MediaPipeTasksGenAI/MediaPipeTasksGenAI.h"
+              packageName = "MediaPipeTasksGenAI"
+              extraOpts += listOf("-compiler-option", "-fmodules")
+              useInteropBindingFrom("EyespieMediaPipeTasksGenAIC")
+          }
+'''
+          path.write_text(text[:start] + block + text[end:])
           PY
 
           ./gradlew \
@@ -161,7 +98,6 @@ jobs:
             rm -rf Pods Podfile.lock
             pod install --repo-update
           )
-
           for pod in EyespieMediaPipeTasksCommon EyespieMediaPipeTasksVision EyespieMediaPipeTasksGenAIC EyespieMediaPipeTasksGenAI; do
             grep -Fq "spec.dependency '$pod'" eyespie/eyespie.podspec
             grep -Fq "$pod (0.10.26.1)" iosApp/Podfile.lock
@@ -179,5 +115,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
           git add -A
-          git commit -m "fix(ios): link implementation MediaPipe pods without cinterop"
+          git commit -m "fix(ios): use framework-qualified MediaPipe headers"
           git push origin HEAD:agent/mediapipe-ios-0.10.26.1
