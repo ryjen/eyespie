@@ -47,45 +47,7 @@ jobs:
       - name: Create build configuration
         run: cp env.example .env.local
 
-      - name: Configure Kotlin CocoaPods dependencies for integration test
-        shell: bash
-        run: |
-          python3 - <<'PY'
-          from pathlib import Path
-
-          path = Path("eyespie/build.gradle.kts")
-          text = path.read_text()
-          old = '''        pod("MediaPipeTasksVision")
-                  pod("MediaPipeTasksGenAI")'''
-          new = '''        pod("EyespieMediaPipeTasksCommon") {
-                      version = "0.10.26.1"
-                      source = path(project.file("../iosApp/MediaPipePodspecs/EyespieMediaPipeTasksCommon.podspec"))
-                      packageName = "MediaPipeTasksCommon"
-                  }
-                  pod("EyespieMediaPipeTasksVision") {
-                      version = "0.10.26.1"
-                      source = path(project.file("../iosApp/MediaPipePodspecs/EyespieMediaPipeTasksVision.podspec"))
-                      packageName = "MediaPipeTasksVision"
-                      useInteropBindingFrom("EyespieMediaPipeTasksCommon")
-                  }
-                  pod("EyespieMediaPipeTasksGenAIC") {
-                      version = "0.10.26.1"
-                      source = path(project.file("../iosApp/MediaPipePodspecs/EyespieMediaPipeTasksGenAIC.podspec"))
-                      packageName = "MediaPipeTasksGenAIC"
-                      useInteropBindingFrom("EyespieMediaPipeTasksCommon")
-                  }
-                  pod("EyespieMediaPipeTasksGenAI") {
-                      version = "0.10.26.1"
-                      source = path(project.file("../iosApp/MediaPipePodspecs/EyespieMediaPipeTasksGenAI.podspec"))
-                      packageName = "MediaPipeTasksGenAI"
-                      useInteropBindingFrom("EyespieMediaPipeTasksGenAIC")
-                  }'''
-          if old not in text:
-              raise SystemExit("expected MediaPipe pod declarations were not found")
-          path.write_text(text.replace(old, new))
-          PY
-
-      - name: Assert MediaPipe pod contract
+      - name: Assert MediaPipe source contract
         shell: bash
         run: |
           set -euo pipefail
@@ -107,13 +69,34 @@ jobs:
               exit 1
             fi
           done
-          if ! grep -Fq "$version" eyespie/build.gradle.kts; then
-            echo "eyespie/build.gradle.kts does not pin MediaPipe $version" >&2
+          if grep -Eq 'pod\("MediaPipeTasks(Vision|GenAI)"\)' eyespie/build.gradle.kts; then
+            echo "Kotlin CocoaPods still declares official MediaPipe pods" >&2
             exit 1
           fi
 
-      - name: Generate Kotlin CocoaPods framework
-        run: ./gradlew :app:generateDummyFramework --no-daemon --stacktrace
+      - name: Generate Kotlin podspec and framework
+        run: |
+          ./gradlew \
+            :app:podspec \
+            :app:generateDummyFramework \
+            --no-daemon \
+            --stacktrace
+
+      - name: Verify generated Kotlin podspec
+        shell: bash
+        run: |
+          set -euo pipefail
+          for pod in \
+            EyespieMediaPipeTasksCommon \
+            EyespieMediaPipeTasksVision \
+            EyespieMediaPipeTasksGenAIC \
+            EyespieMediaPipeTasksGenAI; do
+            grep -Fq "spec.dependency '$pod'" eyespie/eyespie.podspec
+          done
+          if grep -Eq "spec\.dependency 'MediaPipeTasks(Common|Vision|GenAIC|GenAI)'" eyespie/eyespie.podspec; then
+            echo "Generated eyespie podspec still declares official MediaPipe pods" >&2
+            exit 1
+          fi
 
       - name: Install pods from released podspecs
         working-directory: iosApp
@@ -183,6 +166,12 @@ jobs:
           {
             echo "## iOS MediaPipe diagnostics"
             echo
+            if [[ -f eyespie/eyespie.podspec ]]; then
+              echo '### Generated eyespie.podspec dependencies'
+              echo '```text'
+              grep 'spec.dependency' eyespie/eyespie.podspec || true
+              echo '```'
+            fi
             if [[ -f iosApp/Podfile.lock ]]; then
               echo '### Podfile.lock'
               echo '```text'
