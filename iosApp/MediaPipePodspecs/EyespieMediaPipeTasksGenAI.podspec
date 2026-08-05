@@ -15,6 +15,10 @@ Pod::Spec.new do |spec|
   archive = "MediaPipeTasksGenAI-#{spec.version}.tar.gz"
   spec.source = { :http => "https://github.com/ryjen/mediapipe/releases/download/#{tag}/#{archive}" }
 
+  spec.pod_target_xcconfig = {
+    "FRAMEWORK_SEARCH_PATHS[sdk=iphonesimulator*]" => "$(inherited) \"$(PODS_TARGET_SRCROOT)/frameworks/MediaPipeTasksGenAI.xcframework/ios-arm64_x86_64-simulator\" \"$(PODS_ROOT)/EyespieMediaPipeTasksGenAIC/frameworks/MediaPipeTasksGenAIC.xcframework/ios-arm64_x86_64-simulator\" \"$(PODS_ROOT)/EyespieMediaPipeTasksCommon/frameworks/MediaPipeTasksCommon.xcframework/ios-arm64_x86_64-simulator\"",
+    "FRAMEWORK_SEARCH_PATHS[sdk=iphoneos*]" => "$(inherited) \"$(PODS_TARGET_SRCROOT)/frameworks/MediaPipeTasksGenAI.xcframework/ios-arm64\" \"$(PODS_ROOT)/EyespieMediaPipeTasksGenAIC/frameworks/MediaPipeTasksGenAIC.xcframework/ios-arm64\" \"$(PODS_ROOT)/EyespieMediaPipeTasksCommon/frameworks/MediaPipeTasksCommon.xcframework/ios-arm64\""
+  }
   spec.dependency "EyespieMediaPipeTasksGenAIC", "= #{spec.version}"
   spec.vendored_frameworks = "frameworks/MediaPipeTasksGenAI.xcframework"
 end

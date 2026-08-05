@@ -15,6 +15,10 @@ Pod::Spec.new do |spec|
   archive = "MediaPipeTasksCommon-#{spec.version}.tar.gz"
   spec.source = { :http => "https://github.com/ryjen/mediapipe/releases/download/#{tag}/#{archive}" }
 
+  spec.pod_target_xcconfig = {
+    "FRAMEWORK_SEARCH_PATHS[sdk=iphonesimulator*]" => "$(inherited) \"$(PODS_TARGET_SRCROOT)/frameworks/MediaPipeTasksCommon.xcframework/ios-arm64_x86_64-simulator\"",
+    "FRAMEWORK_SEARCH_PATHS[sdk=iphoneos*]" => "$(inherited) \"$(PODS_TARGET_SRCROOT)/frameworks/MediaPipeTasksCommon.xcframework/ios-arm64\""
+  }
   spec.user_target_xcconfig = {
     "OTHER_LDFLAGS[sdk=iphonesimulator*]" => "$(inherited) -force_load \"$(PODS_ROOT)/EyespieMediaPipeTasksCommon/frameworks/graph_libraries/libMediaPipeTasksCommon_simulator_graph.a\"",
     "OTHER_LDFLAGS[sdk=iphoneos*]" => "$(inherited) -force_load \"$(PODS_ROOT)/EyespieMediaPipeTasksCommon/frameworks/graph_libraries/libMediaPipeTasksCommon_device_graph.a\""
