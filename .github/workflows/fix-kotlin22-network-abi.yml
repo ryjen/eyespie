@@ -1,0 +1,52 @@
+name: Fix Kotlin 2.2 network ABI
+
+on:
+  push:
+    branches:
+      - agent/mediapipe-ios-0.10.26.1
+    paths:
+      - .github/workflows/fix-kotlin22-network-abi.yml
+
+permissions:
+  contents: write
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: true
+
+      - name: Restore Kotlin 2.2 compatible network dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          from pathlib import Path
+
+          path = Path("gradle/libs.versions.toml")
+          text = path.read_text()
+          replacements = {
+              'ktorClient = "3.5.0"': 'ktorClient = "3.3.3"',
+              'kotlinxDatetime = "0.8.0"': 'kotlinxDatetime = { strictly = "0.6.2" }',
+          }
+          for old, new in replacements.items():
+              if text.count(old) != 1:
+                  raise SystemExit(f"expected exactly one occurrence of {old!r}")
+              text = text.replace(old, new)
+          path.write_text(text)
+          PY
+
+          rm .github/workflows/fix-kotlin22-network-abi.yml
+          git diff --check
+          grep -Fxq 'ktorClient = "3.3.3"' gradle/libs.versions.toml
+          grep -Fxq 'kotlinxDatetime = { strictly = "0.6.2" }' gradle/libs.versions.toml
+
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -m "fix(ios): restore Kotlin 2.2 network ABI pins"
+          git push origin HEAD:agent/mediapipe-ios-0.10.26.1
