@@ -1,23 +1,26 @@
 import UIKit
-import eyespie
 
-private let app = eyespie.AppDelegate(
-    networkMonitor: iOSNetworkMonitor(),
-    packageId: "com.micrantha.eyespie"
-)
+final class iOSAppDelegate: NSObject, UIApplicationDelegate {
+    func application(
+        _ application: UIApplication,
+        handleEventsForBackgroundURLSession identifier: String,
+        completionHandler: @escaping () -> Void
+    ) {
+        let bundleIdentifier = Bundle.main.bundleIdentifier ?? "com.micrantha.eyespie.ios"
+        guard IosUrlSessionModelAssetTransport.retainBackgroundSessionCompletion(
+            identifier: identifier,
+            bundleIdentifier: bundleIdentifier,
+            completionHandler: completionHandler
+        ) else {
+            return
+        }
 
-class iOSAppDelegate: NSObject, UIApplicationDelegate {
-
-    var backgroundSessionCompletionHandler: (() -> Void)?
-
-    func application(_ application: UIApplication,
-                     handleEventsForBackgroundURLSession identifier: String,
-                     completionHandler: @escaping () -> Void) {
-        backgroundSessionCompletionHandler = completionHandler
-     }
-
-    func urlSessionDidFinishEvents(forBackgroundURLSession session: URLSession) {
-        backgroundSessionCompletionHandler?()
-        backgroundSessionCompletionHandler = nil
+        // Retain before reconstructing the session: restoration may immediately deliver events.
+        guard AppComposition.shared.modelAssetTransport != nil else {
+            IosUrlSessionModelAssetTransport.completeBackgroundSessionEvents(
+                identifier: identifier
+            )
+            return
+        }
     }
 }

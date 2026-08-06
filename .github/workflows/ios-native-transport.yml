@@ -1,0 +1,36 @@
+name: iOS Native Transport Tests
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ios-native-transport-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  native-transport:
+    name: native-transport
+    runs-on: macos-15
+    timeout-minutes: 10
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Compile native transport core tests
+        run: >-
+          xcrun swiftc
+          -parse-as-library
+          iosApp/iosApp/NetworkMonitor.swift
+          iosApp/nativeTests/IosModelAssetTransportCoreTests.swift
+          -o ios-model-transport-tests
+
+      - name: Run native transport core tests
+        run: ./ios-model-transport-tests

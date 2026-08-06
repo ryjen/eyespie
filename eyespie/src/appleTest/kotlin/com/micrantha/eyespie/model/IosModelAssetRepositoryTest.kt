@@ -1,5 +1,8 @@
 package com.micrantha.eyespie.model
 
+import com.micrantha.bluebell.platform.NetworkMonitor
+import com.micrantha.eyespie.AppDelegate
+import com.micrantha.eyespie.iosModules
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
@@ -12,6 +15,7 @@ import org.kodein.di.instance
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
@@ -133,6 +137,18 @@ class IosModelAssetRepositoryTest {
     }
 
     @Test
+    fun nativeEventStreamPreservesUnknownContentLength() = runTest {
+        val events = IosModelAssetTransportEventStream()
+
+        events.emitDownloadingUnknownTotal(downloadedBytes = 64)
+
+        assertEquals(
+            IosModelAssetTransportEvent.Downloading(downloadedBytes = 64, totalBytes = null),
+            events.observe().first(),
+        )
+    }
+
+    @Test
     fun completedTransferEntersVerificationAndRetainsArtifactHandoff() = runTest {
         val transport = FakeIosModelAssetTransport()
         val repository = repositoryFor(transport)
@@ -149,6 +165,21 @@ class IosModelAssetRepositoryTest {
         )
         assertNull(repository.resolveReadyModel())
         repository.close()
+    }
+
+    @Test
+    fun nativeEventStreamRetainsStagedArtifactMetadata() = runTest {
+        val events = IosModelAssetTransportEventStream()
+
+        events.emitDownloaded(temporaryPath = "/app/staging/model.part", totalBytes = 256)
+
+        assertEquals(
+            IosModelAssetTransportEvent.Downloaded(
+                temporaryPath = "/app/staging/model.part",
+                totalBytes = 256,
+            ),
+            events.observe().first(),
+        )
     }
 
     @Test
@@ -196,6 +227,31 @@ class IosModelAssetRepositoryTest {
             repository.observe().first { it is ModelAssetState.Queued },
         )
         repository.close()
+    }
+
+    @Test
+    fun installingNativeTransportEnablesOnlyUrlSessionCapability() = runTest {
+        val transport = FakeIosModelAssetTransport()
+        val app = AppDelegate(
+            networkMonitor = FakeNetworkMonitor(),
+            packageId = "com.micrantha.eyespie.test",
+        )
+
+        assertFalse(app.modelDeliveryCapabilities.snapshot().backgroundUrlSessionConfigured)
+
+        app.installModelAssetTransport(transport)
+        val snapshot = app.modelDeliveryCapabilities.snapshot()
+
+        assertTrue(snapshot.backgroundUrlSessionSupported)
+        assertTrue(snapshot.backgroundUrlSessionConfigured)
+        assertFalse(snapshot.backgroundAssetsSupported)
+        assertFalse(snapshot.backgroundAssetsConfigured)
+
+        val repository = iosModules(app).direct.instance<ModelAssetRepository>()
+        repository.requestDownload()
+
+        assertEquals(1, transport.scheduleCalls)
+        assertNull(repository.resolveReadyModel())
     }
 
     @Test
@@ -270,4 +326,10 @@ private class FakeIosModelAssetTransport(
     fun emit(event: IosModelAssetTransportEvent) {
         assertTrue(events.tryEmit(event))
     }
+}
+
+private class FakeNetworkMonitor : NetworkMonitor {
+    override fun startMonitoring(onUpdate: (Boolean) -> Unit) = Unit
+
+    override fun stopMonitoring() = Unit
 }
