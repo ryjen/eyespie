@@ -17,6 +17,10 @@ plugins {
 }
 
 allprojects {
+    configurations.configureEach {
+        resolutionStrategy.force("org.jetbrains.kotlinx:kotlinx-datetime:0.6.2")
+    }
+
     tasks.cyclonedxDirectBom {
         enabled = project.path == ":app"
     }

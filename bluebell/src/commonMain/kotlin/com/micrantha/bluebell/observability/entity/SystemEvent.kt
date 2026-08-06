@@ -1,12 +1,15 @@
 package com.micrantha.bluebell.observability.entity
 
+import kotlin.experimental.ExperimentalObjCRefinement
+import kotlin.native.HiddenFromObjC
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
-@OptIn(ExperimentalTime::class, ExperimentalUuidApi::class)
+@OptIn(ExperimentalTime::class, ExperimentalUuidApi::class, ExperimentalObjCRefinement::class)
+@HiddenFromObjC
 sealed class SystemEvent(
     override val eventId: String = Uuid.random().toString(),
     override val properties: Map<String, Any> = emptyMap(),

@@ -8,7 +8,7 @@
 import Network
 import eyespie
 
-class iOSNetworkMonitor: NetworkMonitor {
+final class iOSNetworkMonitor: BluebellNetworkMonitor {
     private let monitor = NWPathMonitor()
     private let queue = DispatchQueue(label: "NetworkMonitor")
 
@@ -18,7 +18,7 @@ class iOSNetworkMonitor: NetworkMonitor {
         }
         monitor.start(queue: queue)
     }
-    
+
     func stopMonitoring() {
         monitor.cancel()
     }

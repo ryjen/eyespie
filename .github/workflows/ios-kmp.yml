@@ -1,0 +1,253 @@
+name: EyesPie iOS KMP
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: eyespie-ios-kmp-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  classify-ios-kmp:
+    name: classify-ios-kmp
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      required: ${{ steps.changes.outputs.required }}
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+
+      - name: Classify iOS and KMP changes
+        id: changes
+        shell: bash
+        env:
+          BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          BEFORE_SHA: ${{ github.event.before }}
+        run: |
+          set -euo pipefail
+
+          if [[ "${{ github.event_name }}" == "pull_request" ]]; then
+            base="$BASE_SHA"
+          elif [[ -n "$BEFORE_SHA" && "$BEFORE_SHA" != "0000000000000000000000000000000000000000" ]]; then
+            base="$BEFORE_SHA"
+          else
+            base="$(git rev-parse HEAD^)"
+          fi
+
+          git diff --name-only "$base" HEAD > changed-files.txt
+          cat changed-files.txt
+
+          if grep -Eq '(^|/)(src/(common(Main|Test)|native(Main|Test)|ios(Main|Test)|apple(Main|Test))/|build\.gradle(\.kts)?$|settings\.gradle(\.kts)?$|gradle\.properties$|gradle/libs\.versions\.toml$|gradle/wrapper/|buildSrc/|iosApp/|Podfile|Podfile\.lock|\.github/workflows/ios-kmp\.yml$)' changed-files.txt; then
+            echo "required=true" >> "$GITHUB_OUTPUT"
+          else
+            echo "required=false" >> "$GITHUB_OUTPUT"
+          fi
+
+  ios-kmp-build:
+    name: ios-kmp-build
+    needs: classify-ios-kmp
+    if: needs.classify-ios-kmp.outputs.required == 'true'
+    runs-on: macos-15
+    timeout-minutes: 60
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5.6.0
+        with:
+          java-version: "21"
+          distribution: temurin
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@3f131e8634966bd73d06cc69884922b02e6faf92 # v6
+        with:
+          cache-read-only: ${{ github.ref != 'refs/heads/main' }}
+
+      - name: Create build configuration
+        run: cp env.example .env.local
+
+      - name: Resolve supported simulator tasks
+        id: tasks
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./gradlew :app:tasks :bluebell:tasks --all --no-daemon > build-ios-tasks.txt
+
+          app_compile_task=:app:compileKotlinIosSimulatorArm64
+          app_test_compile_task=:app:compileTestKotlinIosSimulatorArm64
+          app_test_task=:app:iosSimulatorArm64Test
+          bluebell_test_task=:bluebell:iosSimulatorArm64Test
+
+          grep -Fq "compileKotlinIosSimulatorArm64" build-ios-tasks.txt || {
+            echo "Missing expected simulator compile task: $app_compile_task" >&2
+            exit 1
+          }
+          grep -Fq "compileTestKotlinIosSimulatorArm64" build-ios-tasks.txt || {
+            echo "Missing expected simulator test compile task: $app_test_compile_task" >&2
+            exit 1
+          }
+          grep -Fq "iosSimulatorArm64Test" build-ios-tasks.txt || {
+            echo "Missing expected simulator test tasks" >&2
+            exit 1
+          }
+
+          echo "app_compile=$app_compile_task" >> "$GITHUB_OUTPUT"
+          echo "app_test_compile=$app_test_compile_task" >> "$GITHUB_OUTPUT"
+          echo "app_test=$app_test_task" >> "$GITHUB_OUTPUT"
+          echo "bluebell_test=$bluebell_test_task" >> "$GITHUB_OUTPUT"
+
+      - name: Compile iOS simulator sources and run Apple tests
+        shell: bash
+        run: |
+          set -o pipefail
+          ./gradlew \
+            "${{ steps.tasks.outputs.app_compile }}" \
+            "${{ steps.tasks.outputs.app_test_compile }}" \
+            "${{ steps.tasks.outputs.app_test }}" \
+            "${{ steps.tasks.outputs.bluebell_test }}" \
+            --no-daemon \
+            --build-cache \
+            --configuration-cache \
+            --stacktrace 2>&1 | tee build-ios-gradle.log
+
+      - name: Generate CocoaPods dummy framework
+        run: ./gradlew :app:generateDummyFramework --no-daemon --stacktrace
+
+      - name: Install iOS application pods
+        working-directory: iosApp
+        run: pod install
+
+      - name: Build iOS application once
+        shell: bash
+        run: |
+          set -o pipefail
+          xcodebuild \
+            -workspace iosApp/iosApp.xcworkspace \
+            -scheme iosApp \
+            -configuration Debug \
+            -sdk iphonesimulator \
+            -destination 'generic/platform=iOS Simulator' \
+            -derivedDataPath "$PWD/build/ios-derived-data" \
+            CODE_SIGNING_ALLOWED=NO \
+            build 2>&1 | tee build-ios-xcode.log
+
+      - name: Resolve and validate single iOS application product
+        id: ios_product
+        shell: bash
+        run: |
+          set -euo pipefail
+          shopt -s nullglob
+          products=(build/ios-derived-data/Build/Products/Debug-iphonesimulator/*.app)
+          if (( ${#products[@]} != 1 )); then
+            printf 'expected exactly one iOS simulator app, found %d\n' "${#products[@]}" >&2
+            printf 'candidate: %s\n' "${products[@]:-none}" >&2
+            exit 1
+          fi
+
+          app_path="${products[0]}"
+          info_plist="$app_path/Info.plist"
+          bundle_id="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$info_plist")"
+          executable="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$info_plist")"
+
+          test -n "$bundle_id"
+          test -x "$app_path/$executable"
+          file "$app_path/$executable"
+
+          printf 'path=%s\n' "$app_path" >> "$GITHUB_OUTPUT"
+          printf 'bundle_id=%s\n' "$bundle_id" >> "$GITHUB_OUTPUT"
+
+      - name: Install the built application in a simulator
+        shell: bash
+        env:
+          APP_PATH: ${{ steps.ios_product.outputs.path }}
+          BUNDLE_ID: ${{ steps.ios_product.outputs.bundle_id }}
+        run: |
+          set -euo pipefail
+          device_id="$(python3 - <<'PY'
+          import json
+          import subprocess
+
+          payload = json.loads(subprocess.check_output(["xcrun", "simctl", "list", "devices", "available", "-j"]))
+          for devices in payload["devices"].values():
+              for device in devices:
+                  if device.get("isAvailable") and "iPhone" in device.get("name", ""):
+                      print(device["udid"])
+                      raise SystemExit(0)
+          raise SystemExit("no available iPhone simulator found")
+          PY
+          )"
+
+          cleanup() {
+            xcrun simctl shutdown "$device_id" >/dev/null 2>&1 || true
+          }
+          trap cleanup EXIT
+
+          xcrun simctl boot "$device_id" 2>/dev/null || true
+          xcrun simctl bootstatus "$device_id" -b
+          xcrun simctl install "$device_id" "$APP_PATH"
+          xcrun simctl get_app_container "$device_id" "$BUNDLE_ID" app
+
+      - name: Summarize failure diagnostics
+        if: failure()
+        shell: bash
+        run: |
+          {
+            echo '## iOS/KMP diagnostics'
+            echo
+            echo 'Artifact upload is intentionally disabled because repository artifact storage is at quota.'
+            echo
+            for log in build-ios-gradle.log build-ios-xcode.log; do
+              if [[ -f "$log" ]]; then
+                echo "### $log"
+                echo '```text'
+                tail -n 200 "$log"
+                echo '```'
+              fi
+            done
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  ios-kmp:
+    name: ios-kmp
+    needs: [classify-ios-kmp, ios-kmp-build]
+    if: always()
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Enforce iOS KMP result
+        shell: bash
+        env:
+          REQUIRED: ${{ needs.classify-ios-kmp.outputs.required }}
+          CLASSIFY_RESULT: ${{ needs.classify-ios-kmp.result }}
+          BUILD_RESULT: ${{ needs.ios-kmp-build.result }}
+        run: |
+          set -euo pipefail
+
+          if [[ "$CLASSIFY_RESULT" != "success" ]]; then
+            echo "iOS/KMP change classification failed: $CLASSIFY_RESULT" >&2
+            exit 1
+          fi
+
+          if [[ "$REQUIRED" == "true" && "$BUILD_RESULT" != "success" ]]; then
+            echo "Required iOS/KMP validation did not pass: $BUILD_RESULT" >&2
+            exit 1
+          fi
+
+          if [[ "$REQUIRED" == "false" && "$BUILD_RESULT" != "skipped" ]]; then
+            echo "Unexpected iOS/KMP worker result for unrelated changes: $BUILD_RESULT" >&2
+            exit 1
+          fi
+
+          echo "iOS/KMP gate passed (required=$REQUIRED, worker=$BUILD_RESULT)."

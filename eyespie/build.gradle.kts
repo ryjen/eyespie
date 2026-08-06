@@ -1,3 +1,5 @@
+import org.jetbrains.kotlin.gradle.ExperimentalKotlinGradlePluginApi
+
 plugins {
     alias(libs.plugins.androidApplication)
     alias(libs.plugins.nativeCocoapods)
@@ -32,34 +34,34 @@ kotlin {
         license = "GPLv3"
         ios.deploymentTarget = "15.0"
         podfile = project.file("../iosApp/Podfile")
+        extraSpecAttributes["libraries"] = "'sqlite3'"
 
         framework {
             baseName = "eyespie"
             isStatic = true
+            binaryOption("bundleId", "com.micrantha.eyespie")
+            @OptIn(ExperimentalKotlinGradlePluginApi::class)
+            exportKdoc.set(false)
         }
 
-        pod("MediaPipeTasksVision")
-        pod("MediaPipeTasksGenAI")
+        pod("MediaPipeTasksVision", "0.10.21")
+        pod("MediaPipeTasksGenAI", "0.10.24")
     }
 
     applyDefaultHierarchyTemplate()
-
     androidTarget()
 
-    listOf(
-        iosX64(),
-        iosArm64(),
-        iosSimulatorArm64()
-    ).forEach { iosTarget ->
+    listOf(iosX64(), iosArm64(), iosSimulatorArm64()).forEach { iosTarget ->
         iosTarget.binaries.framework {
             baseName = "eyespie"
             isStatic = true
             binaryOption("bundleId", "com.micrantha.eyespie")
+            @OptIn(ExperimentalKotlinGradlePluginApi::class)
+            exportKdoc.set(false)
         }
     }
 
     sourceSets {
-
         commonMain.dependencies {
             implementation(project(":bluebell"))
             implementation(libs.compose.runtime)
@@ -70,60 +72,44 @@ kotlin {
             implementation(libs.compose.animationGraphics)
             implementation(libs.compose.material3)
             implementation(libs.compose.materialIconsExtended)
-
             implementation(libs.kodein.di)
             implementation(libs.kodein.di.framework.compose)
             implementation(libs.kodein.di.conf)
-
             implementation(libs.okio)
             implementation(libs.kotlin.logging)
-
             implementation(libs.cache4k)
-
             implementation(libs.kotlinx.io)
             implementation(libs.kotlinx.datetime)
             implementation(libs.kotlinx.coroutines.core)
             implementation(libs.kotlinx.collections.immutable)
             implementation(libs.kotlinx.serialization.json)
-
             implementation(libs.voyager.navigator)
             implementation(libs.voyager.transitions)
             implementation(libs.voyager.kodein)
-
             implementation(libs.ktor.client.content.negotiation)
             implementation(libs.ktor.serialization.kotlinx.json)
             implementation(libs.ktor.client.logging)
             implementation(libs.ktor.client.auth)
             implementation(libs.ktor.client.cio)
-
             implementation(libs.supabase.auth)
             implementation(libs.supabase.postgrest)
             implementation(libs.supabase.apollo.graphql)
             implementation(libs.supabase.storage)
             implementation(libs.supabase.realtime)
-
             implementation(libs.permissions.compose)
             implementation(libs.permissions.camera)
             implementation(libs.permissions.location)
             implementation(libs.permissions.notifications)
             implementation(libs.permissions.storage)
-
             implementation(libs.geo.compose)
             implementation(libs.kamel.image)
             implementation(libs.moko.media)
-
             implementation(libs.datastore)
             implementation(libs.datastore.preferences)
-
             implementation(libs.sqldelight.coroutines)
-
-            //implementation("ca.rmen:rhymer:1.2.0")
-
-            //implementation("org.hashids:hashids:1.0.3")
         }
         commonTest.dependencies {
             implementation(kotlin("test"))
-
             implementation(libs.permissions.test)
             implementation(libs.kotlinx.coroutines.test)
             implementation(libs.kotlinx.datetime)
@@ -139,33 +125,25 @@ kotlin {
             implementation(libs.androidx.fragment.ktx)
             implementation(libs.androidx.work.runtime.ktx)
             implementation(libs.androidx.palette.ktx)
-
             implementation(libs.androidx.camera.core)
             implementation(libs.androidx.camera.camera2)
             implementation(libs.androidx.camera.lifecycle)
             implementation(libs.androidx.camera.video)
             implementation(libs.androidx.camera.view)
             implementation(libs.androidx.camera.extensions)
-
             implementation(libs.androidx.exifinterface)
-
             implementation(libs.kotlinx.coroutines.android)
             implementation(libs.fetch)
             implementation("com.google.android.play:asset-delivery:2.3.0")
-
             implementation(libs.mediapipe.tasks.vision)
             implementation(libs.mediapipe.tasks.genai)
-
             implementation(libs.compose.ui.tooling)
             implementation(libs.compose.ui.tooling.preview)
-
             implementation(libs.sqldelight.android.driver)
         }
-
         iosMain.dependencies {
             implementation(libs.sqldelight.native.driver)
         }
-
         val androidUnitTest by getting {
             dependencies {
                 implementation(libs.mockk)
@@ -177,17 +155,16 @@ kotlin {
                 implementation(libs.roborazzi.junit)
             }
         }
-
-        appleTest {
-        }
-
+        appleTest { }
     }
 }
+
 java {
     toolchain {
         languageVersion.set(JavaLanguageVersion.of(21))
     }
 }
+
 android {
     namespace = "com.micrantha.eyespie"
     compileSdk = libs.versions.android.compileSdk.get().toInt()
@@ -195,7 +172,6 @@ android {
     defaultConfig {
         minSdk = libs.versions.android.minSdk.get().toInt()
         targetSdk = libs.versions.android.targetSdk.get().toInt()
-
         versionCode = 10
         versionName = "1.0.0"
     }
@@ -207,23 +183,11 @@ android {
         buildConfig = true
         mlModelBinding = true
     }
-
-    testOptions {
-        unitTests {
-            isIncludeAndroidResources = true
-        }
-    }
-
+    testOptions { unitTests { isIncludeAndroidResources = true } }
     bundle {
-        language {
-            enableSplit = false
-        }
-        density {
-            enableSplit = true
-        }
-        abi {
-            enableSplit = true
-        }
+        language { enableSplit = false }
+        density { enableSplit = true }
+        abi { enableSplit = true }
     }
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_21
@@ -235,9 +199,7 @@ android {
             excludes += "META-INF/LICENSE.md"
             excludes += "META-INF/LICENSE-notice.md"
         }
-        jniLibs {
-            useLegacyPackaging = false // Ensures uncompressed .so files
-        }
+        jniLibs { useLegacyPackaging = false }
     }
     signingConfigs {
         create("release") {
@@ -247,7 +209,6 @@ android {
             keyPassword = System.getenv("ANDROID_KEY_PASSWORD")
         }
     }
-
     sqldelight {
         databases {
             create("EyesPieDatabase") {
@@ -255,29 +216,17 @@ android {
             }
         }
     }
-
     buildTypes {
-        debug {
-            applicationIdSuffix = ".debug"
-        }
+        debug { applicationIdSuffix = ".debug" }
         release {
             isMinifyEnabled = true
             isShrinkResources = true
             signingConfig = signingConfigs.getByName("release")
-
-            proguardFiles(
-                getDefaultProguardFile("proguard-android-optimize.txt"),
-                "proguard-rules.pro"
-            )
-            ndk {
-                debugSymbolLevel = "SYMBOL_TABLE"
-            }
+            proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"), "proguard-rules.pro")
+            ndk { debugSymbolLevel = "SYMBOL_TABLE" }
         }
     }
-
-    dependencies {
-        debugImplementation(libs.okio.fakefilesystem)
-    }
+    dependencies { debugImplementation(libs.okio.fakefilesystem) }
 }
 
 bluebell {
@@ -285,23 +234,13 @@ bluebell {
         packageName = "com.micrantha.eyespie.config"
         className = "EnvConfig"
         envFile = ".env.local"
-
-        defaultedKeys = listOf(
-            "SUPABASE_URL",
-            "SUPABASE_KEY",
-            "LOGIN_EMAIL",
-            "LOGIN_PASSWORD",
-        )
-        requiredKeys = listOf(
-            "SUPABASE_URL",
-            "SUPABASE_KEY",
-        )
+        defaultedKeys = listOf("SUPABASE_URL", "SUPABASE_KEY", "LOGIN_EMAIL", "LOGIN_PASSWORD")
+        requiredKeys = listOf("SUPABASE_URL", "SUPABASE_KEY")
     }
     graphql {
         serviceName = "eyespie"
         packagePath = "com.micrantha.eyespie.graphql"
     }
-
     afterEvaluate {
         apollo {
             service(graphql.serviceName) {

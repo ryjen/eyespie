@@ -1,11 +1,14 @@
 package com.micrantha.eyespie.domain.entities
 
 import com.micrantha.eyespie.features.players.domain.entities.Player
+import kotlin.experimental.ExperimentalObjCRefinement
+import kotlin.native.HiddenFromObjC
 import kotlin.time.Duration
 import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
 
-@OptIn(ExperimentalTime::class)
+@OptIn(ExperimentalTime::class, ExperimentalObjCRefinement::class)
+@HiddenFromObjC
 data class Game(
     override val id: String,
     override val createdAt: Instant,

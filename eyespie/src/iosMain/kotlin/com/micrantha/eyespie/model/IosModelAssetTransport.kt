@@ -1,5 +1,6 @@
 package com.micrantha.eyespie.model
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 
 /**
@@ -11,7 +12,7 @@ import kotlinx.coroutines.flow.Flow
 interface IosModelAssetTransport {
     fun observe(): Flow<IosModelAssetTransportEvent>
 
-    @Throws(IosModelAssetTransportException::class)
+    @Throws(IosModelAssetTransportException::class, CancellationException::class)
     suspend fun schedule()
 
     suspend fun cancel()
@@ -22,8 +23,7 @@ interface IosModelAssetTransport {
 class IosModelAssetTransportException(
     val recoverable: Boolean,
     val diagnosticCode: String,
-    cause: Throwable? = null,
-) : Exception(diagnosticCode, cause)
+) : Exception(diagnosticCode)
 
 internal data class IosDownloadedArtifact(
     val temporaryPath: String,

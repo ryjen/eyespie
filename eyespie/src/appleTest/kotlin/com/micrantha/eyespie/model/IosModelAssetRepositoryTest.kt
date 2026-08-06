@@ -4,7 +4,6 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.flow.first
-import kotlinx.coroutines.test.backgroundScope
 import kotlinx.coroutines.test.runTest
 import org.kodein.di.DI
 import org.kodein.di.direct
