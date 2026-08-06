@@ -63,7 +63,10 @@ class ModelAssetVerifier private constructor(
     ): ModelAssetVerificationResult {
         cancellationCheck()
         val manifestContent = try {
-            fileSystem.source(manifestPath).buffer().use { it.readUtf8() }
+            val source = fileSystem.source(manifestPath).buffer()
+            closePreservingPrimaryFailure(source::close) {
+                source.readUtf8()
+            }
         } catch (cancellation: CancellationException) {
             throw cancellation
         } catch (_: Throwable) {
@@ -131,11 +134,11 @@ class ModelAssetVerifier private constructor(
         }
         var actualBytes = 0L
         val actualDigest = try {
-            hashingSource.use { source ->
+            closePreservingPrimaryFailure(hashingSource::close) {
                 val buffer = Buffer()
                 while (true) {
                     cancellationCheck()
-                    val read = source.read(buffer, BUFFER_SIZE)
+                    val read = hashingSource.read(buffer, BUFFER_SIZE)
                     if (read == -1L) break
                     actualBytes += read
                     buffer.clear()
@@ -183,5 +186,29 @@ class ModelAssetVerifier private constructor(
 
     private companion object {
         const val BUFFER_SIZE = 8_192L
+
+        inline fun <T> closePreservingPrimaryFailure(
+            close: () -> Unit,
+            block: () -> T,
+        ): T {
+            var primaryFailure: Throwable? = null
+            try {
+                return block()
+            } catch (failure: Throwable) {
+                primaryFailure = failure
+                throw failure
+            } finally {
+                val primary = primaryFailure
+                if (primary == null) {
+                    close()
+                } else {
+                    try {
+                        close()
+                    } catch (closeFailure: Throwable) {
+                        primary.addSuppressed(closeFailure)
+                    }
+                }
+            }
+        }
     }
 }
