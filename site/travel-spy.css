@@ -1,0 +1,188 @@
+:root {
+  --mission-red: #a94f3d;
+  --map-blue: #4e7181;
+  --stamp-ink: rgba(36, 56, 55, .58);
+}
+
+body {
+  background:
+    linear-gradient(rgba(44, 75, 71, .035) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(44, 75, 71, .035) 1px, transparent 1px),
+    radial-gradient(circle at 8% -4%, rgba(206, 226, 242, .88), transparent 31rem),
+    radial-gradient(circle at 96% 12%, rgba(211, 232, 218, .9), transparent 34rem),
+    linear-gradient(180deg, #f8f6ef 0%, var(--paper) 45%, #f1ede3 100%);
+  background-size: 32px 32px, 32px 32px, auto, auto, auto;
+}
+
+.site-header::after {
+  content: "FIELD CHANNEL · EYESPIE";
+  position: absolute;
+  right: max(1.25rem, calc((100vw - 1180px) / 2));
+  bottom: -.7rem;
+  padding: .18rem .55rem;
+  border: 1px solid rgba(40, 93, 80, .2);
+  border-radius: 999px;
+  background: #f6f3ea;
+  color: var(--stamp-ink);
+  font: 750 .58rem/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+  letter-spacing: .14em;
+}
+
+.brand-mark {
+  border: 1px solid rgba(40, 93, 80, .2);
+  transform: rotate(-2deg);
+}
+
+.hero-copy .eyebrow::before,
+.section-heading .eyebrow::before {
+  content: "⌖";
+  margin-right: .5rem;
+  color: var(--mission-red);
+}
+
+.landscape-card {
+  border-color: rgba(40, 93, 80, .22);
+  border-radius: 1.2rem 2.6rem 1.4rem 2.2rem;
+}
+
+.landscape-card::before {
+  content: "ROUTE 01 · VISUAL CONTACT";
+  position: absolute;
+  z-index: 2;
+  top: 1rem;
+  left: 1rem;
+  padding: .42rem .65rem;
+  border: 1px solid rgba(24, 63, 56, .22);
+  border-radius: .35rem;
+  background: rgba(248, 246, 239, .82);
+  color: var(--green-deep);
+  font: 800 .62rem/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+  letter-spacing: .1em;
+  backdrop-filter: blur(8px);
+}
+
+.hero-facts div,
+.signal-card,
+.play-card,
+.goal-grid article,
+.status-card,
+.principle-grid article {
+  position: relative;
+}
+
+.hero-facts div::after,
+.signal-card::after,
+.play-card::after,
+.status-card::after {
+  content: "";
+  position: absolute;
+  top: .7rem;
+  right: .7rem;
+  width: .38rem;
+  height: .38rem;
+  border: 1px solid rgba(40, 93, 80, .34);
+  border-radius: 50%;
+  box-shadow: 0 0 0 3px rgba(40, 93, 80, .055);
+}
+
+.play-grid {
+  counter-reset: mission-step;
+}
+
+.play-card {
+  counter-increment: mission-step;
+  border-style: solid;
+}
+
+.play-card::before {
+  content: "MISSION STEP " counter(mission-step, decimal-leading-zero);
+  display: inline-block;
+  margin-bottom: .75rem;
+  color: var(--stamp-ink);
+  font: 800 .59rem/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+  letter-spacing: .12em;
+}
+
+.play-card .step {
+  display: none;
+}
+
+.goal-grid article:nth-child(odd) {
+  transform: rotate(-.25deg);
+}
+
+.goal-grid article:nth-child(even) {
+  transform: rotate(.25deg);
+}
+
+.goal-grid article:hover {
+  transform: translateY(-4px) rotate(0);
+}
+
+.architecture-flow {
+  background-image:
+    linear-gradient(rgba(78, 113, 129, .045) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(78, 113, 129, .045) 1px, transparent 1px);
+  background-size: 24px 24px;
+}
+
+.arch-layer {
+  border-left: 4px solid rgba(78, 113, 129, .42);
+  text-align: left;
+}
+
+.architecture-notes {
+  position: relative;
+  overflow: hidden;
+}
+
+.architecture-notes::after {
+  content: "CLEARED FOR FIELD TEST";
+  position: absolute;
+  right: -2.6rem;
+  bottom: 2.2rem;
+  padding: .45rem 3rem;
+  border-block: 2px solid rgba(255, 226, 166, .34);
+  color: rgba(255, 226, 166, .46);
+  font: 900 .62rem/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+  letter-spacing: .12em;
+  transform: rotate(-12deg);
+}
+
+.status-heading strong::before {
+  content: "● ";
+  color: var(--mission-red);
+  font-size: .7em;
+}
+
+.stack-strip span {
+  border-radius: .4rem;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  letter-spacing: .02em;
+}
+
+.final-cta {
+  position: relative;
+  overflow: hidden;
+}
+
+.final-cta::after {
+  content: "NEXT RENDEZVOUS → OUTSIDE";
+  position: absolute;
+  right: 1.4rem;
+  top: 1.2rem;
+  color: rgba(40, 93, 80, .38);
+  font: 850 .61rem/1 ui-monospace, SFMono-Regular, Menlo, monospace;
+  letter-spacing: .14em;
+}
+
+@media (max-width: 760px) {
+  .site-header::after { display: none; }
+  .landscape-card::before { top: .7rem; left: .7rem; font-size: .54rem; }
+  .goal-grid article:nth-child(n) { transform: none; }
+  .final-cta::after { display: none; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .goal-grid article:nth-child(n) { transform: none; }
+}
