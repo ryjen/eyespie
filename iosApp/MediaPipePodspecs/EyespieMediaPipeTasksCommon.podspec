@@ -13,7 +13,10 @@ Pod::Spec.new do |spec|
 
   tag = ENV.fetch("POD_RELEASE_TAG", "eyespie-ios-v0.10.26.1")
   archive = "MediaPipeTasksCommon-#{spec.version}.tar.gz"
-  spec.source = { :http => "https://github.com/ryjen/mediapipe/releases/download/#{tag}/#{archive}" }
+  spec.source = {
+    :http => "https://github.com/ryjen/mediapipe/releases/download/#{tag}/#{archive}",
+    :sha256 => "f884a5f47e0bbc4c53a7c1b440fb2b21966d0977b2f60ac15f2ce26eadfd8b88"
+  }
 
   spec.pod_target_xcconfig = {
     "FRAMEWORK_SEARCH_PATHS[sdk=iphonesimulator*]" => "$(inherited) \"$(PODS_TARGET_SRCROOT)/frameworks/MediaPipeTasksCommon.xcframework/ios-arm64_x86_64-simulator\"",
