@@ -31,10 +31,10 @@ EXTERNAL SOURCES:
 
 SPEC CHECKSUMS:
   eyespie: 0b7be1f3617cf7319e62b6ad28843ac3b89fb931
-  EyespieMediaPipeTasksCommon: efb36fac517a98d62dec6941f2b9d6c6992cc538
-  EyespieMediaPipeTasksGenAI: cc5f0209f161a9a05332ef0f76e1dd296ca6796f
-  EyespieMediaPipeTasksGenAIC: f4685b809de0c149c26532fbb146b15d561911f8
-  EyespieMediaPipeTasksVision: 9b41ac5b8d50eab4cdf0a681bf26fad0056542fb
+  EyespieMediaPipeTasksCommon: da49f0c5adcf21dc0525111585600a3889de59b7
+  EyespieMediaPipeTasksGenAI: c57181391773e9d88f9543a629c5ba6fe432b2e2
+  EyespieMediaPipeTasksGenAIC: 5926ee65ae60d8d645e7f4165f25e06fb30c645c
+  EyespieMediaPipeTasksVision: 3a94077d4eb8f8174edbed03e69bd5acaa737749
 
 PODFILE CHECKSUM: 533429012ac32cc6399c556813b8b184e7d2532d
 
