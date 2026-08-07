@@ -38,8 +38,22 @@ kotlin {
             isStatic = true
         }
 
-        // Common and GenAIC are implementation pods. Their API pods pull them
-        // transitively, so Kotlin cinterop is generated only for public frameworks.
+        // Declare the complete local pod graph. Kotlin's synthetic Podfile cannot
+        // discover local transitive podspecs unless each local pod is declared here.
+        pod("EyespieMediaPipeTasksCommon") {
+            version = "0.10.26.1"
+            source = path(project.file("../iosApp/MediaPipePodspecs"))
+            moduleName = "MediaPipeTasksCommon"
+            packageName = "MediaPipeTasksCommon"
+            extraOpts += listOf("-compiler-option", "-fmodules")
+        }
+        pod("EyespieMediaPipeTasksGenAIC") {
+            version = "0.10.26.1"
+            source = path(project.file("../iosApp/MediaPipePodspecs"))
+            moduleName = "MediaPipeTasksGenAIC"
+            packageName = "MediaPipeTasksGenAIC"
+            extraOpts += listOf("-compiler-option", "-fmodules")
+        }
         pod("EyespieMediaPipeTasksVision") {
             version = "0.10.26.1"
             source = path(project.file("../iosApp/MediaPipePodspecs"))
