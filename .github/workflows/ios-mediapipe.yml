@@ -157,12 +157,22 @@ jobs:
           fi
           cat Podfile.lock
 
+      - name: Diagnose Kotlin CocoaPods framework locations
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo "== CocoaPods framework/module-map locations before Kotlin compile =="
+          find eyespie/build/cocoapods iosApp/Pods \
+            \( -name '*.framework' -o -name '*.xcframework' -o -name 'module.modulemap' -o -name '*.modulemap' \) \
+            -print 2>/dev/null | sort || true
+
       - name: Compile Kotlin for iOS simulator
         run: |
           ./gradlew \
             :app:compileKotlinIosSimulatorArm64 \
             :app:compileTestKotlinIosSimulatorArm64 \
             --no-daemon \
+            --info \
             --stacktrace
 
       - name: Build iOS simulator application
