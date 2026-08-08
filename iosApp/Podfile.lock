@@ -33,7 +33,7 @@ EXTERNAL SOURCES:
 
 SPEC CHECKSUMS:
   eyespie: db431de969fd2d07cf8369baa4f5b05c7c30b617
-  EyespieMediaPipeTasksCommon: d92555054bb67a6196761f271cfa48be8644857b
+  EyespieMediaPipeTasksCommon: 3cba1c5b8f847a31deb421927695606955d88bfc
   EyespieMediaPipeTasksGenAI: 48ae1e77e0e1e963f48b3b02b7fb4b928ffab0c7
   EyespieMediaPipeTasksGenAIC: 22e40fc548c792317057c429b41d26f0e4c9887f
   EyespieMediaPipeTasksVision: 980e5c5313edc01952bb28817ab740434ea81893
