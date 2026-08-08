@@ -166,6 +166,43 @@ jobs:
             \( -name '*.framework' -o -name '*.xcframework' -o -name 'module.modulemap' -o -name '*.modulemap' \) \
             -print 2>/dev/null | sort || true
 
+          mapfile -t common_maps < <(find eyespie/build/cocoapods iosApp/Pods \
+            -path '*MediaPipeTasksCommon.framework/Modules/module.modulemap' -print 2>/dev/null | sort)
+          if (( ${#common_maps[@]} == 0 )); then
+            echo "::error title=MediaPipe Common module map::No MediaPipeTasksCommon.framework/Modules/module.modulemap found"
+            exit 1
+          fi
+          for modulemap in "${common_maps[@]}"; do
+            framework="${modulemap%/Modules/module.modulemap}"
+            search_path="${framework%/MediaPipeTasksCommon.framework}"
+            echo "::notice title=MediaPipe Common module map::$modulemap"
+            echo "::notice title=MediaPipe Common -F search path::$search_path"
+          done
+
+          echo "::notice title=Configured Gradle MediaPipe paths::$(grep -nE 'syntheticPods|MediaPipeTasksCommon\.xcframework|-F' eyespie/build.gradle.kts | tr '\n' ' ' | head -c 1500)"
+
+      - name: Diagnose Common cinterop invocation
+        shell: bash
+        run: |
+          set -o pipefail
+          log="$RUNNER_TEMP/common-cinterop.log"
+          set +e
+          ./gradlew \
+            :app:cinteropMediaPipeTasksCommonIosSimulatorArm64 \
+            --no-daemon \
+            --info \
+            --stacktrace 2>&1 | tee "$log"
+          status=${PIPESTATUS[0]}
+          set -e
+
+          grep -E '(^|[[:space:]])-F|MediaPipeTasksCommon|compiler-option|cinterop' "$log" \
+            | tail -n 40 \
+            | sed 's/%/%25/g; s/\r/%0D/g; s/\n/%0A/g' \
+            | while IFS= read -r line; do
+                echo "::notice title=Common cinterop::$line"
+              done
+          exit "$status"
+
       - name: Compile Kotlin for iOS simulator
         run: |
           ./gradlew \
@@ -221,6 +258,12 @@ jobs:
               echo '### Podfile.lock'
               echo '```text'
               cat iosApp/Podfile.lock
+              echo '```'
+            fi
+            if [[ -f "$RUNNER_TEMP/common-cinterop.log" ]]; then
+              echo '### Common cinterop tail'
+              echo '```text'
+              tail -n 120 "$RUNNER_TEMP/common-cinterop.log"
               echo '```'
             fi
             if [[ -f build-ios-mediapipe.log ]]; then
