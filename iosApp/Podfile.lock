@@ -1,6 +1,8 @@
 PODS:
   - eyespie (1.0):
+    - EyespieMediaPipeTasksCommon (= 0.10.26.1)
     - EyespieMediaPipeTasksGenAI (= 0.10.26.1)
+    - EyespieMediaPipeTasksGenAIC (= 0.10.26.1)
     - EyespieMediaPipeTasksVision (= 0.10.26.1)
   - EyespieMediaPipeTasksCommon (0.10.26.1)
   - EyespieMediaPipeTasksGenAI (0.10.26.1):
@@ -30,7 +32,7 @@ EXTERNAL SOURCES:
     :podspec: MediaPipePodspecs/EyespieMediaPipeTasksVision.podspec
 
 SPEC CHECKSUMS:
-  eyespie: 0b7be1f3617cf7319e62b6ad28843ac3b89fb931
+  eyespie: db431de969fd2d07cf8369baa4f5b05c7c30b617
   EyespieMediaPipeTasksCommon: da49f0c5adcf21dc0525111585600a3889de59b7
   EyespieMediaPipeTasksGenAI: c57181391773e9d88f9543a629c5ba6fe432b2e2
   EyespieMediaPipeTasksGenAIC: 5926ee65ae60d8d645e7f4165f25e06fb30c645c
