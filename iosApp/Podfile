@@ -3,10 +3,13 @@ platform :ios, '15.0'
 source 'https://cdn.cocoapods.org'
 
 target 'iosApp' do
-  use_frameworks!
+  use_frameworks! :linkage => :static
 
-  pod 'MediaPipeTasksVision'
-  pod 'MediaPipeTasksGenAI'
+  # Keep these direct podspec sources aligned with the Kotlin CocoaPods dependency graph.
+  pod 'EyespieMediaPipeTasksCommon', :podspec => 'MediaPipePodspecs/EyespieMediaPipeTasksCommon.podspec'
+  pod 'EyespieMediaPipeTasksVision', :podspec => 'MediaPipePodspecs/EyespieMediaPipeTasksVision.podspec'
+  pod 'EyespieMediaPipeTasksGenAIC', :podspec => 'MediaPipePodspecs/EyespieMediaPipeTasksGenAIC.podspec'
+  pod 'EyespieMediaPipeTasksGenAI', :podspec => 'MediaPipePodspecs/EyespieMediaPipeTasksGenAI.podspec'
 
   pod 'eyespie', :path => '../eyespie'
 end

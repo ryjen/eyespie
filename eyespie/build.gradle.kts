@@ -38,8 +38,72 @@ kotlin {
             isStatic = true
         }
 
-        pod("MediaPipeTasksVision")
-        pod("MediaPipeTasksGenAI")
+        // Kotlin/Native cinterop does not inherit CocoaPods framework search paths.
+        // Point Clang directly at the vendored XCFramework slices in KGP's synthetic
+        // Pods tree. Include dependency modules because MediaPipe umbrella headers
+        // import them while cinterop parses the public framework module.
+        fun mediaPipeInteropOpts(vararg modules: Pair<String, String>): List<String> {
+            val syntheticPods = layout.buildDirectory
+                .dir("cocoapods/synthetic/ios/Pods")
+                .get()
+                .asFile
+            return buildList {
+                add("-compiler-option")
+                add("-fmodules")
+                modules.forEach { (podName, moduleName) ->
+                    add("-compiler-option")
+                    add("-F${syntheticPods}/$podName/frameworks/$moduleName.xcframework/ios-arm64_x86_64-simulator")
+                    add("-compiler-option")
+                    add("-F${syntheticPods}/$podName/frameworks/$moduleName.xcframework/ios-arm64")
+                }
+            }
+        }
+
+        // Declare the complete local pod graph. Kotlin's synthetic Podfile cannot
+        // discover local transitive podspecs unless each local pod is declared here.
+        pod("EyespieMediaPipeTasksCommon") {
+            version = "0.10.26.1"
+            source = path(project.file("../iosApp/MediaPipePodspecs"))
+            moduleName = "MediaPipeTasksCommon"
+            packageName = "MediaPipeTasksCommon"
+            extraOpts += mediaPipeInteropOpts(
+                "EyespieMediaPipeTasksCommon" to "MediaPipeTasksCommon",
+            )
+        }
+        pod("EyespieMediaPipeTasksGenAIC") {
+            version = "0.10.26.1"
+            source = path(project.file("../iosApp/MediaPipePodspecs"))
+            moduleName = "MediaPipeTasksGenAIC"
+            packageName = "MediaPipeTasksGenAIC"
+            extraOpts += mediaPipeInteropOpts(
+                "EyespieMediaPipeTasksGenAIC" to "MediaPipeTasksGenAIC",
+                "EyespieMediaPipeTasksCommon" to "MediaPipeTasksCommon",
+            )
+            useInteropBindingFrom("EyespieMediaPipeTasksCommon")
+        }
+        pod("EyespieMediaPipeTasksVision") {
+            version = "0.10.26.1"
+            source = path(project.file("../iosApp/MediaPipePodspecs"))
+            moduleName = "MediaPipeTasksVision"
+            packageName = "MediaPipeTasksVision"
+            extraOpts += mediaPipeInteropOpts(
+                "EyespieMediaPipeTasksVision" to "MediaPipeTasksVision",
+                "EyespieMediaPipeTasksCommon" to "MediaPipeTasksCommon",
+            )
+            useInteropBindingFrom("EyespieMediaPipeTasksCommon")
+        }
+        pod("EyespieMediaPipeTasksGenAI") {
+            version = "0.10.26.1"
+            source = path(project.file("../iosApp/MediaPipePodspecs"))
+            moduleName = "MediaPipeTasksGenAI"
+            packageName = "MediaPipeTasksGenAI"
+            extraOpts += mediaPipeInteropOpts(
+                "EyespieMediaPipeTasksGenAI" to "MediaPipeTasksGenAI",
+                "EyespieMediaPipeTasksGenAIC" to "MediaPipeTasksGenAIC",
+                "EyespieMediaPipeTasksCommon" to "MediaPipeTasksCommon",
+            )
+            useInteropBindingFrom("EyespieMediaPipeTasksGenAIC")
+        }
     }
 
     applyDefaultHierarchyTemplate()
@@ -118,7 +182,6 @@ kotlin {
             implementation(libs.sqldelight.coroutines)
 
             //implementation("ca.rmen:rhymer:1.2.0")
-
             //implementation("org.hashids:hashids:1.0.3")
         }
         commonTest.dependencies {
@@ -148,7 +211,6 @@ kotlin {
             implementation(libs.androidx.camera.extensions)
 
             implementation(libs.androidx.exifinterface)
-
             implementation(libs.kotlinx.coroutines.android)
             implementation(libs.fetch)
             implementation("com.google.android.play:asset-delivery:2.3.0")
@@ -158,7 +220,6 @@ kotlin {
 
             implementation(libs.compose.ui.tooling)
             implementation(libs.compose.ui.tooling.preview)
-
             implementation(libs.sqldelight.android.driver)
         }
 
@@ -180,14 +241,15 @@ kotlin {
 
         appleTest {
         }
-
     }
 }
+
 java {
     toolchain {
         languageVersion.set(JavaLanguageVersion.of(21))
     }
 }
+
 android {
     namespace = "com.micrantha.eyespie"
     compileSdk = libs.versions.android.compileSdk.get().toInt()
@@ -236,7 +298,7 @@ android {
             excludes += "META-INF/LICENSE-notice.md"
         }
         jniLibs {
-            useLegacyPackaging = false // Ensures uncompressed .so files
+            useLegacyPackaging = false
         }
     }
     signingConfigs {
