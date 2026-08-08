@@ -166,18 +166,19 @@ jobs:
             \( -name '*.framework' -o -name '*.xcframework' -o -name 'module.modulemap' -o -name '*.modulemap' \) \
             -print 2>/dev/null | sort || true
 
-          mapfile -t common_maps < <(find eyespie/build/cocoapods iosApp/Pods \
-            -path '*MediaPipeTasksCommon.framework/Modules/module.modulemap' -print 2>/dev/null | sort)
-          if (( ${#common_maps[@]} == 0 )); then
-            echo "::error title=MediaPipe Common module map::No MediaPipeTasksCommon.framework/Modules/module.modulemap found"
-            exit 1
-          fi
-          for modulemap in "${common_maps[@]}"; do
+          common_map_count=0
+          while IFS= read -r modulemap; do
+            common_map_count=$((common_map_count + 1))
             framework="${modulemap%/Modules/module.modulemap}"
             search_path="${framework%/MediaPipeTasksCommon.framework}"
             echo "::notice title=MediaPipe Common module map::$modulemap"
             echo "::notice title=MediaPipe Common -F search path::$search_path"
-          done
+          done < <(find eyespie/build/cocoapods iosApp/Pods \
+            -path '*MediaPipeTasksCommon.framework/Modules/module.modulemap' -print 2>/dev/null | sort)
+          if (( common_map_count == 0 )); then
+            echo "::error title=MediaPipe Common module map::No MediaPipeTasksCommon.framework/Modules/module.modulemap found"
+            exit 1
+          fi
 
           echo "::notice title=Configured Gradle MediaPipe paths::$(grep -nE 'syntheticPods|MediaPipeTasksCommon\.xcframework|-F' eyespie/build.gradle.kts | tr '\n' ' ' | head -c 1500)"
 
