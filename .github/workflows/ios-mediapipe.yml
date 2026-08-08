@@ -5,6 +5,7 @@ on:
     branches: [main]
     paths:
       - "eyespie/build.gradle.kts"
+      - "eyespie/eyespie.podspec"
       - "gradle/libs.versions.toml"
       - "iosApp/**"
       - ".github/workflows/ios-mediapipe.yml"
