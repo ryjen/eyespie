@@ -38,18 +38,18 @@ kotlin {
             isStatic = true
         }
 
-        // Kotlin/Native cinterop runs against KGP's synthetic CocoaPods tree rather
-        // than the Xcode workspace. These local XCFrameworks need explicit -F paths
-        // because CocoaPods' FRAMEWORK_SEARCH_PATHS are not forwarded to cinterop.
-        fun mediaPipeInteropOpts(podName: String, moduleName: String): List<String> {
-            val frameworkRoot = layout.buildDirectory
-                .dir("cocoapods/synthetic/ios/Pods/$podName/frameworks/$moduleName.xcframework")
+        // Kotlin/Native cinterop runs after CocoaPods has built KGP's synthetic
+        // workspace. CocoaPods' FRAMEWORK_SEARCH_PATHS are not forwarded to cinterop,
+        // so point Clang at the actual synthetic build products for both SDKs.
+        fun mediaPipeInteropOpts(podName: String): List<String> {
+            val syntheticBuild = layout.buildDirectory
+                .dir("cocoapods/synthetic/ios/build")
                 .get()
                 .asFile
             return listOf(
                 "-compiler-option", "-fmodules",
-                "-compiler-option", "-F${frameworkRoot}/ios-arm64_x86_64-simulator",
-                "-compiler-option", "-F${frameworkRoot}/ios-arm64",
+                "-compiler-option", "-F${syntheticBuild}/Release-iphonesimulator/$podName",
+                "-compiler-option", "-F${syntheticBuild}/Release-iphoneos/$podName",
             )
         }
 
@@ -60,21 +60,21 @@ kotlin {
             source = path(project.file("../iosApp/MediaPipePodspecs"))
             moduleName = "MediaPipeTasksCommon"
             packageName = "MediaPipeTasksCommon"
-            extraOpts += mediaPipeInteropOpts("EyespieMediaPipeTasksCommon", "MediaPipeTasksCommon")
+            extraOpts += mediaPipeInteropOpts("EyespieMediaPipeTasksCommon")
         }
         pod("EyespieMediaPipeTasksGenAIC") {
             version = "0.10.26.1"
             source = path(project.file("../iosApp/MediaPipePodspecs"))
             moduleName = "MediaPipeTasksGenAIC"
             packageName = "MediaPipeTasksGenAIC"
-            extraOpts += mediaPipeInteropOpts("EyespieMediaPipeTasksGenAIC", "MediaPipeTasksGenAIC")
+            extraOpts += mediaPipeInteropOpts("EyespieMediaPipeTasksGenAIC")
         }
         pod("EyespieMediaPipeTasksVision") {
             version = "0.10.26.1"
             source = path(project.file("../iosApp/MediaPipePodspecs"))
             moduleName = "MediaPipeTasksVision"
             packageName = "MediaPipeTasksVision"
-            extraOpts += mediaPipeInteropOpts("EyespieMediaPipeTasksVision", "MediaPipeTasksVision")
+            extraOpts += mediaPipeInteropOpts("EyespieMediaPipeTasksVision")
             useInteropBindingFrom("EyespieMediaPipeTasksCommon")
         }
         pod("EyespieMediaPipeTasksGenAI") {
@@ -82,7 +82,7 @@ kotlin {
             source = path(project.file("../iosApp/MediaPipePodspecs"))
             moduleName = "MediaPipeTasksGenAI"
             packageName = "MediaPipeTasksGenAI"
-            extraOpts += mediaPipeInteropOpts("EyespieMediaPipeTasksGenAI", "MediaPipeTasksGenAI")
+            extraOpts += mediaPipeInteropOpts("EyespieMediaPipeTasksGenAI")
             useInteropBindingFrom("EyespieMediaPipeTasksGenAIC")
         }
     }
