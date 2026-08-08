@@ -21,7 +21,9 @@ Pod::Spec.new do |spec|
   spec.pod_target_xcconfig = {
     "FRAMEWORK_SEARCH_PATHS" => "$(inherited) \"$(PODS_TARGET_SRCROOT)/frameworks/MediaPipeTasksCommon.xcframework/ios-arm64_x86_64-simulator\" \"$(PODS_TARGET_SRCROOT)/frameworks/MediaPipeTasksCommon.xcframework/ios-arm64\"",
     "FRAMEWORK_SEARCH_PATHS[sdk=iphonesimulator*]" => "$(inherited) \"$(PODS_TARGET_SRCROOT)/frameworks/MediaPipeTasksCommon.xcframework/ios-arm64_x86_64-simulator\"",
-    "FRAMEWORK_SEARCH_PATHS[sdk=iphoneos*]" => "$(inherited) \"$(PODS_TARGET_SRCROOT)/frameworks/MediaPipeTasksCommon.xcframework/ios-arm64\""
+    "FRAMEWORK_SEARCH_PATHS[sdk=iphoneos*]" => "$(inherited) \"$(PODS_TARGET_SRCROOT)/frameworks/MediaPipeTasksCommon.xcframework/ios-arm64\"",
+    "OTHER_CFLAGS[sdk=iphonesimulator*]" => "$(inherited) -fmodules -F\"$(PODS_TARGET_SRCROOT)/frameworks/MediaPipeTasksCommon.xcframework/ios-arm64_x86_64-simulator\"",
+    "OTHER_CFLAGS[sdk=iphoneos*]" => "$(inherited) -fmodules -F\"$(PODS_TARGET_SRCROOT)/frameworks/MediaPipeTasksCommon.xcframework/ios-arm64\""
   }
   spec.user_target_xcconfig = {
     "OTHER_LDFLAGS[sdk=iphonesimulator*]" => "$(inherited) -force_load \"$(PODS_ROOT)/EyespieMediaPipeTasksCommon/frameworks/graph_libraries/libMediaPipeTasksCommon_simulator_graph.a\"",
