@@ -39,22 +39,19 @@ kotlin {
         }
 
         // Kotlin/Native cinterop does not inherit CocoaPods framework search paths.
-        // Point Clang directly at the vendored XCFramework slices in KGP's synthetic
-        // Pods tree. Include dependency modules because MediaPipe umbrella headers
-        // import them while cinterop parses the public framework module.
+        // Point Clang directly at the vendored XCFramework slices installed by
+        // CocoaPods in iosApp/Pods. Include dependency modules because MediaPipe
+        // umbrella headers import them while cinterop parses the public module.
         fun mediaPipeInteropOpts(vararg modules: Pair<String, String>): List<String> {
-            val syntheticPods = layout.buildDirectory
-                .dir("cocoapods/synthetic/ios/Pods")
-                .get()
-                .asFile
+            val installedPods = project.file("../iosApp/Pods").absoluteFile
             return buildList {
                 add("-compiler-option")
                 add("-fmodules")
                 modules.forEach { (podName, moduleName) ->
                     add("-compiler-option")
-                    add("-F${syntheticPods}/$podName/frameworks/$moduleName.xcframework/ios-arm64_x86_64-simulator")
+                    add("-F${installedPods}/$podName/frameworks/$moduleName.xcframework/ios-arm64_x86_64-simulator")
                     add("-compiler-option")
-                    add("-F${syntheticPods}/$podName/frameworks/$moduleName.xcframework/ios-arm64")
+                    add("-F${installedPods}/$podName/frameworks/$moduleName.xcframework/ios-arm64")
                 }
             }
         }
