@@ -53,7 +53,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          version="0.10.26.1"
+          version="0.10.26.2"
           lockfile="iosApp/Podfile.lock"
 
           for pod in \
@@ -68,7 +68,7 @@ jobs:
                 exit 1
               fi
             done
-            if ! grep -Fq 'spec.version = ENV.fetch("POD_VERSION", "0.10.26.1")' "$podspec"; then
+            if ! grep -Fq 'spec.version = ENV.fetch("POD_VERSION", "0.10.26.2")' "$podspec"; then
               echo "$podspec does not default POD_VERSION to $version" >&2
               exit 1
             fi
@@ -144,7 +144,7 @@ jobs:
             EyespieMediaPipeTasksVision \
             EyespieMediaPipeTasksGenAIC \
             EyespieMediaPipeTasksGenAI; do
-            grep -Fq "$pod (0.10.26.1)" Podfile.lock
+            grep -Fq "$pod (0.10.26.2)" Podfile.lock
           done
           if grep -Eq '^  - MediaPipeTasks(Common|Vision|GenAIC|GenAI)' Podfile.lock; then
             echo "Official mixed-version MediaPipe pods unexpectedly resolved" >&2
