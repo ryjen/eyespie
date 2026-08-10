@@ -1,16 +1,16 @@
 PODS:
   - eyespie (1.0):
-    - EyespieMediaPipeTasksCommon (= 0.10.26.1)
-    - EyespieMediaPipeTasksGenAI (= 0.10.26.1)
-    - EyespieMediaPipeTasksGenAIC (= 0.10.26.1)
-    - EyespieMediaPipeTasksVision (= 0.10.26.1)
-  - EyespieMediaPipeTasksCommon (0.10.26.1)
-  - EyespieMediaPipeTasksGenAI (0.10.26.1):
-    - EyespieMediaPipeTasksGenAIC (= 0.10.26.1)
-  - EyespieMediaPipeTasksGenAIC (0.10.26.1):
-    - EyespieMediaPipeTasksCommon (= 0.10.26.1)
-  - EyespieMediaPipeTasksVision (0.10.26.1):
-    - EyespieMediaPipeTasksCommon (= 0.10.26.1)
+    - EyespieMediaPipeTasksCommon (= 0.10.26.2)
+    - EyespieMediaPipeTasksGenAI (= 0.10.26.2)
+    - EyespieMediaPipeTasksGenAIC (= 0.10.26.2)
+    - EyespieMediaPipeTasksVision (= 0.10.26.2)
+  - EyespieMediaPipeTasksCommon (0.10.26.2)
+  - EyespieMediaPipeTasksGenAI (0.10.26.2):
+    - EyespieMediaPipeTasksGenAIC (= 0.10.26.2)
+  - EyespieMediaPipeTasksGenAIC (0.10.26.2):
+    - EyespieMediaPipeTasksCommon (= 0.10.26.2)
+  - EyespieMediaPipeTasksVision (0.10.26.2):
+    - EyespieMediaPipeTasksCommon (= 0.10.26.2)
 
 DEPENDENCIES:
   - eyespie (from `../eyespie`)
