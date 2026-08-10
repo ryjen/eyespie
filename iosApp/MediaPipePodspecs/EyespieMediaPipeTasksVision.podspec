@@ -1,6 +1,6 @@
 Pod::Spec.new do |spec|
   spec.name = "EyespieMediaPipeTasksVision"
-  spec.version = ENV.fetch("POD_VERSION", "0.10.26.1")
+  spec.version = ENV.fetch("POD_VERSION", "0.10.26.2")
   spec.authors = "Google Inc."
   spec.license = { :type => "Apache", :file => "LICENSE" }
   spec.homepage = "https://github.com/ryjen/mediapipe"
@@ -10,11 +10,11 @@ Pod::Spec.new do |spec|
   spec.module_name = "MediaPipeTasksVision"
   spec.static_framework = true
 
-  tag = ENV.fetch("POD_RELEASE_TAG", "eyespie-ios-v0.10.26.1")
+  tag = ENV.fetch("POD_RELEASE_TAG", "eyespie-ios-v0.10.26.2")
   archive = "MediaPipeTasksVision-#{spec.version}.tar.gz"
   spec.source = {
     :http => "https://github.com/ryjen/mediapipe/releases/download/#{tag}/#{archive}",
-    :sha256 => "235352827426693098163a3c95116d78874181f40c57dd6084a6e425d085e087"
+    :sha256 => "ac042903d16efacb3de9a52c9bd0ca03a09197ef208b1b7f5ed6248b9ea4160c"
   }
 
   spec.pod_target_xcconfig = {
