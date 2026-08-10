@@ -1,7 +1,7 @@
-# Eyespie-pinned MediaPipe iOS distribution built from the immutable 0.10.26.1 release.
+# Eyespie-pinned MediaPipe iOS distribution built from the immutable 0.10.26.2 release.
 Pod::Spec.new do |spec|
   spec.name = "EyespieMediaPipeTasksCommon"
-  spec.version = ENV.fetch("POD_VERSION", "0.10.26.1")
+  spec.version = ENV.fetch("POD_VERSION", "0.10.26.2")
   spec.authors = "Google Inc."
   spec.license = { :type => "Apache", :file => "LICENSE" }
   spec.homepage = "https://github.com/ryjen/mediapipe"
@@ -11,11 +11,11 @@ Pod::Spec.new do |spec|
   spec.module_name = "MediaPipeTasksCommon"
   spec.static_framework = true
 
-  tag = ENV.fetch("POD_RELEASE_TAG", "eyespie-ios-v0.10.26.1")
+  tag = ENV.fetch("POD_RELEASE_TAG", "eyespie-ios-v0.10.26.2")
   archive = "MediaPipeTasksCommon-#{spec.version}.tar.gz"
   spec.source = {
     :http => "https://github.com/ryjen/mediapipe/releases/download/#{tag}/#{archive}",
-    :sha256 => "f884a5f47e0bbc4c53a7c1b440fb2b21966d0977b2f60ac15f2ce26eadfd8b88"
+    :sha256 => "caa9b7000ccba761751ebbfb0b5cee1dbba4717ab69a6f64a0fb46d7d8e40c62"
   }
 
   spec.pod_target_xcconfig = {
