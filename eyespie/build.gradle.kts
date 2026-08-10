@@ -59,7 +59,7 @@ kotlin {
         // Declare the complete local pod graph. Kotlin's synthetic Podfile cannot
         // discover local transitive podspecs unless each local pod is declared here.
         pod("EyespieMediaPipeTasksCommon") {
-            version = "0.10.26.1"
+            version = "0.10.26.2"
             source = path(project.file("../iosApp/MediaPipePodspecs"))
             moduleName = "MediaPipeTasksCommon"
             packageName = "MediaPipeTasksCommon"
@@ -68,7 +68,7 @@ kotlin {
             )
         }
         pod("EyespieMediaPipeTasksGenAIC") {
-            version = "0.10.26.1"
+            version = "0.10.26.2"
             source = path(project.file("../iosApp/MediaPipePodspecs"))
             moduleName = "MediaPipeTasksGenAIC"
             packageName = "MediaPipeTasksGenAIC"
@@ -79,7 +79,7 @@ kotlin {
             useInteropBindingFrom("EyespieMediaPipeTasksCommon")
         }
         pod("EyespieMediaPipeTasksVision") {
-            version = "0.10.26.1"
+            version = "0.10.26.2"
             source = path(project.file("../iosApp/MediaPipePodspecs"))
             moduleName = "MediaPipeTasksVision"
             packageName = "MediaPipeTasksVision"
@@ -90,7 +90,7 @@ kotlin {
             useInteropBindingFrom("EyespieMediaPipeTasksCommon")
         }
         pod("EyespieMediaPipeTasksGenAI") {
-            version = "0.10.26.1"
+            version = "0.10.26.2"
             source = path(project.file("../iosApp/MediaPipePodspecs"))
             moduleName = "MediaPipeTasksGenAI"
             packageName = "MediaPipeTasksGenAI"
