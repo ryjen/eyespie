@@ -9,7 +9,6 @@ import androidx.compose.ui.graphics.toSkiaRect
 import androidx.compose.ui.interop.UIKitView
 import co.touchlab.stately.freeze
 import com.micrantha.eyespie.platform.asException
-import com.micrantha.eyespie.platform.scan.components.CameraScannerDispatch
 import kotlinx.cinterop.BetaInteropApi
 import kotlinx.cinterop.CValue
 import kotlinx.cinterop.ExperimentalForeignApi
@@ -57,19 +56,29 @@ import platform.darwin.dispatch_get_main_queue
 import platform.darwin.dispatch_queue_create
 import org.jetbrains.skia.Rect as RectF
 
+typealias CameraScannerDispatch = suspend (CameraImage) -> Unit
+
 @OptIn(ExperimentalForeignApi::class)
 @Composable
 actual fun CameraScanner(
     modifier: Modifier,
     regionOfInterest: Rect?,
+    onCameraError: (Throwable) -> Unit,
     onCameraImage: CameraScannerDispatch
 ) {
-    val stream = rememberCameraStream(regionOfInterest?.toSkiaRect(), onCameraImage) ?: return
+    val stream = rememberCameraStream(
+        regionOfInterest = regionOfInterest?.toSkiaRect(),
+        onCameraError = onCameraError,
+        onCameraImage = onCameraImage,
+    ) ?: return
 
     DisposableEffect(stream) {
-
-        stream.setup()
-        stream.start()
+        try {
+            stream.setup()
+            stream.start()
+        } catch (err: Throwable) {
+            onCameraError(err)
+        }
 
         onDispose {
             stream.stop()
@@ -83,14 +92,14 @@ actual fun CameraScanner(
     )
 }
 
-
 @Composable
 private fun rememberCameraStream(
     regionOfInterest: RectF? = null,
+    onCameraError: (Throwable) -> Unit,
     onCameraImage: CameraScannerDispatch
-): CameraStream? = remember {
+): CameraStream? = remember(regionOfInterest, onCameraError, onCameraImage) {
     AVCaptureDevice.defaultDeviceWithMediaType(AVMediaTypeVideo)?.let {
-        CameraStream(it, regionOfInterest, onCameraImage)
+        CameraStream(it, regionOfInterest, onCameraError, onCameraImage)
     }
 }
 
@@ -98,6 +107,7 @@ private fun rememberCameraStream(
 class CameraStream(
     private val device: AVCaptureDevice,
     private val regionOfInterest: RectF? = null,
+    private val onCameraError: (Throwable) -> Unit,
     private val onCameraImage: CameraScannerDispatch
 ) : NSObject(), AVCaptureVideoDataOutputSampleBufferDelegateProtocol {
 
@@ -111,15 +121,18 @@ class CameraStream(
         didOutputSampleBuffer: CMSampleBufferRef?,
         fromConnection: AVCaptureConnection
     ) {
-        didOutputSampleBuffer.image(fromConnection.videoOrientation)?.let {
+        didOutputSampleBuffer.image(fromConnection.videoOrientation)?.let { image ->
             dispatch_async(dispatch_get_main_queue()) {
                 scope.launch {
-                    onCameraImage(it)
+                    try {
+                        onCameraImage(image)
+                    } catch (err: Throwable) {
+                        onCameraError(err)
+                    }
                 }
             }
         }
     }
-
 
     private fun CMSampleBufferRef?.image(orientation: AVCaptureVideoOrientation): CameraImage? {
         val pixelBuffer = CMSampleBufferGetImageBuffer(this) ?: return null
@@ -154,8 +167,9 @@ class CameraStream(
         val input = AVCaptureDeviceInput(device, err.ptr)
         err.value?.let { throw it.asException() }
 
-        if (session.canAddInput(input).not())
+        if (session.canAddInput(input).not()) {
             throw IllegalStateException("cannot add input to video session")
+        }
 
         session.addInput(input)
 
