@@ -10,20 +10,8 @@ import kotlinx.cinterop.reinterpret
 import org.jetbrains.skia.Bitmap
 import org.jetbrains.skia.EncodedImageFormat
 import org.jetbrains.skia.Image
-import platform.CoreGraphics.CGBitmapContextCreate
-import platform.CoreGraphics.CGBitmapContextCreateImage
-import platform.CoreGraphics.CGColorSpaceCreateDeviceRGB
-import platform.CoreGraphics.CGColorSpaceRef
-import platform.CoreGraphics.CGColorSpaceRelease
-import platform.CoreGraphics.CGContextRef
-import platform.CoreGraphics.CGContextRelease
-import platform.CoreGraphics.CGImageAlphaInfo
-import platform.CoreGraphics.CGImageRef
-import platform.CoreGraphics.kCGBitmapByteOrder32Little
 import platform.CoreVideo.CVImageBufferRef
-import platform.CoreVideo.CVPixelBufferGetBaseAddress
 import platform.CoreVideo.CVPixelBufferGetBaseAddressOfPlane
-import platform.CoreVideo.CVPixelBufferGetBytesPerRow
 import platform.CoreVideo.CVPixelBufferGetBytesPerRowOfPlane
 import platform.CoreVideo.CVPixelBufferGetHeight
 import platform.CoreVideo.CVPixelBufferGetPixelFormatType
@@ -141,34 +129,6 @@ actual class PlatformCameraImage(
             encodedBytes = frame.toPng()
         }
         return encodedBytes!!
-    }
-
-    fun asCGImage(): CGImageRef? {
-        var colorSpace: CGColorSpaceRef? = null
-        var context: CGContextRef? = null
-        return try {
-            CVPixelBufferLockBaseAddress(data, 0u)
-
-            val bytesPerRow = CVPixelBufferGetBytesPerRow(data)
-            val baseAddress = CVPixelBufferGetBaseAddress(data)
-
-            colorSpace = CGColorSpaceCreateDeviceRGB()
-            context = CGBitmapContextCreate(
-                baseAddress,
-                width.toULong(),
-                height.toULong(),
-                8u,
-                bytesPerRow,
-                colorSpace,
-                kCGBitmapByteOrder32Little or CGImageAlphaInfo.kCGImageAlphaPremultipliedFirst.value
-            )
-            CGBitmapContextCreateImage(context)
-
-        } finally {
-            CGColorSpaceRelease(colorSpace)
-            CGContextRelease(context)
-            CVPixelBufferUnlockBaseAddress(data, 0u)
-        }
     }
 
     private fun yuvToBgra(yuvBuffer: CVImageBufferRef): ByteArray {
