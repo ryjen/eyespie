@@ -28,8 +28,10 @@ import platform.AVFoundation.AVCaptureOutput
 import platform.AVFoundation.AVCaptureSession
 import platform.AVFoundation.AVCaptureVideoDataOutput
 import platform.AVFoundation.AVCaptureVideoDataOutputSampleBufferDelegateProtocol
-import platform.AVFoundation.AVCaptureVideoOrientation
+import platform.AVFoundation.AVCaptureVideoOrientationLandscapeLeft
+import platform.AVFoundation.AVCaptureVideoOrientationLandscapeRight
 import platform.AVFoundation.AVCaptureVideoOrientationPortrait
+import platform.AVFoundation.AVCaptureVideoOrientationPortraitUpsideDown
 import platform.AVFoundation.AVCaptureVideoPreviewLayer
 import platform.AVFoundation.AVLayerVideoGravityResizeAspectFill
 import platform.AVFoundation.AVMediaTypeVideo
@@ -126,12 +128,9 @@ class CameraStream(
 
         val pixelBuffer = CMSampleBufferGetImageBuffer(didOutputSampleBuffer) ?: return
         val orientation = when (fromConnection.videoOrientation) {
-            AVCaptureVideoOrientation.AVCaptureVideoOrientationPortraitUpsideDown ->
-                kCGImagePropertyOrientationDown
-            AVCaptureVideoOrientation.AVCaptureVideoOrientationLandscapeLeft ->
-                kCGImagePropertyOrientationLeft
-            AVCaptureVideoOrientation.AVCaptureVideoOrientationLandscapeRight ->
-                kCGImagePropertyOrientationRight
+            AVCaptureVideoOrientationPortraitUpsideDown -> kCGImagePropertyOrientationDown
+            AVCaptureVideoOrientationLandscapeLeft -> kCGImagePropertyOrientationLeft
+            AVCaptureVideoOrientationLandscapeRight -> kCGImagePropertyOrientationRight
             else -> kCGImagePropertyOrientationUp
         }
 
