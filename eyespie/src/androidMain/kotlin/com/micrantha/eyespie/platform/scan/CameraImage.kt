@@ -3,23 +3,17 @@ package com.micrantha.eyespie.platform.scan
 import android.graphics.Bitmap
 import android.graphics.Matrix
 import android.graphics.RectF
-import android.media.Image
-import androidx.annotation.OptIn
-import androidx.camera.core.ExperimentalGetImage
 import androidx.camera.core.ImageProxy
 import androidx.compose.ui.graphics.asImageBitmap
-import androidx.core.graphics.createBitmap
 import androidx.core.graphics.scale
 import com.google.mediapipe.framework.image.BitmapImageBuilder
 import com.google.mediapipe.framework.image.MPImage
-import com.google.mediapipe.framework.image.MediaImageBuilder
 import com.google.mediapipe.tasks.vision.core.ImageProcessingOptions
 import com.micrantha.bluebell.platform.toByteArray
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
 
 actual class PlatformCameraImage @kotlin.OptIn(ExperimentalTime::class) constructor(
-    private var _image: Image? = null,
     private var _bitmap: Bitmap? = null,
     private var _width: Int,
     private var _height: Int,
@@ -37,15 +31,17 @@ actual class PlatformCameraImage @kotlin.OptIn(ExperimentalTime::class) construc
     val timestamp get() = _timestamp
     val rotation get() = _rotation
 
-    @OptIn(ExperimentalGetImage::class)
+    /**
+     * Copies the ImageProxy pixels into app-owned memory. The caller still owns the proxy and
+     * must close it after this method returns.
+     */
     fun copy(image: ImageProxy, region: RectF? = null) {
         _width = image.width
         _height = image.height
         _rotation = image.imageInfo.rotationDegrees
         _timestamp = image.imageInfo.timestamp
         regionOfInterest = region ?: regionOfInterest
-        _image = image.image
-        _bitmap = null
+        _bitmap = image.toBitmap()
         imageBitmapBuffer = null
         mediaImage = null
     }
@@ -62,7 +58,6 @@ actual class PlatformCameraImage @kotlin.OptIn(ExperimentalTime::class) construc
         _rotation = rotation
         _timestamp = timestamp
         regionOfInterest = region ?: regionOfInterest
-        _image = null
         _bitmap = bitmap
         imageBitmapBuffer = null
         mediaImage = null
@@ -72,68 +67,60 @@ actual class PlatformCameraImage @kotlin.OptIn(ExperimentalTime::class) construc
 
     override fun toByteArray() = toBitmap().toByteArray()
 
-    val processingOptions: ImageProcessingOptions by lazy {
-        ImageProcessingOptions.builder().apply {
+    val processingOptions: ImageProcessingOptions
+        get() = ImageProcessingOptions.builder().apply {
             rotation?.let { setRotationDegrees(it) }
             regionOfInterest?.let { setRegionOfInterest(it) }
         }.build()
-    }
 
+    /**
+     * MediaPipe receives the unrotated owned bitmap and applies rotation/ROI through
+     * ImageProcessingOptions. Presentation conversions use [toBitmap] instead.
+     */
     fun asMPImage(): MPImage {
         if (mediaImage != null) return mediaImage!!
 
-        mediaImage = _image?.let {
-            MediaImageBuilder(it).build()
-        } ?: BitmapImageBuilder(toBitmap()).build()
-
+        val bitmap = _bitmap ?: throw IllegalStateException("camera image has no owned bitmap")
+        mediaImage = BitmapImageBuilder(bitmap).build()
         return mediaImage!!
     }
 
     fun toBitmap(): Bitmap {
         if (imageBitmapBuffer != null) return imageBitmapBuffer!!
 
-        if (_bitmap != null) {
-            if (rotation == null) {
-                return _bitmap!!
-            }
-            return rotate(_bitmap!!.copy(_bitmap!!.config!!, true), rotation!!)
+        val bitmap = _bitmap ?: throw IllegalStateException("unable to convert image to bitmap")
+        imageBitmapBuffer = if (rotation == null || rotation == 0) {
+            bitmap
+        } else {
+            rotate(bitmap, rotation!!)
         }
-
-        if (_image == null) throw IllegalStateException("unable to convert image to bitmap")
-
-        imageBitmapBuffer = createBitmap(_width, _height).apply {
-            copyPixelsFromBuffer(
-                _image!!.planes[0].buffer
-            )
-        }
-
-        if (rotation == null) return imageBitmapBuffer!!
-
-        return rotate(imageBitmapBuffer!!, rotation!!)
+        return imageBitmapBuffer!!
     }
 
     fun resize(width: Int, height: Int): PlatformCameraImage {
+        val resized = toBitmap().scale(width, height, false)
         _width = width
         _height = height
-        imageBitmapBuffer = toBitmap().scale(_width, _height, false)
-
+        _rotation = 0
+        _bitmap = resized
+        imageBitmapBuffer = resized
+        mediaImage = null
         return this
     }
 
     private fun rotate(bitmap: Bitmap, rotation: Int): Bitmap {
-        val matrix = Matrix()
-        matrix.postRotate(rotation.toFloat())
+        val matrix = Matrix().apply {
+            postRotate(rotation.toFloat())
+        }
 
-        imageBitmapBuffer = Bitmap.createBitmap(
+        return Bitmap.createBitmap(
             bitmap,
             0,
             0,
-            _width,
-            _height,
+            bitmap.width,
+            bitmap.height,
             matrix,
             false
         )
-
-        return imageBitmapBuffer!!
     }
 }
