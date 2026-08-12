@@ -1,7 +1,6 @@
 package com.micrantha.eyespie.platform.scan
 
 import kotlin.test.Test
-import kotlin.test.assertContentEquals
 import kotlin.test.assertEquals
 
 class CameraImageConversionTest {
@@ -25,13 +24,13 @@ class CameraImageConversionTest {
         val clockwise = rotateBgra(source, width = 2, height = 2, rotationDegrees = 90)
         assertEquals(2, clockwise.width)
         assertEquals(2, clockwise.height)
-        assertContentEquals(listOf<Byte>(3, 1, 4, 2), pixelIds(clockwise))
+        assertEquals(listOf<Byte>(3, 1, 4, 2), pixelIds(clockwise))
 
         val counterClockwise = rotateBgra(source, width = 2, height = 2, rotationDegrees = 270)
-        assertContentEquals(listOf<Byte>(2, 4, 1, 3), pixelIds(counterClockwise))
+        assertEquals(listOf<Byte>(2, 4, 1, 3), pixelIds(counterClockwise))
 
         val upsideDown = rotateBgra(source, width = 2, height = 2, rotationDegrees = 180)
-        assertContentEquals(listOf<Byte>(4, 3, 2, 1), pixelIds(upsideDown))
+        assertEquals(listOf<Byte>(4, 3, 2, 1), pixelIds(upsideDown))
     }
 
     private fun frameWithPixelIds(vararg ids: Byte): ByteArray = ByteArray(ids.size * 4).also { bytes ->
