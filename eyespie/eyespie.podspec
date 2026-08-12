@@ -7,7 +7,7 @@ Pod::Spec.new do |spec|
     spec.license                  = 'GPLv3'
     spec.summary                  = 'Native dependencies for eyespie'
     spec.vendored_frameworks      = 'build/cocoapods/framework/eyespie.framework'
-    spec.libraries                = 'c++', 'sqlite3'
+                
     spec.ios.deployment_target    = '15.0'
     spec.dependency 'EyespieMediaPipeTasksCommon', '0.10.26.2'
     spec.dependency 'EyespieMediaPipeTasksGenAI', '0.10.26.2'
@@ -53,5 +53,6 @@ Pod::Spec.new do |spec|
             SCRIPT
         }
     ]
+    spec.libraries = 'c++', 'sqlite3'
     spec.resources = ['build/compose/cocoapods/compose-resources']
 end
