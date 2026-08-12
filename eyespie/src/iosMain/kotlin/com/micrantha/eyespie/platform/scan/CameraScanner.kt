@@ -7,7 +7,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.toSkiaRect
 import androidx.compose.ui.interop.UIKitView
-import co.touchlab.stately.freeze
 import com.micrantha.eyespie.platform.asException
 import kotlinx.cinterop.BetaInteropApi
 import kotlinx.cinterop.CValue
@@ -40,6 +39,8 @@ import platform.AVFoundation.AVMediaTypeVideo
 import platform.CoreGraphics.CGRect
 import platform.CoreMedia.CMSampleBufferGetImageBuffer
 import platform.CoreMedia.CMSampleBufferRef
+import platform.CoreVideo.CVPixelBufferRelease
+import platform.CoreVideo.CVPixelBufferRetain
 import platform.CoreVideo.kCVPixelBufferPixelFormatTypeKey
 import platform.CoreVideo.kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange
 import platform.Foundation.NSError
@@ -52,7 +53,6 @@ import platform.QuartzCore.kCATransactionDisableActions
 import platform.UIKit.UIView
 import platform.darwin.NSObject
 import platform.darwin.dispatch_async
-import platform.darwin.dispatch_get_main_queue
 import platform.darwin.dispatch_queue_create
 import org.jetbrains.skia.Rect as RectF
 
@@ -116,27 +116,39 @@ class CameraStream(
     private var cameraPreviewLayer: AVCaptureVideoPreviewLayer? = null
     private val dispatchQueue by lazy { dispatch_queue_create("videoDataOutputQueue", null) }
 
+    // AVCapture invokes this delegate on dispatchQueue. Keep only one retained frame in flight;
+    // later frames are dropped until analysis completes instead of accumulating async work.
+    private var frameInFlight = false
+
     override fun captureOutput(
         output: AVCaptureOutput,
         didOutputSampleBuffer: CMSampleBufferRef?,
         fromConnection: AVCaptureConnection
     ) {
-        didOutputSampleBuffer.image(fromConnection.videoOrientation)?.let { image ->
-            dispatch_async(dispatch_get_main_queue()) {
-                scope.launch {
-                    try {
-                        onCameraImage(image)
-                    } catch (err: Throwable) {
-                        onCameraError(err)
-                    }
+        if (frameInFlight) return
+
+        val image = didOutputSampleBuffer.image(fromConnection.videoOrientation) ?: return
+        frameInFlight = true
+
+        scope.launch {
+            try {
+                onCameraImage(image)
+            } catch (err: Throwable) {
+                onCameraError(err)
+            } finally {
+                // CMSampleBufferGetImageBuffer returns a borrowed buffer. image() retains it
+                // before the async handoff; release that ownership exactly once here.
+                CVPixelBufferRelease(image.data)
+                dispatch_async(dispatchQueue) {
+                    frameInFlight = false
                 }
             }
         }
     }
 
-    private fun CMSampleBufferRef?.image(orientation: AVCaptureVideoOrientation): CameraImage? {
+    private fun CMSampleBufferRef?.image(orientation: AVCaptureVideoOrientation): PlatformCameraImage? {
         val pixelBuffer = CMSampleBufferGetImageBuffer(this) ?: return null
-        pixelBuffer.freeze()
+        CVPixelBufferRetain(pixelBuffer)
         return PlatformCameraImage(
             pixelBuffer, when (orientation) {
                 AVCaptureVideoOrientationPortraitUpsideDown -> kCGImagePropertyOrientationDown
