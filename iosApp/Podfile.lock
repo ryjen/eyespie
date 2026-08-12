@@ -1,37 +1,43 @@
 PODS:
   - eyespie (1.0):
-    - MediaPipeTasksGenAI
-    - MediaPipeTasksVision
-  - MediaPipeTasksCommon (0.10.21)
-  - MediaPipeTasksGenAI (0.10.24):
-    - MediaPipeTasksGenAIC (= 0.10.24)
-  - MediaPipeTasksGenAIC (0.10.24)
-  - MediaPipeTasksVision (0.10.21):
-    - MediaPipeTasksCommon (= 0.10.21)
+    - EyespieMediaPipeTasksCommon (= 0.10.26.2)
+    - EyespieMediaPipeTasksGenAI (= 0.10.26.2)
+    - EyespieMediaPipeTasksGenAIC (= 0.10.26.2)
+    - EyespieMediaPipeTasksVision (= 0.10.26.2)
+  - EyespieMediaPipeTasksCommon (0.10.26.2)
+  - EyespieMediaPipeTasksGenAI (0.10.26.2):
+    - EyespieMediaPipeTasksGenAIC (= 0.10.26.2)
+  - EyespieMediaPipeTasksGenAIC (0.10.26.2):
+    - EyespieMediaPipeTasksCommon (= 0.10.26.2)
+  - EyespieMediaPipeTasksVision (0.10.26.2):
+    - EyespieMediaPipeTasksCommon (= 0.10.26.2)
 
 DEPENDENCIES:
   - eyespie (from `../eyespie`)
-  - MediaPipeTasksGenAI
-  - MediaPipeTasksVision
-
-SPEC REPOS:
-  trunk:
-    - MediaPipeTasksCommon
-    - MediaPipeTasksGenAI
-    - MediaPipeTasksGenAIC
-    - MediaPipeTasksVision
+  - EyespieMediaPipeTasksCommon (from `MediaPipePodspecs/EyespieMediaPipeTasksCommon.podspec`)
+  - EyespieMediaPipeTasksGenAI (from `MediaPipePodspecs/EyespieMediaPipeTasksGenAI.podspec`)
+  - EyespieMediaPipeTasksGenAIC (from `MediaPipePodspecs/EyespieMediaPipeTasksGenAIC.podspec`)
+  - EyespieMediaPipeTasksVision (from `MediaPipePodspecs/EyespieMediaPipeTasksVision.podspec`)
 
 EXTERNAL SOURCES:
   eyespie:
     :path: "../eyespie"
+  EyespieMediaPipeTasksCommon:
+    :podspec: MediaPipePodspecs/EyespieMediaPipeTasksCommon.podspec
+  EyespieMediaPipeTasksGenAI:
+    :podspec: MediaPipePodspecs/EyespieMediaPipeTasksGenAI.podspec
+  EyespieMediaPipeTasksGenAIC:
+    :podspec: MediaPipePodspecs/EyespieMediaPipeTasksGenAIC.podspec
+  EyespieMediaPipeTasksVision:
+    :podspec: MediaPipePodspecs/EyespieMediaPipeTasksVision.podspec
 
 SPEC CHECKSUMS:
-  eyespie: 68bbb422f29a110070bb9058dcd078e1da5a5f26
-  MediaPipeTasksCommon: 6cfa29170d4900f04d250ad95ec058f14a741f38
-  MediaPipeTasksGenAI: 076ba7032a6e9da16db9c7cf0c3b67c751c18bc1
-  MediaPipeTasksGenAIC: ec35d9f431f6a6b651a0bc9f67a4ed149ffa575c
-  MediaPipeTasksVision: 7b1c0f5a5820e87e9d96926f5e65d8cd3744fac2
+  eyespie: cc3e1ad45929ee562440cbf5c434e223e8f391f5
+  EyespieMediaPipeTasksCommon: 8d007cd8caa159f7b4ca39296db3d9d529e0e636
+  EyespieMediaPipeTasksGenAI: 060e4d7f5752c097d96750f6572299e6734813f3
+  EyespieMediaPipeTasksGenAIC: 426932a33958b8ce30f02918aaa6234eebe4eaa6
+  EyespieMediaPipeTasksVision: 60262e6109cc2137698b27a7ae57126193ad05c8
 
-PODFILE CHECKSUM: 998565cb65d66ee9dfa228e61a7df9065a675907
+PODFILE CHECKSUM: 533429012ac32cc6399c556813b8b184e7d2532d
 
 COCOAPODS: 1.17.0

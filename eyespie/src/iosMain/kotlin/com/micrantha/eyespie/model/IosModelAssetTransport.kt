@@ -1,6 +1,7 @@
 package com.micrantha.eyespie.model
 
 import kotlinx.coroutines.flow.Flow
+import kotlin.coroutines.cancellation.CancellationException
 
 /**
  * Narrow bridge implemented by the native iOS layer.
@@ -11,7 +12,7 @@ import kotlinx.coroutines.flow.Flow
 interface IosModelAssetTransport {
     fun observe(): Flow<IosModelAssetTransportEvent>
 
-    @Throws(IosModelAssetTransportException::class)
+    @Throws(IosModelAssetTransportException::class, CancellationException::class)
     suspend fun schedule()
 
     suspend fun cancel()

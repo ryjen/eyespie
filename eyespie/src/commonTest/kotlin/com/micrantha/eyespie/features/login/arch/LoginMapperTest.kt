@@ -4,6 +4,7 @@ import com.micrantha.bluebell.ui.model.UiResult
 import com.micrantha.eyespie.features.login.entities.LoginState
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertIs
 import kotlin.test.assertNotNull
 import kotlin.test.assertNull
 
@@ -61,7 +62,7 @@ class LoginMapperTest {
 
         val uiState = mapper.map(state)
 
-        assert(uiState.status is UiResult.Busy)
+        assertIs<UiResult.Busy>(uiState.status)
     }
 
     @Test

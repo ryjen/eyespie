@@ -7,9 +7,9 @@ import androidx.compose.ui.tooling.preview.PreviewParameterProvider
 import com.micrantha.bluebell.ui.model.UiResult
 import com.micrantha.eyespie.core.PreviewContext
 import com.micrantha.eyespie.domain.entities.Game
-import kotlinx.datetime.DateTimeUnit
-import kotlinx.datetime.plus
 import kotlin.time.Clock
+import kotlin.time.Duration.Companion.hours
+import kotlin.time.Duration.Companion.seconds
 import kotlin.time.ExperimentalTime
 
 class GameListPreviewContent : PreviewParameterProvider<GameListUiState> {
@@ -22,8 +22,8 @@ class GameListPreviewContent : PreviewParameterProvider<GameListUiState> {
                         id = "id$id",
                         nodeId = "n123$id",
                         name = "Preview Game $id",
-                        createdAt = Clock.System.now().plus(id, DateTimeUnit.SECOND),
-                        expiresAt = Clock.System.now().plus(id, DateTimeUnit.HOUR),
+                        createdAt = Clock.System.now() + id.seconds,
+                        expiresAt = Clock.System.now() + id.hours,
                         totalThings = 4,
                         totalPlayers = 6
                     )

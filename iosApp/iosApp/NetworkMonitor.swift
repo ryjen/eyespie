@@ -8,7 +8,7 @@
 import Network
 import eyespie
 
-class iOSNetworkMonitor: NetworkMonitor {
+class iOSNetworkMonitor: BluebellNetworkMonitor {
     private let monitor = NWPathMonitor()
     private let queue = DispatchQueue(label: "NetworkMonitor")
 

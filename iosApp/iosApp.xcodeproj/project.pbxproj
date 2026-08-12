@@ -266,7 +266,7 @@
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "if [ -f \"${PROJECT_DIR}/.xcode-env.local\" ]; then\n    source \"${PROJECT_DIR}/.xcode-env.local\"\nfi\ncd \"$SRCROOT/..\"\n./gradlew :eyespie:embedAndSignAppleFrameworkForXcode\n";
+			shellScript = "if [ -f \"${PROJECT_DIR}/.xcode-env.local\" ]; then\n    source \"${PROJECT_DIR}/.xcode-env.local\"\nfi\ncd \"$SRCROOT/..\"\n./gradlew :app:embedAndSignAppleFrameworkForXcode\n";
 		};
 /* End PBXShellScriptBuildPhase section */
 

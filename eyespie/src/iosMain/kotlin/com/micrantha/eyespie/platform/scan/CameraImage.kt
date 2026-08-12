@@ -1,7 +1,7 @@
 package com.micrantha.eyespie.platform.scan
 
 import androidx.compose.ui.graphics.ImageBitmap
-import com.micrantha.bluebell.observability.Log
+import com.micrantha.bluebell.observability.logger
 import com.micrantha.bluebell.platform.toImageBitmap
 import kotlinx.cinterop.ByteVar
 import kotlinx.cinterop.ExperimentalForeignApi
@@ -42,6 +42,7 @@ actual class PlatformCameraImage(
     override val width by lazy { CVPixelBufferGetWidth(data).toInt() }
     override val height by lazy { CVPixelBufferGetHeight(data).toInt() }
 
+    private val log by logger()
     private var bytes: ByteArray? = null
 
     override fun toByteArray(): ByteArray {
@@ -54,7 +55,7 @@ actual class PlatformCameraImage(
                     else -> throw IllegalStateException("invalid pixel format")
                 }
             } catch (err: Throwable) {
-                Log.e("converting camera image", err)
+                log.error(err) { "converting camera image" }
                 throw err
             } finally {
                 CVPixelBufferUnlockBaseAddress(data, 0u)
