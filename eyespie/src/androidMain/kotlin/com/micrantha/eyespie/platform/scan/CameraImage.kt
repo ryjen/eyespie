@@ -23,7 +23,6 @@ actual class PlatformCameraImage @kotlin.OptIn(ExperimentalTime::class) construc
 ) : CameraImage {
 
     private var imageBitmapBuffer: Bitmap? = null
-    private var mediaImage: MPImage? = null
 
     override val width get() = _width
     override val height get() = _height
@@ -43,7 +42,6 @@ actual class PlatformCameraImage @kotlin.OptIn(ExperimentalTime::class) construc
         regionOfInterest = region ?: regionOfInterest
         _bitmap = image.toBitmap()
         imageBitmapBuffer = null
-        mediaImage = null
     }
 
     @kotlin.OptIn(ExperimentalTime::class)
@@ -60,7 +58,6 @@ actual class PlatformCameraImage @kotlin.OptIn(ExperimentalTime::class) construc
         regionOfInterest = region ?: regionOfInterest
         _bitmap = bitmap
         imageBitmapBuffer = null
-        mediaImage = null
     }
 
     override fun toImageBitmap() = toBitmap().asImageBitmap()
@@ -75,14 +72,12 @@ actual class PlatformCameraImage @kotlin.OptIn(ExperimentalTime::class) construc
 
     /**
      * MediaPipe receives the unrotated owned bitmap and applies rotation/ROI through
-     * ImageProcessingOptions. Presentation conversions use [toBitmap] instead.
+     * ImageProcessingOptions. The caller owns the returned reference-counted MPImage and must
+     * close it after inference. Presentation conversions use [toBitmap] instead.
      */
     fun asMPImage(): MPImage {
-        if (mediaImage != null) return mediaImage!!
-
         val bitmap = _bitmap ?: throw IllegalStateException("camera image has no owned bitmap")
-        mediaImage = BitmapImageBuilder(bitmap).build()
-        return mediaImage!!
+        return BitmapImageBuilder(bitmap).build()
     }
 
     fun toBitmap(): Bitmap {
@@ -104,7 +99,6 @@ actual class PlatformCameraImage @kotlin.OptIn(ExperimentalTime::class) construc
         _rotation = 0
         _bitmap = resized
         imageBitmapBuffer = resized
-        mediaImage = null
         return this
     }
 
