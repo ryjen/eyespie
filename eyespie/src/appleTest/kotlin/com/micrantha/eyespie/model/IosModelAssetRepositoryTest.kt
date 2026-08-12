@@ -112,7 +112,7 @@ class IosModelAssetRepositoryTest {
                 recoverable = false,
                 diagnosticCode = "model_delivery_schedule_failed",
             ),
-            repository.observe().first { it is ModelAssetState.Failed },
+            repository.observe().first(),
         )
         repository.close()
     }
