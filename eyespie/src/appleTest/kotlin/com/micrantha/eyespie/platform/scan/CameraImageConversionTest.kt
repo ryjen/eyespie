@@ -2,6 +2,7 @@ package com.micrantha.eyespie.platform.scan
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertTrue
 
 class CameraImageConversionTest {
     @Test
@@ -31,6 +32,24 @@ class CameraImageConversionTest {
 
         val upsideDown = rotateBgra(source, width = 2, height = 2, rotationDegrees = 180)
         assertEquals(listOf<Byte>(4, 3, 2, 1), pixelIds(upsideDown))
+    }
+
+    @Test
+    fun ownedFrameEncodesWithoutAPlatformBuffer() {
+        val image = PlatformCameraImage(
+            BgraFrame(
+                bytes = byteArrayOf(0, 0, 0, (-1).toByte()),
+                width = 1,
+                height = 1,
+            )
+        )
+
+        val encoded = image.toByteArray()
+
+        assertEquals(1, image.width)
+        assertEquals(1, image.height)
+        assertTrue(encoded.isNotEmpty())
+        assertEquals(0x89.toByte(), encoded.first())
     }
 
     private fun frameWithPixelIds(vararg ids: Byte): ByteArray = ByteArray(ids.size * 4).also { bytes ->
