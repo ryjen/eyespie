@@ -92,72 +92,89 @@ internal fun rotateBgra(
 }
 
 @OptIn(ExperimentalForeignApi::class)
-actual class PlatformCameraImage(
-    internal val data: CVImageBufferRef,
-    val orientation: CGImagePropertyOrientation
+internal fun copyCameraImage(
+    data: CVImageBufferRef,
+    orientation: CGImagePropertyOrientation,
+): PlatformCameraImage {
+    val width = CVPixelBufferGetWidth(data).toInt()
+    val height = CVPixelBufferGetHeight(data).toInt()
+    val lockStatus = CVPixelBufferLockBaseAddress(data, 0u)
+    check(lockStatus == 0) { "unable to lock camera pixel buffer: $lockStatus" }
+
+    val frame = try {
+        when (CVPixelBufferGetPixelFormatType(data)) {
+            kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange -> {
+                val bgra = yuvToBgra(data, width, height)
+                when (orientation) {
+                    kCGImagePropertyOrientationDown -> rotateBgra(bgra, width, height, 180)
+                    kCGImagePropertyOrientationLeft -> rotateBgra(bgra, width, height, 270)
+                    kCGImagePropertyOrientationRight -> rotateBgra(bgra, width, height, 90)
+                    else -> BgraFrame(bgra, width, height)
+                }
+            }
+
+            else -> throw IllegalStateException("invalid pixel format")
+        }
+    } finally {
+        CVPixelBufferUnlockBaseAddress(data, 0u)
+    }
+
+    return PlatformCameraImage(frame)
+}
+
+@OptIn(ExperimentalForeignApi::class)
+private fun yuvToBgra(
+    yuvBuffer: CVImageBufferRef,
+    width: Int,
+    height: Int,
+): ByteArray {
+    val yPlane = CVPixelBufferGetBaseAddressOfPlane(yuvBuffer, 0u)!!.reinterpret<ByteVar>()
+    val uvPlane = CVPixelBufferGetBaseAddressOfPlane(yuvBuffer, 1u)!!.reinterpret<ByteVar>()
+    val yBytesPerRow = CVPixelBufferGetBytesPerRowOfPlane(yuvBuffer, 0u).toInt()
+    val uvBytesPerRow = CVPixelBufferGetBytesPerRowOfPlane(yuvBuffer, 1u).toInt()
+
+    val bgraBuffer = ByteArray(width * height * 4)
+    var bgraIndex = 0
+    for (yRow in 0 until height) {
+        val yStart = yRow * yBytesPerRow
+        val uvStart = (yRow / 2) * uvBytesPerRow
+
+        for (x in 0 until width) {
+            val y = yPlane[yStart + x]
+            val uvOffset = (x / 2) * 2
+            val u = uvPlane[uvStart + uvOffset]
+            val v = uvPlane[uvStart + uvOffset + 1]
+            val bgra = yuvToBgraPixel(y.toUByte(), u.toUByte(), v.toUByte())
+
+            bgraBuffer[bgraIndex++] = (bgra and 0xFF).toByte()
+            bgraBuffer[bgraIndex++] = ((bgra shr 8) and 0xFF).toByte()
+            bgraBuffer[bgraIndex++] = ((bgra shr 16) and 0xFF).toByte()
+            bgraBuffer[bgraIndex++] = 0xFF.toByte()
+        }
+    }
+
+    return bgraBuffer
+}
+
+actual class PlatformCameraImage internal constructor(
+    internal val frame: BgraFrame,
 ) : CameraImage {
-    override val width by lazy { CVPixelBufferGetWidth(data).toInt() }
-    override val height by lazy { CVPixelBufferGetHeight(data).toInt() }
+    override val width: Int = frame.width
+    override val height: Int = frame.height
 
     private val log by logger()
     private var encodedBytes: ByteArray? = null
 
     override fun toByteArray(): ByteArray {
         if (encodedBytes == null) {
-            val frame = try {
-                CVPixelBufferLockBaseAddress(data, 0u)
-                when (CVPixelBufferGetPixelFormatType(data)) {
-                    kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange -> {
-                        val bgra = yuvToBgra(data)
-                        when (orientation) {
-                            kCGImagePropertyOrientationDown -> rotateBgra(bgra, width, height, 180)
-                            kCGImagePropertyOrientationLeft -> rotateBgra(bgra, width, height, 270)
-                            kCGImagePropertyOrientationRight -> rotateBgra(bgra, width, height, 90)
-                            else -> BgraFrame(bgra, width, height)
-                        }
-                    }
-
-                    else -> throw IllegalStateException("invalid pixel format")
-                }
+            encodedBytes = try {
+                frame.toPng()
             } catch (err: Throwable) {
-                log.error(err) { "converting camera image" }
+                log.error(err) { "encoding camera image" }
                 throw err
-            } finally {
-                CVPixelBufferUnlockBaseAddress(data, 0u)
             }
-
-            encodedBytes = frame.toPng()
         }
         return encodedBytes!!
-    }
-
-    private fun yuvToBgra(yuvBuffer: CVImageBufferRef): ByteArray {
-        val yPlane = CVPixelBufferGetBaseAddressOfPlane(yuvBuffer, 0u)!!.reinterpret<ByteVar>()
-        val uvPlane = CVPixelBufferGetBaseAddressOfPlane(yuvBuffer, 1u)!!.reinterpret<ByteVar>()
-        val yBytesPerRow = CVPixelBufferGetBytesPerRowOfPlane(yuvBuffer, 0u).toInt()
-        val uvBytesPerRow = CVPixelBufferGetBytesPerRowOfPlane(yuvBuffer, 1u).toInt()
-
-        val bgraBuffer = ByteArray(width * height * 4)
-        var bgraIndex = 0
-        for (yRow in 0 until height) {
-            val yStart = yRow * yBytesPerRow
-            val uvStart = (yRow / 2) * uvBytesPerRow
-
-            for (x in 0 until width) {
-                val y = yPlane[yStart + x]
-                val uvOffset = (x / 2) * 2
-                val u = uvPlane[uvStart + uvOffset]
-                val v = uvPlane[uvStart + uvOffset + 1]
-                val bgra = yuvToBgraPixel(y.toUByte(), u.toUByte(), v.toUByte())
-
-                bgraBuffer[bgraIndex++] = (bgra and 0xFF).toByte()
-                bgraBuffer[bgraIndex++] = ((bgra shr 8) and 0xFF).toByte()
-                bgraBuffer[bgraIndex++] = ((bgra shr 16) and 0xFF).toByte()
-                bgraBuffer[bgraIndex++] = 0xFF.toByte()
-            }
-        }
-
-        return bgraBuffer
     }
 
     private fun BgraFrame.toPng(): ByteArray {
