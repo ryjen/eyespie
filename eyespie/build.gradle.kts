@@ -32,6 +32,7 @@ kotlin {
         license = "GPLv3"
         ios.deploymentTarget = "15.0"
         podfile = project.file("../iosApp/Podfile")
+        extraSpecAttributes["libraries"] = "'c++', 'sqlite3'"
 
         framework {
             baseName = "eyespie"
@@ -152,7 +153,7 @@ kotlin {
             implementation(libs.voyager.kodein)
 
             implementation(libs.ktor.client.content.negotiation)
-            implementation(libs.ktor.serialization.kotlinx.json)
+            implementation(libs.ktor.serialization.kotlinx)
             implementation(libs.ktor.client.logging)
             implementation(libs.ktor.client.auth)
             implementation(libs.ktor.client.cio)
