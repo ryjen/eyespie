@@ -205,13 +205,30 @@ jobs:
           exit "$status"
 
       - name: Compile Kotlin for iOS simulator
+        shell: bash
         run: |
+          set -o pipefail
+          log="$RUNNER_TEMP/ios-kotlin-compile.log"
+          set +e
           ./gradlew \
             :app:compileKotlinIosSimulatorArm64 \
             :app:compileTestKotlinIosSimulatorArm64 \
             --no-daemon \
             --info \
-            --stacktrace
+            --stacktrace 2>&1 | tee "$log"
+          status=${PIPESTATUS[0]}
+          set -e
+
+          if (( status != 0 )); then
+            while IFS= read -r line; do
+              escaped="$(printf '%s' "$line" | sed 's/%/%25/g; s/\r/%0D/g; s/\n/%0A/g')"
+              echo "::error title=Kotlin iOS compile::$escaped"
+            done < <(
+              grep -E '(^e: |error: |Compilation failed|FAILURE:|What went wrong:|Execution failed for task|Caused by:)' "$log" \
+                | tail -n 80 || true
+            )
+          fi
+          exit "$status"
 
       - name: Build iOS simulator application
         shell: bash
@@ -265,6 +282,12 @@ jobs:
               echo '### Common cinterop tail'
               echo '```text'
               tail -n 120 "$RUNNER_TEMP/common-cinterop.log"
+              echo '```'
+            fi
+            if [[ -f "$RUNNER_TEMP/ios-kotlin-compile.log" ]]; then
+              echo '### Kotlin iOS compile tail'
+              echo '```text'
+              tail -n 250 "$RUNNER_TEMP/ios-kotlin-compile.log"
               echo '```'
             fi
             if [[ -f build-ios-mediapipe.log ]]; then
