@@ -29,10 +29,7 @@ import platform.AVFoundation.AVCaptureSession
 import platform.AVFoundation.AVCaptureVideoDataOutput
 import platform.AVFoundation.AVCaptureVideoDataOutputSampleBufferDelegateProtocol
 import platform.AVFoundation.AVCaptureVideoOrientation
-import platform.AVFoundation.AVCaptureVideoOrientationLandscapeLeft
-import platform.AVFoundation.AVCaptureVideoOrientationLandscapeRight
 import platform.AVFoundation.AVCaptureVideoOrientationPortrait
-import platform.AVFoundation.AVCaptureVideoOrientationPortraitUpsideDown
 import platform.AVFoundation.AVCaptureVideoPreviewLayer
 import platform.AVFoundation.AVLayerVideoGravityResizeAspectFill
 import platform.AVFoundation.AVMediaTypeVideo
@@ -116,8 +113,8 @@ class CameraStream(
     private var cameraPreviewLayer: AVCaptureVideoPreviewLayer? = null
     private val dispatchQueue by lazy { dispatch_queue_create("videoDataOutputQueue", null) }
 
-    // AVCapture invokes this delegate on dispatchQueue. Keep only one retained frame in flight;
-    // later frames are dropped until analysis completes instead of accumulating async work.
+    // AVCapture invokes this delegate on dispatchQueue. Keep only one native frame conversion in
+    // flight; later frames are dropped until the retained producer buffer has been copied.
     private var frameInFlight = false
 
     override fun captureOutput(
@@ -127,36 +124,38 @@ class CameraStream(
     ) {
         if (frameInFlight) return
 
-        val image = didOutputSampleBuffer.image(fromConnection.videoOrientation) ?: return
+        val pixelBuffer = CMSampleBufferGetImageBuffer(didOutputSampleBuffer) ?: return
+        val orientation = when (fromConnection.videoOrientation) {
+            AVCaptureVideoOrientation.AVCaptureVideoOrientationPortraitUpsideDown ->
+                kCGImagePropertyOrientationDown
+            AVCaptureVideoOrientation.AVCaptureVideoOrientationLandscapeLeft ->
+                kCGImagePropertyOrientationLeft
+            AVCaptureVideoOrientation.AVCaptureVideoOrientationLandscapeRight ->
+                kCGImagePropertyOrientationRight
+            else -> kCGImagePropertyOrientationUp
+        }
+
+        // CoreMedia owns the sample-buffer image. Retain it only until the worker has copied the
+        // pixels into a Kotlin-owned BGRA frame; queued application consumers never see this ref.
+        CVPixelBufferRetain(pixelBuffer)
         frameInFlight = true
 
         scope.launch {
             try {
+                val image = try {
+                    copyCameraImage(pixelBuffer, orientation)
+                } finally {
+                    CVPixelBufferRelease(pixelBuffer)
+                }
                 onCameraImage(image)
             } catch (err: Throwable) {
                 onCameraError(err)
             } finally {
-                // CMSampleBufferGetImageBuffer returns a borrowed buffer. image() retains it
-                // before the async handoff; release that ownership exactly once here.
-                CVPixelBufferRelease(image.data)
                 dispatch_async(dispatchQueue) {
                     frameInFlight = false
                 }
             }
         }
-    }
-
-    private fun CMSampleBufferRef?.image(orientation: AVCaptureVideoOrientation): PlatformCameraImage? {
-        val pixelBuffer = CMSampleBufferGetImageBuffer(this) ?: return null
-        CVPixelBufferRetain(pixelBuffer)
-        return PlatformCameraImage(
-            pixelBuffer, when (orientation) {
-                AVCaptureVideoOrientationPortraitUpsideDown -> kCGImagePropertyOrientationDown
-                AVCaptureVideoOrientationLandscapeLeft -> kCGImagePropertyOrientationLeft
-                AVCaptureVideoOrientationLandscapeRight -> kCGImagePropertyOrientationRight
-                else -> kCGImagePropertyOrientationUp
-            }
-        )
     }
 
     fun resize(view: UIView, rect: CValue<CGRect>) {
