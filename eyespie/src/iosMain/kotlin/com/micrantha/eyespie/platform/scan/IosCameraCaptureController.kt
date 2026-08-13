@@ -1,7 +1,10 @@
 package com.micrantha.eyespie.platform.scan
 
 import com.benasher44.uuid.uuid4
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.currentCoroutineContext
+import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
@@ -47,39 +50,63 @@ internal class IosCameraCaptureStore(
     private val fileName: () -> String = { "${uuid4()}.png" },
 ) : IosCameraCaptureStoreContract {
 
-    override suspend fun prepare(): Result<Unit> = runCatching {
+    override suspend fun prepare(): Result<Unit> = try {
         withContext(Dispatchers.Default) {
-            try {
-                fileSystem.createDirectories(directory)
-                fileSystem.list(directory).forEach { stale ->
-                    fileSystem.delete(stale, mustExist = false)
-                }
-            } catch (error: Throwable) {
-                throw IosCameraCaptureException(IosCameraCaptureFailure.StorageFailed, error)
+            currentCoroutineContext().ensureActive()
+            fileSystem.createDirectories(directory)
+            fileSystem.list(directory).forEach { stale ->
+                currentCoroutineContext().ensureActive()
+                fileSystem.delete(stale, mustExist = false)
             }
         }
+        Result.success(Unit)
+    } catch (cancelled: CancellationException) {
+        throw cancelled
+    } catch (error: IosCameraCaptureException) {
+        Result.failure(error)
+    } catch (error: Throwable) {
+        Result.failure(
+            IosCameraCaptureException(IosCameraCaptureFailure.StorageFailed, error)
+        )
     }
 
-    override suspend fun persist(image: CameraImage): Result<Path> = runCatching {
-        withContext(Dispatchers.Default) {
+    override suspend fun persist(image: CameraImage): Result<Path> = try {
+        val path = withContext(Dispatchers.Default) {
+            currentCoroutineContext().ensureActive()
             val encoded = try {
                 image.toByteArray()
+            } catch (cancelled: CancellationException) {
+                throw cancelled
             } catch (error: Throwable) {
                 throw IosCameraCaptureException(IosCameraCaptureFailure.EncodingFailed, error)
             }
+            currentCoroutineContext().ensureActive()
 
-            val path = directory / fileName()
+            val candidate = directory / fileName()
             try {
                 fileSystem.createDirectories(directory)
-                fileSystem.write(path) {
+                fileSystem.write(candidate) {
                     write(encoded)
                 }
-                path
+                currentCoroutineContext().ensureActive()
+                candidate
+            } catch (cancelled: CancellationException) {
+                runCatching { fileSystem.delete(candidate, mustExist = false) }
+                throw cancelled
             } catch (error: Throwable) {
-                runCatching { fileSystem.delete(path, mustExist = false) }
+                runCatching { fileSystem.delete(candidate, mustExist = false) }
                 throw IosCameraCaptureException(IosCameraCaptureFailure.StorageFailed, error)
             }
         }
+        Result.success(path)
+    } catch (cancelled: CancellationException) {
+        throw cancelled
+    } catch (error: IosCameraCaptureException) {
+        Result.failure(error)
+    } catch (error: Throwable) {
+        Result.failure(
+            IosCameraCaptureException(IosCameraCaptureFailure.StorageFailed, error)
+        )
     }
 }
 
