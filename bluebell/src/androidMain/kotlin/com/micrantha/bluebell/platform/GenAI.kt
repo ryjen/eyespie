@@ -95,12 +95,7 @@ actual class PlatformGenAI(
     override fun generateFlow(request: GenAIRequest): Flow<String> = callbackFlow {
         if (request.prompt.isBlank()) throw InvalidPromptException()
 
-        val operationSession = if (sessionConfig != null) {
-            freshOperationSession().updateWithRequest(request)
-        } else {
-            null
-        }
-
+        var operationSession: LlmInferenceSession? = null
         val listener = { partialResult: String?, done: Boolean ->
             if (partialResult != null) {
                 trySend(partialResult)
@@ -111,10 +106,16 @@ actual class PlatformGenAI(
             }
         }
 
-        val response = operationSession?.generateResponseAsync(listener)
-            ?: (llm ?: throw NotInitializedException()).generateResponseAsync(request.prompt, listener)
-
         try {
+            operationSession = if (sessionConfig != null) {
+                freshOperationSession().also { it.updateWithRequest(request) }
+            } else {
+                null
+            }
+
+            val response = operationSession?.generateResponseAsync(listener)
+                ?: (llm ?: throw NotInitializedException()).generateResponseAsync(request.prompt, listener)
+
             response.await()
             awaitClose {
                 response.cancel(true)
