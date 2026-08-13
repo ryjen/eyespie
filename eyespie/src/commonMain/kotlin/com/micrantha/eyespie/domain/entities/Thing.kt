@@ -32,7 +32,6 @@ data class Thing(
 
     data class Match(
         override val id: String,
-        val embedding: Embedding,
         val similarity: Float
     ) : Entity
 }
