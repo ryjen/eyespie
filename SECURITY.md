@@ -1,206 +1,168 @@
 # Security Policy
 
-## Table of Contents
+## Reporting a vulnerability
 
-- [Supported Versions](#supported-versions)
-- [Reporting a Vulnerability](#reporting-a-vulnerability)
-- [Security Measures](#security-measures)
-- [Best Practices](#best-practices)
-- [Security Updates](#security-updates)
+Security vulnerabilities should be reported privately rather than through a public issue when disclosure could expose users, credentials, private data, or an exploitable weakness.
 
-## Supported Versions
+Contact:
 
-| Version | Supported          | Status |
-| ------- | ------------------ | ------ |
-| 0.1.x   | :white_check_mark: | Active Development |
-| 0.0.x   | :x:                | Deprecated |
+- **Email:** [security@micrantha.com](mailto:security@micrantha.com?subject=Eyespie%20Security%20Vulnerability)
+- **Subject:** Include `Eyespie Security` and a short description.
 
-## Reporting a Vulnerability
+Useful report details include:
 
-### How to Report
+- affected version/commit/platform;
+- clear impact;
+- reproducible steps or a minimal proof of concept;
+- relevant logs with secrets/private data removed;
+- suggested mitigation, if available;
+- contact information for follow-up, if desired.
 
-If you discover a security vulnerability, please report it responsibly:
+Do not include access tokens, passwords, private image captures, precise user locations, signed URLs, or unrelated personal data in a report unless a secure exchange has been arranged and the information is necessary to reproduce the issue.
 
-1. **Email**: Send to [security@micrantha.com](mailto:security@micrantha.com?subject=Eyespie%20Security%20Vulnerability)
-2. **Subject**: Include "EyesPie Security" and a brief description
-3. **Details**: Provide as much information as possible
+## Supported release state
 
-### What to Include
+Eyespie is under active development toward the staged release tracked by issue #90. Security support and release claims follow the verified candidate rather than an aspirational feature list.
 
-- **Description**: Clear description of the vulnerability
-- **Steps to Reproduce**: How to trigger the issue
-- **Potential Impact**: What could be exploited
-- **Suggested Fix**: If you have recommendations
-- **Your Contact**: For follow-up questions
+## Security and privacy architecture
 
-### Response Timeline
+The closed-alpha baseline is documented in:
 
-- **Acknowledgment**: Within 48 hours
-- **Initial Assessment**: Within 1 week
-- **Resolution**: Depends on severity
-  - Critical: 24-48 hours
-  - High: 1 week
-  - Medium: 2 weeks
-  - Low: Next release
+- [`docs/security/privacy-threat-model.md`](docs/security/privacy-threat-model.md)
+- [`docs/architecture/security-and-privacy.md`](docs/architecture/security-and-privacy.md)
+- [`docs/architecture/semantic-game-engine.md`](docs/architecture/semantic-game-engine.md)
 
-### What to Expect
+The baseline treats raw images, exact location, embeddings, hidden clue/answer evidence, account identifiers, signed image URLs, local private paths, and model artifacts as sensitive/security-relevant data.
 
-- **Accepted**: We'll create a fix and credit you (unless you prefer anonymity)
-- **Declined**: We'll explain why and suggest alternatives if applicable
-- **Duplicate**: We'll notify you if already known
+### Current verified controls
 
-## Security Measures
+Controls already implemented or explicitly evidenced include:
 
-### Authentication & Authorization
+- Supabase authentication with the application client configured for PKCE flow;
+- row-level security policies in the Supabase migration history, with further least-privilege tightening tracked by #122 and #126;
+- HTTPS-based Supabase/provider clients through their platform libraries rather than a project-specific plaintext transport path;
+- downloaded AI model SHA-256 verification after download and immediately before model initialization (#9);
+- project-specific MediaPipe artifact/SBOM integrity validation in CI (#72/#89);
+- bounded camera-frame ownership/lifecycle work for Android/iOS (#11/#97);
+- local-first semantic-provider architecture with remote execution denied by default unless capability/policy/consent/minimization gates succeed.
 
-- **Supabase Auth**: Industry-standard authentication
-- **JWT Tokens**: Secure session management
-- **Row Level Security**: Database-level access control
-- **API Keys**: Secure API access
+Do not infer additional controls such as certificate pinning, root/jailbreak detection, universal rate limiting, encrypted local databases/backups, or a specific TLS protocol version unless the release candidate provides and verifies them.
 
-### Data Protection
+### Open alpha-critical security/privacy work
 
-- **Encryption at Rest**: Supabase database encryption
-- **Encryption in Transit**: TLS 1.3 for all communications
-- **Secure Storage**: Platform-specific secure storage
-- **No Secrets in Code**: Environment variables only
+The baseline threat review identified current implementation gaps that must remain visible during release work:
 
-### Network Security
+- #122 — restrict `Thing`/image/location/embedding/proof access and stop persisting long-lived signed image bearer URLs;
+- #123 — isolate GenAI request/session context and remove raw clue/answer logging;
+- #124 — minimize raw camera-capture retention and remove unintended Android MediaStore copies;
+- #125 — verify actual MediaPipe runtime telemetry/network behavior and align disclosures;
+- #126 — separate public Player profile data from private account/location state;
+- #91 — complete canonical model/version-aware embedding behavior.
 
-- **HTTPS Only**: All API communications
-- **Certificate Pinning**: Optional for enhanced security
-- **Request Validation**: Input sanitization and validation
-- **Rate Limiting**: Protection against abuse
+These issues are not replaced by this policy document.
 
-### Mobile Security
+## Secure development rules
 
-- **App Transport Security**: iOS network security
-- **Network Security Config**: Android network security
-- **Root/Jailbreak Detection**: Optional device integrity checks
-- **Secure Backup**: Encrypted backup policies
+### Sensitive-data handling
 
-## Best Practices
+Do not write the following to ordinary logs, analytics, crash metadata, issue comments, or CI output:
 
-### For Developers
+- raw image/frame data;
+- embeddings/query vectors;
+- exact location;
+- hidden clue answers/raw model output;
+- passwords/auth tokens/service credentials;
+- signed image URLs or receipt/provider tokens;
+- local private file paths;
+- sensitive model-download URLs/headers;
+- production database dumps or unrelated user data.
 
-1. **Never commit secrets**
-   - Use environment variables
-   - Add `.env.local` to `.gitignore`
-   - Use secure storage for tokens
+Prefer stable diagnostic codes and bounded operation context.
 
-2. **Validate all inputs**
-   - Server-side validation
-   - Client-side validation
-   - Sanitize user data
+### Authorization
 
-3. **Use parameterized queries**
-   - Prevent SQL injection
-   - Use ORM/database libraries
-   - Validate query parameters
+- Server/backend authorization is authoritative for cross-account data.
+- Client-supplied player IDs, object IDs, paths, and role claims are untrusted.
+- Public/social views should use explicit minimum-field projections rather than exposing authority rows by default.
+- Adding a new database column must not silently make it visible through wildcard public projections.
 
-4. **Implement proper error handling**
-   - Don't expose stack traces
-   - Log errors securely
-   - Provide generic error messages
+### Camera and location
 
-5. **Keep dependencies updated**
-   - Regular security audits
-   - Automated dependency updates
-   - Test updates thoroughly
+- Live frames remain transient by default.
+- An explicit still capture should use app-private temporary storage and bounded cleanup.
+- Saving to the user's photo library is a separate explicit product action, not an internal capture side effect.
+- Exact location is purpose-limited and must not be exposed as generic social/profile state.
+- Future AR/spatial maps, anchors, and pose trails are not persisted/uploaded by default (#8).
 
-### For Users
+### AI/model inputs
 
-1. **Keep app updated**
-   - Install security updates
-   - Enable auto-updates
-   - Check for updates regularly
+- Downloaded model bytes must pass the #9 integrity contract before initialization.
+- Independent inference operations must not inherit prior image/prompt/session context implicitly (#123).
+- A failed/unavailable local provider must not silently broaden to remote image/location transmission.
+- Embeddings are sensitive derived data and require explicit model/version compatibility (#91).
 
-2. **Use strong authentication**
-   - Unique passwords
-   - Enable 2FA when available
-   - Don't share credentials
+### Dependencies and supply chain
 
-3. **Protect your device**
-   - Use device lock
-   - Keep OS updated
-   - Avoid rooted/jailbroken devices
+- Dependency and custom artifact identity is tracked through the existing SBOM/release workflows (#72/#93).
+- Commercial license/NOTICE completeness is a separate evidence layer (#106/#121), not a replacement dependency scanner.
+- Model/runtime license and provenance decisions are distinct from artifact-integrity checks.
 
-4. **Be cautious with permissions**
-   - Review app permissions
-   - Grant minimal necessary access
-   - Revoke unused permissions
+## Testing expectations
 
-## Security Updates
+Security-relevant changes should include the narrowest useful automated test at the appropriate layer.
 
-### Update Process
+For the alpha baseline this includes:
 
-1. **Vulnerability discovered**
-2. **Assessment and prioritization**
-3. **Fix development**
-4. **Security testing**
-5. **Release deployment**
-6. **Public disclosure**
+- RLS/storage cross-account authorization tests;
+- safe public-vs-private projection tests;
+- capture cleanup/cancellation tests;
+- GenAI context-isolation and logging-redaction tests;
+- malformed/wrong-version embedding/model failure tests;
+- model-integrity tests;
+- complete two-account physical-device E2E validation (#92);
+- release-like MediaPipe telemetry verification on physical Android/iOS (#125).
 
-### Communication
+Security tests should fail closed rather than disabling integrity/authorization to make a release pass.
 
-- **Security advisories**: GitHub Security tab
-- **Release notes**: Include security fixes
-- **Email notifications**: For critical vulnerabilities
-- **Documentation updates**: Security guidelines
+## Disclosure and release claims
 
-### Versioning
+Public documentation, onboarding, privacy/store metadata, and release notes must describe the behavior of the **verified release candidate**.
 
-- **Patch versions**: Security fixes (e.g., 1.0.1)
-- **Minor versions**: New features with security improvements
-- **Major versions**: Breaking changes with security enhancements
+In particular:
 
-## Security Checklist
+- `on-device inference` must not be described as `no third-party network processing` until #125 verifies vendor telemetry behavior;
+- image/location visibility must not be described as private until #122/#126 policies are implemented and tested;
+- optional/future AR, analytics, commercial, or remote-provider capabilities must not be presented as active unless they are actually enabled and reviewed.
 
-### Before Release
+Issue #94 owns final capability/privacy-claim reconciliation before public release.
 
-- [ ] No secrets in code
-- [ ] Dependencies updated
-- [ ] Security tests passed
-- [ ] Code review completed
-- [ ] Documentation updated
-- [ ] Vulnerability scan clean
+## Commercial extension
 
-### Regular Maintenance
+The free/core threat model is intentionally separated from post-alpha commercial incentives. #107 extends the baseline for paid content, public geofenced UGC, entitlement/payment abuse, moderation, and future creator-payout fraud.
 
-- [ ] Weekly dependency checks
-- [ ] Monthly security audits
-- [ ] Quarterly penetration testing
-- [ ] Annual security review
+Commercialization must not weaken the core camera/location/account/model protections above.
 
-## Compliance
+## Maintenance triggers
 
-### Standards
+Re-review security/privacy architecture when materially changing:
 
-- **OWASP Mobile Top 10**: Mobile security guidelines
-- **CWE/SANS Top 25**: Common weakness enumeration
-- **GDPR**: Data protection compliance
-- **CCPA**: California consumer privacy
+- camera/media sources;
+- location/presence behavior;
+- MediaPipe/model/provider versions;
+- remote reasoning;
+- Supabase RLS/storage policies;
+- offline synchronization;
+- persisted embedding/proof formats;
+- public/geofenced content;
+- monetization or creator publishing;
+- AR/spatial persistence.
 
-### Auditing
+## Related tracking
 
-- **Code Reviews**: All changes reviewed
-- **Static Analysis**: Automated code scanning
-- **Dynamic Analysis**: Runtime security testing
-- **Penetration Testing**: Third-party security audits
-
-## Contact
-
-### Security Team
-
-- **Email**: [security@micrantha.com](mailto:security@micrantha.com)
-- **Response Time**: 48 hours maximum
-- **Languages**: English
-
-### General Inquiries
-
-- **Email**: [hello@micrantha.com](mailto:hello@micrantha.com)
-- **GitHub**: [Issues](https://github.com/hackelia-micrantha/eyespie/issues)
-
----
-
-*Last updated: December 2024*
+- #18 — baseline privacy/security threat model.
+- #90 — staged release gate.
+- #91 — embedding/verification contract.
+- #92 — physical-device two-player E2E.
+- #93 — signed distribution/observability/rollback.
+- #94 — truthful release/privacy claims.
+- #107 — post-alpha commercial/UGC/fraud extension.
