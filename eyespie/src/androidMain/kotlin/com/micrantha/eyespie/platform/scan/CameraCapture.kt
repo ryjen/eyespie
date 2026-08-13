@@ -1,11 +1,8 @@
 package com.micrantha.eyespie.platform.scan
 
-import android.content.ContentValues
 import android.content.Context
 import android.hardware.display.DisplayManager
-import android.net.Uri
 import android.os.Build
-import android.provider.MediaStore
 import android.util.Size
 import android.view.ScaleGestureDetector
 import android.view.ScaleGestureDetector.SimpleOnScaleGestureListener
@@ -41,11 +38,14 @@ import androidx.core.content.ContextCompat
 import androidx.exifinterface.media.ExifInterface
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import okio.Path
-import okio.Path.Companion.toPath
+import okio.Path.Companion.toOkioPath
 import java.io.File
-import java.io.FileOutputStream
 import java.util.concurrent.Executors
 import java.util.concurrent.TimeUnit
+
+private const val CAPTURE_PREFIX = "eyespie-capture-"
+private const val CAPTURE_SUFFIX = ".jpg"
+private const val STALE_CAPTURE_AGE_MS = 24L * 60L * 60L * 1000L
 
 @Composable
 actual fun CameraCapture(
@@ -82,18 +82,12 @@ actual fun CameraCapture(
     var cameraProvider by remember { mutableStateOf<ProcessCameraProvider?>(null) }
 
     val cameraSelector by remember { mutableStateOf(CameraSelector.DEFAULT_BACK_CAMERA) }
-
-    val outputOptions = remember {
-        ImageCapture.OutputFileOptions.Builder(
-            context.contentResolver,
-            MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
-            ContentValues()
-        ).build()
-    }
     var camera by remember { mutableStateOf<Camera?>(null) }
     val rotation = remember { mutableIntStateOf(context.getDisplayRotation()) }
 
     DisposableEffect(Unit) {
+        context.pruneStaleCaptureFiles()
+
         val displayManager = context.getSystemService(Context.DISPLAY_SERVICE) as DisplayManager
         val listener = object : DisplayManager.DisplayListener {
             override fun onDisplayAdded(displayId: Int) {}
@@ -157,17 +151,23 @@ actual fun CameraCapture(
             .build()
 
         camera?.cameraControl?.startFocusAndMetering(focusAction)?.addListener({
+            val outputFile = context.createCaptureFile()
+            val outputOptions = ImageCapture.OutputFileOptions.Builder(outputFile).build()
             val executor = Executors.newSingleThreadExecutor()
+
             imageCapture.takePicture(
                 outputOptions,
                 executor,
                 object : ImageCapture.OnImageSavedCallback {
                     override fun onError(exception: ImageCaptureException) {
+                        outputFile.delete()
+                        executor.shutdown()
                         onCameraError(exception)
                     }
 
                     override fun onImageSaved(outputFileResults: ImageCapture.OutputFileResults) {
-                        onCameraImage(context.saveImageToPath(outputFileResults.savedUri!!))
+                        executor.shutdown()
+                        onCameraImage(outputFile.toOkioPath())
                     }
                 }
             )
@@ -195,16 +195,18 @@ private fun Context.getDisplayRotation(): Int {
     }
 }
 
-fun Context.saveImageToPath(uri: Uri): Path {
-    val destinationFile = File.createTempFile("camera", "capture", cacheDir)
-    contentResolver.openInputStream(uri)?.use { input ->
-        FileOutputStream(destinationFile).use { output ->
-            input.copyTo(output)
-        }
-    }
-    return destinationFile.absolutePath.toPath()
-}
+private fun Context.createCaptureFile(): File =
+    File.createTempFile(CAPTURE_PREFIX, CAPTURE_SUFFIX, cacheDir)
 
+private fun Context.pruneStaleCaptureFiles(nowMillis: Long = System.currentTimeMillis()) {
+    val cutoff = nowMillis - STALE_CAPTURE_AGE_MS
+    cacheDir.listFiles { file ->
+        file.isFile &&
+            file.name.startsWith(CAPTURE_PREFIX) &&
+            file.name.endsWith(CAPTURE_SUFFIX) &&
+            file.lastModified() < cutoff
+    }?.forEach(File::delete)
+}
 
 private fun createCameraUseCases(
     surfaceProvider: SurfaceProvider,
