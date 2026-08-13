@@ -4,7 +4,7 @@ Pod::Spec.new do |spec|
     spec.homepage                 = 'https://github.com/hackelia-micrantha/eyespie'
     spec.source                   = { :http=> ''}
     spec.authors                  = ''
-    spec.license                  = 'GPLv3'
+    spec.license                  = 'MPL-2.0'
     spec.summary                  = 'Native dependencies for app'
     spec.vendored_frameworks      = 'build/cocoapods/framework/app.framework'
     spec.libraries                = 'c++'

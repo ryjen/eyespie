@@ -32,7 +32,7 @@ EXTERNAL SOURCES:
     :podspec: MediaPipePodspecs/EyespieMediaPipeTasksVision.podspec
 
 SPEC CHECKSUMS:
-  eyespie: cc3e1ad45929ee562440cbf5c434e223e8f391f5
+  eyespie: 85a1cc40cadaa998c41fd9612c9f0a9186a37152
   EyespieMediaPipeTasksCommon: 8d007cd8caa159f7b4ca39296db3d9d529e0e636
   EyespieMediaPipeTasksGenAI: 060e4d7f5752c097d96750f6572299e6734813f3
   EyespieMediaPipeTasksGenAIC: 426932a33958b8ce30f02918aaa6234eebe4eaa6

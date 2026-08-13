@@ -460,7 +460,7 @@ Contributors will be recognized in:
 
 ## License
 
-By contributing to EyesPie, you agree that your contributions will be licensed under the GPLv3 License.
+By contributing to EyesPie, you agree that your contributions will be licensed under the Mozilla Public License 2.0 (MPL-2.0). You represent that you have the right to submit the contribution under those terms.
 
 ## Questions?
 

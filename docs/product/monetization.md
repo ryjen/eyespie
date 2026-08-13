@@ -219,7 +219,7 @@ Analytics must not collect raw images, embeddings, exact locations, hidden answe
 
 ## Licensing and commercial distribution
 
-Eyespie currently uses GPLv3. Commercial use and charging are compatible with GPLv3, but commercial distribution must preserve applicable source and redistribution rights.
+Eyespie application source is licensed under MPL-2.0. The embedded Bluebell framework is scoped separately under Apache-2.0. Commercial use and charging are compatible with both licenses; distribution must preserve the applicable source, notice, and license obligations for each component. See [LICENSES.md](../../LICENSES.md) for repository license boundaries.
 
 Do not rely on a proprietary mobile client fork as the business moat. Prefer defensible value in:
 
@@ -233,10 +233,11 @@ Do not rely on a proprietary mobile client fork as the business moat. Prefer def
 
 Before commercial store launch, resolve:
 
-- GPLv3 compatibility with the intended Apple/Google distribution path;
+- MPL-2.0 compliance for distributed Eyespie source and modifications, including source availability and notices;
+- Apache-2.0 notice/license obligations for Bluebell and other permissive components;
 - copyright ownership and contributor provenance;
 - third-party dependency/license obligations;
-- whether an additional permission, exception, or other licensing strategy is appropriate;
+- whether any additional permissions or licensing changes are actually needed for the intended distribution model;
 - trademark and brand policy;
 - mission/content licensing terms;
 - classification of digital content, hosted services, and real-world services under current store rules;
