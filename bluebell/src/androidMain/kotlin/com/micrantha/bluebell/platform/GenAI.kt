@@ -93,6 +93,7 @@ actual class PlatformGenAI(
                 trySend(partialResult)
             }
             if (done) {
+                closeActiveSession()
                 close()
             }
         }
@@ -108,13 +109,13 @@ actual class PlatformGenAI(
 
         awaitClose {
             response.cancel(true)
+            closeActiveSession()
         }
     }
 
     override fun close() {
-        this.session?.close()
-        this.session = null
-        this.sessionConfig = null
+        closeActiveSession()
+        sessionConfig = null
     }
 
     override fun cancel() {
@@ -129,7 +130,7 @@ actual class PlatformGenAI(
 
     private fun replaceSession(config: GenAIConfig.Session) {
         val inference = this.llm ?: throw NotInitializedException()
-        this.session?.close()
+        closeActiveSession()
         this.session = LlmInferenceSession.createFromOptions(
             inference,
             LlmInferenceSession.LlmInferenceSessionOptions.builder()
@@ -145,6 +146,11 @@ actual class PlatformGenAI(
                 )
                 .build()
         )
+    }
+
+    private fun closeActiveSession() {
+        this.session?.close()
+        this.session = null
     }
 
     /**
