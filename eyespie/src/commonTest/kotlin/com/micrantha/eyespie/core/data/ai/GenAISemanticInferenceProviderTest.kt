@@ -12,6 +12,7 @@ import com.micrantha.eyespie.domain.ai.SemanticInferenceIdentity
 import com.micrantha.eyespie.domain.ai.SemanticInferenceRequest
 import com.micrantha.eyespie.domain.ai.SemanticInferenceUnavailableException
 import com.micrantha.eyespie.domain.ai.UnsupportedSemanticCapabilityException
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.toList
@@ -117,6 +118,21 @@ class GenAISemanticInferenceProviderTest {
     }
 
     @Test
+    fun `runtime cancellation propagates while session cleanup still runs`() = runTest {
+        val genAI = FakeGenAI().apply {
+            generateFailure = CancellationException("cancelled")
+        }
+        val provider = provider(genAI, available())
+
+        assertFailsWith<CancellationException> {
+            provider.generate(SemanticInferenceRequest(prompt = "make a clue"))
+        }
+
+        assertEquals(1, genAI.closeCount)
+        assertEquals(null, genAI.currentSession)
+    }
+
+    @Test
     fun `image input is converted only to a local file uri for the runtime adapter`() = runTest {
         val genAI = FakeGenAI()
         val provider = provider(genAI, available(imageInput = true))
@@ -138,8 +154,9 @@ class GenAISemanticInferenceProviderTest {
         provider.markInitializing()
         assertIs<SemanticInferenceAvailability.Initializing>(provider.availability.value)
 
-        provider.markAvailable(available().capabilities)
-        assertIs<SemanticInferenceAvailability.Available>(provider.availability.value)
+        provider.markAvailable(available(cancellation = true).capabilities)
+        val available = assertIs<SemanticInferenceAvailability.Available>(provider.availability.value)
+        assertTrue(available.capabilities.supports(SemanticInferenceCapability.CANCELLATION))
 
         provider.markFailed("model_init_failed")
         val failed = assertIs<SemanticInferenceAvailability.Failed>(provider.availability.value)
@@ -161,17 +178,20 @@ class GenAISemanticInferenceProviderTest {
     private fun available(
         imageInput: Boolean = false,
         streaming: Boolean = true,
+        cancellation: Boolean = false,
     ) = SemanticInferenceAvailability.Available(
         SemanticInferenceCapabilities(
             textGeneration = true,
             imageInput = imageInput,
             streaming = streaming,
+            cancellation = cancellation,
             maxContextTokens = 1024,
         )
     )
 
     private class FakeGenAI : GenAI {
         var newSessionResult: Result<Unit> = Result.success(Unit)
+        var generateFailure: Throwable? = null
         var newSessionCount = 0
         var generateCount = 0
         var closeCount = 0
@@ -189,6 +209,7 @@ class GenAISemanticInferenceProviderTest {
         }
 
         override fun generate(request: GenAIRequest): Result<String> {
+            generateFailure?.let { throw it }
             generateCount += 1
             requests += request
             currentSession?.let(generationSessions::add)
