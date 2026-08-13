@@ -10,18 +10,21 @@ enum class SemanticInferenceCapability {
     TEXT_GENERATION,
     IMAGE_INPUT,
     STREAMING,
+    CANCELLATION,
 }
 
 data class SemanticInferenceCapabilities(
     val textGeneration: Boolean,
     val imageInput: Boolean,
     val streaming: Boolean,
+    val cancellation: Boolean,
     val maxContextTokens: Int? = null,
 ) {
     fun supports(capability: SemanticInferenceCapability) = when (capability) {
         SemanticInferenceCapability.TEXT_GENERATION -> textGeneration
         SemanticInferenceCapability.IMAGE_INPUT -> imageInput
         SemanticInferenceCapability.STREAMING -> streaming
+        SemanticInferenceCapability.CANCELLATION -> cancellation
     }
 }
 
@@ -50,13 +53,19 @@ data class SemanticInferenceRequest(
     val images: List<SemanticImageInput> = emptyList(),
 )
 
+/**
+ * Application-owned semantic inference boundary.
+ *
+ * Each generation call represents one logical request. Implementations must not retain hidden
+ * prompt or image context across calls unless a future explicit context-sharing contract permits it.
+ */
 interface SemanticInferenceProvider {
     val identity: SemanticInferenceIdentity
     val availability: StateFlow<SemanticInferenceAvailability>
 
     suspend fun generate(request: SemanticInferenceRequest): Result<String>
     fun generateFlow(request: SemanticInferenceRequest): Flow<String>
-    fun cancel()
+    fun cancel(): Result<Unit>
     fun close()
 }
 
