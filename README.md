@@ -1,7 +1,7 @@
 # EyesPie
 
 ![Version](https://img.shields.io/badge/version-0.1.0-blue.svg?cacheSeconds=2592000)
-[![License: GPLv3](https://img.shields.io/badge/License-GPLv3-yellow.svg)](https://www.gnu.org/licenses/gpl-3.0.en.html)
+[![License: MPL-2.0](https://img.shields.io/badge/License-MPL--2.0-brightgreen.svg)](LICENSE)
 [![Kotlin](https://img.shields.io/badge/Kotlin-1.9.21-purple.svg)](https://kotlinlang.org)
 [![Compose](https://img.shields.io/badge/Compose-1.5.11-blue.svg)](https://www.jetbrains.com/compose/)
 
@@ -401,7 +401,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for detailed contribution guidelines.
 
 Copyright © 2023 [Ryan Jennings](https://github.com/ryjen).
 
-This project is [GPLv3](https://www.gnu.org/licenses/gpl-3.0.en.html) licensed. Please send me any changes you make.
+EyesPie is licensed under the [Mozilla Public License 2.0](LICENSE) (`MPL-2.0`).
 
 ## Support
 
