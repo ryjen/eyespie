@@ -3,6 +3,7 @@ package com.micrantha.eyespie.platform.scan
 import com.benasher44.uuid.uuid4
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.sync.Mutex
@@ -164,8 +165,12 @@ internal class IosCameraCaptureController(
         return try {
             store.persist(image)
         } finally {
-            stateMutex.withLock {
-                captureInFlight = false
+            // Cancellation must not strand the capture gate. Mutex.lock is cancellable, so perform
+            // the bounded state cleanup in NonCancellable before propagating cancellation.
+            withContext(NonCancellable) {
+                stateMutex.withLock {
+                    captureInFlight = false
+                }
             }
         }
     }
