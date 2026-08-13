@@ -63,12 +63,12 @@ actual class PlatformGenAI(
 
     override fun newSession(config: GenAIConfig.Session): Result<Unit> = try {
         this.llm ?: throw NotInitializedException()
-        sessionConfig = config
 
         // Validate that the configured session can be constructed, then discard it. Public
         // inference calls create a fresh session so independent Eyespie operations share no
         // prompt or image history.
         createSession(config).close()
+        sessionConfig = config
         Result.success(Unit)
     } catch (err: Throwable) {
         Result.failure(err)
@@ -114,10 +114,13 @@ actual class PlatformGenAI(
         val response = operationSession?.generateResponseAsync(listener)
             ?: (llm ?: throw NotInitializedException()).generateResponseAsync(request.prompt, listener)
 
-        response.await()
-
-        awaitClose {
-            response.cancel(true)
+        try {
+            response.await()
+            awaitClose {
+                response.cancel(true)
+                operationSession?.let(::closeOperationSession)
+            }
+        } finally {
             operationSession?.let(::closeOperationSession)
         }
     }
@@ -159,8 +162,8 @@ actual class PlatformGenAI(
     }
 
     private fun closeOperationSession(operationSession: LlmInferenceSession) {
-        operationSession.close()
         if (activeSession === operationSession) {
+            operationSession.close()
             activeSession = null
         }
     }
