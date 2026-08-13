@@ -38,13 +38,14 @@ set -euo pipefail
 repo_root="${SRCROOT}/.."
 model_name="mobilenet_v3_small_100_224_embedder.tflite"
 resource_root="${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}"
-mapfile -d '' matches < <(find "$resource_root" -type f -name "$model_name" -print0)
-if (( ${#matches[@]} != 1 )); then
-  printf 'error: expected exactly one packaged image embedder, found %d\n' "${#matches[@]}" >&2
-  printf 'candidate: %s\n' "${matches[@]:-none}" >&2
+match_count="$(find "$resource_root" -type f -name "$model_name" -print | wc -l | tr -d ' ')"
+if [[ "$match_count" != "1" ]]; then
+  printf 'error: expected exactly one packaged image embedder, found %s\n' "$match_count" >&2
+  find "$resource_root" -type f -name "$model_name" -print >&2 || true
   exit 1
 fi
-python3 "$repo_root/scripts/stage_image_embedder_model.py" verify-file "${matches[0]}"
+model_path="$(find "$resource_root" -type f -name "$model_name" -print -quit)"
+python3 "$repo_root/scripts/stage_image_embedder_model.py" verify-file "$model_path"
 SCRIPT
       user_target.project.save
     end
