@@ -1,7 +1,9 @@
 package com.micrantha.eyespie.features.scan
 
+import com.micrantha.eyespie.features.scan.data.CaptureFileStore
 import com.micrantha.eyespie.features.scan.data.CaptureSyncRepository
 import com.micrantha.eyespie.features.scan.data.CaptureSyncDataRepository
+import com.micrantha.eyespie.features.scan.data.OkioCaptureFileStore
 import com.micrantha.eyespie.features.scan.data.source.CaptureSyncSource
 import com.micrantha.eyespie.features.scan.data.source.SqlCaptureSyncSource
 import com.micrantha.eyespie.features.scan.entities.ScanEditParams
@@ -26,10 +28,8 @@ import org.kodein.di.DI
 import org.kodein.di.bindFactory
 import org.kodein.di.bindProvider
 import org.kodein.di.bindProviderOf
-import org.kodein.di.bindSingleton
 import org.kodein.di.bindSingletonOf
 import org.kodein.di.delegate
-import org.kodein.di.instance
 
 
 internal fun module() = DI.Module("Scan") {
@@ -40,6 +40,8 @@ internal fun module() = DI.Module("Scan") {
     delegate<UploadCaptureUseCase>().to<UploadCaptureUseCaseImpl>()
     bindSingletonOf(::CaptureSyncDataRepository)
     delegate<CaptureSyncRepository>().to<CaptureSyncDataRepository>()
+    bindSingletonOf(::OkioCaptureFileStore)
+    delegate<CaptureFileStore>().to<OkioCaptureFileStore>()
     bindProvider<ImageEmbeddingGenerator> { platformImageEmbeddingGenerator(di) }
     bindProviderOf(::MatchCaptureUseCase)
     bindProviderOf(::LoadImageUseCase)
