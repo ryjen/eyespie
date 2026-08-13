@@ -7,10 +7,12 @@ interface CaptureFileStore {
     fun delete(path: Path): Result<Unit>
 }
 
-internal class OkioCaptureFileStore : CaptureFileStore {
+internal class OkioCaptureFileStore(
+    private val fileSystem: FileSystem = FileSystem.SYSTEM,
+) : CaptureFileStore {
     override fun delete(path: Path): Result<Unit> = runCatching {
-        if (FileSystem.SYSTEM.metadataOrNull(path) != null) {
-            FileSystem.SYSTEM.delete(path)
+        if (fileSystem.metadataOrNull(path) != null) {
+            fileSystem.delete(path)
         }
     }
 }
