@@ -68,16 +68,25 @@ internal class GenAISemanticInferenceProvider(
     override fun close() {
         genAI.cancel()
         genAI.close()
+        state.value = SemanticInferenceAvailability.Unavailable(PROVIDER_CLOSED)
     }
 
-    override fun markNotConfigured() { state.value = SemanticInferenceAvailability.NotConfigured }
-    override fun markInitializing() { state.value = SemanticInferenceAvailability.Initializing }
+    override fun markNotConfigured() {
+        state.value = SemanticInferenceAvailability.NotConfigured
+    }
+
+    override fun markInitializing() {
+        state.value = SemanticInferenceAvailability.Initializing
+    }
+
     override fun markAvailable(capabilities: SemanticInferenceCapabilities) {
         state.value = SemanticInferenceAvailability.Available(capabilities)
     }
+
     override fun markUnavailable(reasonCode: String) {
         state.value = SemanticInferenceAvailability.Unavailable(reasonCode)
     }
+
     override fun markFailed(diagnosticCode: String) {
         state.value = SemanticInferenceAvailability.Failed(diagnosticCode)
     }
@@ -86,16 +95,24 @@ internal class GenAISemanticInferenceProvider(
         val current = state.value
         val capabilities = (current as? SemanticInferenceAvailability.Available)?.capabilities
             ?: return Result.failure(SemanticInferenceUnavailableException(current))
-        if (request.prompt.isBlank()) return Result.failure(InvalidSemanticInferenceRequestException())
-        unsupported(capabilities, SemanticInferenceCapability.TEXT_GENERATION)?.let { return Result.failure(it) }
+        if (request.prompt.isBlank()) {
+            return Result.failure(InvalidSemanticInferenceRequestException())
+        }
+        unsupported(capabilities, SemanticInferenceCapability.TEXT_GENERATION)?.let {
+            return Result.failure(it)
+        }
         if (request.images.isNotEmpty()) {
-            unsupported(capabilities, SemanticInferenceCapability.IMAGE_INPUT)?.let { return Result.failure(it) }
+            unsupported(capabilities, SemanticInferenceCapability.IMAGE_INPUT)?.let {
+                return Result.failure(it)
+            }
             if (request.images.any { !it.localPath.isAbsolute }) {
                 return Result.failure(InvalidSemanticInferenceRequestException())
             }
         }
         if (streaming) {
-            unsupported(capabilities, SemanticInferenceCapability.STREAMING)?.let { return Result.failure(it) }
+            unsupported(capabilities, SemanticInferenceCapability.STREAMING)?.let {
+                return Result.failure(it)
+            }
         }
         return Result.success(Unit)
     }
@@ -131,5 +148,9 @@ internal class GenAISemanticInferenceProvider(
                 }
             }
         }
+    }
+
+    private companion object {
+        const val PROVIDER_CLOSED = "provider_closed"
     }
 }
