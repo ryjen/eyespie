@@ -2,6 +2,8 @@ package com.micrantha.eyespie.features.scan.data
 
 import com.micrantha.bluebell.platform.ConnectivityStatus
 import com.micrantha.eyespie.domain.entities.AiProof
+import com.micrantha.eyespie.domain.entities.Embedding
+import com.micrantha.eyespie.domain.entities.EmbeddingMetadata
 import com.micrantha.eyespie.domain.entities.Location
 import com.micrantha.eyespie.domain.entities.Proof
 import com.micrantha.eyespie.features.scan.data.source.CaptureSyncSource
@@ -15,7 +17,6 @@ import kotlinx.coroutines.flow.onEach
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import kotlinx.serialization.json.Json
-import okio.ByteString.Companion.toByteString
 import okio.Path.Companion.toPath
 
 interface CaptureSyncRepository {
@@ -63,12 +64,13 @@ class CaptureSyncDataRepository(
     private suspend fun sync() {
         source.getAll().onSuccess { pending ->
             pending.forEach { item ->
+                val embedding = decodeEmbedding(item.embedding, item.embedding_model_id)
                 val proof = Proof(
                     clues = item.clues?.let { json.decodeFromString<AiProof>(it) },
                     location = if (item.latitude != null && item.longitude != null) {
                         Location(point = Location.Point(item.latitude, item.longitude))
                     } else null,
-                    embedding = item.embedding?.toByteString() ?: okio.ByteString.EMPTY
+                    embedding = embedding,
                 )
                 uploadUseCase(proof, item.image_path.toPath()).onSuccess {
                     source.remove(item.id)
@@ -76,5 +78,13 @@ class CaptureSyncDataRepository(
                 }
             }
         }
+    }
+
+    private fun decodeEmbedding(bytes: ByteArray?, metadataId: String?): Embedding? = when {
+        bytes == null && metadataId == null -> null
+        bytes != null && metadataId != null -> runCatching {
+            Embedding.fromByteArray(EmbeddingMetadata.parse(metadataId), bytes)
+        }.getOrNull()
+        else -> null
     }
 }
