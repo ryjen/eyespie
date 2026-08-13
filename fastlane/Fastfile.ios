@@ -3,8 +3,14 @@ fastlane_require 'semantic/core_ext'
 
 platform :ios do
   repo_root = File.expand_path('..', __dir__)
+  model_build_lanes = [:verify, :build_release, :build_debug, :distribute_staging, :distribute_development].freeze
 
   before_all do |lane|
+    if model_build_lanes.include?(lane)
+      Dir.chdir(repo_root) do
+        sh("python3 scripts/stage_image_embedder_model.py stage --target ios")
+      end
+    end
     xcversion(version: "~> 15.0") unless lane == :verify
   end
 
