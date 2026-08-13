@@ -101,6 +101,22 @@ class GenAISemanticInferenceProviderTest {
     }
 
     @Test
+    fun `failed session creation is cleaned up and does not delegate generation`() = runTest {
+        val genAI = FakeGenAI().apply {
+            newSessionResult = Result.failure(IllegalStateException("session failed"))
+        }
+        val provider = provider(genAI, available())
+
+        val result = provider.generate(SemanticInferenceRequest(prompt = "make a clue"))
+
+        assertTrue(result.isFailure)
+        assertEquals(1, genAI.newSessionCount)
+        assertEquals(0, genAI.generateCount)
+        assertEquals(1, genAI.closeCount)
+        assertEquals(null, genAI.currentSession)
+    }
+
+    @Test
     fun `image input is converted only to a local file uri for the runtime adapter`() = runTest {
         val genAI = FakeGenAI()
         val provider = provider(genAI, available(imageInput = true))
@@ -155,6 +171,7 @@ class GenAISemanticInferenceProviderTest {
     )
 
     private class FakeGenAI : GenAI {
+        var newSessionResult: Result<Unit> = Result.success(Unit)
         var newSessionCount = 0
         var generateCount = 0
         var closeCount = 0
@@ -168,7 +185,7 @@ class GenAISemanticInferenceProviderTest {
         override fun newSession(config: GenAIConfig.Session): Result<Unit> {
             newSessionCount += 1
             currentSession = newSessionCount
-            return Result.success(Unit)
+            return newSessionResult
         }
 
         override fun generate(request: GenAIRequest): Result<String> {
