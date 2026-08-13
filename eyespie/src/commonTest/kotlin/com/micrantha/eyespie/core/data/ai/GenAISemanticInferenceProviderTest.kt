@@ -181,7 +181,7 @@ class GenAISemanticInferenceProviderTest {
         val error = assertFailsWith<CancellationException> {
             provider.generateFlow(SemanticInferenceRequest(prompt = "make a clue")).toList()
         }
-        assertEquals(cancellation, error)
+        assertEquals("stream cancelled", error.message)
         assertEquals(1, genAI.closeCount)
     }
 
