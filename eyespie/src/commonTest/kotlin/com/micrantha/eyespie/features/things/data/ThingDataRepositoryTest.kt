@@ -1,6 +1,11 @@
 package com.micrantha.eyespie.features.things.data
 
 import com.micrantha.eyespie.core.data.system.mapping.LocationDomainMapper
+import com.micrantha.eyespie.domain.entities.ALPHA_EMBEDDING_DIMENSIONS
+import com.micrantha.eyespie.domain.entities.Embedding
+import com.micrantha.eyespie.domain.entities.EmbeddingMetadata
+import com.micrantha.eyespie.domain.entities.EmbeddingNormalization
+import com.micrantha.eyespie.domain.entities.EmbeddingSimilarity
 import com.micrantha.eyespie.features.things.data.mapping.ThingsDomainMapper
 import com.micrantha.eyespie.features.things.data.model.MatchRequest
 import com.micrantha.eyespie.features.things.data.model.MatchResponse
@@ -13,7 +18,6 @@ import com.micrantha.eyespie.features.things.data.source.ThingsLocalSource
 import com.micrantha.eyespie.features.things.data.source.ThingsRemoteSource
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.runTest
-import okio.ByteString.Companion.toByteString
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -64,16 +68,56 @@ class ThingDataRepositoryTest {
     }
 
     @Test
-    fun `match should return local results first`() = runTest {
-        val embedding = byteArrayOf(1, 1, 1, 1, 2, 2, 2, 2).toByteString()
-        val localThings = listOf(ThingData(id = "1", imageUrl = "", createdBy = "u1", embedding = embedding.hex()))
-        localSource.things = localThings
-        
+    fun `match should return compatible local results first`() = runTest {
+        val embedding = testEmbedding(METADATA, 1f)
+        localSource.things = listOf(
+            ThingData(
+                id = "1",
+                imageUrl = "",
+                createdBy = "u1",
+                embedding = embedding.toPgVector(),
+                embeddingModelId = embedding.metadata.persistenceId,
+            )
+        )
+
         val results = repository.match(embedding).toList()
-        
+
         assertTrue(results.any { it.isSuccess })
         val matchResult = results.first { it.isSuccess }.getOrThrow()
         assertEquals(1, matchResult.size)
         assertEquals("1", matchResult.first().id)
+    }
+
+    @Test
+    fun `match ignores same-dimension vectors from another model`() = runTest {
+        val embedding = testEmbedding(METADATA, 1f)
+        val other = testEmbedding(METADATA.copy(modelId = "test:model:v2"), 1f)
+        localSource.things = listOf(
+            ThingData(
+                id = "1",
+                imageUrl = "",
+                createdBy = "u1",
+                embedding = other.toPgVector(),
+                embeddingModelId = other.metadata.persistenceId,
+            )
+        )
+
+        val firstResult = repository.match(embedding).toList().first().getOrThrow()
+
+        assertTrue(firstResult.isEmpty())
+    }
+
+    private fun testEmbedding(metadata: EmbeddingMetadata, first: Float): Embedding = Embedding.of(
+        metadata,
+        List(ALPHA_EMBEDDING_DIMENSIONS) { index -> if (index == 0) first else 0f },
+    )
+
+    private companion object {
+        val METADATA = EmbeddingMetadata(
+            modelId = "test:model:v1",
+            dimensions = ALPHA_EMBEDDING_DIMENSIONS,
+            normalization = EmbeddingNormalization.ModelDefined,
+            similarity = EmbeddingSimilarity.Cosine,
+        )
     }
 }
