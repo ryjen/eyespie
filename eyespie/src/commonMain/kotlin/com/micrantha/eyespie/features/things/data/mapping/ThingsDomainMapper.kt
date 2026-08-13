@@ -2,10 +2,10 @@ package com.micrantha.eyespie.features.things.data.mapping
 
 import com.micrantha.eyespie.core.data.system.mapping.LocationDomainMapper
 import com.micrantha.eyespie.domain.entities.Embedding
+import com.micrantha.eyespie.domain.entities.EmbeddingMetadata
 import com.micrantha.eyespie.domain.entities.Location.Point
 import com.micrantha.eyespie.domain.entities.Proof
 import com.micrantha.eyespie.domain.entities.Thing
-import com.micrantha.eyespie.domain.entities.floats
 import com.micrantha.eyespie.features.players.domain.entities.Player
 import com.micrantha.eyespie.features.things.data.model.MatchRequest
 import com.micrantha.eyespie.features.things.data.model.MatchResponse
@@ -13,9 +13,6 @@ import com.micrantha.eyespie.features.things.data.model.NearbyRequest
 import com.micrantha.eyespie.features.things.data.model.ThingListing
 import com.micrantha.eyespie.features.things.data.model.ThingRequest
 import com.micrantha.eyespie.features.things.data.model.ThingResponse
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.decodeFromJsonElement
-import okio.ByteString.Companion.decodeHex
 import kotlin.time.Clock.System
 import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
@@ -27,13 +24,18 @@ class ThingsDomainMapper(
     val matchCount: Int = 5
 ) {
 
-    fun new(proof: Proof, imageUrl: String, playerId: String) =
-        ThingRequest(
+    fun new(proof: Proof, imageUrl: String, playerId: String): ThingRequest {
+        val embedding = requireNotNull(proof.embedding) {
+            "thing creation requires a validated embedding"
+        }
+        return ThingRequest(
             imageUrl = imageUrl,
             createdBy = playerId,
             location = proof.location.toString(),
-            embedding = proof.embedding.floats().joinToString(prefix = "[", postfix = "]", separator = ",")
+            embedding = embedding.toPgVector(),
+            embeddingModelId = embedding.metadata.persistenceId,
         )
+    }
 
     fun map(thing: Thing) = ThingRequest(
         id = thing.id,
@@ -41,7 +43,8 @@ class ThingsDomainMapper(
         imageUrl = thing.imageUrl,
         createdBy = thing.createdBy.id,
         location = thing.location.toString(),
-        embedding = thing.embedding?.floats()?.joinToString(prefix = "[", postfix = "]", separator = ",")
+        embedding = thing.embedding?.toPgVector(),
+        embeddingModelId = thing.embedding?.metadata?.persistenceId,
     )
 
     fun map(data: ThingResponse): Thing {
@@ -58,13 +61,7 @@ class ThingsDomainMapper(
             ),
             guesses = emptyList(),
             location = point,
-            embedding = data.embedding?.let { hex ->
-                try {
-                    hex.decodeHex()
-                } catch (_: Throwable) {
-                    null
-                }
-            }
+            embedding = decodeEmbedding(data),
         )
     }
 
@@ -82,17 +79,23 @@ class ThingsDomainMapper(
         distance = distance
     )
 
-    fun match(embedding: Embedding): MatchRequest {
-        return MatchRequest(
-            embedding = embedding.floats(),
-            threshold = matchThreshold,
-            count = matchCount,
-        )
-    }
+    fun match(embedding: Embedding): MatchRequest = MatchRequest(
+        embedding = embedding.values,
+        embeddingModelId = embedding.metadata.persistenceId,
+        threshold = matchThreshold,
+        count = matchCount,
+    )
 
     fun match(data: MatchResponse) = Thing.Match(
         id = data.id,
-        embedding = Json.decodeFromJsonElement(data.content),
         similarity = data.similarity
     )
+
+    fun decodeEmbedding(data: ThingResponse): Embedding? {
+        val encoded = data.embedding ?: return null
+        val metadataId = data.embeddingModelId ?: return null
+        return runCatching {
+            Embedding.fromPgVector(EmbeddingMetadata.parse(metadataId), encoded)
+        }.getOrNull()
+    }
 }
