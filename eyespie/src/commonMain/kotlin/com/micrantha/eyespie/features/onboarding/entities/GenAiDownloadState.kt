@@ -18,6 +18,7 @@ data class GenAiDownloadUiState(
 sealed interface GenAiDownloadAction {
     data object Init : GenAiDownloadAction
     data class Download(val name: String, val model: AiModel) : GenAiDownloadAction
+    data object Verified : GenAiDownloadAction
     data class Error(val cause: Throwable) : GenAiDownloadAction
     data object Done : GenAiDownloadAction
 }
