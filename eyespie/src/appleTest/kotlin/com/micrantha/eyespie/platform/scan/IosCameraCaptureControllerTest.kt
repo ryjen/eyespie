@@ -4,7 +4,6 @@ import androidx.compose.ui.graphics.ImageBitmap
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.async
 import kotlinx.coroutines.test.runTest
-import okio.FileSystem
 import okio.Path
 import okio.Path.Companion.toPath
 import okio.fakefilesystem.FakeFileSystem
@@ -18,13 +17,19 @@ import kotlin.test.assertTrue
 class IosCameraCaptureControllerTest {
 
     @Test
+    fun captureBeforeStoragePreparationFailsDeterministically() = runTest {
+        val controller = IosCameraCaptureController(successfulStore())
+        controller.updateFrame(FakeCameraImage(byteArrayOf(1)))
+
+        val result = controller.capture()
+
+        assertCaptureFailure(result, IosCameraCaptureFailure.NotReady)
+    }
+
+    @Test
     fun captureBeforeFirstFrameFailsDeterministically() = runTest {
-        val controller = IosCameraCaptureController(
-            store = object : IosCameraCaptureStoreContract {
-                override suspend fun prepare() = Result.success(Unit)
-                override suspend fun persist(image: CameraImage) = Result.success("/capture.png".toPath())
-            }
-        )
+        val controller = IosCameraCaptureController(successfulStore())
+        assertTrue(controller.prepare().isSuccess)
 
         val result = controller.capture()
 
@@ -117,6 +122,7 @@ class IosCameraCaptureControllerTest {
             }
         }
         val controller = IosCameraCaptureController(store)
+        assertTrue(controller.prepare().isSuccess)
         controller.updateFrame(FakeCameraImage(byteArrayOf(1)))
 
         val first = async { controller.capture() }
@@ -126,6 +132,11 @@ class IosCameraCaptureControllerTest {
 
         assertCaptureFailure(second, IosCameraCaptureFailure.CaptureInProgress)
         assertEquals("/capture.png".toPath(), first.await().getOrThrow())
+    }
+
+    private fun successfulStore() = object : IosCameraCaptureStoreContract {
+        override suspend fun prepare() = Result.success(Unit)
+        override suspend fun persist(image: CameraImage) = Result.success("/capture.png".toPath())
     }
 
     private fun assertCaptureFailure(result: Result<*>, failure: IosCameraCaptureFailure) {
