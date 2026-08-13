@@ -94,15 +94,15 @@ The decision must therefore be based on Eyespie workloads and physical-device ev
 
 ### Alternative D: Maintain current state / defer
 
-Keep current Android MediaPipe GenAI, explicit iOS manual fallback, and make no new runtime investment until after alpha.
+Keep current Android MediaPipe GenAI and make no new runtime investment until after alpha. The current iOS path does **not** yet have manual clue authoring: iOS GenAI is unsupported and the scan/edit flow currently only retries generation. Deferral is therefore viable only if #13 first delivers the required manual clue + expected-answer fallback on both platforms.
 
-This is responsible if GenAI remains optional and manual clue authoring satisfies alpha. It becomes unacceptable if post-alpha product goals require symmetric offline semantic reasoning or if the current ~584 MB model/runtime path materially harms installability, performance, or supportability.
+With that fallback implemented, deferral is responsible if GenAI remains optional and manual clue authoring satisfies alpha. It becomes unacceptable if the fallback is not delivered, if post-alpha product goals require symmetric offline semantic reasoning, or if the current ~584 MB model/runtime path materially harms installability, performance, or supportability.
 
 ## Comparison
 
 | Criterion | MediaPipe GenAI only | llama.cpp only | Bounded hybrid/evaluation | Defer |
 | --- | --- | --- | --- | --- |
-| Outcome fit | Good on current Android; uncertain iOS | Potentially strong cross-platform | Strongest evidence path | Sufficient for manual-fallback alpha |
+| Outcome fit | Good on current Android; uncertain iOS | Potentially strong cross-platform | Strongest evidence path | Insufficient today; viable for alpha only after #13 manual fallback |
 | Security and governance | Existing controls, vendor-runtime verification needed | New native/model surface, controllable locality | Contract can enforce policy uniformly | Lowest new surface |
 | Reliability and recovery | Partly known Android behavior | Unknown until spike | Best comparative evidence | Current known asymmetry remains |
 | Operability and ownership | MediaPipe upgrade coupling | llama.cpp + GGUF ownership | Temporary highest cost, then converge | Lowest immediate cost |
