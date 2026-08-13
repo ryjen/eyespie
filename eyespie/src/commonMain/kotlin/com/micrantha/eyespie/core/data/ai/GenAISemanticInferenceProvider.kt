@@ -39,8 +39,16 @@ internal class GenAISemanticInferenceProvider(
         var result: Result<String> = Result.failure(IllegalStateException("generation not started"))
         var cleanupFailure: Throwable? = null
         try {
-            genAI.newSession(sessionConfig).failureOrCancellation()?.let { return@withLock Result.failure(it) }
-            result = genAI.generate(request.toGenAIRequest()).also { it.failureOrCancellation() }
+            unavailableFailure()?.let { result = Result.failure(it) } ?: run {
+                val sessionFailure = genAI.newSession(sessionConfig).failureOrCancellation()
+                if (sessionFailure != null) {
+                    result = Result.failure(sessionFailure)
+                } else {
+                    unavailableFailure()?.let { result = Result.failure(it) } ?: run {
+                        result = genAI.generate(request.toGenAIRequest()).also { it.failureOrCancellation() }
+                    }
+                }
+            }
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (error: Throwable) {
@@ -57,19 +65,52 @@ internal class GenAISemanticInferenceProvider(
     override fun generateFlow(request: SemanticInferenceRequest): Flow<String> = flow {
         generationMutex.withLock {
             validate(request, true).getOrThrow()
+            var primaryFailure: Throwable? = null
             try {
+                unavailableFailure()?.let { throw it }
                 genAI.newSession(sessionConfig).getOrThrow()
+                unavailableFailure()?.let { throw it }
                 emitAll(genAI.generateFlow(request.toGenAIRequest()))
-            } finally { genAI.close() }
+            } catch (error: Throwable) {
+                primaryFailure = error
+                throw error
+            } finally {
+                try {
+                    genAI.close()
+                } catch (cleanup: Throwable) {
+                    if (primaryFailure == null) throw cleanup
+                }
+            }
         }
     }
 
     override fun cancel() = genAI.cancel()
-    override fun close() {
-        genAI.cancel()
-        genAI.close()
+
+    override suspend fun close() {
         state.value = SemanticInferenceAvailability.Unavailable(PROVIDER_CLOSED)
+        var cancelFailure: Throwable? = null
+        try {
+            genAI.cancel()
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (error: Throwable) {
+            cancelFailure = error
+        }
+
+        var closeFailure: Throwable? = null
+        generationMutex.withLock {
+            try {
+                genAI.close()
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Throwable) {
+                closeFailure = error
+            }
+        }
+        cancelFailure?.let { throw it }
+        closeFailure?.let { throw it }
     }
+
     override fun markNotConfigured() { state.value = SemanticInferenceAvailability.NotConfigured }
     override fun markInitializing() { state.value = SemanticInferenceAvailability.Initializing }
     override fun markAvailable(capabilities: SemanticInferenceCapabilities) {
@@ -83,9 +124,8 @@ internal class GenAISemanticInferenceProvider(
     }
 
     private fun validate(request: SemanticInferenceRequest, streaming: Boolean): Result<Unit> {
-        val current = state.value
-        val capabilities = (current as? SemanticInferenceAvailability.Available)?.capabilities
-            ?: return Result.failure(SemanticInferenceUnavailableException(current))
+        val capabilities = (state.value as? SemanticInferenceAvailability.Available)?.capabilities
+            ?: return Result.failure(SemanticInferenceUnavailableException(state.value))
         if (request.prompt.isBlank()) return Result.failure(InvalidSemanticInferenceRequestException())
         unsupported(capabilities, SemanticInferenceCapability.TEXT_GENERATION)?.let { return Result.failure(it) }
         if (request.images.isNotEmpty()) {
@@ -96,6 +136,12 @@ internal class GenAISemanticInferenceProvider(
         }
         if (streaming) unsupported(capabilities, SemanticInferenceCapability.STREAMING)?.let { return Result.failure(it) }
         return Result.success(Unit)
+    }
+
+    private fun unavailableFailure(): SemanticInferenceUnavailableException? {
+        val current = state.value
+        return if (current is SemanticInferenceAvailability.Available) null
+        else SemanticInferenceUnavailableException(current)
     }
 
     private fun validImage(path: Path): Boolean = try { imageInputValidator(path) }
