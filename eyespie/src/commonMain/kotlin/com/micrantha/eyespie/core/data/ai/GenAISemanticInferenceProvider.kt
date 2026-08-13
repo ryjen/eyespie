@@ -36,8 +36,8 @@ internal class GenAISemanticInferenceProvider(
         generationMutex.withLock {
             try {
                 validate(request, streaming = false)
-                genAI.newSession(sessionConfig).getOrThrow()
                 try {
+                    genAI.newSession(sessionConfig).getOrThrow()
                     genAI.generate(request.toGenAIRequest())
                 } finally {
                     genAI.close()
@@ -50,8 +50,8 @@ internal class GenAISemanticInferenceProvider(
     override fun generateFlow(request: SemanticInferenceRequest): Flow<String> = flow {
         generationMutex.withLock {
             validate(request, streaming = true)
-            genAI.newSession(sessionConfig).getOrThrow()
             try {
+                genAI.newSession(sessionConfig).getOrThrow()
                 emitAll(genAI.generateFlow(request.toGenAIRequest()))
             } finally {
                 genAI.close()
