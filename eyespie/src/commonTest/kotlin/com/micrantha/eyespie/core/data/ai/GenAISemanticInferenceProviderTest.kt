@@ -14,9 +14,12 @@ import com.micrantha.eyespie.domain.ai.SemanticInferenceRequest
 import com.micrantha.eyespie.domain.ai.SemanticInferenceUnavailableException
 import com.micrantha.eyespie.domain.ai.UnsupportedSemanticCapabilityException
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.toList
+import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
 import okio.Path
 import okio.Path.Companion.toPath
@@ -168,6 +171,42 @@ class GenAISemanticInferenceProviderTest {
     }
 
     @Test
+    fun `stream cancellation remains primary when cleanup also fails`() = runTest {
+        val cancellation = CancellationException("stream cancelled")
+        val genAI = FakeGenAI().apply {
+            streamFailure = cancellation
+            closeFailure = IllegalStateException("cleanup failed")
+        }
+        val provider = provider(genAI, available())
+        val error = assertFailsWith<CancellationException> {
+            provider.generateFlow(SemanticInferenceRequest(prompt = "make a clue")).toList()
+        }
+        assertEquals(cancellation, error)
+        assertEquals(1, genAI.closeCount)
+    }
+
+    @Test
+    fun `close serializes with active stream and blocks later generation`() = runTest {
+        val genAI = FakeGenAI().apply { holdStreamUntilCancelled = true }
+        val provider = provider(genAI, available())
+        val collecting = launch {
+            provider.generateFlow(SemanticInferenceRequest(prompt = "make a clue")).toList()
+        }
+        genAI.streamStarted.await()
+
+        provider.close()
+        collecting.join()
+
+        val unavailable = assertIs<SemanticInferenceAvailability.Unavailable>(provider.availability.value)
+        assertEquals("provider_closed", unavailable.reasonCode)
+        assertEquals(1, genAI.cancelCount)
+        assertEquals(2, genAI.closeCount)
+        val result = provider.generate(SemanticInferenceRequest(prompt = "another clue"))
+        assertIs<SemanticInferenceUnavailableException>(result.exceptionOrNull())
+        assertEquals(1, genAI.newSessionCount)
+    }
+
+    @Test
     fun `image input is encoded as a local file URI for the runtime adapter`() = runTest {
         val genAI = FakeGenAI()
         val provider = provider(genAI, available(imageInput = true))
@@ -237,7 +276,11 @@ class GenAISemanticInferenceProviderTest {
     private class FakeGenAI : GenAI {
         var newSessionResult: Result<Unit> = Result.success(Unit)
         var generateResult: Result<String> = Result.success("ok")
+        var streamFailure: Throwable? = null
         var closeFailure: Throwable? = null
+        var holdStreamUntilCancelled = false
+        val streamStarted = CompletableDeferred<Unit>()
+        private val streamCancelled = CompletableDeferred<Unit>()
         var newSessionCount = 0
         var generateCount = 0
         var closeCount = 0
@@ -261,6 +304,12 @@ class GenAISemanticInferenceProviderTest {
         override fun generateFlow(request: GenAIRequest): Flow<String> {
             requests += request
             currentSession?.let(generationSessions::add)
+            streamFailure?.let { failure -> return flow { throw failure } }
+            if (holdStreamUntilCancelled) return flow {
+                streamStarted.complete(Unit)
+                emit("one")
+                streamCancelled.await()
+            }
             return flowOf("one", "two")
         }
         override fun close() {
@@ -268,6 +317,9 @@ class GenAISemanticInferenceProviderTest {
             currentSession = null
             closeFailure?.let { throw it }
         }
-        override fun cancel() { cancelCount += 1 }
+        override fun cancel() {
+            cancelCount += 1
+            streamCancelled.complete(Unit)
+        }
     }
 }
