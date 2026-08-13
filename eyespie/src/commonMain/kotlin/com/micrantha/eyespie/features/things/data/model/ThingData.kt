@@ -13,6 +13,7 @@ data class ThingData(
     val location: String? = null,
     val proof: JsonElement? = null,
     val embedding: String? = null,
+    @SerialName("embedding_model_id") val embeddingModelId: String? = null,
     @SerialName("game_thing") val game: ThingData.GameThing? = null,
 ) {
     override fun equals(other: Any?): Boolean {
