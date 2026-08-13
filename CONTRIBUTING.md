@@ -374,7 +374,7 @@ A clear description of what the bug is.
 Steps to reproduce the behavior:
 1. Go to '...'
 2. Click on '...'
-3. Scroll down to '...'
+3. Scroll down
 4. See error
 
 **Expected behavior**
@@ -460,7 +460,7 @@ Contributors will be recognized in:
 
 ## License
 
-By contributing to EyesPie, you agree that your contributions will be licensed under the GPLv3 License.
+By contributing to EyesPie, you agree that your contributions will be licensed under the Mozilla Public License 2.0 (MPL-2.0). You represent that you have the right to submit the contribution under those terms.
 
 ## Questions?
 
