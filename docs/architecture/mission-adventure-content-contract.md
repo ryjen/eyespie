@@ -25,17 +25,19 @@ These remain valid alpha/runtime concepts. Mission content sits above them rathe
 ```mermaid
 flowchart TD
     M[Mission identity]
-    D[Immutable MissionDefinition version]
+    A[Immutable MissionArtifact]
+    D[MissionDefinition payload]
     P[MissionPublication]
     E[Normalized entitlement]
     S[MissionSession / run]
     G[Existing Game]
     T[Existing Thing / evidence]
 
-    M --> D
+    M --> A
+    A --> D
     M --> P
-    P --> D
-    D --> S
+    P --> A
+    A --> S
     E --> S
     S --> G
     S --> T
@@ -43,21 +45,32 @@ flowchart TD
 
 The important separations are:
 
-- **definition** = immutable authored content;
+- **definition** = canonical immutable authored payload;
+- **artifact** = definition plus external `contentDigest` integrity envelope;
 - **publication** = mutable operational availability/moderation state;
-- **entitlement** = access state owned by #104;
-- **session** = player/group progress pinned to one definition version;
+- **entitlement** = access state owned by ADR-0006/#104;
+- **session** = player/group progress pinned to one artifact version;
 - **Game / Thing** = existing runtime/session/evidence objects used where the mission mode needs them.
 
-## Identity tuple
+## Identity and digest
 
-A cached or active mission version is identified by:
+A cached or active mission artifact is identified by:
 
 ```text
 missionId + contentVersion + contentDigest
 ```
 
-`schemaVersion` describes the contract shape and is validated independently.
+The digest is **not** a field inside the payload it hashes:
+
+```text
+MissionArtifact
+  contentDigest = SHA-256(canonicalize(definition))
+  definition: MissionDefinition
+```
+
+`MissionDefinition` contains `schemaVersion`, `missionId`, `contentVersion`, publisher/content/task/policy fields, but not `contentDigest`.
+
+This avoids a self-referential digest and gives both backend and KMP code one deterministic verification sequence: decode → validate → canonicalize definition → hash → compare envelope digest.
 
 Published definitions are immutable. Any byte/content change creates a new `contentVersion` and digest.
 
@@ -104,18 +117,18 @@ Recommended initial shape:
 
 ```text
 Mission
-MissionVersion       // immutable canonical definition JSON + digest
+MissionVersion       // canonical MissionDefinition payload + separate digest
 MissionPublication   // active version + lifecycle/availability/moderation
 MissionSession       // pinned player/group progress
 ```
 
-Normalize task rows only when query/index/referential requirements justify it. Versioned JSON/JSONB is acceptable for the first immutable definition representation.
+Normalize task rows only when query/index/referential requirements justify it. Versioned JSON/JSONB is acceptable for the first immutable definition payload.
 
 ## Delivery slices
 
-1. **Shared contract + validator** — types, DTOs, canonicalization/digest, typed validation, common tests.
-2. **Persistence + offline cache** — additive backend/client storage keyed by identity tuple; coordinate #16.
-3. **MissionSession integration** — pin runtime version; map to `Game`/`Thing` deliberately rather than replacing them.
-4. **Publishing + safety lifecycle** — publisher authorization, draft/review/publish/pause/retire, emergency safety pause with #107.
+1. **#108 Shared contract + validator** — MissionDefinition/MissionArtifact DTOs, canonicalization/digest, typed validation, common tests.
+2. **#109 Persistence + offline cache** — additive backend/client storage keyed by mission/version/digest; coordinate #16.
+3. **#110 MissionSession integration** — pin runtime artifact identity; map to `Game`/`Thing` deliberately rather than replacing them.
+4. **#111 Publishing + safety lifecycle** — publisher authorization, draft/review/publish/pause/retire, emergency safety pause with #107.
 
 All slices are post-alpha and remain non-blocking for #90.
