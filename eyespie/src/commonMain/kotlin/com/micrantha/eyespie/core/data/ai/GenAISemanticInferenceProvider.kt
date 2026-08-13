@@ -27,86 +27,57 @@ internal class GenAISemanticInferenceProvider(
     private val genAI: GenAI,
     override val identity: SemanticInferenceIdentity,
     private val sessionConfig: GenAIConfig.Session,
+    private val imageInputValidator: (Path) -> Boolean,
     initialAvailability: SemanticInferenceAvailability = SemanticInferenceAvailability.NotConfigured,
 ) : SemanticInferenceProvider, SemanticInferenceAvailabilityController {
     private val state = MutableStateFlow(initialAvailability)
     private val generationMutex = Mutex()
-
     override val availability = state.asStateFlow()
 
-    override suspend fun generate(request: SemanticInferenceRequest): Result<String> =
-        generationMutex.withLock {
-            validate(request, streaming = false).exceptionOrNull()?.let {
-                return@withLock Result.failure(it)
-            }
-
-            var result: Result<String> = Result.failure(IllegalStateException("generation not started"))
-            var cleanupFailure: Throwable? = null
-            try {
-                genAI.newSession(sessionConfig).failureOrCancellation()?.let {
-                    return@withLock Result.failure(it)
-                }
-                result = genAI.generate(request.toGenAIRequest()).also { generationResult ->
-                    generationResult.failureOrCancellation()
-                }
-            } catch (cancelled: CancellationException) {
-                throw cancelled
-            } catch (error: Throwable) {
-                result = Result.failure(error)
-            } finally {
-                try {
-                    genAI.close()
-                } catch (cancelled: CancellationException) {
-                    throw cancelled
-                } catch (error: Throwable) {
-                    cleanupFailure = error
-                }
-            }
-
-            cleanupFailure?.let { cleanupError ->
-                if (result.isSuccess) {
-                    return@withLock Result.failure(cleanupError)
-                }
-            }
-            result
+    override suspend fun generate(request: SemanticInferenceRequest): Result<String> = generationMutex.withLock {
+        validate(request, false).exceptionOrNull()?.let { return@withLock Result.failure(it) }
+        var result: Result<String> = Result.failure(IllegalStateException("generation not started"))
+        var cleanupFailure: Throwable? = null
+        try {
+            genAI.newSession(sessionConfig).failureOrCancellation()?.let { return@withLock Result.failure(it) }
+            result = genAI.generate(request.toGenAIRequest()).also { it.failureOrCancellation() }
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (error: Throwable) {
+            result = Result.failure(error)
+        } finally {
+            try { genAI.close() }
+            catch (cancelled: CancellationException) { throw cancelled }
+            catch (error: Throwable) { cleanupFailure = error }
         }
+        cleanupFailure?.let { if (result.isSuccess) return@withLock Result.failure(it) }
+        result
+    }
 
     override fun generateFlow(request: SemanticInferenceRequest): Flow<String> = flow {
         generationMutex.withLock {
-            validate(request, streaming = true).getOrThrow()
+            validate(request, true).getOrThrow()
             try {
                 genAI.newSession(sessionConfig).getOrThrow()
                 emitAll(genAI.generateFlow(request.toGenAIRequest()))
-            } finally {
-                genAI.close()
-            }
+            } finally { genAI.close() }
         }
     }
 
     override fun cancel() = genAI.cancel()
-
     override fun close() {
         genAI.cancel()
         genAI.close()
         state.value = SemanticInferenceAvailability.Unavailable(PROVIDER_CLOSED)
     }
-
-    override fun markNotConfigured() {
-        state.value = SemanticInferenceAvailability.NotConfigured
-    }
-
-    override fun markInitializing() {
-        state.value = SemanticInferenceAvailability.Initializing
-    }
-
+    override fun markNotConfigured() { state.value = SemanticInferenceAvailability.NotConfigured }
+    override fun markInitializing() { state.value = SemanticInferenceAvailability.Initializing }
     override fun markAvailable(capabilities: SemanticInferenceCapabilities) {
         state.value = SemanticInferenceAvailability.Available(capabilities)
     }
-
     override fun markUnavailable(reasonCode: String) {
         state.value = SemanticInferenceAvailability.Unavailable(reasonCode)
     }
-
     override fun markFailed(diagnosticCode: String) {
         state.value = SemanticInferenceAvailability.Failed(diagnosticCode)
     }
@@ -115,32 +86,23 @@ internal class GenAISemanticInferenceProvider(
         val current = state.value
         val capabilities = (current as? SemanticInferenceAvailability.Available)?.capabilities
             ?: return Result.failure(SemanticInferenceUnavailableException(current))
-        if (request.prompt.isBlank()) {
-            return Result.failure(InvalidSemanticInferenceRequestException())
-        }
-        unsupported(capabilities, SemanticInferenceCapability.TEXT_GENERATION)?.let {
-            return Result.failure(it)
-        }
+        if (request.prompt.isBlank()) return Result.failure(InvalidSemanticInferenceRequestException())
+        unsupported(capabilities, SemanticInferenceCapability.TEXT_GENERATION)?.let { return Result.failure(it) }
         if (request.images.isNotEmpty()) {
-            unsupported(capabilities, SemanticInferenceCapability.IMAGE_INPUT)?.let {
-                return Result.failure(it)
-            }
-            if (request.images.any { !it.localPath.isAbsolute }) {
+            unsupported(capabilities, SemanticInferenceCapability.IMAGE_INPUT)?.let { return Result.failure(it) }
+            if (request.images.any { !it.localPath.isAbsolute || !validImage(it.localPath) }) {
                 return Result.failure(InvalidSemanticInferenceRequestException())
             }
         }
-        if (streaming) {
-            unsupported(capabilities, SemanticInferenceCapability.STREAMING)?.let {
-                return Result.failure(it)
-            }
-        }
+        if (streaming) unsupported(capabilities, SemanticInferenceCapability.STREAMING)?.let { return Result.failure(it) }
         return Result.success(Unit)
     }
 
-    private fun unsupported(
-        capabilities: SemanticInferenceCapabilities,
-        capability: SemanticInferenceCapability,
-    ): UnsupportedSemanticCapabilityException? =
+    private fun validImage(path: Path): Boolean = try { imageInputValidator(path) }
+    catch (cancelled: CancellationException) { throw cancelled }
+    catch (_: Throwable) { false }
+
+    private fun unsupported(capabilities: SemanticInferenceCapabilities, capability: SemanticInferenceCapability) =
         if (capabilities.supports(capability)) null else UnsupportedSemanticCapabilityException(capability)
 
     private fun <T> Result<T>.failureOrCancellation(): Throwable? = exceptionOrNull()?.also {
@@ -151,9 +113,7 @@ internal class GenAISemanticInferenceProvider(
         prompt = prompt,
         images = images.map { it.localPath.asFileUri() },
     )
-
     private fun Path.asFileUri(): String = "file://" + toString().encodePathForUri()
-
     private fun String.encodePathForUri(): String {
         val digits = "0123456789ABCDEF"
         return buildString {
@@ -162,15 +122,10 @@ internal class GenAISemanticInferenceProvider(
                 val safe = value in 48..57 || value in 65..90 || value in 97..122 ||
                     value == 45 || value == 46 || value == 95 || value == 126 || value == 47
                 if (safe) append(value.toChar()) else {
-                    append('%')
-                    append(digits[value ushr 4])
-                    append(digits[value and 15])
+                    append('%'); append(digits[value ushr 4]); append(digits[value and 15])
                 }
             }
         }
     }
-
-    private companion object {
-        const val PROVIDER_CLOSED = "provider_closed"
-    }
+    private companion object { const val PROVIDER_CLOSED = "provider_closed" }
 }
