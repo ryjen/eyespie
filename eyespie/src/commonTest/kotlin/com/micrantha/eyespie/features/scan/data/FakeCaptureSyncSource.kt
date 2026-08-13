@@ -21,7 +21,8 @@ class FakeCaptureSyncSource(
             latitude = proof.location?.point?.latitude,
             longitude = proof.location?.point?.longitude,
             clues = proof.clues?.let { json.encodeToString<AiProof>(it) },
-            embedding = proof.embedding.toByteArray(),
+            embedding = proof.embedding?.toByteArray(),
+            embedding_model_id = proof.embedding?.metadata?.persistenceId,
             created_at = ""
         ))
         return Result.success(Unit)
