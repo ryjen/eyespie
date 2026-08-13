@@ -7,8 +7,10 @@ tool_dir="build/tools"
 report_dir="build/reports/android-bundle"
 model_name="mobilenet_v3_small_100_224_embedder.tflite"
 model_entry="base/assets/${model_name}"
+staged_model="eyespie/src/androidMain/assets/${model_name}"
 
 python3 scripts/stage_image_embedder_model.py stage --target android
+printf 'IMAGE_EMBEDDER_BYTES=%s\n' "$(wc -c < "$staged_model" | tr -d ' ')"
 
 ./gradlew \
   :app:bundleDebug \
