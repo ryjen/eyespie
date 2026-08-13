@@ -29,7 +29,7 @@ kotlin {
         name = "eyespie"
         summary = "Native dependencies for eyespie"
         homepage = "https://github.com/ryjen/eyespie"
-        license = "GPLv3"
+        license = "MPL-2.0"
         ios.deploymentTarget = "15.0"
         podfile = project.file("../iosApp/Podfile")
         extraSpecAttributes["libraries"] = "'c++', 'sqlite3'"
