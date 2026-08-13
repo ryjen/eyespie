@@ -14,6 +14,7 @@ import com.micrantha.eyespie.features.onboarding.entities.AiModel
 import com.micrantha.eyespie.features.onboarding.ui.OnboardingScreen
 import com.micrantha.eyespie.features.onboarding.ui.genai.GenAIDownloadScreen
 import com.micrantha.eyespie.features.onboarding.usecase.LoadModelConfig
+import com.micrantha.eyespie.features.onboarding.usecase.ModelIntegrityVerifier
 import com.micrantha.eyespie.features.players.domain.entities.Player
 import com.micrantha.eyespie.features.players.domain.repository.FakePlayerRepository
 import com.micrantha.eyespie.features.players.domain.usecase.LoadSessionPlayerUseCase
@@ -21,6 +22,7 @@ import com.micrantha.eyespie.features.players.ui.create.NewPlayerScreen
 import com.micrantha.eyespie.features.scan.data.FakeCaptureSyncRepository
 import kotlinx.coroutines.test.runTest
 import okio.Path.Companion.toPath
+import okio.fakefilesystem.FakeFileSystem
 import org.kodein.di.DI
 import org.kodein.di.bindProvider
 import kotlin.test.Test
@@ -68,7 +70,14 @@ class LoadMainUseCaseTest {
         override fun fileWrite(path: okio.Path, data: ByteArray) = Unit
         override fun fileRead(path: okio.Path) = byteArrayOf()
     }
-    private val initGenAIUseCase = InitGenAIUseCase(llm, onboardingRepository, loadModelConfig, platform)
+    private val modelIntegrityVerifier = ModelIntegrityVerifier(FakeFileSystem())
+    private val initGenAIUseCase = InitGenAIUseCase(
+        llm,
+        onboardingRepository,
+        loadModelConfig,
+        platform,
+        modelIntegrityVerifier,
+    )
     private val captureSyncRepository = FakeCaptureSyncRepository()
 
     private val useCase = LoadMainUseCaseImpl(
