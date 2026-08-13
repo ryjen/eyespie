@@ -5,13 +5,11 @@ import com.micrantha.eyespie.domain.entities.Location.Point
 import com.micrantha.eyespie.domain.entities.Proof
 import com.micrantha.eyespie.domain.entities.Thing
 import com.micrantha.eyespie.domain.entities.ThingMatches
-import com.micrantha.eyespie.domain.entities.cosineSimilarity
 import com.micrantha.eyespie.features.things.data.mapping.ThingsDomainMapper
 import com.micrantha.eyespie.features.things.data.source.ThingsLocalSource
 import com.micrantha.eyespie.features.things.data.source.ThingsRemoteSource
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
-import okio.ByteString.Companion.decodeHex
 import com.micrantha.eyespie.domain.repository.ThingRepository as DomainRepository
 
 internal class ThingDataRepository(
@@ -50,7 +48,9 @@ internal class ThingDataRepository(
         imageUrl: String,
         playerID: String,
     ): Result<Thing> =
-        remoteSource.save(mapper.new(proof, imageUrl, playerID)).map(mapper::map)
+        runCatching { mapper.new(proof, imageUrl, playerID) }
+            .mapCatching { remoteSource.save(it).getOrThrow() }
+            .map(mapper::map)
 
     override fun nearby(
         location: Point,
@@ -70,17 +70,15 @@ internal class ThingDataRepository(
     override fun match(embedding: Embedding): Flow<Result<ThingMatches>> = flow {
         val localThings = localSource.getAll().getOrDefault(emptyList())
         val localMatches = localThings.mapNotNull { thing ->
-            thing.embedding?.let { hex ->
-                try {
-                    val thingEmbedding = hex.decodeHex()
-                    val similarity = embedding.cosineSimilarity(thingEmbedding)
-                    if (similarity >= mapper.matchThreshold) {
-                        Thing.Match(thing.id!!, thingEmbedding, similarity)
-                    } else null
-                } catch (_: Throwable) {
+            val thingEmbedding = mapper.decodeEmbedding(thing) ?: return@mapNotNull null
+            runCatching {
+                val similarity = embedding.cosineSimilarity(thingEmbedding)
+                if (similarity >= mapper.matchThreshold) {
+                    Thing.Match(thing.id!!, similarity)
+                } else {
                     null
                 }
-            }
+            }.getOrNull()
         }.sortedByDescending { it.similarity }.take(mapper.matchCount)
 
         emit(Result.success(localMatches))
