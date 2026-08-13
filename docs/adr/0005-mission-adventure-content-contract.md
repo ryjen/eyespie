@@ -478,7 +478,7 @@ Validation returns typed failures/stable diagnostics rather than UI exceptions o
 - Verification/scoring profiles are allowlisted application/backend policy.
 - Safety/moderation lifecycle is server-authoritative for public/commercial publication.
 - Exact location is sensitive and minimized/disclosed according to mission policy.
-- A digest detects content mismatch/corruption; it does not prevent a modified GPL client from bypassing client-side checks and is not DRM.
+- A digest detects content mismatch/corruption; it does not prevent a modified client from bypassing client-side checks and is not DRM.
 - Protected/paid content authority therefore relies on backend authorization/content-delivery boundaries where needed, while the client digest protects correctness of official artifact handling.
 
 ## Consequences
