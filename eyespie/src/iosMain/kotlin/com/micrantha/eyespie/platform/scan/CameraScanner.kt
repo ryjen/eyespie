@@ -7,7 +7,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Rect
 import androidx.compose.ui.graphics.toSkiaRect
 import androidx.compose.ui.interop.UIKitView
-import co.touchlab.stately.freeze
 import com.micrantha.eyespie.platform.asException
 import kotlinx.cinterop.BetaInteropApi
 import kotlinx.cinterop.CValue
@@ -29,7 +28,6 @@ import platform.AVFoundation.AVCaptureOutput
 import platform.AVFoundation.AVCaptureSession
 import platform.AVFoundation.AVCaptureVideoDataOutput
 import platform.AVFoundation.AVCaptureVideoDataOutputSampleBufferDelegateProtocol
-import platform.AVFoundation.AVCaptureVideoOrientation
 import platform.AVFoundation.AVCaptureVideoOrientationLandscapeLeft
 import platform.AVFoundation.AVCaptureVideoOrientationLandscapeRight
 import platform.AVFoundation.AVCaptureVideoOrientationPortrait
@@ -40,6 +38,8 @@ import platform.AVFoundation.AVMediaTypeVideo
 import platform.CoreGraphics.CGRect
 import platform.CoreMedia.CMSampleBufferGetImageBuffer
 import platform.CoreMedia.CMSampleBufferRef
+import platform.CoreVideo.CVPixelBufferRelease
+import platform.CoreVideo.CVPixelBufferRetain
 import platform.CoreVideo.kCVPixelBufferPixelFormatTypeKey
 import platform.CoreVideo.kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange
 import platform.Foundation.NSError
@@ -52,7 +52,6 @@ import platform.QuartzCore.kCATransactionDisableActions
 import platform.UIKit.UIView
 import platform.darwin.NSObject
 import platform.darwin.dispatch_async
-import platform.darwin.dispatch_get_main_queue
 import platform.darwin.dispatch_queue_create
 import org.jetbrains.skia.Rect as RectF
 
@@ -116,35 +115,46 @@ class CameraStream(
     private var cameraPreviewLayer: AVCaptureVideoPreviewLayer? = null
     private val dispatchQueue by lazy { dispatch_queue_create("videoDataOutputQueue", null) }
 
+    // AVCapture invokes this delegate on dispatchQueue. Keep only one native frame conversion in
+    // flight; later frames are dropped until the retained producer buffer has been copied.
+    private var frameInFlight = false
+
     override fun captureOutput(
         output: AVCaptureOutput,
         didOutputSampleBuffer: CMSampleBufferRef?,
         fromConnection: AVCaptureConnection
     ) {
-        didOutputSampleBuffer.image(fromConnection.videoOrientation)?.let { image ->
-            dispatch_async(dispatch_get_main_queue()) {
-                scope.launch {
-                    try {
-                        onCameraImage(image)
-                    } catch (err: Throwable) {
-                        onCameraError(err)
-                    }
+        if (frameInFlight) return
+
+        val pixelBuffer = CMSampleBufferGetImageBuffer(didOutputSampleBuffer) ?: return
+        val orientation = when (fromConnection.videoOrientation) {
+            AVCaptureVideoOrientationPortraitUpsideDown -> kCGImagePropertyOrientationDown
+            AVCaptureVideoOrientationLandscapeLeft -> kCGImagePropertyOrientationLeft
+            AVCaptureVideoOrientationLandscapeRight -> kCGImagePropertyOrientationRight
+            else -> kCGImagePropertyOrientationUp
+        }
+
+        // CoreMedia owns the sample-buffer image. Retain it only until the worker has copied the
+        // pixels into a Kotlin-owned BGRA frame; queued application consumers never see this ref.
+        CVPixelBufferRetain(pixelBuffer)
+        frameInFlight = true
+
+        scope.launch {
+            try {
+                val image = try {
+                    copyCameraImage(pixelBuffer, orientation)
+                } finally {
+                    CVPixelBufferRelease(pixelBuffer)
+                }
+                onCameraImage(image)
+            } catch (err: Throwable) {
+                onCameraError(err)
+            } finally {
+                dispatch_async(dispatchQueue) {
+                    frameInFlight = false
                 }
             }
         }
-    }
-
-    private fun CMSampleBufferRef?.image(orientation: AVCaptureVideoOrientation): CameraImage? {
-        val pixelBuffer = CMSampleBufferGetImageBuffer(this) ?: return null
-        pixelBuffer.freeze()
-        return PlatformCameraImage(
-            pixelBuffer, when (orientation) {
-                AVCaptureVideoOrientationPortraitUpsideDown -> kCGImagePropertyOrientationDown
-                AVCaptureVideoOrientationLandscapeLeft -> kCGImagePropertyOrientationLeft
-                AVCaptureVideoOrientationLandscapeRight -> kCGImagePropertyOrientationRight
-                else -> kCGImagePropertyOrientationUp
-            }
-        )
     }
 
     fun resize(view: UIView, rect: CValue<CGRect>) {

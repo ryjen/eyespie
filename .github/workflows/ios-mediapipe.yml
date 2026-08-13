@@ -6,6 +6,14 @@ on:
     paths:
       - "eyespie/build.gradle.kts"
       - "eyespie/eyespie.podspec"
+      - "eyespie/src/commonMain/**"
+      - "eyespie/src/commonTest/**"
+      - "eyespie/src/iosMain/**"
+      - "eyespie/src/appleTest/**"
+      - "bluebell/src/commonMain/**"
+      - "bluebell/src/commonTest/**"
+      - "bluebell/src/iosMain/**"
+      - "bluebell/src/appleTest/**"
       - "gradle/libs.versions.toml"
       - "iosApp/**"
       - ".github/workflows/ios-mediapipe.yml"
@@ -204,7 +212,7 @@ jobs:
               done
           exit "$status"
 
-      - name: Compile Kotlin for iOS simulator
+      - name: Compile Kotlin and Apple tests for iOS simulator
         shell: bash
         run: |
           set -o pipefail
