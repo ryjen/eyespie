@@ -2,6 +2,12 @@ platform :ios, '15.0'
 
 source 'https://cdn.cocoapods.org'
 
+repo_root = File.expand_path('..', __dir__)
+model_stager = File.join(repo_root, 'scripts', 'stage_image_embedder_model.py')
+unless system('python3', model_stager, 'stage', '--target', 'ios')
+  raise 'Failed to stage the pinned Eyespie image-embedder model'
+end
+
 target 'iosApp' do
   use_frameworks! :linkage => :static
 
@@ -13,4 +19,34 @@ target 'iosApp' do
   pod 'EyespieImageEmbedderModel', :path => 'ModelArtifacts'
 
   pod 'eyespie', :path => '../eyespie'
+end
+
+post_install do |installer|
+  installer.aggregate_targets.each do |aggregate_target|
+    aggregate_target.user_targets.each do |user_target|
+      next unless user_target.name == 'iosApp'
+
+      phase_name = 'Verify Eyespie Image Embedder Model'
+      user_target.shell_script_build_phases
+        .select { |phase| phase.name == phase_name }
+        .each { |phase| user_target.build_phases.delete(phase) }
+
+      phase = user_target.new_shell_script_build_phase(phase_name)
+      phase.shell_path = '/bin/bash'
+      phase.shell_script = <<-'SCRIPT'
+set -euo pipefail
+repo_root="${SRCROOT}/.."
+model_name="mobilenet_v3_small_100_224_embedder.tflite"
+resource_root="${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}"
+mapfile -d '' matches < <(find "$resource_root" -type f -name "$model_name" -print0)
+if (( ${#matches[@]} != 1 )); then
+  printf 'error: expected exactly one packaged image embedder, found %d\n' "${#matches[@]}" >&2
+  printf 'candidate: %s\n' "${matches[@]:-none}" >&2
+  exit 1
+fi
+python3 "$repo_root/scripts/stage_image_embedder_model.py" verify-file "${matches[0]}"
+SCRIPT
+      user_target.project.save
+    end
+  end
 end
