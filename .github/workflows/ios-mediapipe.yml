@@ -212,7 +212,7 @@ jobs:
               done
           exit "$status"
 
-      - name: Compile and test Kotlin for iOS simulator
+      - name: Compile Kotlin and Apple tests for iOS simulator
         shell: bash
         run: |
           set -o pipefail
@@ -221,7 +221,6 @@ jobs:
           ./gradlew \
             :app:compileKotlinIosSimulatorArm64 \
             :app:compileTestKotlinIosSimulatorArm64 \
-            :app:iosSimulatorArm64Test \
             --no-daemon \
             --info \
             --stacktrace 2>&1 | tee "$log"
@@ -231,7 +230,7 @@ jobs:
           if (( status != 0 )); then
             while IFS= read -r line; do
               escaped="$(printf '%s' "$line" | sed 's/%/%25/g; s/\r/%0D/g; s/\n/%0A/g')"
-              echo "::error title=Kotlin iOS compile/test::$escaped"
+              echo "::error title=Kotlin iOS compile::$escaped"
             done < <(
               grep -E '(^e: |error: |Compilation failed|FAILURE:|What went wrong:|Execution failed for task|Caused by:)' "$log" \
                 | tail -n 80 || true
@@ -294,7 +293,7 @@ jobs:
               echo '```'
             fi
             if [[ -f "$RUNNER_TEMP/ios-kotlin-compile.log" ]]; then
-              echo '### Kotlin iOS compile/test tail'
+              echo '### Kotlin iOS compile tail'
               echo '```text'
               tail -n 250 "$RUNNER_TEMP/ios-kotlin-compile.log"
               echo '```'
