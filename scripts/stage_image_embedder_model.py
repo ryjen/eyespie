@@ -15,6 +15,7 @@ import os
 import re
 import shutil
 import tempfile
+import urllib.error
 import urllib.parse
 import urllib.request
 from dataclasses import dataclass
@@ -92,7 +93,10 @@ def validate_source_url(url: str) -> None:
         raise ModelArtifactError("source URL must be a string")
 
     parsed = urllib.parse.urlparse(url)
-    query = urllib.parse.parse_qs(parsed.query, strict_parsing=True)
+    try:
+        query = urllib.parse.parse_qs(parsed.query, strict_parsing=True)
+    except ValueError as exc:
+        raise ModelArtifactError("model source query is malformed") from exc
     generation = query.get("generation", [])
 
     if parsed.scheme != "https":
@@ -194,6 +198,8 @@ def main() -> int:
     parser.add_argument("--manifest", type=Path, default=DEFAULT_MANIFEST)
     subparsers = parser.add_subparsers(dest="command", required=True)
 
+    subparsers.add_parser("validate-manifest", help="validate provenance metadata")
+
     stage = subparsers.add_parser("stage", help="stage verified model bytes")
     stage.add_argument("--target", choices=("android", "ios", "all"), required=True)
     stage.add_argument("--source-file", type=Path)
@@ -207,7 +213,9 @@ def main() -> int:
     args = parser.parse_args()
     try:
         manifest = load_manifest(args.manifest)
-        if args.command == "stage":
+        if args.command == "validate-manifest":
+            print(f"validated model manifest: {args.manifest}")
+        elif args.command == "stage":
             targets = selected_targets(args.target)
             first_staged: Path | None = args.source_file
             for target in targets:
