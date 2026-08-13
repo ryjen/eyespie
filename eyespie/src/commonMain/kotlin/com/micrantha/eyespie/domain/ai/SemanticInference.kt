@@ -17,7 +17,7 @@ data class SemanticInferenceCapabilities(
     val textGeneration: Boolean,
     val imageInput: Boolean,
     val streaming: Boolean,
-    val cancellation: Boolean,
+    val cancellation: Boolean = false,
     val maxContextTokens: Int? = null,
 ) {
     fun supports(capability: SemanticInferenceCapability) = when (capability) {
@@ -65,7 +65,7 @@ interface SemanticInferenceProvider {
 
     suspend fun generate(request: SemanticInferenceRequest): Result<String>
     fun generateFlow(request: SemanticInferenceRequest): Flow<String>
-    fun cancel(): Result<Unit>
+    fun cancel()
     fun close()
 }
 
