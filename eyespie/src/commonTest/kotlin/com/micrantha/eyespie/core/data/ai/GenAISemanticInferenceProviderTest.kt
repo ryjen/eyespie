@@ -4,6 +4,7 @@ import com.micrantha.bluebell.platform.GenAI
 import com.micrantha.bluebell.platform.GenAIConfig
 import com.micrantha.bluebell.platform.GenAIRequest
 import com.micrantha.eyespie.domain.ai.InferenceLocality
+import com.micrantha.eyespie.domain.ai.InvalidSemanticInferenceRequestException
 import com.micrantha.eyespie.domain.ai.SemanticImageInput
 import com.micrantha.eyespie.domain.ai.SemanticInferenceAvailability
 import com.micrantha.eyespie.domain.ai.SemanticInferenceCapabilities
@@ -74,6 +75,23 @@ class GenAISemanticInferenceProviderTest {
     }
 
     @Test
+    fun `relative image path fails closed before opening a runtime session`() = runTest {
+        val genAI = FakeGenAI()
+        val provider = provider(genAI, available(imageInput = true))
+
+        val result = provider.generate(
+            SemanticInferenceRequest(
+                prompt = "make a clue",
+                images = listOf(SemanticImageInput("relative/frame.jpg".toPath())),
+            )
+        )
+
+        assertIs<InvalidSemanticInferenceRequestException>(result.exceptionOrNull())
+        assertEquals(0, genAI.newSessionCount)
+        assertEquals(0, genAI.generateCount)
+    }
+
+    @Test
     fun `streaming request rejects provider without streaming capability`() = runTest {
         val genAI = FakeGenAI()
         val provider = provider(genAI, available(streaming = false))
@@ -118,9 +136,9 @@ class GenAISemanticInferenceProviderTest {
     }
 
     @Test
-    fun `runtime cancellation propagates while session cleanup still runs`() = runTest {
+    fun `runtime cancellation returned as failure propagates while session cleanup still runs`() = runTest {
         val genAI = FakeGenAI().apply {
-            generateFailure = CancellationException("cancelled")
+            generateResult = Result.failure(CancellationException("cancelled"))
         }
         val provider = provider(genAI, available())
 
@@ -133,18 +151,21 @@ class GenAISemanticInferenceProviderTest {
     }
 
     @Test
-    fun `image input is converted only to a local file uri for the runtime adapter`() = runTest {
+    fun `image input is encoded as a local file URI for the runtime adapter`() = runTest {
         val genAI = FakeGenAI()
         val provider = provider(genAI, available(imageInput = true))
 
         provider.generate(
             SemanticInferenceRequest(
                 prompt = "make a clue",
-                images = listOf(SemanticImageInput("/tmp/frame.jpg".toPath())),
+                images = listOf(SemanticImageInput("/tmp/frame #1?.jpg".toPath())),
             )
         ).getOrThrow()
 
-        assertEquals(listOf("file:///tmp/frame.jpg"), genAI.requests.single().images)
+        assertEquals(
+            listOf("file:///tmp/frame%20%231%3F.jpg"),
+            genAI.requests.single().images,
+        )
     }
 
     @Test
@@ -191,7 +212,7 @@ class GenAISemanticInferenceProviderTest {
 
     private class FakeGenAI : GenAI {
         var newSessionResult: Result<Unit> = Result.success(Unit)
-        var generateFailure: Throwable? = null
+        var generateResult: Result<String> = Result.success("ok")
         var newSessionCount = 0
         var generateCount = 0
         var closeCount = 0
@@ -209,11 +230,10 @@ class GenAISemanticInferenceProviderTest {
         }
 
         override fun generate(request: GenAIRequest): Result<String> {
-            generateFailure?.let { throw it }
             generateCount += 1
             requests += request
             currentSession?.let(generationSessions::add)
-            return Result.success("ok")
+            return generateResult
         }
 
         override fun generateFlow(request: GenAIRequest): Flow<String> {
