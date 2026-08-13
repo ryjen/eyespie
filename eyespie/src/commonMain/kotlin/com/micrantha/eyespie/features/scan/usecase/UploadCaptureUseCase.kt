@@ -42,6 +42,7 @@ class UploadCaptureUseCaseImpl(
         val imageData = withContext(Dispatchers.IO) {
             fileSystem.fileRead(image)
         }
+        val imageExtension = imageData.captureImageExtension()
 
         val cameraImage = loadCameraImageUseCase(image).getOrThrow()
         val embedding = imageEmbeddingGenerator.generate(cameraImage)
@@ -49,7 +50,7 @@ class UploadCaptureUseCaseImpl(
         val imageID = Uuid.random().toString()
 
         storageRepository.upload(
-            "${playerID}/${imageID}.jpg",
+            "${playerID}/${imageID}.${imageExtension}",
             imageData
         ).map { url ->
             thingRepository.create(
@@ -60,3 +61,17 @@ class UploadCaptureUseCaseImpl(
         }.getOrThrow()
     }
 }
+
+internal fun ByteArray.captureImageExtension(): String = when {
+    hasPrefix(PNG_SIGNATURE) -> "png"
+    hasPrefix(JPEG_SIGNATURE) -> "jpg"
+    else -> throw IllegalArgumentException("unsupported capture image encoding")
+}
+
+private fun ByteArray.hasPrefix(prefix: ByteArray): Boolean =
+    size >= prefix.size && prefix.indices.all { this[it] == prefix[it] }
+
+private val PNG_SIGNATURE = byteArrayOf(
+    0x89.toByte(), 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A,
+)
+private val JPEG_SIGNATURE = byteArrayOf(0xFF.toByte(), 0xD8.toByte(), 0xFF.toByte())

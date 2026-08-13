@@ -33,6 +33,19 @@ For the configured bi-planar video-range YUV input:
 - PNG encoding is lazy and operates only on owned Kotlin memory;
 - encoded PNG bytes preserve the cross-platform `CameraImage.toByteArray()` contract used by capture persistence.
 
+### iOS still-image capture
+
+The still-capture path consumes only the application-owned `CameraImage` described above. It never retains a `CMSampleBuffer` or `CVPixelBuffer`.
+
+- `IosCameraCaptureController` keeps one most-recent owned frame and serializes explicit capture actions.
+- Temporary-storage preparation is serialized before persistence so stale-file cleanup cannot race a new capture.
+- PNG encoding and filesystem writes execute off the main/UI and AVCapture delegate queues.
+- Captures are written under a dedicated system-temporary `eyespie-camera-captures` directory.
+- Entering a new capture surface prunes stale files left by prior completed or abandoned capture flows.
+- After a successful `Path` callback, ownership of that active temporary file transfers to the downstream `ScanEdit` flow; composable disposal during navigation must not delete it prematurely.
+- Upload object names are derived from the encoded image signature (`.png` or `.jpg`) rather than assuming JPEG, so the stored object identity matches the bytes.
+- Capture/preparation/encoding/storage failures use bounded diagnostic categories and flow through the existing camera error path.
+
 ## Remaining release validation
 
-This ownership contract still requires sustained physical-device scanning on Android and iOS as part of the closed-alpha device proof. The separate iOS still-image capture path is tracked by #97 and must not be treated as implemented by this change.
+This ownership contract still requires sustained physical-device scanning on Android and iOS as part of the closed-alpha device proof. iOS still capture additionally requires physical-device proof for preview → capture → persisted image → downstream challenge flow and repeated capture sessions without unbounded temporary-file growth.

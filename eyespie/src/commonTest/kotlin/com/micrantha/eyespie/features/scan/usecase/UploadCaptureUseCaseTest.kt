@@ -17,6 +17,7 @@ import okio.Path
 import okio.Path.Companion.toPath
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
@@ -29,7 +30,7 @@ class UploadCaptureUseCaseTest {
     private val fileSystem = object : FileSystem {
         override fun filesPath(): Path = "/".toPath()
         override fun sharedFilesPath(): Path = "/".toPath()
-        override fun fileRead(path: Path): ByteArray = byteArrayOf(1, 2, 3)
+        override fun fileRead(path: Path): ByteArray = PNG_BYTES
         override fun fileWrite(path: Path, data: ByteArray) = Unit
     }
     private val session = CurrentSession
@@ -55,18 +56,39 @@ class UploadCaptureUseCaseTest {
     )
 
     @Test
-    fun `should upload image and create thing`() = runTest {
+    fun `should upload image with its actual format and create thing`() = runTest {
         val player = Player("p1", Instant.parse("2023-01-01T00:00:00Z"), Player.Name("f", "l", "n"), "e", Player.Score(0))
         session.update(Session("a", "r", "u", "s"))
         session.update(player)
 
         val result = useCase(
             proof = Proof(clues = setOf(AiClue("clue", 0.9f, "answer")), location = null),
-            image = "/test.jpg".toPath()
+            image = "/test.png".toPath()
         )
 
         assertTrue(result.isSuccess)
         assertEquals(1, thingRepository.things.size)
-        assertTrue(thingRepository.things.first().imageUrl.startsWith("http://fakeurl/p1/"))
+        assertTrue(thingRepository.things.first().imageUrl.matches(Regex("http://fakeurl/p1/.+\\.png")))
+        assertEquals(1, storageRepository.storage.size)
+        assertTrue(storageRepository.storage.keys.single().endsWith(".png"))
+    }
+
+    @Test
+    fun `capture format detection supports PNG and JPEG`() {
+        assertEquals("png", PNG_BYTES.captureImageExtension())
+        assertEquals("jpg", byteArrayOf(0xFF.toByte(), 0xD8.toByte(), 0xFF.toByte(), 0x00).captureImageExtension())
+    }
+
+    @Test
+    fun `capture format detection rejects unknown bytes`() {
+        assertFailsWith<IllegalArgumentException> {
+            byteArrayOf(1, 2, 3).captureImageExtension()
+        }
+    }
+
+    private companion object {
+        val PNG_BYTES = byteArrayOf(
+            0x89.toByte(), 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A, 1, 2, 3,
+        )
     }
 }
