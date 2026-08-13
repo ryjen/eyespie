@@ -53,12 +53,6 @@ data class SemanticInferenceRequest(
     val images: List<SemanticImageInput> = emptyList(),
 )
 
-/**
- * Application-owned semantic inference boundary.
- *
- * Each generation call represents one logical request. Implementations must not retain hidden
- * prompt or image context across calls unless a future explicit context-sharing contract permits it.
- */
 interface SemanticInferenceProvider {
     val identity: SemanticInferenceIdentity
     val availability: StateFlow<SemanticInferenceAvailability>
@@ -66,7 +60,7 @@ interface SemanticInferenceProvider {
     suspend fun generate(request: SemanticInferenceRequest): Result<String>
     fun generateFlow(request: SemanticInferenceRequest): Flow<String>
     fun cancel()
-    fun close()
+    suspend fun close()
 }
 
 interface SemanticInferenceAvailabilityController {
