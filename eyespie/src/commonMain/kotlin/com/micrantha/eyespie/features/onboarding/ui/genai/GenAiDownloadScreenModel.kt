@@ -16,9 +16,11 @@ import com.micrantha.eyespie.features.onboarding.entities.GenAiDownloadAction.Do
 import com.micrantha.eyespie.features.onboarding.entities.GenAiDownloadAction.Download
 import com.micrantha.eyespie.features.onboarding.entities.GenAiDownloadAction.Error
 import com.micrantha.eyespie.features.onboarding.entities.GenAiDownloadAction.Init
+import com.micrantha.eyespie.features.onboarding.entities.GenAiDownloadAction.Verified
 import com.micrantha.eyespie.features.onboarding.entities.GenAiDownloadState
 import com.micrantha.eyespie.features.onboarding.entities.GenAiDownloadUiState
 import com.micrantha.eyespie.features.onboarding.usecase.LoadModelConfig
+import com.micrantha.eyespie.features.onboarding.usecase.ModelIntegrityVerifier
 import kotlin.uuid.ExperimentalUuidApi
 import kotlin.uuid.Uuid
 
@@ -29,6 +31,7 @@ class GenAiDownloadScreenModel(
     private val backgroundDownloader: BackgroundDownloader,
     private val loadModelConfig: LoadModelConfig,
     private val loadMainUseCase: LoadMainUseCase,
+    private val modelIntegrityVerifier: ModelIntegrityVerifier,
 ) : MappedScreenModel<GenAiDownloadState, GenAiDownloadUiState>(
     context,
     GenAiDownloadState(),
@@ -41,9 +44,10 @@ class GenAiDownloadScreenModel(
 
     override fun reduce(state: GenAiDownloadState, action: Action): GenAiDownloadState {
         return when (action) {
-            is DownloadState.Progress -> state.copy(progress = action.progress)
+            is DownloadState.Progress -> state.copy(progress = action.progress.coerceAtMost(99))
             is DownloadState.Started -> state.copy(progress = 0, error = null)
-            is DownloadState.Completed -> state.copy(progress = 100)
+            is DownloadState.Completed -> state.copy(progress = 99)
+            is Verified -> state.copy(progress = 100, error = null)
             is DownloadState.Failed -> state.copy(error = action.throwable ?: action.error)
             is Download -> state.copy(
                 model = action.model,
@@ -69,14 +73,13 @@ class GenAiDownloadScreenModel(
             }
 
             is Download -> {
-                action.model.checksum?.let { checksum ->
-                    val expected = action.model.fileName()
-                    if (!checksum.trim().equals(expected, ignoreCase = true)) {
-                        dispatch(Error(IllegalStateException("invalid checksum")))
-                        return
-                    }
+                val checksumPolicy = modelIntegrityVerifier.validateExpectedChecksum(action.model)
+                if (checksumPolicy.isFailure) {
+                    dispatch(Error(checksumPolicy.exceptionOrNull()!!))
+                    return
                 }
-                val id = action.model.url.hashCode().toLong()
+
+                val id = action.model.id
                 val tag = Uuid.random().toString()
                 val filePath =
                     platform.sharedFilesPath().resolve("${action.model.fileName()}.litertlm")
@@ -90,6 +93,19 @@ class GenAiDownloadScreenModel(
                 backgroundDownloader.observe().filterById(id).collect {
                     dispatch(it)
                 }
+            }
+
+            is DownloadState.Completed -> {
+                val model = state.model
+                if (model == null) {
+                    dispatch(Error(IllegalStateException("download completed without a model")))
+                    return
+                }
+
+                val filePath = platform.sharedFilesPath().resolve("${model.fileName()}.litertlm")
+                modelIntegrityVerifier.verify(model, filePath)
+                    .onSuccess { dispatch(Verified) }
+                    .onFailure { dispatch(Error(it)) }
             }
 
             is Done -> {
