@@ -15,6 +15,7 @@ import com.micrantha.eyespie.features.onboarding.ui.genai.GenAIDownloadScreen
 import com.micrantha.eyespie.features.onboarding.ui.genai.GenAiDownloadScreenModel
 import com.micrantha.eyespie.features.onboarding.usecase.DefaultLoadModelConfig
 import com.micrantha.eyespie.features.onboarding.usecase.LoadModelConfig
+import com.micrantha.eyespie.features.onboarding.usecase.ModelIntegrityVerifier
 import org.kodein.di.DI
 import org.kodein.di.bindProvider
 import org.kodein.di.bindProviderOf
@@ -26,6 +27,7 @@ internal fun onboardingModule() = DI.Module("Onboarding") {
     bindProviderOf(::DataOnboardingRepository)
     delegate<OnboardingRepository>().to<DataOnboardingRepository>()
 
+    bindProvider { ModelIntegrityVerifier() }
     bindProviderOf(::InitGenAIUseCase)
     bindProviderOf(::DefaultLoadModelConfig)
     delegate<LoadModelConfig>().to<DefaultLoadModelConfig>()
@@ -40,5 +42,7 @@ internal fun onboardingModule() = DI.Module("Onboarding") {
     bindProvider { OnboardingScreenModel(get(), get()) }
 
     bindProviderOf(::GenAIDownloadScreen)
-    bindProvider { GenAiDownloadScreenModel(get(), get(), get("onboarding"), get(), get(), get()) }
+    bindProvider {
+        GenAiDownloadScreenModel(get(), get(), get("onboarding"), get(), get(), get(), get())
+    }
 }

@@ -5,12 +5,14 @@ import com.micrantha.bluebell.platform.GenAIConfig
 import com.micrantha.bluebell.platform.Platform
 import com.micrantha.eyespie.features.onboarding.data.OnboardingRepository
 import com.micrantha.eyespie.features.onboarding.usecase.LoadModelConfig
+import com.micrantha.eyespie.features.onboarding.usecase.ModelIntegrityVerifier
 
 class InitGenAIUseCase(
     private val llm: GenAI,
     private val onboardingRepository: OnboardingRepository,
     private val loadModelConfig: LoadModelConfig,
-    private val platform: Platform
+    private val platform: Platform,
+    private val modelIntegrityVerifier: ModelIntegrityVerifier,
 ) {
     suspend operator fun invoke(): Result<Unit> = try {
         if (onboardingRepository.hasGenAI().not()) {
@@ -27,13 +29,7 @@ class InitGenAIUseCase(
                     config[modelName] ?: throw IllegalStateException("no ai model found for $modelName")
 
                 val filePath = platform.sharedFilesPath().resolve("${model.fileName()}.litertlm")
-
-                model.checksum?.let { checksum ->
-                    val expected = model.fileName()
-                    if (!checksum.trim().equals(expected, ignoreCase = true)) {
-                        throw IllegalStateException("invalid checksum")
-                    }
-                }
+                modelIntegrityVerifier.verify(model, filePath).getOrThrow()
 
                 // TODO: all this is remote config
                 llm.initialize(
