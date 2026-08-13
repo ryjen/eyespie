@@ -186,6 +186,22 @@ class GenAISemanticInferenceProviderTest {
         assertEquals(identity, provider.identity)
     }
 
+    @Test
+    fun `close marks provider unavailable and blocks later generation`() = runTest {
+        val genAI = FakeGenAI()
+        val provider = provider(genAI, available())
+
+        provider.close()
+
+        val unavailable = assertIs<SemanticInferenceAvailability.Unavailable>(provider.availability.value)
+        assertEquals("provider_closed", unavailable.reasonCode)
+        val result = provider.generate(SemanticInferenceRequest(prompt = "make a clue"))
+        assertIs<SemanticInferenceUnavailableException>(result.exceptionOrNull())
+        assertEquals(0, genAI.newSessionCount)
+        assertEquals(1, genAI.cancelCount)
+        assertEquals(1, genAI.closeCount)
+    }
+
     private fun provider(
         genAI: FakeGenAI,
         availability: SemanticInferenceAvailability,
