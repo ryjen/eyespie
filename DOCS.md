@@ -118,7 +118,7 @@ eyespie/
 ├── DOCS.md                   # This file
 ├── AGENTS.md                 # AI agent guidelines
 ├── CLAUDE.md                 # Claude-specific guidance
-├── LICENSE                   # GPLv3 license
+├── LICENSE                   # MPL-2.0 license
 ├── design/                   # Design documentation
 │   ├── overview.md
 │   ├── features.md
