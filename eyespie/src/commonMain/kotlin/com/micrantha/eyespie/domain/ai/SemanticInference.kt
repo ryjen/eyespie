@@ -44,9 +44,7 @@ sealed interface SemanticInferenceAvailability {
     data class Failed(val diagnosticCode: String) : SemanticInferenceAvailability
 }
 
-data class SemanticImageInput(
-    val localPath: Path,
-)
+data class SemanticImageInput(val localPath: Path)
 
 data class SemanticInferenceRequest(
     val prompt: String,
@@ -64,20 +62,18 @@ interface SemanticInferenceProvider {
 }
 
 interface SemanticInferenceAvailabilityController {
-    fun markNotConfigured()
-    fun markInitializing()
-    fun markAvailable(capabilities: SemanticInferenceCapabilities)
-    fun markUnavailable(reasonCode: String)
-    fun markFailed(diagnosticCode: String)
+    suspend fun markNotConfigured()
+    suspend fun markInitializing()
+    suspend fun markAvailable(capabilities: SemanticInferenceCapabilities)
+    suspend fun markUnavailable(reasonCode: String)
+    suspend fun markFailed(diagnosticCode: String)
 }
 
-class SemanticInferenceUnavailableException(
-    val state: SemanticInferenceAvailability,
-) : IllegalStateException("semantic inference provider is not available")
+class SemanticInferenceUnavailableException(val state: SemanticInferenceAvailability) :
+    IllegalStateException("semantic inference provider is not available")
 
-class UnsupportedSemanticCapabilityException(
-    val capability: SemanticInferenceCapability,
-) : IllegalArgumentException("semantic inference provider does not support ${capability.name.lowercase()}")
+class UnsupportedSemanticCapabilityException(val capability: SemanticInferenceCapability) :
+    IllegalArgumentException("semantic inference provider does not support ${capability.name.lowercase()}")
 
 class InvalidSemanticInferenceRequestException :
     IllegalArgumentException("semantic inference request is invalid")
