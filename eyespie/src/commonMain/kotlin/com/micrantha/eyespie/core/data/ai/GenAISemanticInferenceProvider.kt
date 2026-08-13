@@ -21,6 +21,7 @@ import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
+import okio.Path
 
 internal class GenAISemanticInferenceProvider(
     private val genAI: GenAI,
@@ -38,7 +39,6 @@ internal class GenAISemanticInferenceProvider(
             validate(request, streaming = false).exceptionOrNull()?.let {
                 return@withLock Result.failure(it)
             }
-
             try {
                 genAI.newSession(sessionConfig).failureOrCancellation()?.let {
                     return@withLock Result.failure(it)
@@ -70,22 +70,14 @@ internal class GenAISemanticInferenceProvider(
         genAI.close()
     }
 
-    override fun markNotConfigured() {
-        state.value = SemanticInferenceAvailability.NotConfigured
-    }
-
-    override fun markInitializing() {
-        state.value = SemanticInferenceAvailability.Initializing
-    }
-
+    override fun markNotConfigured() { state.value = SemanticInferenceAvailability.NotConfigured }
+    override fun markInitializing() { state.value = SemanticInferenceAvailability.Initializing }
     override fun markAvailable(capabilities: SemanticInferenceCapabilities) {
         state.value = SemanticInferenceAvailability.Available(capabilities)
     }
-
     override fun markUnavailable(reasonCode: String) {
         state.value = SemanticInferenceAvailability.Unavailable(reasonCode)
     }
-
     override fun markFailed(diagnosticCode: String) {
         state.value = SemanticInferenceAvailability.Failed(diagnosticCode)
     }
@@ -94,22 +86,16 @@ internal class GenAISemanticInferenceProvider(
         val current = state.value
         val capabilities = (current as? SemanticInferenceAvailability.Available)?.capabilities
             ?: return Result.failure(SemanticInferenceUnavailableException(current))
-
-        if (request.prompt.isBlank()) {
-            return Result.failure(InvalidSemanticInferenceRequestException())
-        }
-        unsupported(capabilities, SemanticInferenceCapability.TEXT_GENERATION)?.let {
-            return Result.failure(it)
-        }
+        if (request.prompt.isBlank()) return Result.failure(InvalidSemanticInferenceRequestException())
+        unsupported(capabilities, SemanticInferenceCapability.TEXT_GENERATION)?.let { return Result.failure(it) }
         if (request.images.isNotEmpty()) {
-            unsupported(capabilities, SemanticInferenceCapability.IMAGE_INPUT)?.let {
-                return Result.failure(it)
+            unsupported(capabilities, SemanticInferenceCapability.IMAGE_INPUT)?.let { return Result.failure(it) }
+            if (request.images.any { !it.localPath.isAbsolute }) {
+                return Result.failure(InvalidSemanticInferenceRequestException())
             }
         }
         if (streaming) {
-            unsupported(capabilities, SemanticInferenceCapability.STREAMING)?.let {
-                return Result.failure(it)
-            }
+            unsupported(capabilities, SemanticInferenceCapability.STREAMING)?.let { return Result.failure(it) }
         }
         return Result.success(Unit)
     }
@@ -126,6 +112,24 @@ internal class GenAISemanticInferenceProvider(
 
     private fun SemanticInferenceRequest.toGenAIRequest() = GenAIRequest(
         prompt = prompt,
-        images = images.map { "file://${it.localPath}" },
+        images = images.map { it.localPath.asFileUri() },
     )
+
+    private fun Path.asFileUri(): String = "file://" + toString().encodePathForUri()
+
+    private fun String.encodePathForUri(): String {
+        val digits = "0123456789ABCDEF"
+        return buildString {
+            encodeToByteArray().forEach { byte ->
+                val value = byte.toInt() and 255
+                val safe = value in 48..57 || value in 65..90 || value in 97..122 ||
+                    value == 45 || value == 46 || value == 95 || value == 126 || value == 47
+                if (safe) append(value.toChar()) else {
+                    append('%')
+                    append(digits[value ushr 4])
+                    append(digits[value and 15])
+                }
+            }
+        }
+    }
 }
