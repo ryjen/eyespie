@@ -1,10 +1,11 @@
 package com.micrantha.eyespie.features.things.data.source
 
 import com.micrantha.eyespie.data.EyesPieDatabase
+import com.micrantha.eyespie.domain.entities.toPostgresEmbedding
+import com.micrantha.eyespie.domain.entities.toPostgresVector
 import com.micrantha.eyespie.features.things.data.model.ThingData
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
-import okio.ByteString.Companion.decodeHex
 import okio.ByteString.Companion.toByteString
 
 internal class SqlThingsLocalSource(
@@ -23,7 +24,7 @@ internal class SqlThingsLocalSource(
                     createdAt = created_at,
                     location = location,
                     proof = proof?.let { json.parseToJsonElement(it) },
-                    embedding = embedding?.toByteString()?.hex()
+                    embedding = embedding?.toByteString()?.toPostgresVector()
                 )
             }.executeAsList()
         Result.success(things)
@@ -41,14 +42,7 @@ internal class SqlThingsLocalSource(
                     created_at = thing.createdAt!!,
                     location = thing.location,
                     clues = thing.proof?.let { json.encodeToString(JsonElement.serializer(), it) },
-                    embedding = thing.embedding?.let { 
-                        try {
-                           // Try to decode hex if it is hex
-                           it.decodeHex().toByteArray()
-                        } catch (_: Throwable) {
-                           null
-                        }
-                    }
+                    embedding = thing.embedding?.toPostgresEmbedding()?.toByteArray()
                 )
             }
         }

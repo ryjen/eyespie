@@ -6,12 +6,13 @@ import com.micrantha.eyespie.domain.entities.Proof
 import com.micrantha.eyespie.domain.entities.Thing
 import com.micrantha.eyespie.domain.entities.ThingMatches
 import com.micrantha.eyespie.domain.entities.cosineSimilarity
+import com.micrantha.eyespie.domain.entities.requireCanonical
+import com.micrantha.eyespie.domain.entities.toPostgresEmbedding
 import com.micrantha.eyespie.features.things.data.mapping.ThingsDomainMapper
 import com.micrantha.eyespie.features.things.data.source.ThingsLocalSource
 import com.micrantha.eyespie.features.things.data.source.ThingsRemoteSource
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
-import okio.ByteString.Companion.decodeHex
 import com.micrantha.eyespie.domain.repository.ThingRepository as DomainRepository
 
 internal class ThingDataRepository(
@@ -33,12 +34,14 @@ internal class ThingDataRepository(
     }
 
     override fun thing(thingID: String): Flow<Result<Thing>> = flow {
-        val cached = localSource.getAll().mapCatching { it.first { it.id == thingID } }.map(mapper::map)
+        val cached = localSource.getAll().mapCatching { things ->
+            mapper.map(things.first { it.id == thingID })
+        }
         if (cached.isSuccess) {
             emit(cached)
         }
 
-        remoteSource.thing(thingID).map(mapper::map).onSuccess {
+        remoteSource.thing(thingID).mapCatching(mapper::map).onSuccess {
             emit(Result.success(it))
         }.onFailure {
             if (cached.isFailure) emit(Result.failure(it))
@@ -49,8 +52,11 @@ internal class ThingDataRepository(
         proof: Proof,
         imageUrl: String,
         playerID: String,
-    ): Result<Thing> =
-        remoteSource.save(mapper.new(proof, imageUrl, playerID)).map(mapper::map)
+    ): Result<Thing> {
+        val request = runCatching { mapper.new(proof, imageUrl, playerID) }
+            .getOrElse { return Result.failure(it) }
+        return remoteSource.save(request).mapCatching(mapper::map)
+    }
 
     override fun nearby(
         location: Point,
@@ -68,27 +74,37 @@ internal class ThingDataRepository(
     }
 
     override fun match(embedding: Embedding): Flow<Result<ThingMatches>> = flow {
-        val localThings = localSource.getAll().getOrDefault(emptyList())
-        val localMatches = localThings.mapNotNull { thing ->
-            thing.embedding?.let { hex ->
-                try {
-                    val thingEmbedding = hex.decodeHex()
-                    val similarity = embedding.cosineSimilarity(thingEmbedding)
+        val canonical = runCatching { embedding.requireCanonical() }
+            .getOrElse {
+                emit(Result.failure(it))
+                return@flow
+            }
+
+        val localMatches = localSource.getAll().mapCatching { localThings ->
+            localThings.mapNotNull { thing ->
+                val vector = thing.embedding ?: return@mapNotNull null
+                runCatching {
+                    val thingEmbedding = vector.toPostgresEmbedding()
+                    val similarity = canonical.cosineSimilarity(thingEmbedding)
                     if (similarity >= mapper.matchThreshold) {
                         Thing.Match(thing.id!!, thingEmbedding, similarity)
-                    } else null
-                } catch (_: Throwable) {
-                    null
-                }
-            }
-        }.sortedByDescending { it.similarity }.take(mapper.matchCount)
+                    } else {
+                        null
+                    }
+                }.getOrNull()
+            }.sortedByDescending { it.similarity }.take(mapper.matchCount)
+        }
 
-        emit(Result.success(localMatches))
+        localMatches.onSuccess {
+            emit(Result.success(it))
+        }
 
-        remoteSource.match(mapper.match(embedding)).map {
-            it.map(mapper::match)
+        remoteSource.match(mapper.match(canonical)).mapCatching { matches ->
+            matches.map(mapper::match)
         }.onSuccess {
             emit(Result.success(it))
+        }.onFailure {
+            if (localMatches.isFailure) emit(Result.failure(it))
         }
     }
 }

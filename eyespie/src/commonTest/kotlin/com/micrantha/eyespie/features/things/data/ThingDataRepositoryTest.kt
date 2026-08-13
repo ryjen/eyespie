@@ -1,6 +1,9 @@
 package com.micrantha.eyespie.features.things.data
 
 import com.micrantha.eyespie.core.data.system.mapping.LocationDomainMapper
+import com.micrantha.eyespie.domain.entities.ImageEmbeddingContract
+import com.micrantha.eyespie.domain.entities.toCanonicalEmbedding
+import com.micrantha.eyespie.domain.entities.toPostgresVector
 import com.micrantha.eyespie.features.things.data.mapping.ThingsDomainMapper
 import com.micrantha.eyespie.features.things.data.model.MatchRequest
 import com.micrantha.eyespie.features.things.data.model.MatchResponse
@@ -13,7 +16,6 @@ import com.micrantha.eyespie.features.things.data.source.ThingsLocalSource
 import com.micrantha.eyespie.features.things.data.source.ThingsRemoteSource
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.runTest
-import okio.ByteString.Companion.toByteString
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
@@ -26,12 +28,16 @@ class ThingDataRepositoryTest {
         var thingResult: Result<ThingResponse> = Result.failure(Exception("Not found"))
         var nearbyResult: Result<List<ThingResponse>> = Result.success(emptyList())
         var matchResult: Result<List<MatchResponse>> = Result.success(emptyList())
+        var matchRequest: MatchRequest? = null
 
         override suspend fun save(data: ThingRequest) = saveResult
         override suspend fun things(playerID: String) = thingsResult
         override suspend fun thing(thingID: String) = thingResult
         override suspend fun nearby(request: NearbyRequest) = nearbyResult
-        override suspend fun match(request: MatchRequest) = matchResult
+        override suspend fun match(request: MatchRequest): Result<List<MatchResponse>> {
+            matchRequest = request
+            return matchResult
+        }
     }
 
     private class FakeThingsLocalSource : ThingsLocalSource {
@@ -64,16 +70,29 @@ class ThingDataRepositoryTest {
     }
 
     @Test
-    fun `match should return local results first`() = runTest {
-        val embedding = byteArrayOf(1, 1, 1, 1, 2, 2, 2, 2).toByteString()
-        val localThings = listOf(ThingData(id = "1", imageUrl = "", createdBy = "u1", embedding = embedding.hex()))
-        localSource.things = localThings
-        
+    fun `match should return canonical local result and send 1024 floats remotely`() = runTest {
+        val embedding = List(ImageEmbeddingContract.dimensions) { index ->
+            if (index == 0) 1f else 0f
+        }.toCanonicalEmbedding()
+        localSource.things = listOf(
+            ThingData(
+                id = "1",
+                imageUrl = "",
+                createdBy = "u1",
+                embedding = embedding.toPostgresVector(),
+            )
+        )
+
         val results = repository.match(embedding).toList()
-        
-        assertTrue(results.any { it.isSuccess })
-        val matchResult = results.first { it.isSuccess }.getOrThrow()
-        assertEquals(1, matchResult.size)
-        assertEquals("1", matchResult.first().id)
+
+        val local = results.first().getOrThrow()
+        assertEquals(1, local.size)
+        assertEquals("1", local.first().id)
+        assertEquals(1f, local.first().similarity)
+
+        val request = remoteSource.matchRequest!!
+        assertEquals(ImageEmbeddingContract.dimensions, request.embedding.size)
+        assertEquals(1f, request.embedding.first())
+        assertTrue(request.embedding.drop(1).all { it == 0f })
     }
 }

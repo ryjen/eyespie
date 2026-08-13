@@ -6,6 +6,9 @@ import com.micrantha.eyespie.domain.entities.Location.Point
 import com.micrantha.eyespie.domain.entities.Proof
 import com.micrantha.eyespie.domain.entities.Thing
 import com.micrantha.eyespie.domain.entities.floats
+import com.micrantha.eyespie.domain.entities.requireCanonical
+import com.micrantha.eyespie.domain.entities.toPostgresEmbedding
+import com.micrantha.eyespie.domain.entities.toPostgresVector
 import com.micrantha.eyespie.features.players.domain.entities.Player
 import com.micrantha.eyespie.features.things.data.model.MatchRequest
 import com.micrantha.eyespie.features.things.data.model.MatchResponse
@@ -15,7 +18,6 @@ import com.micrantha.eyespie.features.things.data.model.ThingRequest
 import com.micrantha.eyespie.features.things.data.model.ThingResponse
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.decodeFromJsonElement
-import okio.ByteString.Companion.decodeHex
 import kotlin.time.Clock.System
 import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
@@ -32,7 +34,7 @@ class ThingsDomainMapper(
             imageUrl = imageUrl,
             createdBy = playerId,
             location = proof.location.toString(),
-            embedding = proof.embedding.floats().joinToString(prefix = "[", postfix = "]", separator = ",")
+            embedding = proof.embedding.toPostgresVector()
         )
 
     fun map(thing: Thing) = ThingRequest(
@@ -41,7 +43,7 @@ class ThingsDomainMapper(
         imageUrl = thing.imageUrl,
         createdBy = thing.createdBy.id,
         location = thing.location.toString(),
-        embedding = thing.embedding?.floats()?.joinToString(prefix = "[", postfix = "]", separator = ",")
+        embedding = thing.embedding?.toPostgresVector()
     )
 
     fun map(data: ThingResponse): Thing {
@@ -58,13 +60,7 @@ class ThingsDomainMapper(
             ),
             guesses = emptyList(),
             location = point,
-            embedding = data.embedding?.let { hex ->
-                try {
-                    hex.decodeHex()
-                } catch (_: Throwable) {
-                    null
-                }
-            }
+            embedding = data.embedding?.toPostgresEmbedding()
         )
     }
 
@@ -82,17 +78,24 @@ class ThingsDomainMapper(
         distance = distance
     )
 
-    fun match(embedding: Embedding): MatchRequest {
-        return MatchRequest(
-            embedding = embedding.floats(),
-            threshold = matchThreshold,
-            count = matchCount,
+    fun match(embedding: Embedding): MatchRequest = MatchRequest(
+        embedding = embedding.requireCanonical().floats(),
+        threshold = matchThreshold,
+        count = matchCount,
+    )
+
+    fun match(data: MatchResponse): Thing.Match {
+        val content = Json.decodeFromJsonElement<ThingResponse>(data.content)
+        if (content.id != null && content.id != data.id) {
+            throw IllegalArgumentException("match RPC Thing id does not match result id")
+        }
+        val embedding = content.embedding?.toPostgresEmbedding()
+            ?: throw IllegalArgumentException("match RPC Thing is missing embedding")
+
+        return Thing.Match(
+            id = data.id,
+            embedding = embedding,
+            similarity = data.similarity
         )
     }
-
-    fun match(data: MatchResponse) = Thing.Match(
-        id = data.id,
-        embedding = Json.decodeFromJsonElement(data.content),
-        similarity = data.similarity
-    )
 }
