@@ -39,16 +39,36 @@ internal class GenAISemanticInferenceProvider(
             validate(request, streaming = false).exceptionOrNull()?.let {
                 return@withLock Result.failure(it)
             }
+
+            var result: Result<String> = Result.failure(IllegalStateException("generation not started"))
+            var cleanupFailure: Throwable? = null
             try {
                 genAI.newSession(sessionConfig).failureOrCancellation()?.let {
                     return@withLock Result.failure(it)
                 }
-                genAI.generate(request.toGenAIRequest()).also { result ->
-                    result.failureOrCancellation()
+                result = genAI.generate(request.toGenAIRequest()).also { generationResult ->
+                    generationResult.failureOrCancellation()
                 }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Throwable) {
+                result = Result.failure(error)
             } finally {
-                genAI.close()
+                try {
+                    genAI.close()
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (error: Throwable) {
+                    cleanupFailure = error
+                }
             }
+
+            cleanupFailure?.let { cleanupError ->
+                if (result.isSuccess) {
+                    return@withLock Result.failure(cleanupError)
+                }
+            }
+            result
         }
 
     override fun generateFlow(request: SemanticInferenceRequest): Flow<String> = flow {
