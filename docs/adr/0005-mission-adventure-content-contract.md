@@ -10,156 +10,161 @@ Implementation remains explicitly outside the closed-alpha critical path in #90.
 
 Eyespie currently has two useful runtime concepts:
 
-- `Game` is a live social/session container with an expiry, player/thing limits, players, and `Thing` listings.
-- `Thing` is mutable runtime challenge/evidence with a creator, captured image, location, embedding, guesses, and guessed state.
+- `Game` is a live social/session container with expiry, player/thing limits, players, and `Thing` listings.
+- `Thing` is mutable runtime challenge/evidence with creator, captured image, location, embedding, guesses, and guessed state.
 
-Those types are appropriate for the current free two-player game loop, but they are not suitable as the durable definition of curated Mission Packs, Private Events, organization-hosted experiences, or later creator-authored adventures.
+Those types fit the current free two-player game loop, but they are not suitable as the durable authored definition of Mission Packs, Private Events, organization-hosted experiences, or later creator-authored adventures. Reusing them would mix immutable content with player/session state and make update, retirement, offline, verification, and purchase history ambiguous.
 
-A commercial or curated mission needs stable identity, explicit content versions, lifecycle controls, verification compatibility, safety metadata, offline caching semantics, and a clean entitlement boundary. Reusing `Game` or `Thing` as that definition would mix authored content with mutable session/player state and make updates, retirement, offline use, and purchase history ambiguous.
+The semantic game engine also requires model/version-aware verification. #91 owns the concrete embedding contract; mission content must select approved verification policy without embedding platform runtime objects or arbitrary authoritative thresholds.
 
-The existing semantic game engine also requires model/version-aware verification rather than treating embeddings from different schemas as interchangeable. #91 owns the concrete image-embedding contract; mission content must reference approved verification policy without embedding runtime implementation details or arbitrary thresholds.
-
-The monetization strategy in `docs/product/monetization.md` establishes Mission / Adventure as the long-lived product unit. #103 tracks this architecture decision. #104 will define catalog and entitlement semantics separately.
+`docs/product/monetization.md` establishes Mission / Adventure as the long-lived product/content unit. #103 tracks this decision, while ADR-0006/#104 owns catalog and entitlement semantics.
 
 ## Decision
 
-Eyespie will introduce a **versioned, declarative Mission / Adventure content contract** above the existing runtime `Game` and `Thing` models.
+Eyespie will introduce a **versioned, declarative Mission / Adventure content layer** above the existing runtime `Game` and `Thing` models.
 
-The architecture separates five concepts:
+The architecture separates:
 
 ```text
 Mission identity
     |
-    +--> immutable MissionDefinition version
+    +--> immutable MissionArtifact version
     |        |
-    |        +--> task definitions
-    |        +--> presentation/content metadata
-    |        +--> verification/scoring profile references
-    |        +--> authored safety/accessibility metadata
+    |        +--> MissionDefinition payload
+    |        +--> contentDigest over canonical payload bytes
     |
     +--> MissionPublication
              |
              +--> active version
-             +--> published / paused / retired state
+             +--> published / paused / retired
              +--> availability and moderation state
 
-MissionDefinition + normalized entitlement
+MissionArtifact + normalized entitlement
              |
              v
       MissionSession / run
              |
-             +--> existing Game where a social host/session is needed
-             +--> existing Thing/evidence objects where a task produces challenge evidence
+             +--> existing Game where social/session semantics are needed
+             +--> existing Thing/evidence where a task produces challenge evidence
 ```
 
-A mission definition is content. A publication is operational state. A session/run is player state. An entitlement is access state. These states must not be collapsed into one object.
+A definition is authored content. An artifact is the validated immutable payload plus its integrity identity. Publication is operational state. A session/run is player state. Entitlement is access state. These states must not be collapsed into one object.
 
 ## Terminology
 
 ### Mission
 
-The stable logical identity of an adventure across revisions.
+The stable logical identity of an adventure across revisions. `MissionId` survives content updates and must not be a store SKU, localized title, or database-row version.
 
-Examples:
+### MissionDefinition
 
-- `stanley-park-nature-hunt`
-- `vancouver-spy-mission`
-- a private event template
-- an organization-authored city experience
+The canonical immutable content payload for one mission version. It contains schema/content identity and authored mission data, but **does not contain its own content digest**.
 
-A `MissionId` must remain stable while the content evolves.
+### MissionArtifact
 
-### Mission definition
+The immutable transport/cache/persistence envelope around one `MissionDefinition` plus its `contentDigest`.
 
-One immutable content version of a mission.
+The digest is calculated over the canonical serialized `MissionDefinition` payload only. It is never included in its own hash input.
 
-A published definition is never edited in place. Corrections or content changes produce a new content version.
+### MissionPublication
 
-### Mission publication
+Mutable operational state that decides whether a specific immutable artifact/version may be discovered or started. It is separate so a mission can be paused immediately without rewriting downloaded content or historical records.
 
-Mutable operational state deciding whether a specific mission/version may be discovered or started.
+### MissionSession / run
 
-Publication state is deliberately separate from the immutable definition so a mission can be paused immediately without rewriting downloaded content or historical completion records.
-
-### Mission session / run
-
-A player's or group's runtime progress against one pinned mission version.
-
-A run must not silently migrate to a newer content version after it starts.
+Player/group runtime progress pinned to one exact artifact identity. It never silently migrates to a newer content version.
 
 ### Game
 
-The current `Game` entity remains a live social/session concept. A future mission run may create or reference a `Game` when multiplayer/team/session semantics are needed, but `Game` is not the authored Mission definition.
+The existing `Game` remains a live social/session concept. A MissionSession may create/reference a `Game` for multiplayer/private-event behavior, but `Game` is not authored Mission content.
 
 ### Thing
 
-The current `Thing` entity remains runtime challenge/evidence state. A mission task may eventually create, reference, or constrain a `Thing`, but `Thing` is not the authored task definition because it contains player-specific mutable state such as creator, guesses, image, embedding, and guessed status.
+The existing `Thing` remains runtime challenge/evidence. A task may create/reference a `Thing`, but authored task definitions are not Things because Things contain player-specific mutable creator/image/location/embedding/guess state.
 
 ## Identity and versioning
 
-Every immutable mission definition must carry at least:
+The content payload and integrity envelope are explicitly separate:
 
 ```text
-MissionDefinition
-  schemaVersion
-  missionId
-  contentVersion
-  contentDigest
-  publisherRef
-  metadata
-  playPolicy
-  tasks[]
-  rewardPolicyRef?
-  accessPolicyRef?
-  authoredSafetyMetadata
-```
+MissionArtifact
+  contentDigest: Digest
+  definition: MissionDefinition
 
-### `schemaVersion`
-
-Version of the serialization/contract shape understood by the application.
-
-- positive integer;
-- unknown newer required schema versions fail closed;
-- additive fields may be ignored only where the schema explicitly permits forward-compatible extension;
-- semantic changes require a new schema version rather than reinterpretation of an existing field.
-
-### `missionId`
-
-Stable logical identity across content revisions.
-
-It must not be a store SKU, database row version, or localized title.
-
-### `contentVersion`
-
-Monotonic immutable version within one `missionId`.
-
-Changing any gameplay-relevant content creates a new version, including target/task changes, clue changes, verification-profile changes, route/location changes, scoring policy changes, or safety-relevant instructions.
-
-### `contentDigest`
-
-Digest of the canonical immutable definition payload, initially SHA-256 unless an implementation ADR chooses another reviewed algorithm.
-
-The digest supports cache integrity, diagnostics, and deterministic identity of the exact artifact used by a session. It is not a substitute for transport authentication or authorization.
-
-## Proposed language-neutral contract
-
-Exact Kotlin names may follow project conventions, but the serialized/domain boundary should be equivalent to:
-
-```text
 MissionDefinition
   schemaVersion: Int
   missionId: MissionId
   contentVersion: Int
-  contentDigest: Digest
   publisher: PublisherRef
   metadata: MissionMetadata
   geography: GeographicPolicy
   playPolicy: PlayPolicy
   tasks: List<MissionTaskDefinition>
   rewards: RewardPolicyRef?
-  access: AccessPolicyRef?
+  access: AccessPolicyRef
   safety: AuthoredSafetyMetadata
+```
 
+A validated artifact identity is:
+
+```text
+missionId + contentVersion + contentDigest
+```
+
+### `schemaVersion`
+
+Versions the serialization/contract shape.
+
+- positive integer;
+- unsupported required versions fail closed;
+- additive fields may be ignored only where the schema explicitly allows forward-compatible extension;
+- semantic reinterpretation requires a schema-version change.
+
+### `missionId`
+
+Stable logical identity across content revisions.
+
+### `contentVersion`
+
+Monotonic immutable version within one `missionId`.
+
+Changing user-visible bytes or gameplay-relevant content creates a new version. That includes task targets, clues, geography, verification/scoring profile, completion/reward policy, and safety-relevant instructions.
+
+### `contentDigest`
+
+Initially SHA-256 over the canonical serialized bytes of `MissionDefinition` only:
+
+```text
+canonicalPayload = canonicalize(MissionDefinition)
+contentDigest = SHA-256(canonicalPayload)
+artifact = MissionArtifact(contentDigest, MissionDefinition)
+```
+
+The digest field is outside the canonical payload and therefore cannot create a self-referential hash.
+
+The digest supports cache integrity, exact artifact identity, diagnostics, and history. It is not authentication, authorization, DRM, or a substitute for authenticated transport/signature policy.
+
+## Canonical serialization
+
+Use a deterministic, versioned serialization contract suitable for KMP and backend validation. Shared Kotlin should prefer `kotlinx.serialization` unless a deliberate alternative is justified.
+
+Canonicalization must define the exact bytes being hashed. Ordinary JSON object/map iteration order is not sufficient.
+
+Requirements:
+
+- canonical payload contains `MissionDefinition` and excludes envelope fields such as `contentDigest`;
+- the same logical payload produces the same canonical bytes on all supported targets;
+- no platform-specific model object or localized in-memory representation participates in the digest;
+- decode -> validate -> canonicalize -> digest is deterministic;
+- digest mismatch is a typed integrity failure.
+
+If canonical JSON is used, its property ordering, number/string escaping, null/default-field behavior, and collection ordering must be explicitly defined/tested rather than inherited accidentally from a serializer implementation.
+
+## Task contract
+
+Conceptually:
+
+```text
 MissionTaskDefinition
   taskId: MissionTaskId
   order: Int
@@ -172,47 +177,37 @@ MissionTaskDefinition
   safety: TaskSafetyMetadata?
 ```
 
-IDs are opaque values. UI strings, localized titles, store SKUs, model objects, receipts, platform permission types, and raw billing/provider payloads must not become identity fields.
-
-## Task identity and ordering
-
-Each task has a stable `taskId` within the mission identity.
-
 Requirements:
 
-- task IDs are unique within one mission definition;
-- order is explicit rather than inferred from JSON/map iteration;
-- a content revision may add/remove/reorder tasks, but an active run remains pinned to its original definition;
-- completion history records `missionId`, `contentVersion`, and `taskId` so it remains interpretable after later revisions.
+- task IDs are unique within one definition;
+- ordering is explicit rather than inferred from map/JSON iteration;
+- active sessions remain pinned when later versions add/remove/reorder tasks;
+- history records `missionId`, `contentVersion`, and `taskId`;
+- task IDs may survive editorial copy updates when the gameplay objective remains semantically the same;
+- materially different objectives receive a new task ID.
 
-Task IDs should survive editorial copy changes where the underlying gameplay objective remains semantically the same. A materially different target/objective should receive a new task ID.
+## Player-visible versus authority-only data
 
-## Public content versus authority-only data
-
-Mission authoring may contain information that must not be disclosed to a guesser/player, such as hidden answers, reference embeddings, moderation notes, or privileged validation material.
-
-The contract therefore distinguishes **player-visible mission content** from **authority-only verification/content data**.
+Authoring can include data that must not be disclosed to players, such as hidden answers, privileged reference embeddings, moderation evidence, or anti-cheat validation material.
 
 ```text
 Authoring source
    |
-   +--> Player package
-   |      title / story / clues / permitted geography / task instructions
+   +--> player-visible Mission package
+   |      title / story / clues / permitted geography / instructions
    |
-   +--> Authority package
-          hidden answers / privileged reference data / moderation evidence /
-          verification material not safe to disclose to an untrusted client
+   +--> authority-only package
+          hidden answers / privileged verification data /
+          moderation evidence / protected operational metadata
 ```
 
-Do not assume that placing a field inside a serialized MissionDefinition makes it safe to distribute to the mobile client.
+Serializability does not imply distributability. A player package must be separately validated not to contain prohibited authority-only fields.
 
-If a future offline mode requires local access to otherwise privileged verification material, that must be an explicit security/product decision with #16/#91/#107. The default architecture keeps authoritative secrets and anti-cheat material off untrusted clients where practical.
+If future offline behavior requires local access to privileged validation material, that requires an explicit security/product decision with #16/#91/#107. Default architecture keeps authoritative secrets off untrusted clients where practical.
 
-## Verification policy boundary
+## Verification and scoring boundary
 
-A mission task selects an **approved verification profile**, not arbitrary model parameters or numeric thresholds.
-
-Conceptually:
+A mission task selects an **approved, versioned profile**, not arbitrary runtime parameters:
 
 ```text
 VerificationProfileRef
@@ -221,170 +216,124 @@ VerificationProfileRef
   compatibleEmbeddingSchema
 ```
 
-#91 owns the canonical embedding representation/model identity and matching behavior. The mission layer may require compatibility with that contract, but it must not:
+#91 owns embedding representation/model compatibility and final matching policy.
 
-- store platform-specific MediaPipe objects;
-- embed raw runtime model files;
-- silently reinterpret embeddings from a different model/schema;
-- let paid content weaken match thresholds as a purchase advantage;
-- make arbitrary creator-authored thresholds authoritative.
+Mission content must not:
 
-Unsupported or incompatible verification profiles fail closed before a mission starts or before a task requiring that profile is accepted.
+- import/store MediaPipe platform objects;
+- bundle raw runtime model objects in domain definitions;
+- reinterpret embeddings from incompatible schemas;
+- allow paid content to weaken verification fairness;
+- allow arbitrary creator-authored match thresholds or executable scoring logic.
 
-A similar reference pattern should be used for scoring policy so content selects from approved, versioned policies rather than embedding unrestricted executable/game-authority logic.
+Unsupported or incompatible profiles fail closed before the affected task is accepted. Scoring follows the same allowlisted/versioned-reference pattern.
 
 ## Clue and answer boundary
 
-#12/#13 own structured generated/manual clue provenance and provider routing.
+#12/#13 own generated/manual clue schema, provenance, and provider routing.
 
-Mission task content may reference curated or generated clue material, but must preserve the same disclosure rule:
+Mission content preserves the same rules:
 
-- player-facing clue text is intentionally exposed;
-- expected answers and generation/verification data are not accidentally exposed through player DTO/UI mappings;
-- generated content retains trustworthy application-owned provenance where required;
-- mission content does not trust model-authored provider/model identity.
+- player-facing clue text is intentionally disclosed;
+- expected answers and privileged generation/verification data are not exposed accidentally;
+- generated content retains application-owned provenance where required;
+- model-authored provider/model identity is not trusted.
 
 ## Geography
 
-Geography is part of authored content but must remain a policy/domain concept rather than a UI map implementation.
+Geography is a language-neutral content/policy concept, not a UI-map implementation.
 
-The first contract should support:
-
-```text
-GeographicPolicy
-  NONE
-  MISSION_AREA
-  TASK_AREAS
-  ROUTE_OR_ORDERED_AREAS   (future-compatible)
-```
-
-A geographic area should use a language-neutral geometry/geofence representation or an opaque reference to one. The contract must be able to express:
-
-- no geographic restriction;
-- a bounded mission area;
-- per-task bounded areas;
-- whether exact target location is intentionally disclosed or only a broader permitted area is disclosed.
-
-Exact location and sensitive-site behavior remains subject to #18 for the free baseline and #107 for public/commercial publishing.
-
-## Publisher identity
-
-Publisher identity is distinct from player identity, billing account identity, and store product identity.
-
-The architecture must be able to represent at least:
+The contract should support at least:
 
 ```text
-PublisherRef
-  OFFICIAL
-  PLAYER_OR_HOST
-  ORGANIZATION
-  CREATOR        (future)
+NONE
+MISSION_AREA
+TASK_AREAS
+ROUTE_OR_ORDERED_AREAS   // future-compatible
 ```
 
-Exact storage/authorization semantics may be introduced incrementally. The contract only requires a stable opaque publisher reference and publisher type where policy needs it.
+It must express whether exact target location is intentionally disclosed or whether only a broader permitted area is exposed. Exact location/sensitive-site policy remains subject to #18 and the post-alpha #107 extension.
 
-A publisher reference does not itself grant publishing permission; authorization is a backend/application policy concern.
+## Publisher and safety metadata
 
-## Safety, accessibility, and age metadata
+Publisher identity is separate from player identity, billing identity, and authorization.
 
-An immutable mission definition carries **authored metadata**, for example:
+Future-compatible publisher categories include official, player/host, organization, and creator. A `PublisherRef` is context/identity; it does not grant publishing permission.
 
-- intended environment/activity type;
+Immutable authored safety/accessibility metadata may include:
+
+- environment/activity classification;
 - accessibility notes;
-- age/suitability classification reference;
-- declared physical hazards or access constraints;
+- age/suitability reference;
+- physical hazards/access constraints;
 - private-property/trespass declaration;
-- author-supplied safety instructions;
-- policy version under which the content was authored/reviewed.
+- author-provided safety instructions;
+- policy version used during authoring/review.
 
-Mutable moderation decisions do not belong inside the definition. They belong in `MissionPublication` / moderation state so an unsafe version can be paused without changing its content digest.
-
-#107 owns the post-alpha commercial/geofenced-UGC threat-model extension.
+Mutable moderation state belongs in MissionPublication, not MissionDefinition.
 
 ## Publication lifecycle
 
-The logical lifecycle is:
+Logical lifecycle:
 
 ```text
 draft -> review -> published -> paused -> retired
 ```
 
-These states describe publication/operational availability, not immutable content mutation.
-
 ### Draft
 
-- authoring in progress;
-- not discoverable or startable by ordinary players;
-- may change freely until a candidate immutable version is created.
+Authoring may change freely; not normally discoverable/startable.
 
 ### Review
 
-- candidate content frozen for review;
-- safety/quality/publisher validation may occur;
-- not ordinary public availability.
+Candidate content is frozen into a candidate artifact for validation/safety/quality review.
 
 ### Published
 
-- references one immutable `missionId + contentVersion + digest`;
-- discoverable/startable according to audience/access/availability policy;
-- cannot be edited in place.
+Publication points to one immutable `(missionId, contentVersion, contentDigest)` artifact. Published content is never edited in place.
 
 ### Paused
 
 No new ordinary sessions start.
 
-Pause records must distinguish at least:
+At minimum distinguish:
 
-- `OPERATIONAL` — temporary content/availability problem;
+- `OPERATIONAL` — temporary availability/content problem;
 - `SAFETY` — suspected unsafe/abusive content requiring fail-safe behavior.
 
-For a safety pause, clients/backend should stop affected active play at the next enforceable policy boundary rather than allowing an unsafe mission to continue solely because a session already started.
+A safety pause may stop active play at the next enforceable boundary; it is not defeated by a session having cached the content artifact.
 
 ### Retired
 
-- no new sessions start;
-- historical completion/purchase/session records remain interpretable;
-- cached content may be retained only according to offline/storage/license policy;
-- retirement does not delete historical identities.
+No new sessions start. Historical version/session/completion identities remain resolvable. Retirement must not destructively erase artifacts required for history/support/audit.
 
-A retired mission may have a replacement mission/version, but the replacement is explicit rather than silently aliasing historical records.
-
-## Availability window
-
-Calendar availability is separate from publication lifecycle.
-
-A published mission may additionally have a bounded availability window. Being outside the window prevents new starts but does not change the definition or erase historical records.
-
-Time-window behavior for an already-started session must be explicit in the mission play policy rather than inferred ad hoc by UI code.
+Calendar availability windows are separate from publication lifecycle.
 
 ## Entitlement / access boundary
 
-Mission content may contain only an opaque access requirement/reference such as `AccessPolicyRef`.
+MissionDefinition contains only an opaque `AccessPolicyRef`.
 
 It must not contain:
 
-- Apple product identifiers;
-- Google Play product identifiers;
-- transaction/receipt tokens;
+- Apple/Google product identifiers;
+- receipts or transaction tokens;
 - billing SDK types;
 - mutable `isPremium` flags;
 - price/currency as gameplay authority.
 
-#104 owns product catalog and entitlement semantics.
+ADR-0006/#104 owns catalog and entitlement semantics.
 
-The mission layer asks, conceptually:
+The mission layer asks:
 
 ```text
-can subject X start mission M version V under access policy A?
+can subject X start artifact (M,V,D) under access policy A?
 ```
 
-It does not ask a store SDK directly.
-
-Free content is represented by an explicit free/public access policy, not by the absence of all access semantics if that would make interpretation ambiguous.
+It does not call a store SDK. Free content uses an explicit free/public access policy.
 
 ## Runtime session model
 
-A runtime mission session/run pins the exact immutable version:
+A MissionSession pins exact artifact identity:
 
 ```text
 MissionSession
@@ -392,63 +341,33 @@ MissionSession
   missionId
   contentVersion
   contentDigest
-  subject / group reference
+  subject/group reference
   startedAt
   status
   taskProgress[]
-  gameRef?        // when social Game semantics are used
+  gameRef?
 ```
 
-The session does not silently adopt a new mission version.
+A newer published version does not silently migrate an active session.
 
-A later migration may adapt the current `Game` entity to reference `MissionSession` or vice versa, but this ADR does **not** require replacing the alpha `Game` API. Additive evolution is preferred.
+An official single-player Mission may need no `Game`. A Private Event may associate one `Game` with a MissionSession. Organization content may create many sessions against the same artifact.
 
-## Interaction with existing `Game`
+Task runtime evidence maps deliberately:
 
-Current `Game` owns runtime concerns:
+```text
+MissionTaskDefinition
+    -> MissionTaskProgress
+        -> evidence reference(s)
+            -> Thing or dedicated evidence record
+```
 
-- name;
-- expiry;
-- player/thing count limits;
-- turn duration;
-- participating players;
-- participating `Thing` listings.
-
-Those properties remain runtime/session semantics.
-
-For future products:
-
-- an official single-player Mission Pack may have a `MissionSession` with no `Game`;
-- a Private Event may create one `Game` associated with a pinned MissionDefinition;
-- an organization mission may create many independent sessions/games against the same immutable definition;
-- a future creator-authored mission uses the same definition/session boundary.
-
-Do not copy mission content into every `Game` row as mutable fields.
-
-## Interaction with existing `Thing`
-
-Current `Thing` owns captured/runtime challenge evidence:
-
-- creator;
-- image URL;
-- location;
-- embedding;
-- guesses;
-- guessed state.
-
-A mission task may eventually:
-
-- produce a `Thing` when a player creates a challenge as part of the mission;
-- reference a `Thing` or task-evidence record for completion;
-- constrain permitted evidence/location/verification policy.
-
-Do not turn authored `MissionTaskDefinition` into a `Thing` before runtime because that would invent a creator, mutable guessed state, image evidence, and other player/session fields that do not belong to content.
+Use a dedicated evidence record when task proof is not semantically a Thing challenge.
 
 ## Persistence direction
 
-The alpha Supabase/SQLDelight `Game` and `Thing` schemas remain unchanged by this ADR.
+The existing alpha Supabase/SQLDelight `Game` and `Thing` schemas remain unchanged by this ADR.
 
-When implementation begins, prefer an **additive** persistence model:
+Additive post-alpha direction:
 
 ```text
 Mission
@@ -461,12 +380,13 @@ MissionVersion
   content_version
   schema_version
   content_digest
-  canonical_definition_json
+  canonical_definition_json   // MissionDefinition payload only
   created_at
 
 MissionPublication
   mission_id
   active_content_version
+  active_content_digest
   lifecycle_state
   pause_reason?
   available_from?
@@ -483,203 +403,180 @@ MissionSession
   started_at
 ```
 
-The initial implementation may store the immutable definition as versioned JSON/JSONB plus indexed metadata rather than normalizing every task into relational tables immediately. Normalize only fields that require query/index/referential behavior.
+`canonical_definition_json` stores/hash-verifies the payload; `content_digest` is a separate column/envelope value. The digest is not duplicated inside the payload.
 
-This minimizes schema churn while preserving explicit version identity.
+Versioned JSON/JSONB plus indexed metadata is acceptable initially. Normalize task fields only when query/index/referential needs justify it.
 
-## Client cache and offline behavior
+## Offline/cache behavior
 
-Coordinate with #16.
+Coordinate with #16 and ADR-0006.
 
-A cached mission artifact is keyed by the exact tuple:
+Cache by exact artifact identity:
 
 ```text
 (missionId, contentVersion, contentDigest)
 ```
 
-Requirements:
+Before use:
 
-- verify schema compatibility and digest before use;
-- never replace an active session's version silently;
-- preserve the definition needed to render historical/current offline progress while retention policy permits;
-- reconcile publication/access state when connectivity returns;
-- do not contact App Store/Play on each task transition;
-- use normalized entitlement state from #104;
-- fail closed for corrupted/incompatible content without destroying valid local progress;
-- bound storage and cache eviction;
-- treat safety-critical freshness separately from ordinary content freshness.
+1. decode MissionArtifact;
+2. validate schema/IDs/order/policy references;
+3. canonicalize `definition` payload;
+4. recompute digest;
+5. constant-time compare where appropriate to the envelope digest;
+6. reject mismatch/corruption with a typed diagnostic.
 
-A future publication/access policy may require a bounded freshness token before **starting** a safety-sensitive public/commercial mission offline. That decision belongs with #16/#104/#107 rather than being hard-coded into the mission schema.
+Additional requirements:
 
-## Content updates
+- never replace active-session version silently;
+- preserve required historical/current definition while retention policy permits;
+- reconcile publication/access state on reconnect;
+- do not contact App Store/Play at every task transition;
+- bound storage/eviction;
+- treat safety-critical publication freshness separately from ordinary content freshness;
+- corrupted content fails closed without destroying valid local progress/history.
 
-### Editorial-only changes
+A future safety-sensitive public/commercial mission may require bounded publication freshness before a new offline start. That policy belongs with #16/#107 rather than being encoded as a store check.
 
-If user-visible bytes change, publish a new content version even when gameplay semantics do not. This keeps the artifact digest/history honest.
+## Updates and historical records
 
-Task IDs may remain stable when the underlying objective is unchanged.
+Any change to canonical definition bytes produces a new content version and digest.
 
-### Gameplay changes
+Active sessions remain pinned unless a safety policy requires stopping or an explicit migration design is invoked. Silent mid-session migration is prohibited.
 
-Any target, clue semantics, geography, verification profile, scoring, completion, reward, or safety-relevant instruction change creates a new content version.
+Historical completion/session records retain enough identity to remain meaningful:
 
-### Active sessions
-
-Active sessions remain pinned to the version they started with unless:
-
-- a safety pause/kill policy requires play to stop; or
-- a specifically designed migration is explicitly accepted by the player/product and preserves deterministic history.
-
-Silent mid-session migration is prohibited.
-
-## Historical records
-
-Completion/session history must record enough identity to remain meaningful after updates:
-
-- `missionId`;
-- `contentVersion`;
-- `contentDigest` or resolvable version identity;
-- completed `taskId` values;
-- relevant scoring/verification profile version references where required for audit/evaluation.
-
-Deleting or replacing a current mission must not make historical completion uninterpretable.
+- missionId;
+- contentVersion;
+- contentDigest/resolvable artifact identity;
+- completed task IDs;
+- relevant verification/scoring profile versions when required for audit/evaluation.
 
 ## Validation rules
 
-A MissionDefinition is rejected before publication/cache use when any required invariant fails, including:
+Reject an artifact before publication/cache/use when required invariants fail, including:
 
 - unsupported schema version;
-- blank/malformed mission identity;
-- non-positive/invalid content version;
-- digest mismatch;
+- malformed mission ID;
+- invalid content version;
+- digest mismatch between envelope and canonical definition payload;
 - duplicate task IDs;
 - invalid/ambiguous task order;
-- zero tasks where the selected play policy requires at least one;
-- invalid geographic policy;
-- unsupported verification/scoring profile;
-- verification profile incompatible with the required embedding schema/model contract;
+- zero tasks where play policy requires tasks;
+- invalid geography;
+- unsupported/incompatible verification/scoring profile;
 - malformed access/safety policy references;
-- hidden authority-only fields present in a player package where policy forbids them.
+- prohibited authority-only fields in a player package.
 
-Validation must return typed failures/stable diagnostics rather than relying on UI exceptions or database errors.
-
-## Serialization
-
-Use a deterministic, versioned serialization contract suitable for KMP and backend validation.
-
-Kotlin implementation should prefer `kotlinx.serialization` for the shared DTO boundary unless a deliberate alternative is justified.
-
-Canonical-digest generation requires a documented canonical serialization representation. Ordinary JSON object key order must not be treated as stable unless canonicalization defines it.
-
-Do not compute the content digest over platform-specific models or localized in-memory object representations.
+Validation returns typed failures/stable diagnostics rather than UI exceptions or database errors.
 
 ## Security and trust boundaries
 
-- Mission definitions are untrusted input when received from network/cache/creator tooling and must be validated.
-- Publisher identity is authorization context, not proof of permission merely because a field claims it.
-- Player-visible packages must not accidentally contain hidden answers or privileged anti-cheat material.
-- Verification/scoring profiles are allowlisted/versioned application/backend policy.
+- Mission artifacts from network/cache/creator tooling are untrusted until validated.
+- Publisher identity is not authorization.
+- Player packages must not leak hidden answers/privileged anti-cheat material.
+- Verification/scoring profiles are allowlisted application/backend policy.
 - Safety/moderation lifecycle is server-authoritative for public/commercial publication.
-- Exact location is sensitive data and should be minimized/disclosed according to mission policy.
-- Content digests detect mismatch/corruption but do not replace authenticated transport, backend authorization, or signature policy.
+- Exact location is sensitive and minimized/disclosed according to mission policy.
+- A digest detects content mismatch/corruption; it does not prevent a modified GPL client from bypassing client-side checks and is not DRM.
+- Protected/paid content authority therefore relies on backend authorization/content-delivery boundaries where needed, while the client digest protects correctness of official artifact handling.
 
 ## Consequences
 
 ### Positive
 
-- one content primitive supports free official content, paid Mission Packs, Private Events, B2B experiences, and later creator content;
-- existing alpha `Game`/`Thing` runtime models do not need a disruptive rewrite;
-- immutable versions make purchases, offline caches, support, and historical completion auditable;
-- publication can pause/retire unsafe content without rewriting immutable artifacts;
-- store billing stays outside gameplay/domain content;
-- verification remains compatible with #91 and cannot be weakened arbitrarily by content authors;
-- future creator tooling can target the same declarative contract as internal content.
+- one content primitive supports free official missions, Mission Packs, Private Events, B2B, and later creator content;
+- existing alpha Game/Thing models remain intact;
+- immutable artifacts make caches, support, history, and purchases auditable;
+- publication can pause unsafe content without mutating artifact bytes;
+- store billing stays outside content/domain identity;
+- verification stays compatible with #91;
+- digest calculation is non-self-referential and portable.
 
 ### Costs
 
-- adds identity/version/publication/session concepts beyond the current simple `Game`/`Thing` model;
-- requires explicit mapping between authored tasks and runtime evidence;
+- introduces MissionDefinition/MissionArtifact/Publication/Session concepts;
+- requires explicit task->runtime evidence mapping;
 - requires canonical serialization/digest tooling;
-- offline content needs cache/version reconciliation;
-- public/commercial publishing requires operational moderation state in addition to content storage.
+- requires cache/version reconciliation;
+- public/commercial publishing adds moderation operations.
 
-These costs are accepted because collapsing these concerns would create much larger migration and integrity problems once content can be purchased or published externally.
+These costs are accepted because collapsing these concerns becomes materially more expensive once content can be purchased or externally published.
 
 ## Implementation slices
 
-Implementation is post-alpha and should be delivered incrementally.
+### Slice A — shared contract and validator (#108)
 
-### Slice A — shared contract and validator
-
-- add opaque mission/task/version/profile reference value types;
-- add serializable MissionDefinition DTO/domain mapping;
-- add deterministic validation and typed failures;
-- add canonical serialization/digest utility;
-- add common unit/property tests for schema/version/ID/order/profile invariants;
+- opaque mission/task/version/profile value types;
+- serializable MissionDefinition and MissionArtifact envelope;
+- deterministic validation and typed failures;
+- canonical payload serializer + digest verification;
+- common tests for schema/version/IDs/order/profiles and digest invariants;
 - no backend/store/UI integration.
 
-### Slice B — immutable persistence and cache
+### Slice B — immutable persistence/cache (#109)
 
-- add additive Supabase mission/version/publication schema;
-- add client cache keyed by mission/version/digest;
-- validate downloaded definitions before cache/use;
-- keep existing `Game`/`Thing` alpha tables intact;
-- coordinate offline behavior with #16.
+- additive Mission/MissionVersion/Publication persistence;
+- store canonical definition payload separately from digest;
+- cache by mission/version/digest;
+- validate artifacts before cache/use;
+- coordinate #16.
 
-### Slice C — runtime MissionSession integration
+### Slice C — MissionSession integration (#110)
 
-- introduce pinned session/run state;
-- map Private Event/team flows to existing `Game` only where needed;
-- map task evidence to `Thing` or a dedicated task-evidence record deliberately;
-- preserve historical version identity.
+- pinned session/run identity;
+- map group/private-event sessions to Game where needed;
+- map task evidence to Thing/dedicated evidence deliberately;
+- preserve historical identity.
 
-### Slice D — publishing and safety lifecycle
+### Slice D — publishing/safety lifecycle (#111)
 
-- implement draft/review/published/paused/retired operational state;
-- add publisher authorization boundary;
-- add emergency safety pause semantics from #107;
-- keep full creator marketplace tooling out of scope.
+- draft/review/publish/pause/retire state;
+- publisher authorization boundary;
+- emergency safety pause with #107;
+- no creator marketplace required.
 
 ## Acceptance tests for implementation
 
 At minimum cover:
 
-- decode/validate one representative free official mission;
-- decode/validate one representative Private Event template;
-- same `missionId` with two immutable content versions;
+- representative free official mission and Private Event template;
+- two versions of one MissionId;
+- same payload canonicalizes to identical bytes/digest repeatedly;
+- changing only envelope `contentDigest` does not change canonical payload bytes;
 - digest mismatch rejection;
 - unsupported schema rejection;
 - duplicate task ID/order rejection;
 - incompatible verification profile rejection;
-- player package cannot contain prohibited hidden authority fields;
-- active session remains pinned while a newer version is published;
-- ordinary pause prevents new starts without mutating definition;
-- safety pause stops/blocks according to safety policy;
+- player package rejects authority-only fields;
+- active session remains pinned when a newer version publishes;
+- operational/safety pause semantics;
 - retired content remains historically resolvable;
-- offline cached artifact revalidates by version/digest and reconciles later;
-- existing free alpha `Game`/`Thing` behavior remains unaffected until explicit integration slices land.
+- offline artifact revalidates by payload+digest;
+- existing alpha Game/Thing behavior remains unaffected until explicit integration slices land.
 
 ## Non-goals
 
-- App Store or Google Play billing integration;
-- SKU design or pricing;
-- entitlement implementation (#104);
+- App Store/Google Play billing;
+- SKU design/pricing;
+- entitlement implementation (ADR-0006/#104);
 - creator marketplace/payouts;
-- organization administration portal;
+- full organization admin portal;
 - public discovery/ranking;
-- replacing the current alpha `Game`/`Thing` model;
+- replacing current alpha Game/Thing;
 - changing #91 embedding implementation;
-- changing #12/#13 clue generation/provider behavior;
+- changing #12/#13 clue/provider behavior;
 - expanding #90.
 
 ## Related work
 
-- #16 — offline-first gameplay/cache behavior.
-- #18 — release-critical baseline privacy/security model.
-- #90 — closed-alpha/public-beta release; this ADR is non-blocking.
-- #91 — canonical embedding/verification contract.
-- #103 — Mission/Adventure content-contract design issue.
-- #104 — platform-neutral catalog/entitlement contract.
-- #107 — post-alpha monetization/geofenced-UGC/commercial-fraud threat model.
-- `docs/product/monetization.md` — product/revenue strategy that motivates this content unit.
-- `docs/architecture/semantic-game-engine.md` — model/version-aware semantic and verification architecture.
+- #16 — offline-first/cache behavior.
+- #18 — release-critical baseline privacy/security.
+- #90 — closed-alpha/public-beta; this ADR is non-blocking.
+- #91 — embedding/verification contract.
+- #103 — completed Mission content design.
+- ADR-0006/#104 — product catalog/entitlement contract.
+- #107 — monetization/geofenced-UGC/commercial-fraud threat model.
+- #108–#111 — implementation slices.
+- `docs/product/monetization.md`.
+- `docs/architecture/semantic-game-engine.md`.
