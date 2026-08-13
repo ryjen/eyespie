@@ -4,6 +4,7 @@ PODS:
     - EyespieMediaPipeTasksGenAI (= 0.10.26.2)
     - EyespieMediaPipeTasksGenAIC (= 0.10.26.2)
     - EyespieMediaPipeTasksVision (= 0.10.26.2)
+  - EyespieImageEmbedderModel (1.0.0)
   - EyespieMediaPipeTasksCommon (0.10.26.2)
   - EyespieMediaPipeTasksGenAI (0.10.26.2):
     - EyespieMediaPipeTasksGenAIC (= 0.10.26.2)
@@ -14,6 +15,7 @@ PODS:
 
 DEPENDENCIES:
   - eyespie (from `../eyespie`)
+  - EyespieImageEmbedderModel (from `ModelArtifacts`)
   - EyespieMediaPipeTasksCommon (from `MediaPipePodspecs/EyespieMediaPipeTasksCommon.podspec`)
   - EyespieMediaPipeTasksGenAI (from `MediaPipePodspecs/EyespieMediaPipeTasksGenAI.podspec`)
   - EyespieMediaPipeTasksGenAIC (from `MediaPipePodspecs/EyespieMediaPipeTasksGenAIC.podspec`)
@@ -22,6 +24,8 @@ DEPENDENCIES:
 EXTERNAL SOURCES:
   eyespie:
     :path: "../eyespie"
+  EyespieImageEmbedderModel:
+    :path: ModelArtifacts
   EyespieMediaPipeTasksCommon:
     :podspec: MediaPipePodspecs/EyespieMediaPipeTasksCommon.podspec
   EyespieMediaPipeTasksGenAI:
@@ -33,11 +37,12 @@ EXTERNAL SOURCES:
 
 SPEC CHECKSUMS:
   eyespie: 85a1cc40cadaa998c41fd9612c9f0a9186a37152
+  EyespieImageEmbedderModel: 4c8b13cc0bfe12ff4a496a0663f46d6a28d8f1d2
   EyespieMediaPipeTasksCommon: 8d007cd8caa159f7b4ca39296db3d9d529e0e636
   EyespieMediaPipeTasksGenAI: 060e4d7f5752c097d96750f6572299e6734813f3
   EyespieMediaPipeTasksGenAIC: 426932a33958b8ce30f02918aaa6234eebe4eaa6
   EyespieMediaPipeTasksVision: 60262e6109cc2137698b27a7ae57126193ad05c8
 
-PODFILE CHECKSUM: 533429012ac32cc6399c556813b8b184e7d2532d
+PODFILE CHECKSUM: e3924b12aaaa702e232bb0a656186faeb0497b9b
 
 COCOAPODS: 1.17.0
