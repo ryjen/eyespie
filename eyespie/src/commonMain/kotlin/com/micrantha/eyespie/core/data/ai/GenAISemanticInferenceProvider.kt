@@ -13,6 +13,7 @@ import com.micrantha.eyespie.domain.ai.SemanticInferenceProvider
 import com.micrantha.eyespie.domain.ai.SemanticInferenceRequest
 import com.micrantha.eyespie.domain.ai.SemanticInferenceUnavailableException
 import com.micrantha.eyespie.domain.ai.UnsupportedSemanticCapabilityException
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
@@ -39,10 +40,12 @@ internal class GenAISemanticInferenceProvider(
             }
 
             try {
-                genAI.newSession(sessionConfig).exceptionOrNull()?.let {
+                genAI.newSession(sessionConfig).failureOrCancellation()?.let {
                     return@withLock Result.failure(it)
                 }
-                genAI.generate(request.toGenAIRequest())
+                genAI.generate(request.toGenAIRequest()).also { result ->
+                    result.failureOrCancellation()
+                }
             } finally {
                 genAI.close()
             }
@@ -116,6 +119,10 @@ internal class GenAISemanticInferenceProvider(
         capability: SemanticInferenceCapability,
     ): UnsupportedSemanticCapabilityException? =
         if (capabilities.supports(capability)) null else UnsupportedSemanticCapabilityException(capability)
+
+    private fun <T> Result<T>.failureOrCancellation(): Throwable? = exceptionOrNull()?.also {
+        if (it is CancellationException) throw it
+    }
 
     private fun SemanticInferenceRequest.toGenAIRequest() = GenAIRequest(
         prompt = prompt,
