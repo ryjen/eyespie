@@ -274,6 +274,10 @@ Only after mission authoring, safety, moderation, and payments are mature should
 ## Related work
 
 - #90 — release Eyespie closed alpha/public beta; monetization must not expand its critical path.
+- #103 — versioned Mission/Adventure content contract; first post-alpha architecture dependency.
+- #104 — platform-neutral catalog/entitlement contract; consumes #103.
+- #105 — privacy-preserving product analytics and unit economics; separate from release diagnostics.
+- #106 — commercial distribution, licensing, and store-product boundary; commercial-launch gate.
 - #16 — offline-first gameplay and cached entitlement behavior.
 - #18 — privacy/security/threat model, including monetization-driven abuse cases.
 - #91 — canonical image-embedding and verification contract used by mission verification policy.
