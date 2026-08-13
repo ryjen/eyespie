@@ -28,6 +28,7 @@ import org.kodein.di.DI
 import org.kodein.di.bindFactory
 import org.kodein.di.bindProvider
 import org.kodein.di.bindProviderOf
+import org.kodein.di.bindSingleton
 import org.kodein.di.bindSingletonOf
 import org.kodein.di.delegate
 
@@ -40,8 +41,7 @@ internal fun module() = DI.Module("Scan") {
     delegate<UploadCaptureUseCase>().to<UploadCaptureUseCaseImpl>()
     bindSingletonOf(::CaptureSyncDataRepository)
     delegate<CaptureSyncRepository>().to<CaptureSyncDataRepository>()
-    bindSingletonOf(::OkioCaptureFileStore)
-    delegate<CaptureFileStore>().to<OkioCaptureFileStore>()
+    bindSingleton<CaptureFileStore> { OkioCaptureFileStore() }
     bindProvider<ImageEmbeddingGenerator> { platformImageEmbeddingGenerator(di) }
     bindProviderOf(::MatchCaptureUseCase)
     bindProviderOf(::LoadImageUseCase)
