@@ -168,7 +168,9 @@ This belongs with the offline-first architecture tracked by #16.
 
 ## Security, safety, and abuse implications
 
-Monetization creates incentives that do not exist in a purely casual game. The threat model in #18 must cover at least:
+#18 owns the **closed-alpha baseline** threat model for images, embeddings, location, model artifacts, and related release privacy concerns. Monetization must not broaden that release gate.
+
+The post-alpha commercial/UGC extension is tracked by #107 and must cover at least:
 
 - GPS/location spoofing;
 - replayed or canned photos;
@@ -178,9 +180,10 @@ Monetization creates incentives that do not exist in a purely casual game. The t
 - stalking or sensitive-location leakage;
 - abusive geofenced UGC;
 - paid-content copying;
+- entitlement/payment abuse;
 - refund/chargeback abuse;
 - future creator payout fraud;
-- moderation, appeals, and content retirement.
+- moderation, appeals, emergency pause, and content retirement.
 
 Geofenced UGC is a trust-and-safety system, not merely a content-authoring feature.
 
@@ -245,7 +248,7 @@ These are commercial-launch gates, not closed-alpha gates.
 
 ### Phase 0 — prove and instrument the free loop
 
-Complete #90 and the supporting release blockers. Add only the privacy-preserving measurements needed to understand activation, completion, creation, invitation, and retention.
+Complete #90 and the supporting release blockers. Add only release-safe, privacy-preserving measurements if they are needed to understand the core loop; the broader product-analytics architecture is tracked separately by #105.
 
 ### Phase 1 — first paid experiments
 
@@ -278,8 +281,9 @@ Only after mission authoring, safety, moderation, and payments are mature should
 - #104 — platform-neutral catalog/entitlement contract; consumes #103.
 - #105 — privacy-preserving product analytics and unit economics; separate from release diagnostics.
 - #106 — commercial distribution, licensing, and store-product boundary; commercial-launch gate.
+- #107 — monetization/geofenced-UGC/commercial-fraud threat-model extension; depends on the #18 baseline.
 - #16 — offline-first gameplay and cached entitlement behavior.
-- #18 — privacy/security/threat model, including monetization-driven abuse cases.
+- #18 — release-critical baseline privacy/security threat model only.
 - #91 — canonical image-embedding and verification contract used by mission verification policy.
 - #12 / #13 — clue schema/provenance and GenAI routing boundaries.
 - #93 — release observability; product analytics should remain a separate concern.
