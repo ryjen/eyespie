@@ -46,7 +46,7 @@ class MediaPipeImageEmbeddingGenerator(
                 "unexpected image embedding dimensions: ${floats.size}"
             }
 
-            Embedding.of(metadata, floats)
+            Embedding.of(metadata, floats.toList())
         } finally {
             mpImage.close()
             imageEmbedder.close()
