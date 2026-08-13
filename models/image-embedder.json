@@ -3,6 +3,7 @@
   "model_id": "mediapipe-mobilenet-v3-small-100-224-embedder-v1",
   "file_name": "mobilenet_v3_small_100_224_embedder.tflite",
   "sha256": "f7b9a563cb803bdcba76e8c7e82abde06f5c7a8e67b5e54e43e23095dfe79a78",
+  "byte_size": 6116906,
   "embedding_dimension": 1024,
   "source": {
     "url": "https://storage.googleapis.com/mediapipe-assets/tasks/testdata/vision/mobilenet_v3_small_100_224_embedder.tflite?generation=1782184982945130",
