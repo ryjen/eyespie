@@ -3,6 +3,7 @@ package com.micrantha.eyespie.platform.scan
 import androidx.compose.ui.graphics.ImageBitmap
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.async
+import kotlinx.coroutines.test.runCurrent
 import kotlinx.coroutines.test.runTest
 import okio.Path
 import okio.Path.Companion.toPath
@@ -17,19 +18,8 @@ import kotlin.test.assertTrue
 class IosCameraCaptureControllerTest {
 
     @Test
-    fun captureBeforeStoragePreparationFailsDeterministically() = runTest {
-        val controller = IosCameraCaptureController(successfulStore())
-        controller.updateFrame(FakeCameraImage(byteArrayOf(1)))
-
-        val result = controller.capture()
-
-        assertCaptureFailure(result, IosCameraCaptureFailure.NotReady)
-    }
-
-    @Test
     fun captureBeforeFirstFrameFailsDeterministically() = runTest {
         val controller = IosCameraCaptureController(successfulStore())
-        assertTrue(controller.prepare().isSuccess)
 
         val result = controller.capture()
 
@@ -73,6 +63,39 @@ class IosCameraCaptureControllerTest {
         assertFalse(fileSystem.exists(stale))
         assertTrue(fileSystem.exists(directory))
         fileSystem.checkNoOpenFiles()
+    }
+
+    @Test
+    fun captureWaitsForPreparationBeforePersisting() = runTest {
+        val preparationStarted = CompletableDeferred<Unit>()
+        val releasePreparation = CompletableDeferred<Unit>()
+        val persisted = CompletableDeferred<Unit>()
+        val store = object : IosCameraCaptureStoreContract {
+            override suspend fun prepare(): Result<Unit> {
+                preparationStarted.complete(Unit)
+                releasePreparation.await()
+                return Result.success(Unit)
+            }
+
+            override suspend fun persist(image: CameraImage): Result<Path> {
+                persisted.complete(Unit)
+                return Result.success("/capture.png".toPath())
+            }
+        }
+        val controller = IosCameraCaptureController(store)
+        controller.updateFrame(FakeCameraImage(byteArrayOf(1)))
+
+        val preparation = async { controller.prepare() }
+        preparationStarted.await()
+        val capture = async { controller.capture() }
+        runCurrent()
+
+        assertFalse(persisted.isCompleted)
+        releasePreparation.complete(Unit)
+
+        assertTrue(preparation.await().isSuccess)
+        assertEquals("/capture.png".toPath(), capture.await().getOrThrow())
+        assertTrue(persisted.isCompleted)
     }
 
     @Test
@@ -122,7 +145,6 @@ class IosCameraCaptureControllerTest {
             }
         }
         val controller = IosCameraCaptureController(store)
-        assertTrue(controller.prepare().isSuccess)
         controller.updateFrame(FakeCameraImage(byteArrayOf(1)))
 
         val first = async { controller.capture() }
@@ -132,6 +154,58 @@ class IosCameraCaptureControllerTest {
 
         assertCaptureFailure(second, IosCameraCaptureFailure.CaptureInProgress)
         assertEquals("/capture.png".toPath(), first.await().getOrThrow())
+    }
+
+    @Test
+    fun sequentialCapturesUseTheLatestOwnedFrame() = runTest {
+        val captured = mutableListOf<ByteArray>()
+        var sequence = 0
+        val store = object : IosCameraCaptureStoreContract {
+            override suspend fun prepare() = Result.success(Unit)
+
+            override suspend fun persist(image: CameraImage): Result<Path> {
+                captured += image.toByteArray()
+                sequence += 1
+                return Result.success("/capture-$sequence.png".toPath())
+            }
+        }
+        val controller = IosCameraCaptureController(store)
+
+        controller.updateFrame(FakeCameraImage(byteArrayOf(1)))
+        val first = controller.capture().getOrThrow()
+        controller.updateFrame(FakeCameraImage(byteArrayOf(2)))
+        val second = controller.capture().getOrThrow()
+
+        assertEquals("/capture-1.png".toPath(), first)
+        assertEquals("/capture-2.png".toPath(), second)
+        assertContentEquals(byteArrayOf(1), captured[0])
+        assertContentEquals(byteArrayOf(2), captured[1])
+    }
+
+    @Test
+    fun failedCaptureReleasesTheInFlightGateForRetry() = runTest {
+        var attempts = 0
+        val store = object : IosCameraCaptureStoreContract {
+            override suspend fun prepare() = Result.success(Unit)
+
+            override suspend fun persist(image: CameraImage): Result<Path> {
+                attempts += 1
+                return if (attempts == 1) {
+                    Result.failure(IosCameraCaptureException(IosCameraCaptureFailure.StorageFailed))
+                } else {
+                    Result.success("/capture.png".toPath())
+                }
+            }
+        }
+        val controller = IosCameraCaptureController(store)
+        controller.updateFrame(FakeCameraImage(byteArrayOf(1)))
+
+        val first = controller.capture()
+        val second = controller.capture()
+
+        assertCaptureFailure(first, IosCameraCaptureFailure.StorageFailed)
+        assertEquals("/capture.png".toPath(), second.getOrThrow())
+        assertEquals(2, attempts)
     }
 
     private fun successfulStore() = object : IosCameraCaptureStoreContract {
