@@ -1,6 +1,7 @@
 package com.micrantha.eyespie.features.scan.usecase
 
-import MediaPipeTasksCommon.MPPBaseOptions
+import MediaPipeTasksVision.MPPBaseOptions
+import MediaPipeTasksVision.MPPEmbedding
 import MediaPipeTasksVision.MPPImage
 import MediaPipeTasksVision.MPPImageEmbedder
 import MediaPipeTasksVision.MPPImageEmbedderOptions
@@ -16,6 +17,7 @@ import kotlinx.cinterop.alloc
 import kotlinx.cinterop.memScoped
 import kotlinx.cinterop.ptr
 import kotlinx.cinterop.usePinned
+import kotlinx.cinterop.value
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import org.kodein.di.DI
@@ -41,7 +43,7 @@ class MediaPipeImageEmbeddingGenerator(
         val result = embedImage(embedder, mpImage)
 
         canonicalMediaPipeEmbedding(
-            result.embeddingResult.embeddings.map { embedding ->
+            result.embeddingResult.embeddings.map { embedding: MPPEmbedding ->
                 embedding.floatEmbedding?.map { value -> value.floatValue }
             }
         )
