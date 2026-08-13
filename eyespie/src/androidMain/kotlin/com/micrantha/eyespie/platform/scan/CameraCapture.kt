@@ -151,7 +151,11 @@ actual fun CameraCapture(
             .build()
 
         camera?.cameraControl?.startFocusAndMetering(focusAction)?.addListener({
-            val outputFile = context.createCaptureFile()
+            val outputFile = runCatching { context.createCaptureFile() }
+                .getOrElse {
+                    onCameraError(it)
+                    return@addListener
+                }
             val outputOptions = ImageCapture.OutputFileOptions.Builder(outputFile).build()
             val executor = Executors.newSingleThreadExecutor()
 
@@ -205,7 +209,7 @@ private fun Context.pruneStaleCaptureFiles(nowMillis: Long = System.currentTimeM
             file.name.startsWith(CAPTURE_PREFIX) &&
             file.name.endsWith(CAPTURE_SUFFIX) &&
             file.lastModified() < cutoff
-    }?.forEach(File::delete)
+    }?.forEach { it.delete() }
 }
 
 private fun createCameraUseCases(
