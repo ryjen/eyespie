@@ -28,7 +28,7 @@ The current repository evidence supports the following working conclusions:
 | Eyespie application/client | `ryjen/eyespie` | GNU GPLv3 | Verify exact App Store/Play distribution path, source/redistribution obligations, contributor authority, and compatibility of shipped linked/bundled components. |
 | Eyespie local Bluebell module | `ryjen/eyespie:bluebell` | Provenance to reconcile | Determine source relationship and local modifications relative to Bluebell repositories; preserve applicable notices/license information. |
 | Public Bluebell | `hackelia-micrantha/bluebell` | Apache-2.0 | Reusable framework boundary; verify actual version/source incorporated into Eyespie. |
-| Bluebell SDK | `hackelia-micrantha/bluebell-sdk` | Apache-2.0 | Verify whether/local code was copied from this repository and whether any private-only implementation enters distributed artifacts. |
+| Bluebell SDK | `hackelia-micrantha/bluebell-sdk` | Apache-2.0 | Verify whether local code was copied from this repository and whether any private-only implementation enters distributed artifacts. |
 | Project-specific MediaPipe fork/distribution | `ryjen/mediapipe` | Apache-2.0 observed at repo root | Review actual packaged upstream/transitive notices, frameworks, models, and redistribution terms rather than relying only on repository root license. |
 | Project-specific iOS MediaPipe podspecs/artifacts | `iosApp/MediaPipePodspecs`, release artifacts | Project-specific distribution | Preserve artifact provenance, exact version, checksums, SBOM, upstream notices, and redistribution evidence for the bundle actually submitted. |
 | Optional Gemma task model | `model-pack/MODEL_ARTIFACT.md` / downloaded `.task` | **Separate model terms unresolved here** | Verify model-weight license/terms, redistribution rights, required notices/attribution, and provenance before bundling/commercial redistribution. |
@@ -113,7 +113,7 @@ This item should coordinate with #24 rather than creating a second model-deliver
 
 The Gradle version catalog currently declares a broad mobile/KMP dependency set including Bluebell, Apollo, Compose, MediaPipe GenAI/Vision, Koin, Ktor, kotlinx libraries, SQLDelight, Supabase, Firebase, Coil, Google Play Services Location, and Mapbox.
 
-The catalog is an **inventory input**, not proof that every dependency is present in the production artifact or exercised by production code. Current code-index searches did not establish direct Firebase Analytics or Mapbox usage; verify the resolved release dependency graph and packaged artifacts before drawing conclusions about shipping/terms.
+The catalog is an **inventory input**, not proof that every dependency is present in the production artifact or exercised by production code. Current code-index/tree searches did not establish direct Firebase Analytics or Mapbox usage; verify the resolved release dependency graph and packaged artifacts before drawing conclusions about shipping/terms.
 
 For the commercial review, classify resolved dependencies by:
 
