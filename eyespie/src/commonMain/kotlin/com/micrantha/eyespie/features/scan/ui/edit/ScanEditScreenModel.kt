@@ -7,12 +7,14 @@ import com.micrantha.bluebell.history.historyReducerOf
 import com.micrantha.bluebell.history.historyStateOf
 import com.micrantha.bluebell.ui.screen.MappedScreenModel
 import com.micrantha.bluebell.ui.screen.ScreenContext
+import com.micrantha.eyespie.features.scan.data.CaptureFileStore
 import com.micrantha.eyespie.features.scan.entities.ScanEditState
 import com.micrantha.eyespie.features.scan.entities.ScanEditUiState
 
 class ScanEditScreenModel(
     context: ScreenContext,
-    environment: ScanEditEnvironment
+    environment: ScanEditEnvironment,
+    private val captureFileStore: CaptureFileStore,
 ) : MappedScreenModel<HistoryState<ScanEditState>, ScanEditUiState>(
     context,
     historyStateOf(ScanEditState()),
@@ -21,5 +23,9 @@ class ScanEditScreenModel(
     init {
         store.addReducer(historyReducerOf(environment))
             .applyEffect(historyEffectOf(environment))
+    }
+
+    override fun onDispose() {
+        store.state.value.state.path?.let(captureFileStore::delete)
     }
 }
