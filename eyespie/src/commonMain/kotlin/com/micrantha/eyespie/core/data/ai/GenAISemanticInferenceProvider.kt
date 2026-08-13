@@ -34,22 +34,23 @@ internal class GenAISemanticInferenceProvider(
 
     override suspend fun generate(request: SemanticInferenceRequest): Result<String> =
         generationMutex.withLock {
+            validate(request, streaming = false).exceptionOrNull()?.let {
+                return@withLock Result.failure(it)
+            }
+
             try {
-                validate(request, streaming = false)
-                try {
-                    genAI.newSession(sessionConfig).getOrThrow()
-                    genAI.generate(request.toGenAIRequest())
-                } finally {
-                    genAI.close()
+                genAI.newSession(sessionConfig).exceptionOrNull()?.let {
+                    return@withLock Result.failure(it)
                 }
-            } catch (error: Throwable) {
-                Result.failure(error)
+                genAI.generate(request.toGenAIRequest())
+            } finally {
+                genAI.close()
             }
         }
 
     override fun generateFlow(request: SemanticInferenceRequest): Flow<String> = flow {
         generationMutex.withLock {
-            validate(request, streaming = true)
+            validate(request, streaming = true).getOrThrow()
             try {
                 genAI.newSession(sessionConfig).getOrThrow()
                 emitAll(genAI.generateFlow(request.toGenAIRequest()))
@@ -86,31 +87,35 @@ internal class GenAISemanticInferenceProvider(
         state.value = SemanticInferenceAvailability.Failed(diagnosticCode)
     }
 
-    private fun validate(request: SemanticInferenceRequest, streaming: Boolean) {
+    private fun validate(request: SemanticInferenceRequest, streaming: Boolean): Result<Unit> {
         val current = state.value
         val capabilities = (current as? SemanticInferenceAvailability.Available)?.capabilities
-            ?: throw SemanticInferenceUnavailableException(current)
+            ?: return Result.failure(SemanticInferenceUnavailableException(current))
 
         if (request.prompt.isBlank()) {
-            throw InvalidSemanticInferenceRequestException()
+            return Result.failure(InvalidSemanticInferenceRequestException())
         }
-        requireCapability(capabilities, SemanticInferenceCapability.TEXT_GENERATION)
+        unsupported(capabilities, SemanticInferenceCapability.TEXT_GENERATION)?.let {
+            return Result.failure(it)
+        }
         if (request.images.isNotEmpty()) {
-            requireCapability(capabilities, SemanticInferenceCapability.IMAGE_INPUT)
+            unsupported(capabilities, SemanticInferenceCapability.IMAGE_INPUT)?.let {
+                return Result.failure(it)
+            }
         }
         if (streaming) {
-            requireCapability(capabilities, SemanticInferenceCapability.STREAMING)
+            unsupported(capabilities, SemanticInferenceCapability.STREAMING)?.let {
+                return Result.failure(it)
+            }
         }
+        return Result.success(Unit)
     }
 
-    private fun requireCapability(
+    private fun unsupported(
         capabilities: SemanticInferenceCapabilities,
         capability: SemanticInferenceCapability,
-    ) {
-        if (!capabilities.supports(capability)) {
-            throw UnsupportedSemanticCapabilityException(capability)
-        }
-    }
+    ): UnsupportedSemanticCapabilityException? =
+        if (capabilities.supports(capability)) null else UnsupportedSemanticCapabilityException(capability)
 
     private fun SemanticInferenceRequest.toGenAIRequest() = GenAIRequest(
         prompt = prompt,
