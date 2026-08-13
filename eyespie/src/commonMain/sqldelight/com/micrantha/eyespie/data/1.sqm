@@ -1,0 +1,2 @@
+ALTER TABLE ThingEntity ADD COLUMN embedding_model_id TEXT;
+ALTER TABLE PendingCapture ADD COLUMN embedding_model_id TEXT;
