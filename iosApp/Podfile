@@ -10,6 +10,7 @@ target 'iosApp' do
   pod 'EyespieMediaPipeTasksVision', :podspec => 'MediaPipePodspecs/EyespieMediaPipeTasksVision.podspec'
   pod 'EyespieMediaPipeTasksGenAIC', :podspec => 'MediaPipePodspecs/EyespieMediaPipeTasksGenAIC.podspec'
   pod 'EyespieMediaPipeTasksGenAI', :podspec => 'MediaPipePodspecs/EyespieMediaPipeTasksGenAI.podspec'
+  pod 'EyespieImageEmbedderModel', :path => 'ModelArtifacts'
 
   pod 'eyespie', :path => '../eyespie'
 end
