@@ -21,6 +21,16 @@ The current repository evidence supports the following working conclusions:
 7. **Brand, app icons, screenshots, landing-page art, and Mission content need their own provenance/licensing records.** Open-source client licensing must not accidentally be treated as granting rights to Eyespie trademarks or separately licensed commercial content.
 8. **Store rules remain deliberately deferred.** #115/#116 must not be activated merely from this inventory; #106 must still classify the selected commercial SKU(s) under then-current Apple/Google rules.
 
+## Evidence examined
+
+The preliminary inventory used the current repository state and GitHub metadata for:
+
+- `ryjen/eyespie` root license, contributors, contribution guidance, dependency catalog, repository tree, release/SBOM documentation, project assets, and optional model documentation;
+- `hackelia-micrantha/bluebell` and `hackelia-micrantha/bluebell-sdk` license/repository boundaries;
+- `ryjen/mediapipe` root license and Eyespie's project-specific iOS MediaPipe pod/distribution documentation.
+
+Current repository-tree/code-index searches did not find a tracked root `NOTICE`, the `models.lock.json` referenced by `MODEL_ARTIFACT.md`, or direct Firebase Analytics/Mapbox use. These are negative search observations only; the resolved release graph and produced binary remain authoritative for what is actually shipped.
+
 ## Repository and license boundaries
 
 | Component / boundary | Repository / location | Observed license or status | Commercial-distribution review |
