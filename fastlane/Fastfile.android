@@ -26,6 +26,8 @@ platform :android do
   lane :validate do
     Dir.chdir(repo_root) do
       sh("python3 scripts/stage_android_model_artifact.py verify")
+      sh("python3 scripts/stage_image_embedder_model.py validate-manifest")
+      sh("python3 -m unittest scripts.tests.test_stage_image_embedder_model")
       sh("python3 -m unittest scripts.tests.test_validate_android_bundle")
     end
   end
@@ -53,6 +55,9 @@ platform :android do
 
   desc "Build Android Debug APK"
   lane :build_debug do
+    Dir.chdir(repo_root) do
+      sh("python3 scripts/stage_image_embedder_model.py stage --target android")
+    end
     gradle(
       task: "assemble",
       build_type: "Debug",
@@ -68,6 +73,9 @@ platform :android do
 
   desc "Build Android Release APK"
   lane :build_release do
+    Dir.chdir(repo_root) do
+      sh("python3 scripts/stage_image_embedder_model.py stage --target android")
+    end
     gradle(
       task: "assemble",
       build_type: "Release",
