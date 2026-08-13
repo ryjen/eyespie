@@ -207,6 +207,32 @@ class GenAISemanticInferenceProviderTest {
     }
 
     @Test
+    fun `cold stream cannot start after provider closes`() = runTest {
+        val genAI = FakeGenAI()
+        val provider = provider(genAI, available())
+        val pending = provider.generateFlow(SemanticInferenceRequest(prompt = "make a clue"))
+
+        provider.close()
+
+        assertFailsWith<SemanticInferenceUnavailableException> { pending.toList() }
+        assertEquals(0, genAI.newSessionCount)
+        assertEquals(0, genAI.requests.size)
+    }
+
+    @Test
+    fun `closed provider ignores late availability transitions`() = runTest {
+        val provider = provider(FakeGenAI(), available())
+
+        provider.close()
+        provider.markInitializing()
+        provider.markAvailable(available(cancellation = true).capabilities)
+        provider.markFailed("late_failure")
+
+        val unavailable = assertIs<SemanticInferenceAvailability.Unavailable>(provider.availability.value)
+        assertEquals("provider_closed", unavailable.reasonCode)
+    }
+
+    @Test
     fun `image input is encoded as a local file URI for the runtime adapter`() = runTest {
         val genAI = FakeGenAI()
         val provider = provider(genAI, available(imageInput = true))
@@ -220,7 +246,7 @@ class GenAISemanticInferenceProviderTest {
     }
 
     @Test
-    fun `availability transitions are observable independently of provider identity`() {
+    fun `availability transitions are observable independently of provider identity`() = runTest {
         val provider = provider(FakeGenAI(), SemanticInferenceAvailability.NotConfigured)
         provider.markInitializing()
         assertIs<SemanticInferenceAvailability.Initializing>(provider.availability.value)
@@ -290,17 +316,20 @@ class GenAISemanticInferenceProviderTest {
         val requests = mutableListOf<GenAIRequest>()
 
         override fun initialize(config: GenAIConfig) = Result.success(Unit)
+
         override fun newSession(config: GenAIConfig.Session): Result<Unit> {
             newSessionCount += 1
             currentSession = newSessionCount
             return newSessionResult
         }
+
         override fun generate(request: GenAIRequest): Result<String> {
             generateCount += 1
             requests += request
             currentSession?.let(generationSessions::add)
             return generateResult
         }
+
         override fun generateFlow(request: GenAIRequest): Flow<String> {
             requests += request
             currentSession?.let(generationSessions::add)
@@ -312,11 +341,13 @@ class GenAISemanticInferenceProviderTest {
             }
             return flowOf("one", "two")
         }
+
         override fun close() {
             closeCount += 1
             currentSession = null
             closeFailure?.let { throw it }
         }
+
         override fun cancel() {
             cancelCount += 1
             streamCancelled.complete(Unit)
