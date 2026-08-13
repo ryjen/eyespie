@@ -22,6 +22,7 @@ class ImageEmbedderModelStagerTest(unittest.TestCase):
             "model_id": "test-model-v1",
             "file_name": EXPECTED_FILE_NAME,
             "sha256": hashlib.sha256(payload).hexdigest(),
+            "byte_size": len(payload),
             "embedding_dimension": 1024,
             "source": {
                 "url": (
@@ -29,6 +30,10 @@ class ImageEmbedderModelStagerTest(unittest.TestCase):
                     f"{EXPECTED_FILE_NAME}?generation=123456789"
                 ),
                 "manifest_revision": "a" * 40,
+            },
+            "license": {
+                "source_repository": "example/model-source",
+                "source_repository_spdx": "Apache-2.0",
             },
         }
         manifest.update(overrides)
@@ -49,7 +54,7 @@ class ImageEmbedderModelStagerTest(unittest.TestCase):
             verify_file(destination, manifest)
             self.assertEqual(payload, destination.read_bytes())
 
-    def test_rejects_tampered_source_without_replacing_existing_valid_file(self) -> None:
+    def test_reuses_existing_valid_file_without_trusting_new_source(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             payload = b"reviewed model bytes"
@@ -65,15 +70,27 @@ class ImageEmbedderModelStagerTest(unittest.TestCase):
 
             self.assertEqual(payload, destination.read_bytes())
 
-    def test_rejects_tampered_source_when_destination_missing(self) -> None:
+    def test_rejects_same_size_tampered_source_when_destination_missing(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             payload = b"reviewed model bytes"
             source = root / "tampered.tflite"
-            source.write_bytes(b"tampered")
+            source.write_bytes(b"tampered model bytes")
+            self.assertEqual(len(payload), source.stat().st_size)
             manifest = load_manifest(self.write_manifest(root, payload))
 
             with self.assertRaisesRegex(ModelArtifactError, "SHA-256 mismatch"):
+                stage_model(manifest, root / "out" / EXPECTED_FILE_NAME, source_file=source)
+
+    def test_rejects_wrong_size_before_hashing(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            payload = b"reviewed model bytes"
+            source = root / "truncated.tflite"
+            source.write_bytes(b"short")
+            manifest = load_manifest(self.write_manifest(root, payload))
+
+            with self.assertRaisesRegex(ModelArtifactError, "byte-size mismatch"):
                 stage_model(manifest, root / "out" / EXPECTED_FILE_NAME, source_file=source)
 
     def test_rejects_unpinned_source_url(self) -> None:
@@ -113,6 +130,15 @@ class ImageEmbedderModelStagerTest(unittest.TestCase):
             path = self.write_manifest(root, payload, embedding_dimension=512)
 
             with self.assertRaisesRegex(ModelArtifactError, "unexpected embedding dimension"):
+                load_manifest(path)
+
+    def test_rejects_invalid_manifest_byte_size(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            payload = b"model"
+            path = self.write_manifest(root, payload, byte_size=0)
+
+            with self.assertRaisesRegex(ModelArtifactError, "positive integer"):
                 load_manifest(path)
 
     def test_rejects_non_lowercase_digest(self) -> None:
