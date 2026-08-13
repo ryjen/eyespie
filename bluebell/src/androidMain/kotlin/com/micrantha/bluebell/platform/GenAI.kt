@@ -25,6 +25,7 @@ actual class PlatformGenAI(
 ) : GenAI {
     private var llm: LlmInference? = null
     private var session: LlmInferenceSession? = null
+    private var sessionConfig: GenAIConfig.Session? = null
 
     override fun initialize(config: GenAIConfig): Result<Unit> = try {
         if (config.modelPath.isBlank()) throw InvalidModelPathException()
@@ -62,21 +63,8 @@ actual class PlatformGenAI(
 
     override fun newSession(config: GenAIConfig.Session): Result<Unit> = try {
         this.llm ?: throw NotInitializedException()
-
-        val options = LlmInferenceSession.LlmInferenceSessionOptions.builder()
-            .setTopK(config.topK)
-            .setTopP(config.topP)
-            .setRandomSeed(config.randomSeed)
-            .setLoraPath(config.loraPath)
-            .setTemperature(config.temperature)
-            .setGraphOptions(
-                GraphOptions.builder()
-                    .setEnableVisionModality(config.enableVisionModality)
-                    .build()
-            )
-            .build()
-        this.session?.close()
-        this.session = LlmInferenceSession.createFromOptions(this.llm, options)
+        sessionConfig = config
+        replaceSession(config)
         Result.success(Unit)
     } catch (err: Throwable) {
         Result.failure(err)
@@ -84,11 +72,13 @@ actual class PlatformGenAI(
 
     override fun generate(request: GenAIRequest): Result<String> = try {
         if (request.prompt.isBlank()) throw InvalidPromptException()
-        val response = if (this.session == null) {
+        val response = if (sessionConfig == null) {
             val inference = this.llm ?: throw NotInitializedException()
             inference.generateResponse(request.prompt)
         } else {
-            this.session.updateWithRequest(request).generateResponse()
+            // LlmInferenceSession retains query/image history. Each public generate call is an
+            // independent Eyespie inference operation, so start from a fresh configured session.
+            freshSession().updateWithRequest(request).generateResponse()
         }
         Result.success(response)
     } catch (err: Throwable) {
@@ -107,8 +97,8 @@ actual class PlatformGenAI(
             }
         }
 
-        val response = if (session != null) {
-            session.updateWithRequest(request).generateResponseAsync(listener)
+        val response = if (sessionConfig != null) {
+            freshSession().updateWithRequest(request).generateResponseAsync(listener)
         } else {
             val inference = llm ?: throw NotInitializedException()
             inference.generateResponseAsync(request.prompt, listener)
@@ -124,10 +114,37 @@ actual class PlatformGenAI(
     override fun close() {
         this.session?.close()
         this.session = null
+        this.sessionConfig = null
     }
 
     override fun cancel() {
         this.session?.cancelGenerateResponseAsync()
+    }
+
+    private fun freshSession(): LlmInferenceSession {
+        val config = sessionConfig ?: throw SessionRequiredException()
+        replaceSession(config)
+        return session ?: throw SessionRequiredException()
+    }
+
+    private fun replaceSession(config: GenAIConfig.Session) {
+        val inference = this.llm ?: throw NotInitializedException()
+        this.session?.close()
+        this.session = LlmInferenceSession.createFromOptions(
+            inference,
+            LlmInferenceSession.LlmInferenceSessionOptions.builder()
+                .setTopK(config.topK)
+                .setTopP(config.topP)
+                .setRandomSeed(config.randomSeed)
+                .setLoraPath(config.loraPath)
+                .setTemperature(config.temperature)
+                .setGraphOptions(
+                    GraphOptions.builder()
+                        .setEnableVisionModality(config.enableVisionModality)
+                        .build()
+                )
+                .build()
+        )
     }
 
     /**
@@ -144,14 +161,11 @@ actual class PlatformGenAI(
 
         if (!file.exists()) return null
 
-        // Decode bitmap
         val bitmap = BitmapFactory.decodeFile(file.absolutePath)
             ?: return null
 
-        // Resize bitmap
         val resized = bitmap.scale(targetWidth, targetHeight)
 
-        // Convert to MPImage
         return BitmapImageBuilder(resized).build()
     }
 
@@ -169,7 +183,7 @@ actual class PlatformGenAI(
         preprocessImages(request.images).forEach {
             inference.addImage(it)
         }
-        return this
+        return inference
     }
 
     suspend fun <T> ListenableFuture<T>.await() = suspendCancellableCoroutine { cont ->
@@ -179,7 +193,7 @@ actual class PlatformGenAI(
             } catch (e: Exception) {
                 cont.resume(e)
             }
-        }, { runnable -> runnable.run() }) // Direct executor
+        }, { runnable -> runnable.run() })
     }
 
     fun Context.copyAssetToFile(assetName: String): File {
@@ -193,7 +207,6 @@ actual class PlatformGenAI(
         }
         return file
     }
-
 
     inner class NotInitializedException : Exception()
     inner class SessionRequiredException : Exception()
