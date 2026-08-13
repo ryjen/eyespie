@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Stage and verify the mandatory image-embedding model artifact.
 
-The model URL is generation-pinned and its bytes are accepted only when they
-match the SHA-256 recorded in models/image-embedder.json. Generated model bytes
-remain untracked; the manifest is the source of truth.
+The model URL is generation-pinned and its bytes are accepted only when their
+size and SHA-256 match models/image-embedder.json. Generated model bytes remain
+untracked; the manifest is the source of truth.
 """
 
 from __future__ import annotations
@@ -41,6 +41,7 @@ class ModelManifest:
     model_id: str
     file_name: str
     sha256: str
+    byte_size: int
     embedding_dimension: int
     source_url: str
     source_revision: str
@@ -57,10 +58,14 @@ def load_manifest(path: Path = DEFAULT_MANIFEST) -> ModelManifest:
         model_id = payload["model_id"]
         file_name = payload["file_name"]
         digest = payload["sha256"]
+        byte_size = payload["byte_size"]
         dimension = payload["embedding_dimension"]
         source = payload["source"]
         source_url = source["url"]
         source_revision = source["manifest_revision"]
+        license_info = payload["license"]
+        source_repository = license_info["source_repository"]
+        source_repository_spdx = license_info["source_repository_spdx"]
     except (KeyError, TypeError) as exc:
         raise ModelArtifactError("model manifest is missing required fields") from exc
 
@@ -70,18 +75,25 @@ def load_manifest(path: Path = DEFAULT_MANIFEST) -> ModelManifest:
         raise ModelArtifactError("model_id must be a non-empty string")
     if file_name != EXPECTED_FILE_NAME:
         raise ModelArtifactError(f"unexpected model filename: {file_name!r}")
+    if not isinstance(byte_size, int) or isinstance(byte_size, bool) or byte_size <= 0:
+        raise ModelArtifactError("byte_size must be a positive integer")
     if dimension != EXPECTED_DIMENSION:
         raise ModelArtifactError(f"unexpected embedding dimension: {dimension!r}")
     if not isinstance(digest, str) or not SHA256_RE.fullmatch(digest):
         raise ModelArtifactError("sha256 must be exactly 64 lowercase hexadecimal characters")
     if not isinstance(source_revision, str) or not REVISION_RE.fullmatch(source_revision):
         raise ModelArtifactError("manifest_revision must be a 40-character lowercase Git SHA")
+    if not isinstance(source_repository, str) or not source_repository.strip():
+        raise ModelArtifactError("license source_repository must be a non-empty string")
+    if not isinstance(source_repository_spdx, str) or not source_repository_spdx.strip():
+        raise ModelArtifactError("license source_repository_spdx must be a non-empty string")
     validate_source_url(source_url)
 
     return ModelManifest(
         model_id=model_id,
         file_name=file_name,
         sha256=digest,
+        byte_size=byte_size,
         embedding_dimension=dimension,
         source_url=source_url,
         source_revision=source_revision,
@@ -125,6 +137,14 @@ def sha256_file(path: Path) -> str:
 def verify_file(path: Path, manifest: ModelManifest) -> None:
     if not path.is_file():
         raise ModelArtifactError(f"model artifact is missing: {path}")
+    try:
+        actual_size = path.stat().st_size
+    except OSError as exc:
+        raise ModelArtifactError(f"cannot stat model artifact: {path}") from exc
+    if actual_size != manifest.byte_size:
+        raise ModelArtifactError(
+            f"model byte-size mismatch for {path}: expected {manifest.byte_size}, got {actual_size}"
+        )
     actual = sha256_file(path)
     if actual != manifest.sha256:
         raise ModelArtifactError(
