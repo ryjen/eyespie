@@ -185,7 +185,7 @@ def target_path(target: str, manifest: ModelManifest) -> Path:
     if target == "android":
         return REPO_ROOT / "eyespie" / "src" / "androidMain" / "assets" / manifest.file_name
     if target == "ios":
-        return REPO_ROOT / "eyespie" / "src" / "iosMain" / "resources" / manifest.file_name
+        return REPO_ROOT / "iosApp" / "ModelArtifacts" / manifest.file_name
     raise ModelArtifactError(f"unsupported target: {target}")
 
 
