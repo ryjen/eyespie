@@ -27,7 +27,8 @@ class FakeThingRepository : ThingRepository {
                 createdAt = System.now(),
                 location = Location.Point(0.0, 0.0),
                 guessed = false,
-                guesses = emptyList()
+                guesses = emptyList(),
+                embedding = proof.embedding,
             )
             things.add(thing)
             Result.success(thing)
