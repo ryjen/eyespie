@@ -24,7 +24,7 @@ actual class PlatformGenAI(
     private val context: Context
 ) : GenAI {
     private var llm: LlmInference? = null
-    private var session: LlmInferenceSession? = null
+    private var activeSession: LlmInferenceSession? = null
     private var sessionConfig: GenAIConfig.Session? = null
 
     override fun initialize(config: GenAIConfig): Result<Unit> = try {
@@ -64,7 +64,11 @@ actual class PlatformGenAI(
     override fun newSession(config: GenAIConfig.Session): Result<Unit> = try {
         this.llm ?: throw NotInitializedException()
         sessionConfig = config
-        replaceSession(config)
+
+        // Validate that the configured session can be constructed, then discard it. Public
+        // inference calls create a fresh session so independent Eyespie operations share no
+        // prompt or image history.
+        createSession(config).close()
         Result.success(Unit)
     } catch (err: Throwable) {
         Result.failure(err)
@@ -76,9 +80,12 @@ actual class PlatformGenAI(
             val inference = this.llm ?: throw NotInitializedException()
             inference.generateResponse(request.prompt)
         } else {
-            // LlmInferenceSession retains query/image history. Each public generate call is an
-            // independent Eyespie inference operation, so start from a fresh configured session.
-            freshSession().updateWithRequest(request).generateResponse()
+            val operationSession = freshOperationSession()
+            try {
+                operationSession.updateWithRequest(request).generateResponse()
+            } finally {
+                closeOperationSession(operationSession)
+            }
         }
         Result.success(response)
     } catch (err: Throwable) {
@@ -88,28 +95,30 @@ actual class PlatformGenAI(
     override fun generateFlow(request: GenAIRequest): Flow<String> = callbackFlow {
         if (request.prompt.isBlank()) throw InvalidPromptException()
 
+        val operationSession = if (sessionConfig != null) {
+            freshOperationSession().updateWithRequest(request)
+        } else {
+            null
+        }
+
         val listener = { partialResult: String?, done: Boolean ->
             if (partialResult != null) {
                 trySend(partialResult)
             }
             if (done) {
-                closeActiveSession()
+                operationSession?.let(::closeOperationSession)
                 close()
             }
         }
 
-        val response = if (sessionConfig != null) {
-            freshSession().updateWithRequest(request).generateResponseAsync(listener)
-        } else {
-            val inference = llm ?: throw NotInitializedException()
-            inference.generateResponseAsync(request.prompt, listener)
-        }
+        val response = operationSession?.generateResponseAsync(listener)
+            ?: (llm ?: throw NotInitializedException()).generateResponseAsync(request.prompt, listener)
 
         response.await()
 
         awaitClose {
             response.cancel(true)
-            closeActiveSession()
+            operationSession?.let(::closeOperationSession)
         }
     }
 
@@ -119,19 +128,20 @@ actual class PlatformGenAI(
     }
 
     override fun cancel() {
-        this.session?.cancelGenerateResponseAsync()
+        activeSession?.cancelGenerateResponseAsync()
     }
 
-    private fun freshSession(): LlmInferenceSession {
+    private fun freshOperationSession(): LlmInferenceSession {
         val config = sessionConfig ?: throw SessionRequiredException()
-        replaceSession(config)
-        return session ?: throw SessionRequiredException()
+        closeActiveSession()
+        return createSession(config).also {
+            activeSession = it
+        }
     }
 
-    private fun replaceSession(config: GenAIConfig.Session) {
+    private fun createSession(config: GenAIConfig.Session): LlmInferenceSession {
         val inference = this.llm ?: throw NotInitializedException()
-        closeActiveSession()
-        this.session = LlmInferenceSession.createFromOptions(
+        return LlmInferenceSession.createFromOptions(
             inference,
             LlmInferenceSession.LlmInferenceSessionOptions.builder()
                 .setTopK(config.topK)
@@ -148,9 +158,16 @@ actual class PlatformGenAI(
         )
     }
 
+    private fun closeOperationSession(operationSession: LlmInferenceSession) {
+        operationSession.close()
+        if (activeSession === operationSession) {
+            activeSession = null
+        }
+    }
+
     private fun closeActiveSession() {
-        this.session?.close()
-        this.session = null
+        activeSession?.close()
+        activeSession = null
     }
 
     /**
