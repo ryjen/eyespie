@@ -9,6 +9,7 @@ import okio.FileSystem
 import okio.Path
 
 internal enum class IosCameraCaptureFailure(val diagnosticCode: String) {
+    NotReady("camera.capture.not_ready"),
     FrameUnavailable("camera.capture.frame_unavailable"),
     CaptureInProgress("camera.capture.in_progress"),
     EncodingFailed("camera.capture.encoding_failed"),
@@ -20,6 +21,7 @@ internal class IosCameraCaptureException(
     cause: Throwable? = null,
 ) : IllegalStateException(
     when (failure) {
+        IosCameraCaptureFailure.NotReady -> "camera capture storage is not ready"
         IosCameraCaptureFailure.FrameUnavailable -> "no camera frame is available to capture"
         IosCameraCaptureFailure.CaptureInProgress -> "a camera capture is already in progress"
         IosCameraCaptureFailure.EncodingFailed -> "unable to encode camera capture"
@@ -95,8 +97,15 @@ internal class IosCameraCaptureController(
     private val mutex = Mutex()
     private var latestImage: CameraImage? = null
     private var captureInFlight = false
+    private var prepared = false
 
-    suspend fun prepare(): Result<Unit> = store.prepare()
+    suspend fun prepare(): Result<Unit> {
+        val result = store.prepare()
+        mutex.withLock {
+            prepared = result.isSuccess
+        }
+        return result
+    }
 
     suspend fun updateFrame(image: CameraImage) {
         mutex.withLock {
@@ -107,6 +116,10 @@ internal class IosCameraCaptureController(
     suspend fun capture(): Result<Path> {
         val selection = mutex.withLock {
             when {
+                !prepared -> Result.failure(
+                    IosCameraCaptureException(IosCameraCaptureFailure.NotReady)
+                )
+
                 captureInFlight -> Result.failure(
                     IosCameraCaptureException(IosCameraCaptureFailure.CaptureInProgress)
                 )
