@@ -4,8 +4,8 @@ import com.micrantha.eyespie.domain.entities.Embedding
 import com.micrantha.eyespie.domain.entities.Thing
 import com.micrantha.eyespie.domain.repository.ThingRepository
 import com.micrantha.eyespie.platform.scan.CameraImage
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.emitAll
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.flow.map
@@ -23,8 +23,16 @@ class MatchCaptureUseCase(
         image: CameraImage,
         thing: Thing,
     ): Flow<Result<MatchResult>> = flow {
-        val embedding = imageEmbeddingGenerator.generate(image)
-        require(embedding != Embedding.EMPTY) { "capture embedding must not be empty" }
+        val embedding = try {
+            imageEmbeddingGenerator.generate(image).also {
+                require(it != Embedding.EMPTY) { "capture embedding must not be empty" }
+            }
+        } catch (error: CancellationException) {
+            throw error
+        } catch (error: Throwable) {
+            emit(Result.failure(error))
+            return@flow
+        }
 
         emitAll(
             thingRepository.match(embedding).map { res ->
@@ -37,7 +45,5 @@ class MatchCaptureUseCase(
                 }
             }
         )
-    }.catch { error ->
-        emit(Result.failure(error))
     }
 }
