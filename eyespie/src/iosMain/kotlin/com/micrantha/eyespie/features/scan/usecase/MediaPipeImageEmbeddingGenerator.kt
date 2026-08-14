@@ -9,7 +9,6 @@ import com.micrantha.eyespie.domain.entities.Embedding
 import com.micrantha.eyespie.domain.entities.ImageEmbeddingContract
 import com.micrantha.eyespie.domain.entities.toCanonicalEmbedding
 import com.micrantha.eyespie.platform.scan.CameraImage
-import com.micrantha.eyespie.platform.scan.PlatformCameraImage
 import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.ObjCObjectVar
 import kotlinx.cinterop.addressOf
@@ -36,12 +35,9 @@ class MediaPipeImageEmbeddingGenerator(
 
     override suspend fun generate(image: CameraImage): Embedding = withContext(Dispatchers.Default) {
         autoreleasepool {
-            val platformImage = image as? PlatformCameraImage
-                ?: throw IllegalArgumentException("unsupported iOS camera image")
-
-            // PlatformCameraImage owns its oriented BGRA bytes. Reuse its existing PNG boundary so
-            // MediaPipe receives an owned UIImage rather than a borrowed camera CVPixelBuffer.
-            val uiImage = platformImage.toByteArray().toUIImage()
+            // CameraImage is the public boundary. Production PlatformCameraImage supplies an owned PNG;
+            // calibration fixtures supply immutable encoded bytes through the same contract.
+            val uiImage = image.toByteArray().toUIImage()
             val mpImage = createMediaPipeImage(uiImage)
             val embedder = createImageEmbedder(modelPathProvider())
             val result = embedImage(embedder, mpImage)
