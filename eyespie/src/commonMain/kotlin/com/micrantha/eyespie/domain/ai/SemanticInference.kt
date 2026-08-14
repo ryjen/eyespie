@@ -101,6 +101,13 @@ interface SemanticInferenceProvider {
 
     suspend fun generate(request: SemanticInferenceRequest): Result<String>
 
+    /**
+     * Returns output bound to the application-owned execution identity/configuration that produced it.
+     *
+     * The default implementation is only safe when identity/configuration cannot change between
+     * generation completion and snapshot reads. Providers with mutable lifecycle/configuration state
+     * must override this method and capture the snapshot atomically with request execution.
+     */
     suspend fun generateWithExecution(request: SemanticInferenceRequest): Result<SemanticInferenceOutput> =
         generate(request).map { text ->
             SemanticInferenceOutput(
