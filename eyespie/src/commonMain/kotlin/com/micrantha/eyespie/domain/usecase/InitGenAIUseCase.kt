@@ -13,6 +13,7 @@ import com.micrantha.eyespie.features.onboarding.data.OnboardingRepository
 import com.micrantha.eyespie.features.onboarding.usecase.LoadModelConfig
 import com.micrantha.eyespie.features.onboarding.usecase.ModelIntegrityException
 import com.micrantha.eyespie.features.onboarding.usecase.ModelIntegrityVerifier
+import kotlinx.coroutines.CancellationException
 
 class InitGenAIUseCase(
     private val llm: GenAI,
@@ -77,13 +78,10 @@ class InitGenAIUseCase(
                 identity = inferenceProvider.identity.copy(modelId = modelName),
             )
             Result.success(Unit)
+        } catch (cancelled: CancellationException) {
+            throw cancelled
         } catch (error: ModelIntegrityException) {
             availabilityController.markFailed(SemanticInferenceDiagnosticCode.MODEL_INTEGRITY_FAILED)
-            Result.failure(error)
-        } catch (error: UnsupportedOperationException) {
-            availabilityController.markUnavailable(
-                SemanticInferenceReasonCode.PLATFORM_IMAGE_INPUT_UNSUPPORTED,
-            )
             Result.failure(error)
         } catch (error: Throwable) {
             availabilityController.markFailed(
