@@ -12,6 +12,7 @@ from scripts.compare_image_embedding_calibration import (
     CalibrationReportError,
     compare_reports,
     load_report,
+    require_same_fixture_cross_platform_match,
 )
 
 
@@ -108,6 +109,7 @@ class ImageEmbeddingCalibrationComparatorTest(unittest.TestCase):
             self.assertTrue(result["match_decision_consistency"]["all_consistent"])
             self.assertFalse(result["match_policy"]["threshold_changed"])
             self.assertEqual(0.5, result["match_policy"]["cosine_threshold"])
+            require_same_fixture_cross_platform_match(result)
 
     def test_reports_inconsistent_within_platform_match_decision(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
@@ -172,6 +174,11 @@ class ImageEmbeddingCalibrationComparatorTest(unittest.TestCase):
                 result["match_decision_consistency"]["fixtures"]["burger_crop"]
             )
             self.assertFalse(result["match_decision_consistency"]["all_consistent"])
+            with self.assertRaisesRegex(
+                CalibrationReportError,
+                "same-fixture cross-platform matching failed.*burger",
+            ):
+                require_same_fixture_cross_platform_match(result)
 
     def test_rejects_unpinned_packaged_model(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
