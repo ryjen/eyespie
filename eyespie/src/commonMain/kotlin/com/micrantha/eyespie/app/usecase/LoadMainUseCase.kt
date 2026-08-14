@@ -19,6 +19,7 @@ import com.micrantha.eyespie.features.players.domain.entities.Player
 import com.micrantha.eyespie.features.players.domain.usecase.LoadSessionPlayerUseCase
 import com.micrantha.eyespie.features.players.ui.create.NewPlayerScreen
 import com.micrantha.eyespie.features.scan.data.CaptureSyncRepository
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.first
 
 interface LoadMainUseCase {
@@ -46,6 +47,8 @@ class LoadMainUseCaseImpl(
             .recover {
                 if (it is HandledException) Result.success(Unit) else Result.failure(it)
             }.map { }
+    } catch (cancelled: CancellationException) {
+        throw cancelled
     } catch (err: Throwable) {
         log.error(err) { "unexpected error" }
         Result.failure(err)
