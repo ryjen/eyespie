@@ -7,6 +7,7 @@ import unittest
 from pathlib import Path
 
 from scripts.compare_image_embedding_calibration import (
+    EXPECTED_MODEL_SHA256,
     CalibrationReportError,
     compare_reports,
     load_report,
@@ -22,18 +23,20 @@ class ImageEmbeddingCalibrationComparatorTest(unittest.TestCase):
         root: Path,
         platform: str,
         *,
-        model_sha256: str = "a" * 64,
+        model_sha256: str = EXPECTED_MODEL_SHA256,
+        match_threshold: float = 0.5,
         non_finite: bool = False,
+        crop: tuple[float, float] = (0.98, 0.02),
     ) -> Path:
         reference = self.vector(1.0, 0.0)
-        crop = self.vector(0.98, 0.02)
+        crop_vector = self.vector(*crop)
         rotated = self.vector(0.95, 0.05)
         cat = self.vector(0.0, 1.0)
         if non_finite:
             reference[5] = math.nan
         fixtures = [
             ("burger", "reference", reference),
-            ("burger_crop", "related", crop),
+            ("burger_crop", "related", crop_vector),
             ("burger_rotated", "related", rotated),
             ("cat", "unrelated", cat),
         ]
@@ -42,7 +45,11 @@ class ImageEmbeddingCalibrationComparatorTest(unittest.TestCase):
             "platform": platform,
             "device": {"manufacturer": "test", "model": platform, "os": "test-os"},
             "runtime": {"name": f"runtime-{platform}", "version": "1.0"},
-            "model": {"id": "mobilenet-v3-small-100-224-embedder", "sha256": model_sha256},
+            "model": {
+                "id": "mobilenet-v3-small-100-224-embedder",
+                "sha256": model_sha256,
+            },
+            "match_policy": {"cosine_threshold": match_threshold},
             "embedding_contract": {"schema_version": 1, "dimensions": 1024},
             "fixtures": [
                 {
@@ -60,7 +67,7 @@ class ImageEmbeddingCalibrationComparatorTest(unittest.TestCase):
         path.write_text(json.dumps(payload), encoding="utf-8")
         return path
 
-    def test_compares_same_model_without_product_threshold(self) -> None:
+    def test_compares_observed_behavior_without_changing_threshold(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             android = load_report(self.write_report(root, "android"))
@@ -71,18 +78,49 @@ class ImageEmbeddingCalibrationComparatorTest(unittest.TestCase):
             self.assertEqual(1.0, result["cross_platform"]["burger"]["cosine_similarity"])
             self.assertEqual(0.0, result["cross_platform"]["burger"]["rmse"])
             self.assertGreater(
-                result["android"]["semantic_cosine"]["burger_crop"],
-                result["android"]["semantic_cosine"]["cat"],
+                result["android"]["semantic_behavior"]["burger_crop"]["cosine_similarity"],
+                result["android"]["semantic_behavior"]["cat"]["cosine_similarity"],
             )
-            self.assertFalse(result["policy"]["threshold_changed"])
+            self.assertTrue(
+                result["android"]["semantic_behavior"]["burger_crop"][
+                    "matches_configured_threshold"
+                ]
+            )
+            self.assertFalse(
+                result["android"]["semantic_behavior"]["cat"]["matches_configured_threshold"]
+            )
+            self.assertTrue(result["match_decision_consistency"]["all_consistent"])
+            self.assertFalse(result["match_policy"]["threshold_changed"])
+            self.assertEqual(0.5, result["match_policy"]["cosine_threshold"])
 
-    def test_rejects_different_model_identity(self) -> None:
+    def test_reports_inconsistent_cross_platform_match_decision(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            android = load_report(self.write_report(root, "android", model_sha256="a" * 64))
-            ios = load_report(self.write_report(root, "ios", model_sha256="b" * 64))
+            android = load_report(self.write_report(root, "android", crop=(0.8, 0.6)))
+            ios = load_report(self.write_report(root, "ios", crop=(0.4, 0.916515138991168)))
 
-            with self.assertRaisesRegex(CalibrationReportError, "different model identities"):
+            result = compare_reports(android, ios)
+
+            self.assertFalse(
+                result["match_decision_consistency"]["fixtures"]["burger_crop"]
+            )
+            self.assertFalse(result["match_decision_consistency"]["all_consistent"])
+
+    def test_rejects_unpinned_packaged_model(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            path = self.write_report(root, "android", model_sha256="b" * 64)
+
+            with self.assertRaisesRegex(CalibrationReportError, "pinned image-embedding model"):
+                load_report(path)
+
+    def test_rejects_different_configured_thresholds(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            android = load_report(self.write_report(root, "android", match_threshold=0.5))
+            ios = load_report(self.write_report(root, "ios", match_threshold=0.6))
+
+            with self.assertRaisesRegex(CalibrationReportError, "different configured match thresholds"):
                 compare_reports(android, ios)
 
     def test_rejects_non_finite_embedding_value(self) -> None:
