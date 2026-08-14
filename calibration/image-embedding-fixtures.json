@@ -1,0 +1,36 @@
+{
+  "schema_version": 1,
+  "source_repository": "https://github.com/ryjen/mediapipe",
+  "source_revision": "0ad5a71bcdff3d756dc5b07f93765aaeb4152538",
+  "license_spdx": "Apache-2.0",
+  "fixtures": [
+    {
+      "id": "burger",
+      "role": "reference",
+      "file_name": "burger.jpg",
+      "sha256": "97c15bbbf3cf3615063b1031c85d669de55839f59262bbe145d15ca75b36ecbf",
+      "url": "https://storage.googleapis.com/mediapipe-assets/tasks/testdata/vision/burger.jpg?generation=1782184424868164"
+    },
+    {
+      "id": "burger_crop",
+      "role": "related",
+      "file_name": "burger_crop.jpg",
+      "sha256": "8f58de573f0bf59a49c3d86cfabb9ad4061481f574aa049177e8da3963dddc50",
+      "url": "https://storage.googleapis.com/mediapipe-assets/tasks/testdata/vision/burger_crop.jpg?generation=1782184432033088"
+    },
+    {
+      "id": "burger_rotated",
+      "role": "related",
+      "file_name": "burger_rotated.jpg",
+      "sha256": "b7bb5e59ef778f3ce6b3e616c511908a53d513b83a56aae58b7453e14b0a4b2a",
+      "url": "https://storage.googleapis.com/mediapipe-assets/tasks/testdata/vision/burger_rotated.jpg?generation=1782184439219970"
+    },
+    {
+      "id": "cat",
+      "role": "unrelated",
+      "file_name": "cat.jpg",
+      "sha256": "2533197401eebe9410ea4d063f86c43fbd2666f3e8165a38aca155c0d09c21be",
+      "url": "https://storage.googleapis.com/mediapipe-assets/tasks/testdata/vision/cat.jpg?generation=1782184446508641"
+    }
+  ]
+}
