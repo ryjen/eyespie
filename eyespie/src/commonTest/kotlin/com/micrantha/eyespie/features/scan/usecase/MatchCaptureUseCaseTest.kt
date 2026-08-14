@@ -7,9 +7,14 @@ import com.micrantha.eyespie.domain.entities.toCanonicalEmbedding
 import com.micrantha.eyespie.domain.repository.FakeThingRepository
 import com.micrantha.eyespie.features.players.domain.entities.Player
 import com.micrantha.eyespie.platform.scan.CameraImage
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
+import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertSame
 import kotlin.test.assertTrue
@@ -20,9 +25,7 @@ import kotlin.time.Instant
 class MatchCaptureUseCaseTest {
 
     private class FakeImageEmbeddingGenerator : ImageEmbeddingGenerator {
-        override suspend fun generate(image: CameraImage): Embedding =
-            List(ImageEmbeddingContract.dimensions) { if (it == 0) 1f else 0f }
-                .toCanonicalEmbedding()
+        override suspend fun generate(image: CameraImage): Embedding = embedding()
     }
 
     private val generator = FakeImageEmbeddingGenerator()
@@ -34,6 +37,30 @@ class MatchCaptureUseCaseTest {
         repository.matchResult = Result.success(emptyList())
 
         val result = useCase(image(), thing()).first().getOrThrow()
+
+        assertFalse(result.matched)
+    }
+
+    @Test
+    fun `invoke should remain suspended until embedding generation completes`() = runTest {
+        val started = CompletableDeferred<Unit>()
+        val release = CompletableDeferred<Unit>()
+        val blockingGenerator = object : ImageEmbeddingGenerator {
+            override suspend fun generate(image: CameraImage): Embedding {
+                started.complete(Unit)
+                release.await()
+                return embedding()
+            }
+        }
+        val blockingUseCase = MatchCaptureUseCase(blockingGenerator, repository)
+
+        val invocation = async { blockingUseCase(image(), thing()) }
+        started.await()
+
+        assertFalse(invocation.isCompleted)
+
+        release.complete(Unit)
+        val result = invocation.await().first().getOrThrow()
 
         assertFalse(result.matched)
     }
@@ -52,6 +79,32 @@ class MatchCaptureUseCaseTest {
         assertSame(expected, result.exceptionOrNull())
     }
 
+    @Test
+    fun `embedding cancellation should propagate`() = runTest {
+        val failingGenerator = object : ImageEmbeddingGenerator {
+            override suspend fun generate(image: CameraImage): Embedding =
+                throw CancellationException("cancelled")
+        }
+        val failingUseCase = MatchCaptureUseCase(failingGenerator, repository)
+
+        assertFailsWith<CancellationException> {
+            failingUseCase(image(), thing())
+        }
+    }
+
+    @Test
+    fun `repository flow exception should propagate`() = runTest {
+        val expected = IllegalStateException("repository failed")
+        repository.matchFlow = flow { throw expected }
+
+        val resultFlow = useCase(image(), thing())
+        val actual = assertFailsWith<IllegalStateException> {
+            resultFlow.first()
+        }
+
+        assertSame(expected, actual)
+    }
+
     private fun image() = object : CameraImage {
         override val width = 0
         override val height = 0
@@ -68,4 +121,10 @@ class MatchCaptureUseCaseTest {
         imageUrl = "url",
         location = com.micrantha.eyespie.domain.entities.Location.Point(0.0, 0.0)
     )
+
+    companion object {
+        private fun embedding(): Embedding =
+            List(ImageEmbeddingContract.dimensions) { if (it == 0) 1f else 0f }
+                .toCanonicalEmbedding()
+    }
 }
