@@ -267,6 +267,15 @@ jobs:
           test -x "$app/$executable"
           file "$app/$executable"
 
+          model_name="mobilenet_v3_small_100_224_embedder.tflite"
+          model="$app/$model_name"
+          if [[ ! -f "$model" ]]; then
+            echo "expected image embedder at the main bundle root: $model" >&2
+            find "$app" -type f -name "$model_name" -print >&2 || true
+            exit 1
+          fi
+          python3 scripts/stage_image_embedder_model.py verify-file "$model"
+
       - name: Summarize failure
         if: failure()
         shell: bash
