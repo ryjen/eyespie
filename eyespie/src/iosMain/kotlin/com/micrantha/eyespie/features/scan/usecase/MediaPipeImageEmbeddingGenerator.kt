@@ -14,6 +14,7 @@ import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.ObjCObjectVar
 import kotlinx.cinterop.addressOf
 import kotlinx.cinterop.alloc
+import kotlinx.cinterop.autoreleasepool
 import kotlinx.cinterop.memScoped
 import kotlinx.cinterop.ptr
 import kotlinx.cinterop.usePinned
@@ -34,27 +35,29 @@ class MediaPipeImageEmbeddingGenerator(
 ) : ImageEmbeddingGenerator {
 
     override suspend fun generate(image: CameraImage): Embedding = withContext(Dispatchers.Default) {
-        val platformImage = image as? PlatformCameraImage
-            ?: throw IllegalArgumentException("unsupported iOS camera image")
+        autoreleasepool {
+            val platformImage = image as? PlatformCameraImage
+                ?: throw IllegalArgumentException("unsupported iOS camera image")
 
-        // PlatformCameraImage owns its oriented BGRA bytes. Reuse its existing PNG boundary so
-        // MediaPipe receives an owned UIImage rather than a borrowed camera CVPixelBuffer.
-        val uiImage = platformImage.toByteArray().toUIImage()
-        val mpImage = createMediaPipeImage(uiImage)
-        val embedder = createImageEmbedder(modelPathProvider())
-        val result = embedImage(embedder, mpImage)
+            // PlatformCameraImage owns its oriented BGRA bytes. Reuse its existing PNG boundary so
+            // MediaPipe receives an owned UIImage rather than a borrowed camera CVPixelBuffer.
+            val uiImage = platformImage.toByteArray().toUIImage()
+            val mpImage = createMediaPipeImage(uiImage)
+            val embedder = createImageEmbedder(modelPathProvider())
+            val result = embedImage(embedder, mpImage)
 
-        canonicalMediaPipeEmbedding(
-            result.embeddingResult.embeddings.map { rawEmbedding ->
-                val embedding = rawEmbedding as? MPPEmbedding
-                    ?: throw IllegalStateException("MediaPipe returned an invalid embedding head")
-                embedding.floatEmbedding?.map { rawValue ->
-                    val number = rawValue as? NSNumber
-                        ?: throw IllegalStateException("MediaPipe returned a non-numeric embedding value")
-                    number.floatValue
+            canonicalMediaPipeEmbedding(
+                result.embeddingResult.embeddings.map { rawEmbedding ->
+                    val embedding = rawEmbedding as? MPPEmbedding
+                        ?: throw IllegalStateException("MediaPipe returned an invalid embedding head")
+                    embedding.floatEmbedding?.map { rawValue ->
+                        val number = rawValue as? NSNumber
+                            ?: throw IllegalStateException("MediaPipe returned a non-numeric embedding value")
+                        number.floatValue
+                    }
                 }
-            }
-        )
+            )
+        }
     }
 
     private fun createImageEmbedder(modelPath: String): MPPImageEmbedder = memScoped {
