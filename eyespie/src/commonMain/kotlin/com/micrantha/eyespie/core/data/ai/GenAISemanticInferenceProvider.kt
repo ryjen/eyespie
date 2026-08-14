@@ -1,14 +1,19 @@
 package com.micrantha.eyespie.core.data.ai
 
 import com.micrantha.bluebell.platform.GenAI
+import com.micrantha.bluebell.platform.GenAIConfig
 import com.micrantha.bluebell.platform.GenAIRequest
 import com.micrantha.eyespie.domain.ai.InvalidSemanticInferenceRequestException
 import com.micrantha.eyespie.domain.ai.SemanticInferenceAvailability
 import com.micrantha.eyespie.domain.ai.SemanticInferenceAvailabilityController
 import com.micrantha.eyespie.domain.ai.SemanticInferenceCapabilities
 import com.micrantha.eyespie.domain.ai.SemanticInferenceCapability
+import com.micrantha.eyespie.domain.ai.SemanticInferenceDiagnosticCode
 import com.micrantha.eyespie.domain.ai.SemanticInferenceIdentity
+import com.micrantha.eyespie.domain.ai.SemanticInferenceInitialization
 import com.micrantha.eyespie.domain.ai.SemanticInferenceProvider
+import com.micrantha.eyespie.domain.ai.SemanticInferenceProviderSetup
+import com.micrantha.eyespie.domain.ai.SemanticInferenceReasonCode
 import com.micrantha.eyespie.domain.ai.SemanticInferenceRequest
 import com.micrantha.eyespie.domain.ai.SemanticInferenceUnavailableException
 import com.micrantha.eyespie.domain.ai.UnsupportedSemanticCapabilityException
@@ -30,17 +35,18 @@ import okio.Path
 /**
  * Eyespie-owned adapter from the runtime-neutral semantic inference contract to Bluebell GenAI.
  *
- * Request-session construction deliberately remains owned by the concrete GenAI runtime. Android
- * PlatformGenAI validates its session configuration once during initialization and creates a fresh
- * native MediaPipe session for each logical request. Repeating that lifecycle here would create a
- * second owner and could re-introduce teardown/cancellation races.
+ * Provider setup validates/configures the runtime once. Logical request-session construction remains
+ * owned by the concrete GenAI runtime: Android PlatformGenAI retains the validated session config and
+ * creates a fresh native MediaPipe session for each independent request.
  */
 internal class GenAISemanticInferenceProvider(
     private val genAI: GenAI,
     identity: SemanticInferenceIdentity,
     private val imageInputValidator: (Path) -> Boolean,
     initialAvailability: SemanticInferenceAvailability = SemanticInferenceAvailability.NotConfigured,
-) : SemanticInferenceProvider, SemanticInferenceAvailabilityController {
+) : SemanticInferenceProvider,
+    SemanticInferenceProviderSetup,
+    SemanticInferenceAvailabilityController {
     private val state = MutableStateFlow(initialAvailability)
     private val generationMutex = Mutex()
     private val lifecycleMutex = Mutex()
@@ -52,6 +58,35 @@ internal class GenAISemanticInferenceProvider(
         get() = executionIdentity
 
     override val availability = state.asStateFlow()
+
+    override suspend fun initialize(configuration: SemanticInferenceInitialization): Result<Unit> =
+        generationMutex.withLock {
+            lifecycleMutex.withLock {
+                unavailableFailureForSetup()?.let { return@withLock Result.failure(it) }
+                val previous = state.value
+                state.value = SemanticInferenceAvailability.Initializing
+                try {
+                    validateInitialization(configuration)
+                    genAI.initialize(configuration.toGenAIConfig())
+                        .failureOrCancellation()
+                        ?.let { throw it }
+                    genAI.newSession(configuration.toSessionConfig())
+                        .failureOrCancellation()
+                        ?.let { throw it }
+                    executionIdentity = configuration.identity
+                    state.value = SemanticInferenceAvailability.Available(configuration.capabilities)
+                    Result.success(Unit)
+                } catch (cancelled: CancellationException) {
+                    state.value = previous
+                    throw cancelled
+                } catch (error: Throwable) {
+                    state.value = SemanticInferenceAvailability.Failed(
+                        SemanticInferenceDiagnosticCode.RUNTIME_INITIALIZATION_FAILED,
+                    )
+                    Result.failure(error)
+                }
+            }
+        }
 
     override suspend fun generate(request: SemanticInferenceRequest): Result<String> =
         generationMutex.withLock {
@@ -162,6 +197,28 @@ internal class GenAISemanticInferenceProvider(
         }
     }
 
+    private fun unavailableFailureForSetup(): SemanticInferenceUnavailableException? {
+        val current = state.value
+        return when {
+            closed -> SemanticInferenceUnavailableException(current)
+            current is SemanticInferenceAvailability.Unavailable &&
+                current.reasonCode == SemanticInferenceReasonCode.PLATFORM_IMAGE_INPUT_UNSUPPORTED ->
+                SemanticInferenceUnavailableException(current)
+            else -> null
+        }
+    }
+
+    private fun validateInitialization(configuration: SemanticInferenceInitialization) {
+        require(configuration.modelPath.isAbsolute) { "model path must be absolute" }
+        require(configuration.maxImages >= 0) { "max images must be non-negative" }
+        require(configuration.sampling.topK > 0) { "topK must be positive" }
+        require(configuration.sampling.topP in 0f..1f) { "topP must be between zero and one" }
+        require(configuration.sampling.temperature >= 0f) { "temperature must be non-negative" }
+        configuration.capabilities.maxContextTokens?.let {
+            require(it > 0) { "max context tokens must be positive" }
+        }
+    }
+
     private fun validate(request: SemanticInferenceRequest, streaming: Boolean): Result<Unit> {
         val capabilities = (state.value as? SemanticInferenceAvailability.Available)?.capabilities
             ?: return Result.failure(SemanticInferenceUnavailableException(state.value))
@@ -216,6 +273,24 @@ internal class GenAISemanticInferenceProvider(
     private fun <T> Result<T>.failureOrCancellation(): Throwable? = exceptionOrNull()?.also {
         if (it is CancellationException) throw it
     }
+
+    private fun SemanticInferenceInitialization.toGenAIConfig() = GenAIConfig(
+        modelPath = modelPath.toString(),
+        maxTopK = null,
+        maxNumImages = maxImages,
+        maxTokens = capabilities.maxContextTokens,
+        visionAdapterPath = null,
+        visionEncoderPath = null,
+    )
+
+    private fun SemanticInferenceInitialization.toSessionConfig() = GenAIConfig.Session(
+        topK = sampling.topK,
+        topP = sampling.topP,
+        temperature = sampling.temperature,
+        randomSeed = sampling.randomSeed,
+        loraPath = "",
+        enableVisionModality = capabilities.imageInput,
+    )
 
     private fun SemanticInferenceRequest.toGenAIRequest() =
         GenAIRequest(prompt, images.map { it.localPath.asFileUri() })
