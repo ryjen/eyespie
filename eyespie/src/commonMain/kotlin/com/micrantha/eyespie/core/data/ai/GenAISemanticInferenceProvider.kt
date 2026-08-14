@@ -37,7 +37,7 @@ import okio.Path
  */
 internal class GenAISemanticInferenceProvider(
     private val genAI: GenAI,
-    override val identity: SemanticInferenceIdentity,
+    identity: SemanticInferenceIdentity,
     private val imageInputValidator: (Path) -> Boolean,
     initialAvailability: SemanticInferenceAvailability = SemanticInferenceAvailability.NotConfigured,
 ) : SemanticInferenceProvider, SemanticInferenceAvailabilityController {
@@ -45,7 +45,11 @@ internal class GenAISemanticInferenceProvider(
     private val generationMutex = Mutex()
     private val lifecycleMutex = Mutex()
     private val closeMutex = Mutex()
+    private var executionIdentity = identity
     private var closed = false
+
+    override val identity: SemanticInferenceIdentity
+        get() = executionIdentity
 
     override val availability = state.asStateFlow()
 
@@ -126,8 +130,17 @@ internal class GenAISemanticInferenceProvider(
     override suspend fun markInitializing() =
         transition { SemanticInferenceAvailability.Initializing }
 
-    override suspend fun markAvailable(capabilities: SemanticInferenceCapabilities) =
-        transition { SemanticInferenceAvailability.Available(capabilities) }
+    override suspend fun markAvailable(
+        capabilities: SemanticInferenceCapabilities,
+        identity: SemanticInferenceIdentity?,
+    ) {
+        lifecycleMutex.withLock {
+            if (!closed) {
+                identity?.let { executionIdentity = it }
+                state.value = SemanticInferenceAvailability.Available(capabilities)
+            }
+        }
+    }
 
     override suspend fun markUnavailable(reasonCode: String) =
         transition { SemanticInferenceAvailability.Unavailable(reasonCode) }
