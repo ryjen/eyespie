@@ -44,6 +44,32 @@ sealed interface SemanticInferenceAvailability {
     data class Failed(val diagnosticCode: String) : SemanticInferenceAvailability
 }
 
+object SemanticInferenceReasonCode {
+    const val PLATFORM_IMAGE_INPUT_UNSUPPORTED = "platform_image_input_unsupported"
+    const val MODEL_NOT_CONFIGURED = "model_not_configured"
+    const val MODEL_UNAVAILABLE = "model_unavailable"
+}
+
+object SemanticInferenceDiagnosticCode {
+    const val MODEL_INTEGRITY_FAILED = "model_integrity_failed"
+    const val RUNTIME_INITIALIZATION_FAILED = "runtime_initialization_failed"
+}
+
+data class SemanticInferenceSamplingConfiguration(
+    val topK: Int,
+    val topP: Float,
+    val temperature: Float,
+    val randomSeed: Int,
+)
+
+data class SemanticInferenceInitialization(
+    val modelPath: Path,
+    val identity: SemanticInferenceIdentity,
+    val capabilities: SemanticInferenceCapabilities,
+    val maxImages: Int,
+    val sampling: SemanticInferenceSamplingConfiguration,
+)
+
 data class SemanticImageInput(val localPath: Path)
 
 data class SemanticInferenceRequest(
@@ -61,10 +87,26 @@ interface SemanticInferenceProvider {
     suspend fun close()
 }
 
+/**
+ * Application-owned setup boundary for a selected semantic provider.
+ *
+ * Implementations may validate/configure a runtime here, but logical request sessions remain owned
+ * by the runtime adapter and must not be retained across independent requests.
+ */
+interface SemanticInferenceProviderSetup {
+    suspend fun initialize(configuration: SemanticInferenceInitialization): Result<Unit>
+}
+
 interface SemanticInferenceAvailabilityController {
     suspend fun markNotConfigured()
     suspend fun markInitializing()
     suspend fun markAvailable(capabilities: SemanticInferenceCapabilities)
+
+    suspend fun markAvailable(
+        capabilities: SemanticInferenceCapabilities,
+        identity: SemanticInferenceIdentity,
+    ) = markAvailable(capabilities)
+
     suspend fun markUnavailable(reasonCode: String)
     suspend fun markFailed(diagnosticCode: String)
 }

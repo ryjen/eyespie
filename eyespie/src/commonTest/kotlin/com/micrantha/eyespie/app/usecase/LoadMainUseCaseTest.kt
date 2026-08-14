@@ -1,9 +1,18 @@
 package com.micrantha.eyespie.app.usecase
 
-import com.micrantha.bluebell.platform.FakeGenAI
 import com.micrantha.bluebell.platform.Platform
 import com.micrantha.eyespie.core.data.account.model.CurrentSession
 import com.micrantha.eyespie.core.ui.FakeScreenContext
+import com.micrantha.eyespie.domain.ai.InferenceLocality
+import com.micrantha.eyespie.domain.ai.SemanticInferenceAvailability
+import com.micrantha.eyespie.domain.ai.SemanticInferenceAvailabilityController
+import com.micrantha.eyespie.domain.ai.SemanticInferenceCapabilities
+import com.micrantha.eyespie.domain.ai.SemanticInferenceIdentity
+import com.micrantha.eyespie.domain.ai.SemanticInferenceInitialization
+import com.micrantha.eyespie.domain.ai.SemanticInferenceProvider
+import com.micrantha.eyespie.domain.ai.SemanticInferenceProviderSetup
+import com.micrantha.eyespie.domain.ai.SemanticInferenceReasonCode
+import com.micrantha.eyespie.domain.ai.SemanticInferenceRequest
 import com.micrantha.eyespie.domain.entities.Session
 import com.micrantha.eyespie.domain.repository.FakeAccountRepository
 import com.micrantha.eyespie.domain.usecase.InitGenAIUseCase
@@ -20,12 +29,16 @@ import com.micrantha.eyespie.features.players.domain.repository.FakePlayerReposi
 import com.micrantha.eyespie.features.players.domain.usecase.LoadSessionPlayerUseCase
 import com.micrantha.eyespie.features.players.ui.create.NewPlayerScreen
 import com.micrantha.eyespie.features.scan.data.FakeCaptureSyncRepository
+import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.test.runTest
 import okio.Path.Companion.toPath
 import okio.fakefilesystem.FakeFileSystem
 import org.kodein.di.DI
 import org.kodein.di.bindProvider
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
@@ -47,11 +60,16 @@ class LoadMainUseCaseTest {
     private val currentSession = CurrentSession
     private val loadSessionPlayerUseCase = LoadSessionPlayerUseCase(playerRepository, currentSession)
     private val onboardingRepository = FakeOnboardingRepository()
-    private val llm = FakeGenAI()
+    private val semanticProvider = FakeSemanticProvider()
     private val loadModelConfig = object : LoadModelConfig {
-        override fun invoke() = Result.success(mapOf(
-            "test" to AiModel("url", "c643ac136b0e526f578ce56c2253b5005c4422b5640d61f363ad1802253d86cf")
-        ))
+        override fun invoke() = Result.success(
+            mapOf(
+                "test" to AiModel(
+                    "url",
+                    "c643ac136b0e526f578ce56c2253b5005c4422b5640d61f363ad1802253d86cf",
+                )
+            )
+        )
     }
     private val platform = object : Platform {
         override val name = "Fake"
@@ -72,11 +90,13 @@ class LoadMainUseCaseTest {
     }
     private val modelIntegrityVerifier = ModelIntegrityVerifier(FakeFileSystem())
     private val initGenAIUseCase = InitGenAIUseCase(
-        llm,
         onboardingRepository,
         loadModelConfig,
         platform,
         modelIntegrityVerifier,
+        semanticProvider,
+        semanticProvider,
+        semanticProvider,
     )
     private val captureSyncRepository = FakeCaptureSyncRepository()
 
@@ -86,7 +106,7 @@ class LoadMainUseCaseTest {
         loadSessionPlayerUseCase,
         onboardingRepository,
         initGenAIUseCase,
-        captureSyncRepository
+        captureSyncRepository,
     )
 
     @Test
@@ -100,7 +120,9 @@ class LoadMainUseCaseTest {
 
     @Test
     fun `when session exists but player missing should navigate to NewPlayerScreen`() = runTest {
-        accountRepository.sessionResult = Result.success(Session(id = "s", accessToken = "a", refreshToken = "r", userId = "u"))
+        accountRepository.sessionResult = Result.success(
+            Session(id = "s", accessToken = "a", refreshToken = "r", userId = "u")
+        )
         playerRepository.playerResult = Result.failure(Exception("Not found"))
 
         useCase()
@@ -110,13 +132,122 @@ class LoadMainUseCaseTest {
 
     @Test
     fun `when everything valid should navigate to DashboardScreen`() = runTest {
-        accountRepository.sessionResult = Result.success(Session(id = "s", accessToken = "a", refreshToken = "r", userId = "u"))
-        val player = Player("p1", Instant.parse("2023-01-01T00:00:00Z"), Player.Name("f", "l", "n"), "e", Player.Score(0))
-        playerRepository.playerResult = Result.success(player)
+        configureValidUser()
         onboardingRepository.runOnce = true
 
         useCase()
 
         assertIs<DashboardScreen>(context.router.lastNavigatedTo)
+    }
+
+    @Test
+    fun `missing optional local model does not block dashboard after onboarding`() = runTest {
+        configureValidUser()
+        onboardingRepository.runOnce = true
+        onboardingRepository.hasGenAIValue = true
+        onboardingRepository.model = null
+
+        useCase()
+
+        assertIs<DashboardScreen>(context.router.lastNavigatedTo)
+        val unavailable = assertIs<SemanticInferenceAvailability.Unavailable>(
+            semanticProvider.availability.value,
+        )
+        assertEquals(SemanticInferenceReasonCode.MODEL_NOT_CONFIGURED, unavailable.reasonCode)
+    }
+
+    @Test
+    fun `unsupported local image inference does not require model selection after onboarding`() = runTest {
+        configureValidUser()
+        onboardingRepository.runOnce = true
+        onboardingRepository.hasGenAIValue = true
+        onboardingRepository.model = null
+        semanticProvider.availability.value = SemanticInferenceAvailability.Unavailable(
+            SemanticInferenceReasonCode.PLATFORM_IMAGE_INPUT_UNSUPPORTED,
+        )
+
+        useCase()
+
+        assertIs<DashboardScreen>(context.router.lastNavigatedTo)
+        val unavailable = assertIs<SemanticInferenceAvailability.Unavailable>(
+            semanticProvider.availability.value,
+        )
+        assertEquals(
+            SemanticInferenceReasonCode.PLATFORM_IMAGE_INPUT_UNSUPPORTED,
+            unavailable.reasonCode,
+        )
+    }
+
+    @Test
+    fun `local inference initialization failure does not block dashboard`() = runTest {
+        configureValidUser()
+        onboardingRepository.runOnce = true
+        onboardingRepository.hasGenAIValue = true
+        onboardingRepository.model = "test"
+
+        useCase()
+
+        assertIs<DashboardScreen>(context.router.lastNavigatedTo)
+        assertIs<SemanticInferenceAvailability.Failed>(semanticProvider.availability.value)
+    }
+
+    private fun configureValidUser() {
+        accountRepository.sessionResult = Result.success(
+            Session(id = "s", accessToken = "a", refreshToken = "r", userId = "u")
+        )
+        playerRepository.playerResult = Result.success(
+            Player(
+                "p1",
+                Instant.parse("2023-01-01T00:00:00Z"),
+                Player.Name("f", "l", "n"),
+                "e",
+                Player.Score(0),
+            )
+        )
+    }
+
+    private class FakeSemanticProvider : SemanticInferenceProvider,
+        SemanticInferenceProviderSetup,
+        SemanticInferenceAvailabilityController {
+        override val identity = SemanticInferenceIdentity(
+            providerId = "test-local",
+            runtimeId = "test-runtime",
+            locality = InferenceLocality.LOCAL,
+        )
+        override val availability = MutableStateFlow<SemanticInferenceAvailability>(
+            SemanticInferenceAvailability.NotConfigured,
+        )
+
+        override suspend fun initialize(configuration: SemanticInferenceInitialization): Result<Unit> {
+            availability.value = SemanticInferenceAvailability.Available(configuration.capabilities)
+            return Result.success(Unit)
+        }
+
+        override suspend fun generate(request: SemanticInferenceRequest) =
+            Result.failure<String>(UnsupportedOperationException())
+
+        override fun generateFlow(request: SemanticInferenceRequest): Flow<String> = emptyFlow()
+        override fun cancel() = Unit
+        override suspend fun close() = Unit
+
+        override suspend fun markNotConfigured() {
+            availability.value = SemanticInferenceAvailability.NotConfigured
+        }
+
+        override suspend fun markInitializing() {
+            availability.value = SemanticInferenceAvailability.Initializing
+        }
+
+        override suspend fun markAvailable(capabilities: SemanticInferenceCapabilities) {
+            availability.value = SemanticInferenceAvailability.Available(capabilities)
+        }
+
+        override suspend fun markUnavailable(reasonCode: String) {
+            availability.value = SemanticInferenceAvailability.Unavailable(reasonCode)
+        }
+
+        override suspend fun markFailed(diagnosticCode: String) {
+            availability.value = SemanticInferenceAvailability.Failed(diagnosticCode)
+        }
     }
 }
