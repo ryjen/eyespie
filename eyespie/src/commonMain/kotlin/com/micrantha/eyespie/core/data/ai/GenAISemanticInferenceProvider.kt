@@ -13,12 +13,15 @@ import com.micrantha.eyespie.domain.ai.SemanticInferenceRequest
 import com.micrantha.eyespie.domain.ai.SemanticInferenceUnavailableException
 import com.micrantha.eyespie.domain.ai.UnsupportedSemanticCapabilityException
 import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.CoroutineStart
 import kotlinx.coroutines.NonCancellable
+import kotlinx.coroutines.async
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.channelFlow
 import kotlinx.coroutines.flow.collect
+import kotlinx.coroutines.supervisorScope
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
@@ -51,10 +54,11 @@ internal class GenAISemanticInferenceProvider(
             validate(request, streaming = false).exceptionOrNull()?.let {
                 return@withLock Result.failure(it)
             }
-            val unavailable = lifecycleMutex.withLock { unavailableFailure() }
-            unavailable?.let { return@withLock Result.failure(it) }
             try {
-                genAI.generate(request.toGenAIRequest()).also { it.failureOrCancellation() }
+                lifecycleMutex.withLock {
+                    unavailableFailure()?.let { return@withLock Result.failure(it) }
+                    genAI.generate(request.toGenAIRequest()).also { it.failureOrCancellation() }
+                }
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (error: Throwable) {
@@ -65,10 +69,15 @@ internal class GenAISemanticInferenceProvider(
     override fun generateFlow(request: SemanticInferenceRequest): Flow<String> = channelFlow {
         generationMutex.withLock {
             validate(request, streaming = true).getOrThrow()
-            lifecycleMutex.withLock {
-                unavailableFailure()?.let { throw it }
+            supervisorScope {
+                val collection = lifecycleMutex.withLock {
+                    unavailableFailure()?.let { throw it }
+                    async(start = CoroutineStart.UNDISPATCHED) {
+                        genAI.generateFlow(request.toGenAIRequest()).collect { send(it) }
+                    }
+                }
+                collection.await()
             }
-            genAI.generateFlow(request.toGenAIRequest()).collect { send(it) }
         }
     }
 
