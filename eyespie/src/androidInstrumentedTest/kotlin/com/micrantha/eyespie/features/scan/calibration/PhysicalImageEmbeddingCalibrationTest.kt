@@ -33,9 +33,10 @@ class PhysicalImageEmbeddingCalibrationTest {
             Triple("cat", "unrelated", "cat.jpg"),
         ).map { (id, role, fileName) ->
             val assetPath = "image-embedding-calibration/$fileName"
-            val bitmap = instrumentation.context.assets.open(assetPath).use { stream ->
-                BitmapFactory.decodeStream(stream)
-            } ?: error("unable to decode calibration fixture: $fileName")
+            val encoded = instrumentation.context.assets.open(assetPath).use { it.readBytes() }
+            val sourceSha256 = sha256(encoded)
+            val bitmap = BitmapFactory.decodeByteArray(encoded, 0, encoded.size)
+                ?: error("unable to decode calibration fixture: $fileName")
             try {
                 val image = PlatformCameraImage(
                     _bitmap = bitmap,
@@ -46,7 +47,12 @@ class PhysicalImageEmbeddingCalibrationTest {
                 val runs = List(IMAGE_EMBEDDING_CALIBRATION_REPEAT_COUNT) {
                     generator.generate(image)
                 }
-                summarizeImageEmbeddingCalibrationFixture(id, role, runs)
+                summarizeImageEmbeddingCalibrationFixture(
+                    id = id,
+                    role = role,
+                    sourceSha256 = sourceSha256,
+                    runs = runs,
+                )
             } finally {
                 bitmap.recycle()
             }
@@ -85,18 +91,13 @@ class PhysicalImageEmbeddingCalibrationTest {
         println("EYESPIE_IMAGE_EMBEDDING_CALIBRATION=${output.absolutePath}")
     }
 
-    private fun sha256Asset(context: Context, assetName: String): String {
-        val digest = MessageDigest.getInstance("SHA-256")
-        context.assets.open(assetName).use { stream ->
-            val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
-            while (true) {
-                val read = stream.read(buffer)
-                if (read < 0) break
-                if (read > 0) digest.update(buffer, 0, read)
+    private fun sha256Asset(context: Context, assetName: String): String =
+        context.assets.open(assetName).use { sha256(it.readBytes()) }
+
+    private fun sha256(bytes: ByteArray): String =
+        MessageDigest.getInstance("SHA-256")
+            .digest(bytes)
+            .joinToString(separator = "") { byte ->
+                "%02x".format(byte.toInt() and 0xff)
             }
-        }
-        return digest.digest().joinToString(separator = "") { byte ->
-            "%02x".format(byte.toInt() and 0xff)
-        }
-    }
 }
