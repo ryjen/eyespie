@@ -183,7 +183,7 @@ actual class PlatformGenAI(
                 ?: (llm ?: throw NotInitializedException()).generateResponseAsync(request.prompt, listener)
 
             response.awaitResult(operationSession)
-            close()
+            channel.close()
             awaitClose {
                 cancelResponse(response, operationSession)
             }
