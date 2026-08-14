@@ -333,20 +333,32 @@ actual class PlatformGenAI(
             if (response.isDone) return
             when {
                 operationSession == null -> response.cancel(true)
-                activeSession === operationSession -> {
-                    operationSession.cancelGenerateResponseAsync()
-                    response.cancel(true)
-                }
+                activeSession === operationSession -> cancelOwnedResponse(operationSession, response)
                 closingSession === operationSession -> {
                     pendingClosingSessionCancellation = operationSession
                     pendingClosingCancellation = operationSession to response
                 }
-                failedSession === operationSession -> {
-                    operationSession.cancelGenerateResponseAsync()
-                    response.cancel(true)
-                }
+                failedSession === operationSession -> cancelOwnedResponse(operationSession, response)
             }
         }
+    }
+
+    private fun cancelOwnedResponse(
+        session: LlmInferenceSession,
+        response: ListenableFuture<*>,
+    ) {
+        var failure: Throwable? = null
+        try {
+            session.cancelGenerateResponseAsync()
+        } catch (error: Throwable) {
+            failure = error
+        }
+        try {
+            response.cancel(true)
+        } catch (error: Throwable) {
+            failure?.addSuppressed(error) ?: run { failure = error }
+        }
+        failure?.let { throw it }
     }
 
     /**
