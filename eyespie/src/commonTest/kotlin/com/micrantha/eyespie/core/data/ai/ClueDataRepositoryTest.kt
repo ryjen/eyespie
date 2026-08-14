@@ -93,8 +93,8 @@ class ClueDataRepositoryTest {
 
             val result = repository.clues("/test/image-$count.jpg".toPath()).getOrThrow()
 
-            assertEquals(count, result.size)
-            assertEquals((1..count).map { "clue $it" }.toSet(), result.map { it.data }.toSet())
+            assertEquals(count, result.clues.size)
+            assertEquals((1..count).map { "clue $it" }.toSet(), result.clues.map { it.data }.toSet())
         }
     }
 
@@ -104,7 +104,7 @@ class ClueDataRepositoryTest {
             """{"schemaVersion":1,"future":"ignored","clues":[{"clue":"red thing","answer":"apple","confidence":0.9,"extra":true}]}"""
         )
 
-        val clue = repository.clues("/test/image.jpg".toPath()).getOrThrow().single()
+        val clue = repository.clues("/test/image.jpg".toPath()).getOrThrow().clues.single()
 
         assertEquals("red thing", clue.data)
         assertEquals("apple", clue.answer)
@@ -116,7 +116,7 @@ class ClueDataRepositoryTest {
         provider.responses += Result.success(validResponse(1))
         val image = "/test/image.jpg".toPath()
 
-        val envelope = repository.generateClueEnvelope(image).getOrThrow()
+        val envelope = repository.clues(image).getOrThrow()
 
         assertTrue(envelope.provenance.repaired)
         assertEquals(2, provider.requests.size)
@@ -130,7 +130,7 @@ class ClueDataRepositoryTest {
         provider.responses += Result.success("not json")
         provider.responses += Result.success("still not json")
 
-        val result = repository.generateClueEnvelope("/test/image.jpg".toPath())
+        val result = repository.clues("/test/image.jpg".toPath())
 
         assertTrue(result.exceptionOrNull() is MalformedGeneratedClueResponseException)
         assertEquals(2, provider.requests.size)
@@ -141,7 +141,7 @@ class ClueDataRepositoryTest {
         provider.identity = provider.identity.copy(locality = InferenceLocality.REMOTE)
         provider.responses += Result.success("not json")
 
-        val result = repository.generateClueEnvelope("/test/image.jpg".toPath())
+        val result = repository.clues("/test/image.jpg".toPath())
 
         assertTrue(result.exceptionOrNull() is MalformedGeneratedClueResponseException)
         assertEquals(1, provider.requests.size)
@@ -153,7 +153,7 @@ class ClueDataRepositoryTest {
         provider.responses += Result.success("not json")
         provider.responses += Result.failure(providerFailure)
 
-        val result = repository.generateClueEnvelope("/test/image.jpg".toPath())
+        val result = repository.clues("/test/image.jpg".toPath())
 
         assertSame(providerFailure, result.exceptionOrNull())
         assertFalse(result.exceptionOrNull() is GeneratedClueResponseException)
@@ -250,12 +250,12 @@ class ClueDataRepositoryTest {
     }
 
     @Test
-    fun `provenance should come from application provider and prompt state`() = runTest {
+    fun `provenance should come from application provider and prompt state and survive repository return`() = runTest {
         provider.responses += Result.success(
             """{"schemaVersion":1,"providerId":"model-lie","modelId":"model-lie","promptVersion":999,"clues":[{"clue":"red thing","answer":"apple","confidence":0.9}]}"""
         )
 
-        val envelope = repository.generateClueEnvelope("/test/image.jpg".toPath()).getOrThrow()
+        val envelope = repository.clues("/test/image.jpg".toPath()).getOrThrow()
         val provenance = envelope.provenance
 
         assertEquals(1, provenance.schemaVersion)
