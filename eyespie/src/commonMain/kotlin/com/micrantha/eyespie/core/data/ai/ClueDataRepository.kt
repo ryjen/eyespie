@@ -61,7 +61,13 @@ internal class ClueDataRepository(
                 )
             )
             repair.fold(
-                onSuccess = { parseEnvelope(it, repaired = true) },
+                onSuccess = {
+                    if (it.execution != output.execution) {
+                        Result.failure(GeneratedClueRepairExecutionChangedException())
+                    } else {
+                        parseEnvelope(it, repaired = true)
+                    }
+                },
                 onFailure = { Result.failure(it) },
             )
         }
@@ -100,7 +106,8 @@ internal class ClueDataRepository(
         val availability = inferenceProvider.availability.value as? SemanticInferenceAvailability.Available
             ?: return false
         return initialExecution.identity.locality == InferenceLocality.LOCAL &&
-            inferenceProvider.identity.locality == InferenceLocality.LOCAL &&
+            inferenceProvider.identity == initialExecution.identity &&
+            inferenceProvider.executionConfiguration == initialExecution.configuration &&
             availability.capabilities.textGeneration
     }
 
