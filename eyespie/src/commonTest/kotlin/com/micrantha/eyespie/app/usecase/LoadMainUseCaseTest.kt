@@ -38,6 +38,7 @@ import okio.fakefilesystem.FakeFileSystem
 import org.kodein.di.DI
 import org.kodein.di.bindProvider
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertIs
 import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
@@ -106,7 +107,6 @@ class LoadMainUseCaseTest {
         onboardingRepository,
         initGenAIUseCase,
         captureSyncRepository,
-        semanticProvider,
     )
 
     @Test
@@ -141,6 +141,22 @@ class LoadMainUseCaseTest {
     }
 
     @Test
+    fun `missing optional local model does not block dashboard after onboarding`() = runTest {
+        configureValidUser()
+        onboardingRepository.runOnce = true
+        onboardingRepository.hasGenAIValue = true
+        onboardingRepository.model = null
+
+        useCase()
+
+        assertIs<DashboardScreen>(context.router.lastNavigatedTo)
+        val unavailable = assertIs<SemanticInferenceAvailability.Unavailable>(
+            semanticProvider.availability.value,
+        )
+        assertEquals(SemanticInferenceReasonCode.MODEL_NOT_CONFIGURED, unavailable.reasonCode)
+    }
+
+    @Test
     fun `unsupported local image inference does not require model selection after onboarding`() = runTest {
         configureValidUser()
         onboardingRepository.runOnce = true
@@ -153,7 +169,13 @@ class LoadMainUseCaseTest {
         useCase()
 
         assertIs<DashboardScreen>(context.router.lastNavigatedTo)
-        assertIs<SemanticInferenceAvailability.Unavailable>(semanticProvider.availability.value)
+        val unavailable = assertIs<SemanticInferenceAvailability.Unavailable>(
+            semanticProvider.availability.value,
+        )
+        assertEquals(
+            SemanticInferenceReasonCode.PLATFORM_IMAGE_INPUT_UNSUPPORTED,
+            unavailable.reasonCode,
+        )
     }
 
     @Test
