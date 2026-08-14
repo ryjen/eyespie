@@ -1,11 +1,16 @@
 package com.micrantha.eyespie.features.scan.calibration
 
 import androidx.compose.ui.graphics.ImageBitmap
+import com.micrantha.bluebell.domain.security.sha256
 import com.micrantha.bluebell.platform.toByteArray
 import com.micrantha.bluebell.platform.toImageBitmap
+import com.micrantha.eyespie.app.AppConfig
+import com.micrantha.eyespie.domain.entities.ImageEmbeddingContract
 import com.micrantha.eyespie.features.scan.usecase.MediaPipeImageEmbeddingGenerator
 import com.micrantha.eyespie.platform.scan.CameraImage
 import kotlinx.coroutines.runBlocking
+import okio.FileSystem
+import okio.Path.Companion.toPath
 import platform.Foundation.NSBundle
 import platform.Foundation.NSData
 import platform.Foundation.dataWithContentsOfFile
@@ -48,6 +53,12 @@ class ImageEmbeddingCalibrationCollector {
                 name = "EyespieMediaPipeTasksVision",
                 version = "0.10.26.2",
             ),
+            model = ImageEmbeddingCalibrationModel(
+                sha256 = bundledModelSha256(),
+            ),
+            match_policy = ImageEmbeddingCalibrationMatchPolicy(
+                cosine_threshold = AppConfig.MATCH_THRESHOLD.toFloat(),
+            ),
             fixtures = fixtures,
         ).toCalibrationJson()
     }
@@ -60,6 +71,18 @@ class ImageEmbeddingCalibrationCollector {
         val data = NSData.dataWithContentsOfFile(path)
             ?: error("calibration fixture cannot be read: $fileName")
         return data.toByteArray()
+    }
+
+    private fun bundledModelSha256(): String {
+        val fileName = ImageEmbeddingContract.androidModelAssetName
+        val extension = fileName.substringAfterLast('.', missingDelimiterValue = "")
+        val baseName = fileName.removeSuffix(if (extension.isEmpty()) "" else ".$extension")
+        if (baseName.isEmpty() || extension.isEmpty()) {
+            error("image embedder model resource name is invalid")
+        }
+        val path = NSBundle.mainBundle.pathForResource(baseName, ofType = extension)
+            ?: error("image embedder model resource is unavailable")
+        return sha256(FileSystem.SYSTEM.source(path.toPath()))
     }
 }
 
