@@ -72,7 +72,10 @@ class InitGenAIUseCase(
             // configuration and constructs a fresh native session for every logical request.
             llm.newSession(SESSION_CONFIG).getOrThrow()
 
-            availabilityController.markAvailable(CAPABILITIES)
+            availabilityController.markAvailable(
+                capabilities = CAPABILITIES,
+                identity = inferenceProvider.identity.copy(modelId = modelName),
+            )
             Result.success(Unit)
         } catch (error: ModelIntegrityException) {
             availabilityController.markFailed(SemanticInferenceDiagnosticCode.MODEL_INTEGRITY_FAILED)
