@@ -25,6 +25,7 @@ import platform.Foundation.NSBundle
 import platform.Foundation.NSData
 import platform.Foundation.NSError
 import platform.Foundation.NSNumber
+import platform.Foundation.create
 import platform.UIKit.UIImage
 
 @OptIn(ExperimentalForeignApi::class)
@@ -100,7 +101,7 @@ private fun ByteArray.toUIImage(): UIImage {
         throw IllegalArgumentException("camera image produced no bytes")
     }
     val data: NSData = usePinned { pinned ->
-        NSData(bytes = pinned.addressOf(0), length = size.toULong())
+        NSData.create(bytes = pinned.addressOf(0), length = size.toULong())
     }
     return UIImage.imageWithData(data)
         ?: throw IllegalStateException("MediaPipe image conversion failed")
