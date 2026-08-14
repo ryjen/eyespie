@@ -5,23 +5,20 @@ import com.micrantha.bluebell.platform.GenAIConfig
 import com.micrantha.bluebell.platform.GenAIRequest
 import com.micrantha.bluebell.platform.NetworkMonitor
 import com.micrantha.bluebell.platform.Platform
+import com.micrantha.eyespie.core.data.ai.GenAISemanticInferenceProvider
 import com.micrantha.eyespie.domain.ai.InferenceLocality
 import com.micrantha.eyespie.domain.ai.SemanticInferenceAvailability
-import com.micrantha.eyespie.domain.ai.SemanticInferenceAvailabilityController
-import com.micrantha.eyespie.domain.ai.SemanticInferenceCapabilities
 import com.micrantha.eyespie.domain.ai.SemanticInferenceDiagnosticCode
 import com.micrantha.eyespie.domain.ai.SemanticInferenceIdentity
-import com.micrantha.eyespie.domain.ai.SemanticInferenceProvider
 import com.micrantha.eyespie.domain.ai.SemanticInferenceReasonCode
-import com.micrantha.eyespie.domain.ai.SemanticInferenceRequest
 import com.micrantha.eyespie.features.onboarding.data.FakeOnboardingRepository
 import com.micrantha.eyespie.features.onboarding.entities.AiModel
 import com.micrantha.eyespie.features.onboarding.usecase.LoadModelConfig
 import com.micrantha.eyespie.features.onboarding.usecase.ModelIntegrityException
 import com.micrantha.eyespie.features.onboarding.usecase.ModelIntegrityFailure
 import com.micrantha.eyespie.features.onboarding.usecase.ModelIntegrityVerifier
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.test.runTest
 import okio.Path
@@ -29,6 +26,7 @@ import okio.Path.Companion.toPath
 import okio.fakefilesystem.FakeFileSystem
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertIs
 import kotlin.test.assertTrue
 
@@ -59,30 +57,39 @@ class InitGenAIUseCaseTest {
     }
     private val fileSystem = FakeFileSystem()
     private val verifier = ModelIntegrityVerifier(fileSystem)
-    private val provider = TrackingProvider()
+    private val provider = GenAISemanticInferenceProvider(
+        genAI = llm,
+        identity = SemanticInferenceIdentity(
+            providerId = "mediapipe-local",
+            runtimeId = "mediapipe-genai",
+            locality = InferenceLocality.LOCAL,
+        ),
+        imageInputValidator = { true },
+    )
     private val useCase = InitGenAIUseCase(
-        llm,
         onboardingRepository,
         loadModelConfig,
         platform,
         verifier,
         provider,
         provider,
+        provider,
     )
 
     @Test
-    fun `invoke should leave provider not configured if genai disabled`() = runTest {
+    fun `invoke leaves provider not configured if genai disabled`() = runTest {
         onboardingRepository.hasGenAIValue = false
 
         val result = useCase()
 
         assertTrue(result.isSuccess)
         assertEquals(0, llm.initializeCalls)
+        assertEquals(0, llm.newSessionCalls)
         assertIs<SemanticInferenceAvailability.NotConfigured>(provider.availability.value)
     }
 
     @Test
-    fun `invoke should initialize verified model validate session and publish capabilities`() = runTest {
+    fun `invoke initializes verified model validates runtime and publishes identity`() = runTest {
         onboardingRepository.hasGenAIValue = true
         onboardingRepository.model = "test"
         writeConfiguredModel()
@@ -96,11 +103,14 @@ class InitGenAIUseCaseTest {
         assertTrue(available.capabilities.imageInput)
         assertTrue(available.capabilities.cancellation)
         assertEquals(1024, available.capabilities.maxContextTokens)
+        assertEquals("mediapipe-local", provider.identity.providerId)
+        assertEquals("mediapipe-genai", provider.identity.runtimeId)
+        assertEquals("test", provider.identity.modelId)
         fileSystem.checkNoOpenFiles()
     }
 
     @Test
-    fun `invoke should reject checksum mismatch before initialization and mark provider failed`() = runTest {
+    fun `invoke rejects checksum mismatch before runtime setup and marks provider failed`() = runTest {
         onboardingRepository.hasGenAIValue = true
         onboardingRepository.model = "test"
         configuredModel = model(checksum = "0".repeat(64))
@@ -110,6 +120,7 @@ class InitGenAIUseCaseTest {
 
         assertIntegrityFailure(result, ModelIntegrityFailure.ChecksumMismatch)
         assertEquals(0, llm.initializeCalls)
+        assertEquals(0, llm.newSessionCalls)
         assertEquals(
             SemanticInferenceDiagnosticCode.MODEL_INTEGRITY_FAILED,
             assertIs<SemanticInferenceAvailability.Failed>(provider.availability.value).diagnosticCode,
@@ -117,7 +128,7 @@ class InitGenAIUseCaseTest {
     }
 
     @Test
-    fun `invoke should reject missing model before initialization`() = runTest {
+    fun `invoke rejects missing model bytes before runtime setup`() = runTest {
         onboardingRepository.hasGenAIValue = true
         onboardingRepository.model = "test"
 
@@ -125,10 +136,11 @@ class InitGenAIUseCaseTest {
 
         assertIntegrityFailure(result, ModelIntegrityFailure.ModelUnavailable)
         assertEquals(0, llm.initializeCalls)
+        assertEquals(0, llm.newSessionCalls)
     }
 
     @Test
-    fun `invoke should reject missing checksum before initialization`() = runTest {
+    fun `invoke rejects missing checksum before runtime setup`() = runTest {
         onboardingRepository.hasGenAIValue = true
         onboardingRepository.model = "test"
         configuredModel = model(checksum = null)
@@ -137,13 +149,12 @@ class InitGenAIUseCaseTest {
 
         assertIntegrityFailure(result, ModelIntegrityFailure.MissingExpectedChecksum)
         assertEquals(0, llm.initializeCalls)
+        assertEquals(0, llm.newSessionCalls)
     }
 
     @Test
-    fun `platform unsupported provider skips runtime initialization`() = runTest {
-        provider.availability.value = SemanticInferenceAvailability.Unavailable(
-            SemanticInferenceReasonCode.PLATFORM_IMAGE_INPUT_UNSUPPORTED,
-        )
+    fun `platform unsupported provider skips runtime setup`() = runTest {
+        provider.markUnavailable(SemanticInferenceReasonCode.PLATFORM_IMAGE_INPUT_UNSUPPORTED)
         onboardingRepository.hasGenAIValue = true
         onboardingRepository.model = "test"
 
@@ -168,10 +179,45 @@ class InitGenAIUseCaseTest {
         val result = useCase()
 
         assertTrue(result.isFailure)
+        assertEquals(1, llm.initializeCalls)
+        assertEquals(0, llm.newSessionCalls)
         assertEquals(
             SemanticInferenceDiagnosticCode.RUNTIME_INITIALIZATION_FAILED,
             assertIs<SemanticInferenceAvailability.Failed>(provider.availability.value).diagnosticCode,
         )
+    }
+
+    @Test
+    fun `runtime session validation failure marks provider failed without generation`() = runTest {
+        onboardingRepository.hasGenAIValue = true
+        onboardingRepository.model = "test"
+        writeConfiguredModel()
+        llm.newSessionResult = Result.failure(IllegalStateException("session validation failed"))
+
+        val result = useCase()
+
+        assertTrue(result.isFailure)
+        assertEquals(1, llm.initializeCalls)
+        assertEquals(1, llm.newSessionCalls)
+        assertEquals(0, llm.generateCalls)
+        assertEquals(
+            SemanticInferenceDiagnosticCode.RUNTIME_INITIALIZATION_FAILED,
+            assertIs<SemanticInferenceAvailability.Failed>(provider.availability.value).diagnosticCode,
+        )
+    }
+
+    @Test
+    fun `runtime setup cancellation propagates and restores prior availability`() = runTest {
+        onboardingRepository.hasGenAIValue = true
+        onboardingRepository.model = "test"
+        writeConfiguredModel()
+        llm.initializeResult = Result.failure(CancellationException("cancelled"))
+
+        assertFailsWith<CancellationException> { useCase() }
+
+        assertEquals(1, llm.initializeCalls)
+        assertEquals(0, llm.newSessionCalls)
+        assertIs<SemanticInferenceAvailability.NotConfigured>(provider.availability.value)
     }
 
     private fun writeConfiguredModel() {
@@ -189,7 +235,9 @@ class InitGenAIUseCaseTest {
     private class TrackingGenAI : GenAI {
         var initializeCalls = 0
         var newSessionCalls = 0
+        var generateCalls = 0
         var initializeResult: Result<Unit> = Result.success(Unit)
+        var newSessionResult: Result<Unit> = Result.success(Unit)
 
         override fun initialize(config: GenAIConfig): Result<Unit> {
             initializeCalls += 1
@@ -198,45 +246,17 @@ class InitGenAIUseCaseTest {
 
         override fun newSession(config: GenAIConfig.Session): Result<Unit> {
             newSessionCalls += 1
-            return Result.success(Unit)
+            return newSessionResult
         }
 
-        override fun generate(request: GenAIRequest) = Result.failure<String>(UnsupportedOperationException())
+        override fun generate(request: GenAIRequest): Result<String> {
+            generateCalls += 1
+            return Result.failure(UnsupportedOperationException())
+        }
+
         override fun generateFlow(request: GenAIRequest): Flow<String> = emptyFlow()
         override fun close() = Unit
         override fun cancel() = Unit
-    }
-
-    private class TrackingProvider : SemanticInferenceProvider, SemanticInferenceAvailabilityController {
-        override val identity = SemanticInferenceIdentity(
-            providerId = "test-local",
-            runtimeId = "test-runtime",
-            locality = InferenceLocality.LOCAL,
-        )
-        override val availability = MutableStateFlow<SemanticInferenceAvailability>(
-            SemanticInferenceAvailability.NotConfigured,
-        )
-
-        override suspend fun generate(request: SemanticInferenceRequest) =
-            Result.failure<String>(UnsupportedOperationException())
-        override fun generateFlow(request: SemanticInferenceRequest): Flow<String> = emptyFlow()
-        override fun cancel() = Unit
-        override suspend fun close() = Unit
-        override suspend fun markNotConfigured() {
-            availability.value = SemanticInferenceAvailability.NotConfigured
-        }
-        override suspend fun markInitializing() {
-            availability.value = SemanticInferenceAvailability.Initializing
-        }
-        override suspend fun markAvailable(capabilities: SemanticInferenceCapabilities) {
-            availability.value = SemanticInferenceAvailability.Available(capabilities)
-        }
-        override suspend fun markUnavailable(reasonCode: String) {
-            availability.value = SemanticInferenceAvailability.Unavailable(reasonCode)
-        }
-        override suspend fun markFailed(diagnosticCode: String) {
-            availability.value = SemanticInferenceAvailability.Failed(diagnosticCode)
-        }
     }
 
     private companion object {
