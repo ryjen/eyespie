@@ -10,16 +10,22 @@ import kotlinx.coroutines.test.runTest
 import okio.Path.Companion.toPath
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFailsWith
 import kotlin.test.assertTrue
 
 class ClueDataRepositoryTest {
 
     private class FakeGenAI : GenAI {
         var generateResult: Result<String> = Result.failure(Exception("Not set"))
+        val requests = mutableListOf<GenAIRequest>()
 
         override fun initialize(config: GenAIConfig) = Result.success(Unit)
         override fun newSession(config: GenAIConfig.Session) = Result.success(Unit)
-        override fun generate(request: GenAIRequest) = generateResult
+        override fun generate(request: GenAIRequest): Result<String> {
+            requests += request
+            return generateResult
+        }
+
         override fun generateFlow(request: GenAIRequest): Flow<String> = emptyFlow()
         override fun close() = Unit
         override fun cancel() = Unit
@@ -49,6 +55,7 @@ class ClueDataRepositoryTest {
         assertEquals("clue", clue.data)
         assertEquals("answer", clue.answer)
         assertEquals(0.9f, clue.confidence)
+        assertEquals(listOf("file:///test/image.jpg"), llm.requests.single().images)
     }
 
     @Test
@@ -59,5 +66,76 @@ class ClueDataRepositoryTest {
         val result = repository.clues(imagePath)
 
         assertTrue(result.isFailure)
+    }
+
+    @Test
+    fun `independent clue requests should contain only the current image`() = runTest {
+        llm.generateResult = Result.success("clue\nanswer\n0.9")
+
+        repository.clues("/test/a.jpg".toPath()).getOrThrow()
+        repository.clues("/test/b.jpg".toPath()).getOrThrow()
+
+        assertEquals(
+            listOf("file:///test/a.jpg"),
+            llm.requests[0].images
+        )
+        assertEquals(
+            listOf("file:///test/b.jpg"),
+            llm.requests[1].images
+        )
+    }
+
+    @Test
+    fun `repeated clue request should still include the current image`() = runTest {
+        llm.generateResult = Result.success("clue\nanswer\n0.9")
+        val image = "/test/repeated.jpg".toPath()
+
+        repository.clues(image).getOrThrow()
+        repository.clues(image).getOrThrow()
+
+        assertEquals(
+            listOf("file:///test/repeated.jpg"),
+            llm.requests[0].images
+        )
+        assertEquals(
+            listOf("file:///test/repeated.jpg"),
+            llm.requests[1].images
+        )
+    }
+
+    @Test
+    fun `guess should contain only current image and bounded prompt`() = runTest {
+        llm.generateResult = Result.success("yes")
+
+        val result = repository.guess(
+            "/test/guess.jpg".toPath(),
+            com.micrantha.eyespie.domain.entities.GuessClue("red thing")
+        )
+
+        assertTrue(result.isSuccess)
+        assertEquals("mock guess prompt", llm.requests.single().prompt)
+        assertEquals(listOf("file:///test/guess.jpg"), llm.requests.single().images)
+    }
+
+    @Test
+    fun `image path reserved characters are percent encoded`() = runTest {
+        llm.generateResult = Result.success("clue\nanswer\n0.9")
+
+        repository.clues("/test/frame #1?.jpg".toPath()).getOrThrow()
+
+        assertEquals(
+            listOf("file:///test/frame%20%231%3F.jpg"),
+            llm.requests.single().images
+        )
+    }
+
+    @Test
+    fun `relative image path is rejected before inference`() = runTest {
+        llm.generateResult = Result.success("clue\nanswer\n0.9")
+
+        assertFailsWith<IllegalArgumentException> {
+            repository.clues("relative/frame.jpg".toPath())
+        }
+        assertTrue(llm.requests.isEmpty())
     }
 }
