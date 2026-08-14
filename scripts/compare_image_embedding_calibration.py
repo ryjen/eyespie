@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 """Validate and compare physical-device image-embedding calibration reports.
 
-This tool reports observed behavior only. It deliberately has no product match threshold and
-must not be used to silently rewrite schema, normalization, or matching policy.
+This tool evaluates observed behavior against the match policy recorded by the device builds.
+It never chooses or rewrites that policy: schema, normalization, and threshold changes remain
+separate reviewed product decisions.
 """
 
 from __future__ import annotations
@@ -15,6 +16,8 @@ from pathlib import Path
 from typing import Any
 
 DIMENSIONS = 1024
+EXPECTED_MODEL_ID = "mobilenet-v3-small-100-224-embedder"
+EXPECTED_MODEL_SHA256 = "f7b9a563cb803bdcba76e8c7e82abde06f5c7a8e67b5e54e43e23095dfe79a78"
 EXPECTED_FIXTURES = ("burger", "burger_crop", "burger_rotated", "cat")
 EXPECTED_ROLES = {
     "burger": "reference",
@@ -22,6 +25,7 @@ EXPECTED_ROLES = {
     "burger_rotated": "related",
     "cat": "unrelated",
 }
+SEMANTIC_FIXTURES = ("burger_crop", "burger_rotated", "cat")
 
 
 class CalibrationReportError(ValueError):
@@ -46,6 +50,7 @@ class CalibrationReport:
     runtime_version: str
     model_id: str
     model_sha256: str
+    match_threshold: float
     embedding_schema_version: int
     dimensions: int
     fixtures: dict[str, FixtureResult]
@@ -85,9 +90,17 @@ def load_report(path: Path) -> CalibrationReport:
 
     runtime = payload.get("runtime")
     model = payload.get("model")
+    match_policy = payload.get("match_policy")
     embedding = payload.get("embedding_contract")
-    if not isinstance(runtime, dict) or not isinstance(model, dict) or not isinstance(embedding, dict):
-        raise CalibrationReportError("runtime/model/embedding_contract objects are required")
+    if (
+        not isinstance(runtime, dict)
+        or not isinstance(model, dict)
+        or not isinstance(match_policy, dict)
+        or not isinstance(embedding, dict)
+    ):
+        raise CalibrationReportError(
+            "runtime/model/match_policy/embedding_contract objects are required"
+        )
 
     runtime_name = _nonempty_string(runtime.get("name"), "runtime.name")
     runtime_version = _nonempty_string(runtime.get("version"), "runtime.version")
@@ -95,6 +108,20 @@ def load_report(path: Path) -> CalibrationReport:
     model_sha256 = _nonempty_string(model.get("sha256"), "model.sha256")
     if len(model_sha256) != 64 or any(ch not in "0123456789abcdef" for ch in model_sha256):
         raise CalibrationReportError("model.sha256 must be 64 lowercase hex characters")
+    if model_id != EXPECTED_MODEL_ID:
+        raise CalibrationReportError(
+            f"unexpected model.id: expected {EXPECTED_MODEL_ID}, got {model_id}"
+        )
+    if model_sha256 != EXPECTED_MODEL_SHA256:
+        raise CalibrationReportError(
+            "packaged model SHA-256 does not match the pinned image-embedding model"
+        )
+
+    match_threshold = _finite_number(
+        match_policy.get("cosine_threshold"), "match_policy.cosine_threshold"
+    )
+    if match_threshold < -1.0 or match_threshold > 1.0:
+        raise CalibrationReportError("match_policy.cosine_threshold must be within [-1, 1]")
 
     schema_version = embedding.get("schema_version")
     dimensions = embedding.get("dimensions")
@@ -159,6 +186,7 @@ def load_report(path: Path) -> CalibrationReport:
         runtime_version,
         model_id,
         model_sha256,
+        match_threshold,
         schema_version,
         dimensions,
         fixtures,
@@ -188,12 +216,16 @@ def max_abs_delta(a: tuple[float, ...], b: tuple[float, ...]) -> float:
     return max(abs(x - y) for x, y in zip(a, b))
 
 
-def _semantic_metrics(report: CalibrationReport) -> dict[str, float]:
+def _semantic_metrics(report: CalibrationReport) -> dict[str, dict[str, Any]]:
     reference = report.fixtures["burger"].embedding
-    return {
-        fixture_id: cosine_similarity(reference, report.fixtures[fixture_id].embedding)
-        for fixture_id in ("burger_crop", "burger_rotated", "cat")
-    }
+    result: dict[str, dict[str, Any]] = {}
+    for fixture_id in SEMANTIC_FIXTURES:
+        similarity = cosine_similarity(reference, report.fixtures[fixture_id].embedding)
+        result[fixture_id] = {
+            "cosine_similarity": similarity,
+            "matches_configured_threshold": similarity >= report.match_threshold,
+        }
+    return result
 
 
 def compare_reports(android: CalibrationReport, ios: CalibrationReport) -> dict[str, Any]:
@@ -206,6 +238,11 @@ def compare_reports(android: CalibrationReport, ios: CalibrationReport) -> dict[
         or android.dimensions != ios.dimensions
     ):
         raise CalibrationReportError("reports use different embedding contracts")
+    if not math.isclose(android.match_threshold, ios.match_threshold, rel_tol=0.0, abs_tol=1e-7):
+        raise CalibrationReportError("reports use different configured match thresholds")
+
+    android_semantic = _semantic_metrics(android)
+    ios_semantic = _semantic_metrics(ios)
 
     cross_platform: dict[str, dict[str, float]] = {}
     for fixture_id in EXPECTED_FIXTURES:
@@ -217,6 +254,14 @@ def compare_reports(android: CalibrationReport, ios: CalibrationReport) -> dict[
             "max_abs_delta": max_abs_delta(a, b),
         }
 
+    decision_consistency = {
+        fixture_id: (
+            android_semantic[fixture_id]["matches_configured_threshold"]
+            == ios_semantic[fixture_id]["matches_configured_threshold"]
+        )
+        for fixture_id in SEMANTIC_FIXTURES
+    }
+
     return {
         "comparison_schema_version": 1,
         "model": {"id": android.model_id, "sha256": android.model_sha256},
@@ -224,10 +269,15 @@ def compare_reports(android: CalibrationReport, ios: CalibrationReport) -> dict[
             "schema_version": android.embedding_schema_version,
             "dimensions": android.dimensions,
         },
+        "match_policy": {
+            "cosine_threshold": android.match_threshold,
+            "threshold_changed": False,
+            "note": "Observed decisions use the threshold recorded by both builds; calibration does not select a new threshold.",
+        },
         "android": {
             "runtime": {"name": android.runtime_name, "version": android.runtime_version},
             "device": android.device,
-            "semantic_cosine": _semantic_metrics(android),
+            "semantic_behavior": android_semantic,
             "repeat_stability": {
                 fixture_id: {
                     "repeat_count": result.repeat_count,
@@ -240,7 +290,7 @@ def compare_reports(android: CalibrationReport, ios: CalibrationReport) -> dict[
         "ios": {
             "runtime": {"name": ios.runtime_name, "version": ios.runtime_version},
             "device": ios.device,
-            "semantic_cosine": _semantic_metrics(ios),
+            "semantic_behavior": ios_semantic,
             "repeat_stability": {
                 fixture_id: {
                     "repeat_count": result.repeat_count,
@@ -251,9 +301,9 @@ def compare_reports(android: CalibrationReport, ios: CalibrationReport) -> dict[
             },
         },
         "cross_platform": cross_platform,
-        "policy": {
-            "threshold_changed": False,
-            "note": "Observed calibration evidence only; product match policy is unchanged.",
+        "match_decision_consistency": {
+            "fixtures": decision_consistency,
+            "all_consistent": all(decision_consistency.values()),
         },
     }
 
@@ -265,7 +315,9 @@ def render_markdown(comparison: dict[str, Any]) -> str:
         f"- Model: `{comparison['model']['id']}`",
         f"- Model SHA-256: `{comparison['model']['sha256']}`",
         f"- Dimensions: {comparison['embedding_contract']['dimensions']}",
+        f"- Configured cosine threshold: {comparison['match_policy']['cosine_threshold']:.9g}",
         "- Product match threshold changed: **no**",
+        f"- Cross-platform match decisions all consistent: **{'yes' if comparison['match_decision_consistency']['all_consistent'] else 'no'}**",
         "",
         "## Cross-platform same-fixture metrics",
         "",
@@ -278,15 +330,43 @@ def render_markdown(comparison: dict[str, Any]) -> str:
             f"{metrics['rmse']:.9g} | {metrics['max_abs_delta']:.9g} |"
         )
 
-    lines.extend(["", "## Within-platform semantic cosine", "", "| Platform | Crop | Rotated | Cat |", "|---|---:|---:|---:|"])
+    lines.extend(
+        [
+            "",
+            "## Within-platform semantic behavior",
+            "",
+            "| Platform | Fixture | Cosine to reference | Matches configured threshold |",
+            "|---|---|---:|---|",
+        ]
+    )
     for platform in ("android", "ios"):
-        values = comparison[platform]["semantic_cosine"]
-        lines.append(
-            f"| {platform} | {values['burger_crop']:.9f} | "
-            f"{values['burger_rotated']:.9f} | {values['cat']:.9f} |"
-        )
+        for fixture_id, values in comparison[platform]["semantic_behavior"].items():
+            decision = "yes" if values["matches_configured_threshold"] else "no"
+            lines.append(
+                f"| {platform} | {fixture_id} | {values['cosine_similarity']:.9f} | {decision} |"
+            )
 
-    lines.extend(["", "## Repeated-inference stability", "", "| Platform | Fixture | Runs | Min cosine to first | Max abs delta |", "|---|---|---:|---:|---:|"])
+    lines.extend(
+        [
+            "",
+            "## Cross-platform match-decision consistency",
+            "",
+            "| Fixture | Consistent |",
+            "|---|---|",
+        ]
+    )
+    for fixture_id, consistent in comparison["match_decision_consistency"]["fixtures"].items():
+        lines.append(f"| {fixture_id} | {'yes' if consistent else 'no'} |")
+
+    lines.extend(
+        [
+            "",
+            "## Repeated-inference stability",
+            "",
+            "| Platform | Fixture | Runs | Min cosine to first | Max abs delta |",
+            "|---|---|---:|---:|---:|",
+        ]
+    )
     for platform in ("android", "ios"):
         for fixture_id, values in comparison[platform]["repeat_stability"].items():
             lines.append(
@@ -315,7 +395,8 @@ def main() -> int:
             report = load_report(args.report)
             print(
                 f"validated {report.platform} calibration report: "
-                f"{report.runtime_name} {report.runtime_version}"
+                f"{report.runtime_name} {report.runtime_version}; "
+                f"model={report.model_sha256}; threshold={report.match_threshold:.9g}"
             )
         else:
             android = load_report(args.android_report)
