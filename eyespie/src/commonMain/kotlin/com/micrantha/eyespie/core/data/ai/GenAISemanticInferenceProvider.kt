@@ -51,9 +51,8 @@ internal class GenAISemanticInferenceProvider(
             validate(request, streaming = false).exceptionOrNull()?.let {
                 return@withLock Result.failure(it)
             }
-            lifecycleMutex.withLock {
-                unavailableFailure()?.let { return@withLock Result.failure(it) }
-            }
+            val unavailable = lifecycleMutex.withLock { unavailableFailure() }
+            unavailable?.let { return@withLock Result.failure(it) }
             try {
                 genAI.generate(request.toGenAIRequest()).also { it.failureOrCancellation() }
             } catch (cancelled: CancellationException) {
