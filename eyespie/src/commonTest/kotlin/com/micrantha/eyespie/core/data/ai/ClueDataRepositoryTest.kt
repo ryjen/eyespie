@@ -1,10 +1,15 @@
 package com.micrantha.eyespie.core.data.ai
 
-import com.micrantha.bluebell.platform.GenAI
-import com.micrantha.bluebell.platform.GenAIConfig
-import com.micrantha.bluebell.platform.GenAIRequest
 import com.micrantha.eyespie.core.data.ai.source.CluePromptSource
+import com.micrantha.eyespie.domain.ai.InferenceLocality
+import com.micrantha.eyespie.domain.ai.SemanticInferenceAvailability
+import com.micrantha.eyespie.domain.ai.SemanticInferenceCapabilities
+import com.micrantha.eyespie.domain.ai.SemanticInferenceIdentity
+import com.micrantha.eyespie.domain.ai.SemanticInferenceProvider
+import com.micrantha.eyespie.domain.ai.SemanticInferenceRequest
+import com.micrantha.eyespie.domain.entities.GuessClue
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.emptyFlow
 import kotlinx.coroutines.test.runTest
 import okio.Path.Companion.toPath
@@ -15,18 +20,35 @@ import kotlin.test.assertTrue
 
 class ClueDataRepositoryTest {
 
-    private class FakeGenAI : GenAI {
+    private class FakeInferenceProvider : SemanticInferenceProvider {
         var generateResult: Result<String> = Result.failure(Exception("Not set"))
-        val requests = mutableListOf<GenAIRequest>()
+        val requests = mutableListOf<SemanticInferenceRequest>()
+        override val identity = SemanticInferenceIdentity(
+            providerId = "test-local",
+            runtimeId = "test-runtime",
+            locality = InferenceLocality.LOCAL,
+        )
+        override val availability = MutableStateFlow<SemanticInferenceAvailability>(
+            SemanticInferenceAvailability.Available(
+                SemanticInferenceCapabilities(
+                    textGeneration = true,
+                    imageInput = true,
+                    streaming = true,
+                    cancellation = true,
+                )
+            )
+        )
 
-        override fun initialize(config: GenAIConfig) = Result.success(Unit)
-        override fun newSession(config: GenAIConfig.Session) = Result.success(Unit)
-        override fun generate(request: GenAIRequest): Result<String> {
+        override suspend fun generate(request: SemanticInferenceRequest): Result<String> {
             requests += request
             return generateResult
         }
 
-        override fun generateFlow(request: GenAIRequest): Flow<String> = emptyFlow()
+        override fun generateFlow(request: SemanticInferenceRequest): Flow<String> {
+            requests += request
+            return emptyFlow()
+        }
+
         override fun close() = Unit
         override fun cancel() = Unit
     }
@@ -36,106 +58,77 @@ class ClueDataRepositoryTest {
         override fun guess(clue: String) = "mock guess prompt"
     }
 
-    private val llm = FakeGenAI()
+    private val provider = FakeInferenceProvider()
     private val cluePromptSource = FakeCluePromptSource()
-    private val repository = ClueDataRepository(llm, cluePromptSource)
+    private val repository = ClueDataRepository(provider, cluePromptSource)
 
     @Test
-    fun `clues should return parsed proof when llm returns valid output`() = runTest {
+    fun `clues should return parsed proof when provider returns valid output`() = runTest {
         val imagePath = "/test/image.jpg".toPath()
-        val mockOutput = "clue\nanswer\n0.9"
-        llm.generateResult = Result.success(mockOutput)
+        provider.generateResult = Result.success("clue\nanswer\n0.9")
 
         val result = repository.clues(imagePath)
 
         assertTrue(result.isSuccess)
-        val proof = result.getOrThrow()
-        assertEquals(1, proof.size)
-        val clue = proof.first()
+        val clue = result.getOrThrow().single()
         assertEquals("clue", clue.data)
         assertEquals("answer", clue.answer)
         assertEquals(0.9f, clue.confidence)
-        assertEquals(listOf("file:///test/image.jpg"), llm.requests.single().images)
+        assertEquals("mock clues prompt", provider.requests.single().prompt)
+        assertEquals(imagePath, provider.requests.single().images.single().localPath)
     }
 
     @Test
-    fun `clues should return failure when llm fails`() = runTest {
-        val imagePath = "/test/image.jpg".toPath()
-        llm.generateResult = Result.failure(Exception("AI error"))
+    fun `clues should return failure when provider fails`() = runTest {
+        provider.generateResult = Result.failure(Exception("AI error"))
 
-        val result = repository.clues(imagePath)
+        val result = repository.clues("/test/image.jpg".toPath())
 
         assertTrue(result.isFailure)
     }
 
     @Test
     fun `independent clue requests should contain only the current image`() = runTest {
-        llm.generateResult = Result.success("clue\nanswer\n0.9")
+        provider.generateResult = Result.success("clue\nanswer\n0.9")
 
         repository.clues("/test/a.jpg".toPath()).getOrThrow()
         repository.clues("/test/b.jpg".toPath()).getOrThrow()
 
-        assertEquals(
-            listOf("file:///test/a.jpg"),
-            llm.requests[0].images
-        )
-        assertEquals(
-            listOf("file:///test/b.jpg"),
-            llm.requests[1].images
-        )
+        assertEquals(listOf("/test/a.jpg".toPath()), provider.requests[0].images.map { it.localPath })
+        assertEquals(listOf("/test/b.jpg".toPath()), provider.requests[1].images.map { it.localPath })
     }
 
     @Test
     fun `repeated clue request should still include the current image`() = runTest {
-        llm.generateResult = Result.success("clue\nanswer\n0.9")
+        provider.generateResult = Result.success("clue\nanswer\n0.9")
         val image = "/test/repeated.jpg".toPath()
 
         repository.clues(image).getOrThrow()
         repository.clues(image).getOrThrow()
 
-        assertEquals(
-            listOf("file:///test/repeated.jpg"),
-            llm.requests[0].images
-        )
-        assertEquals(
-            listOf("file:///test/repeated.jpg"),
-            llm.requests[1].images
-        )
+        assertEquals(listOf(image), provider.requests[0].images.map { it.localPath })
+        assertEquals(listOf(image), provider.requests[1].images.map { it.localPath })
     }
 
     @Test
     fun `guess should contain only current image and bounded prompt`() = runTest {
-        llm.generateResult = Result.success("yes")
+        provider.generateResult = Result.success("yes")
+        val image = "/test/guess.jpg".toPath()
 
-        val result = repository.guess(
-            "/test/guess.jpg".toPath(),
-            com.micrantha.eyespie.domain.entities.GuessClue("red thing")
-        )
+        val result = repository.guess(image, GuessClue("red thing"))
 
         assertTrue(result.isSuccess)
-        assertEquals("mock guess prompt", llm.requests.single().prompt)
-        assertEquals(listOf("file:///test/guess.jpg"), llm.requests.single().images)
+        assertEquals("mock guess prompt", provider.requests.single().prompt)
+        assertEquals(listOf(image), provider.requests.single().images.map { it.localPath })
     }
 
     @Test
-    fun `image path reserved characters are percent encoded`() = runTest {
-        llm.generateResult = Result.success("clue\nanswer\n0.9")
-
-        repository.clues("/test/frame #1?.jpg".toPath()).getOrThrow()
-
-        assertEquals(
-            listOf("file:///test/frame%20%231%3F.jpg"),
-            llm.requests.single().images
-        )
-    }
-
-    @Test
-    fun `relative image path is rejected before inference`() = runTest {
-        llm.generateResult = Result.success("clue\nanswer\n0.9")
+    fun `relative image path is rejected before provider inference`() = runTest {
+        provider.generateResult = Result.success("clue\nanswer\n0.9")
 
         assertFailsWith<IllegalArgumentException> {
             repository.clues("relative/frame.jpg".toPath())
         }
-        assertTrue(llm.requests.isEmpty())
+        assertTrue(provider.requests.isEmpty())
     }
 }
