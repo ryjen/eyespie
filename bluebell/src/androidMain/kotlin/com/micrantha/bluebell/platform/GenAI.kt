@@ -27,6 +27,8 @@ actual class PlatformGenAI(
     private val sessionLock = Any()
     private var llm: LlmInference? = null
     private var activeSession: LlmInferenceSession? = null
+    private var closingSession: LlmInferenceSession? = null
+    private var sessionLifecycleFailure: Throwable? = null
     private var sessionConfig: GenAIConfig.Session? = null
 
     override fun initialize(config: GenAIConfig): Result<Unit> = try {
@@ -58,6 +60,9 @@ actual class PlatformGenAI(
             )
             .build()
         this.llm = LlmInference.createFromOptions(context, options)
+        synchronized(sessionLock) {
+            sessionLifecycleFailure = null
+        }
         Result.success(Unit)
     } catch (err: Throwable) {
         Result.failure(err)
@@ -66,11 +71,16 @@ actual class PlatformGenAI(
     override fun newSession(config: GenAIConfig.Session): Result<Unit> = try {
         this.llm ?: throw NotInitializedException()
 
-        // Validate that the configured session can be constructed, then discard it. Public
-        // inference calls create a fresh session so independent Eyespie operations share no
-        // prompt or image history.
-        createSession(config).close()
+        // Validate the configured session once, but keep the validation teardown inside the
+        // same lifecycle slot as normal request teardown. Public inference calls still create
+        // fresh request sessions so independent Eyespie operations share no hidden context.
+        val validationSession = synchronized(sessionLock) {
+            requireSessionSlotAvailable()
+            createSession(config).also { closingSession = it }
+        }
+        closeClaimedSession(validationSession)
         synchronized(sessionLock) {
+            requireSessionRuntimeHealthy()
             sessionConfig = config
         }
         Result.success(Unit)
@@ -80,7 +90,10 @@ actual class PlatformGenAI(
 
     override fun generate(request: GenAIRequest): Result<String> = try {
         if (request.prompt.isBlank()) throw InvalidPromptException()
-        val configured = synchronized(sessionLock) { sessionConfig != null }
+        val configured = synchronized(sessionLock) {
+            requireSessionRuntimeHealthy()
+            sessionConfig != null
+        }
         val response = if (!configured) {
             if (request.images.isNotEmpty()) throw SessionRequiredException()
             val inference = this.llm ?: throw NotInitializedException()
@@ -97,7 +110,7 @@ actual class PlatformGenAI(
                 try {
                     closeOperationSession(operationSession)
                 } catch (cleanup: Throwable) {
-                    if (primaryFailure == null) throw cleanup
+                    primaryFailure?.addSuppressed(cleanup) ?: throw cleanup
                 }
             }
         }
@@ -118,7 +131,10 @@ actual class PlatformGenAI(
         }
 
         try {
-            val configured = synchronized(sessionLock) { sessionConfig != null }
+            val configured = synchronized(sessionLock) {
+                requireSessionRuntimeHealthy()
+                sessionConfig != null
+            }
             if (configured) {
                 val newSession = freshOperationSession()
                 operationSession = newSession
@@ -143,7 +159,7 @@ actual class PlatformGenAI(
                 try {
                     closeOperationSession(it)
                 } catch (cleanup: Throwable) {
-                    if (primaryFailure == null) throw cleanup
+                    primaryFailure?.addSuppressed(cleanup) ?: throw cleanup
                 }
             }
         }
@@ -152,9 +168,14 @@ actual class PlatformGenAI(
     override fun close() {
         val sessionToClose = synchronized(sessionLock) {
             sessionConfig = null
-            activeSession.also { activeSession = null }
+            requireSessionRuntimeHealthy()
+            if (closingSession != null) throw OperationInProgressException()
+            activeSession?.also {
+                activeSession = null
+                closingSession = it
+            }
         }
-        sessionToClose?.close()
+        sessionToClose?.let(::closeClaimedSession)
     }
 
     override fun cancel() {
@@ -164,10 +185,19 @@ actual class PlatformGenAI(
 
     private fun freshOperationSession(): LlmInferenceSession = synchronized(sessionLock) {
         val config = sessionConfig ?: throw SessionRequiredException()
-        if (activeSession != null) throw OperationInProgressException()
+        requireSessionSlotAvailable()
         createSession(config).also {
             activeSession = it
         }
+    }
+
+    private fun requireSessionSlotAvailable() {
+        requireSessionRuntimeHealthy()
+        if (activeSession != null || closingSession != null) throw OperationInProgressException()
+    }
+
+    private fun requireSessionRuntimeHealthy() {
+        sessionLifecycleFailure?.let { throw SessionLifecycleFailedException(it) }
     }
 
     private fun createSession(config: GenAIConfig.Session): LlmInferenceSession {
@@ -193,13 +223,29 @@ actual class PlatformGenAI(
         val ownsSession = synchronized(sessionLock) {
             if (activeSession === operationSession) {
                 activeSession = null
+                closingSession = operationSession
                 true
             } else {
                 false
             }
         }
         if (ownsSession) {
-            operationSession.close()
+            closeClaimedSession(operationSession)
+        }
+    }
+
+    private fun closeClaimedSession(session: LlmInferenceSession) {
+        try {
+            session.close()
+        } catch (error: Throwable) {
+            synchronized(sessionLock) {
+                if (closingSession === session) closingSession = null
+                sessionLifecycleFailure = error
+            }
+            throw error
+        }
+        synchronized(sessionLock) {
+            if (closingSession === session) closingSession = null
         }
     }
 
@@ -277,6 +323,7 @@ actual class PlatformGenAI(
     inner class NotInitializedException : Exception()
     inner class SessionRequiredException : Exception()
     inner class OperationInProgressException : Exception()
+    inner class SessionLifecycleFailedException(cause: Throwable) : IllegalStateException(cause)
     inner class InvalidModelPathException : Exception()
     inner class InvalidPromptException : Exception()
     inner class InvalidImageInputException : Exception()
