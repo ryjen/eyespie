@@ -1,7 +1,7 @@
 package com.micrantha.eyespie.features.scan.data
 
 import com.micrantha.bluebell.platform.ConnectivityStatus
-import com.micrantha.eyespie.domain.entities.AiProof
+import com.micrantha.eyespie.domain.entities.ClueAuthority
 import com.micrantha.eyespie.domain.entities.Location
 import com.micrantha.eyespie.domain.entities.Proof
 import com.micrantha.eyespie.features.scan.data.source.CaptureSyncSource
@@ -64,7 +64,7 @@ class CaptureSyncDataRepository(
         source.getAll().onSuccess { pending ->
             pending.forEach { item ->
                 val proof = Proof(
-                    clues = item.clues?.let { json.decodeFromString<AiProof>(it) },
+                    clues = item.clues?.let { json.decodeFromString<ClueAuthority>(it) },
                     location = if (item.latitude != null && item.longitude != null) {
                         Location(point = Location.Point(item.latitude, item.longitude))
                     } else null,
