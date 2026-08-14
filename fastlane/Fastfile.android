@@ -22,24 +22,28 @@ platform :android do
     FileUtils.cp(example_path, env_path) unless File.exist?(env_path)
   end
 
-  desc "Validate model metadata and Android bundle validator contracts"
+  desc "Validate model, calibration, and Android bundle contracts"
   lane :validate do
     Dir.chdir(repo_root) do
       sh("python3 scripts/stage_android_model_artifact.py verify")
       sh("python3 scripts/stage_image_embedder_model.py validate-manifest")
+      sh("python3 scripts/stage_image_embedding_fixtures.py validate-manifest")
       sh("python3 -m unittest scripts.tests.test_stage_image_embedder_model")
+      sh("python3 -m unittest scripts.tests.test_stage_image_embedding_fixtures")
+      sh("python3 -m unittest scripts.tests.test_compare_image_embedding_calibration")
       sh("python3 -m unittest scripts.tests.test_validate_android_bundle")
     end
   end
 
-  desc "Run Android unit and snapshot tests"
+  desc "Run Android unit/snapshot tests and compile physical-device tests"
   lane :test do
     prepare_verification_config
     gradle(
       project_dir: repo_root,
       tasks: [
         ":bluebell:testDebugUnitTest",
-        ":app:testDebugUnitTest"
+        ":app:testDebugUnitTest",
+        ":app:assembleDebugAndroidTest"
       ],
       flags: "--no-daemon --parallel --build-cache --configuration-cache"
     )
