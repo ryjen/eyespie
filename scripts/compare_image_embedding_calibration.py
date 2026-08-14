@@ -265,15 +265,20 @@ def compare_reports(android: CalibrationReport, ios: CalibrationReport) -> dict[
     android_reference_to_ios = _semantic_metrics(android, ios)
     ios_reference_to_android = _semantic_metrics(ios, android)
 
-    cross_platform: dict[str, dict[str, float]] = {}
+    cross_platform: dict[str, dict[str, Any]] = {}
     for fixture_id in EXPECTED_FIXTURES:
         a = android.fixtures[fixture_id].embedding
         b = ios.fixtures[fixture_id].embedding
+        similarity = cosine_similarity(a, b)
         cross_platform[fixture_id] = {
-            "cosine_similarity": cosine_similarity(a, b),
+            "cosine_similarity": similarity,
             "rmse": rmse(a, b),
             "max_abs_delta": max_abs_delta(a, b),
+            "matches_configured_threshold": similarity >= android.match_threshold,
         }
+    same_fixture_all_match = all(
+        metrics["matches_configured_threshold"] for metrics in cross_platform.values()
+    )
 
     decision_sets = {
         fixture_id: (
@@ -332,6 +337,13 @@ def compare_reports(android: CalibrationReport, ios: CalibrationReport) -> dict[
             },
         },
         "cross_platform": cross_platform,
+        "same_fixture_cross_platform_match": {
+            "all_match": same_fixture_all_match,
+            "fixtures": {
+                fixture_id: metrics["matches_configured_threshold"]
+                for fixture_id, metrics in cross_platform.items()
+            },
+        },
         "cross_platform_semantic_behavior": {
             "android_reference_to_ios": android_reference_to_ios,
             "ios_reference_to_android": ios_reference_to_android,
@@ -359,17 +371,19 @@ def render_markdown(comparison: dict[str, Any]) -> str:
         f"- Configured cosine threshold: {comparison['match_policy']['cosine_threshold']:.9g}",
         "- Fixture provenance: **validated against pinned SHA-256 values**",
         "- Product match threshold changed: **no**",
+        f"- Exact same fixtures match across platforms: **{'yes' if comparison['same_fixture_cross_platform_match']['all_match'] else 'no'}**",
         f"- Match decisions consistent across both storage/scan directions: **{'yes' if comparison['match_decision_consistency']['all_consistent'] else 'no'}**",
         "",
         "## Cross-platform same-fixture metrics",
         "",
-        "| Fixture | Cosine | RMSE | Max abs delta |",
-        "|---|---:|---:|---:|",
+        "| Fixture | Cosine | RMSE | Max abs delta | Matches configured threshold |",
+        "|---|---:|---:|---:|---|",
     ]
     for fixture_id, metrics in comparison["cross_platform"].items():
+        decision = "yes" if metrics["matches_configured_threshold"] else "no"
         lines.append(
             f"| {fixture_id} | {metrics['cosine_similarity']:.9f} | "
-            f"{metrics['rmse']:.9g} | {metrics['max_abs_delta']:.9g} |"
+            f"{metrics['rmse']:.9g} | {metrics['max_abs_delta']:.9g} | {decision} |"
         )
 
     lines.extend(
