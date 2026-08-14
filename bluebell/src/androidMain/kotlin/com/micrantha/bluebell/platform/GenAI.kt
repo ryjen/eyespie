@@ -78,14 +78,23 @@ actual class PlatformGenAI(
     override fun generate(request: GenAIRequest): Result<String> = try {
         if (request.prompt.isBlank()) throw InvalidPromptException()
         val response = if (sessionConfig == null) {
+            if (request.images.isNotEmpty()) throw SessionRequiredException()
             val inference = this.llm ?: throw NotInitializedException()
             inference.generateResponse(request.prompt)
         } else {
             val operationSession = freshOperationSession()
+            var primaryFailure: Throwable? = null
             try {
                 operationSession.updateWithRequest(request).generateResponse()
+            } catch (error: Throwable) {
+                primaryFailure = error
+                throw error
             } finally {
-                closeOperationSession(operationSession)
+                try {
+                    closeOperationSession(operationSession)
+                } catch (cleanup: Throwable) {
+                    if (primaryFailure == null) throw cleanup
+                }
             }
         }
         Result.success(response)
@@ -97,12 +106,12 @@ actual class PlatformGenAI(
         if (request.prompt.isBlank()) throw InvalidPromptException()
 
         var operationSession: LlmInferenceSession? = null
+        var primaryFailure: Throwable? = null
         val listener = { partialResult: String?, done: Boolean ->
             if (partialResult != null) {
                 trySend(partialResult)
             }
             if (done) {
-                operationSession?.let(::closeOperationSession)
                 close()
             }
         }
@@ -112,6 +121,8 @@ actual class PlatformGenAI(
                 val newSession = freshOperationSession()
                 operationSession = newSession
                 newSession.updateWithRequest(request)
+            } else if (request.images.isNotEmpty()) {
+                throw SessionRequiredException()
             }
 
             val response = operationSession?.generateResponseAsync(listener)
@@ -120,10 +131,18 @@ actual class PlatformGenAI(
             response.awaitResult()
             awaitClose {
                 response.cancel(true)
-                operationSession?.let(::closeOperationSession)
             }
+        } catch (error: Throwable) {
+            primaryFailure = error
+            throw error
         } finally {
-            operationSession?.let(::closeOperationSession)
+            operationSession?.let {
+                try {
+                    closeOperationSession(it)
+                } catch (cleanup: Throwable) {
+                    if (primaryFailure == null) throw cleanup
+                }
+            }
         }
     }
 
@@ -201,8 +220,9 @@ actual class PlatformGenAI(
         uris: List<String>,
         targetWidth: Int = 512,
         targetHeight: Int = 512
-    ) = uris.mapNotNull {
+    ) = uris.map {
         preprocessImage(it, targetWidth, targetHeight)
+            ?: throw InvalidImageInputException()
     }
 
     fun LlmInferenceSession?.updateWithRequest(request: GenAIRequest): LlmInferenceSession {
@@ -249,4 +269,5 @@ actual class PlatformGenAI(
     inner class SessionRequiredException : Exception()
     inner class InvalidModelPathException : Exception()
     inner class InvalidPromptException : Exception()
+    inner class InvalidImageInputException : Exception()
 }
