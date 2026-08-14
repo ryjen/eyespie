@@ -16,10 +16,8 @@ class FakeRouter : Router {
     var lastNavigatedTo: Screen? = null
     var lastOptions: Options? = null
     var navigateBackCalled = false
-    var navigateFailure: Throwable? = null
 
     override fun <T : Screen> navigate(screen: T, options: Options) {
-        navigateFailure?.let { throw it }
         lastNavigatedTo = screen
         lastOptions = options
     }
