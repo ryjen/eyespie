@@ -1,6 +1,5 @@
 package com.micrantha.eyespie.app.usecase
 
-import com.micrantha.bluebell.platform.FakeGenAI
 import com.micrantha.bluebell.platform.Platform
 import com.micrantha.eyespie.core.data.account.model.CurrentSession
 import com.micrantha.eyespie.core.ui.FakeScreenContext
@@ -9,7 +8,9 @@ import com.micrantha.eyespie.domain.ai.SemanticInferenceAvailability
 import com.micrantha.eyespie.domain.ai.SemanticInferenceAvailabilityController
 import com.micrantha.eyespie.domain.ai.SemanticInferenceCapabilities
 import com.micrantha.eyespie.domain.ai.SemanticInferenceIdentity
+import com.micrantha.eyespie.domain.ai.SemanticInferenceInitialization
 import com.micrantha.eyespie.domain.ai.SemanticInferenceProvider
+import com.micrantha.eyespie.domain.ai.SemanticInferenceProviderSetup
 import com.micrantha.eyespie.domain.ai.SemanticInferenceReasonCode
 import com.micrantha.eyespie.domain.ai.SemanticInferenceRequest
 import com.micrantha.eyespie.domain.entities.Session
@@ -58,7 +59,6 @@ class LoadMainUseCaseTest {
     private val currentSession = CurrentSession
     private val loadSessionPlayerUseCase = LoadSessionPlayerUseCase(playerRepository, currentSession)
     private val onboardingRepository = FakeOnboardingRepository()
-    private val llm = FakeGenAI()
     private val semanticProvider = FakeSemanticProvider()
     private val loadModelConfig = object : LoadModelConfig {
         override fun invoke() = Result.success(
@@ -89,11 +89,11 @@ class LoadMainUseCaseTest {
     }
     private val modelIntegrityVerifier = ModelIntegrityVerifier(FakeFileSystem())
     private val initGenAIUseCase = InitGenAIUseCase(
-        llm,
         onboardingRepository,
         loadModelConfig,
         platform,
         modelIntegrityVerifier,
+        semanticProvider,
         semanticProvider,
         semanticProvider,
     )
@@ -184,7 +184,9 @@ class LoadMainUseCaseTest {
         )
     }
 
-    private class FakeSemanticProvider : SemanticInferenceProvider, SemanticInferenceAvailabilityController {
+    private class FakeSemanticProvider : SemanticInferenceProvider,
+        SemanticInferenceProviderSetup,
+        SemanticInferenceAvailabilityController {
         override val identity = SemanticInferenceIdentity(
             providerId = "test-local",
             runtimeId = "test-runtime",
@@ -193,6 +195,11 @@ class LoadMainUseCaseTest {
         override val availability = MutableStateFlow<SemanticInferenceAvailability>(
             SemanticInferenceAvailability.NotConfigured,
         )
+
+        override suspend fun initialize(configuration: SemanticInferenceInitialization): Result<Unit> {
+            availability.value = SemanticInferenceAvailability.Available(configuration.capabilities)
+            return Result.success(Unit)
+        }
 
         override suspend fun generate(request: SemanticInferenceRequest) =
             Result.failure<String>(UnsupportedOperationException())
