@@ -46,6 +46,7 @@ internal data class ImageEmbeddingCalibrationMatchPolicy(
 internal data class ImageEmbeddingCalibrationFixture(
     val id: String,
     val role: String,
+    val source_sha256: String,
     val embedding: List<Float>,
     val repeat_count: Int,
     val repeat_cosine_min: Float,
@@ -67,8 +68,12 @@ internal data class ImageEmbeddingCalibrationReport(
 internal fun summarizeImageEmbeddingCalibrationFixture(
     id: String,
     role: String,
+    sourceSha256: String,
     runs: List<Embedding>,
 ): ImageEmbeddingCalibrationFixture {
+    require(sourceSha256.length == 64 && sourceSha256.all { it in '0'..'9' || it in 'a'..'f' }) {
+        "calibration fixture SHA-256 must be 64 lowercase hex characters"
+    }
     require(runs.size >= 2) { "calibration requires at least two inference runs" }
     val canonical = runs.map { it.requireCanonical() }
     val first = canonical.first()
@@ -90,6 +95,7 @@ internal fun summarizeImageEmbeddingCalibrationFixture(
     return ImageEmbeddingCalibrationFixture(
         id = id,
         role = role,
+        source_sha256 = sourceSha256,
         embedding = firstValues,
         repeat_count = canonical.size,
         repeat_cosine_min = minimumCosine,
