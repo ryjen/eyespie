@@ -212,7 +212,7 @@ jobs:
               done
           exit "$status"
 
-      - name: Compile Kotlin and Apple tests for iOS simulator
+      - name: Compile Kotlin and run Apple tests for iOS simulator
         shell: bash
         run: |
           set -o pipefail
@@ -220,7 +220,7 @@ jobs:
           set +e
           ./gradlew \
             :app:compileKotlinIosSimulatorArm64 \
-            :app:compileTestKotlinIosSimulatorArm64 \
+            :app:iosSimulatorArm64Test \
             --no-daemon \
             --info \
             --stacktrace 2>&1 | tee "$log"
@@ -230,7 +230,7 @@ jobs:
           if (( status != 0 )); then
             while IFS= read -r line; do
               escaped="$(printf '%s' "$line" | sed 's/%/%25/g; s/\r/%0D/g; s/\n/%0A/g')"
-              echo "::error title=Kotlin iOS compile::$escaped"
+              echo "::error title=Kotlin iOS compile/test::$escaped"
             done < <(
               grep -E '(^e: |error: |Compilation failed|FAILURE:|What went wrong:|Execution failed for task|Caused by:)' "$log" \
                 | tail -n 80 || true
@@ -267,6 +267,15 @@ jobs:
           test -x "$app/$executable"
           file "$app/$executable"
 
+          model_name="mobilenet_v3_small_100_224_embedder.tflite"
+          model="$app/$model_name"
+          if [[ ! -f "$model" ]]; then
+            echo "expected image embedder at the main bundle root: $model" >&2
+            find "$app" -type f -name "$model_name" -print >&2 || true
+            exit 1
+          fi
+          python3 scripts/stage_image_embedder_model.py verify-file "$model"
+
       - name: Summarize failure
         if: failure()
         shell: bash
@@ -293,7 +302,7 @@ jobs:
               echo '```'
             fi
             if [[ -f "$RUNNER_TEMP/ios-kotlin-compile.log" ]]; then
-              echo '### Kotlin iOS compile tail'
+              echo '### Kotlin iOS compile/test tail'
               echo '```text'
               tail -n 250 "$RUNNER_TEMP/ios-kotlin-compile.log"
               echo '```'
