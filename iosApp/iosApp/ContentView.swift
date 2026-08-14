@@ -1,3 +1,4 @@
+import Foundation
 import SwiftUI
 import eyespie
 
@@ -25,14 +26,40 @@ struct ComposeView: UIViewControllerRepresentable {
     }
 }
 
-
 struct ContentView: View {
+    @State private var didStartEmbeddingCalibration = false
 
     var body: some View {
         ComposeView().ignoresSafeArea(.all, edges: .bottom)
-        .onAppear {
+            .onAppear {
+                runEmbeddingCalibrationIfRequested()
+            }
+    }
+
+    private func runEmbeddingCalibrationIfRequested() {
+        guard !didStartEmbeddingCalibration else { return }
+        guard ProcessInfo.processInfo.environment["EYESPIE_IMAGE_EMBEDDING_CALIBRATION"] == "1" else {
+            return
         }
-        .onDisappear {
+        didStartEmbeddingCalibration = true
+
+        Task.detached(priority: .userInitiated) {
+            do {
+                let report = try ImageEmbeddingCalibrationCollector().collect()
+                let documents = try FileManager.default.url(
+                    for: .documentDirectory,
+                    in: .userDomainMask,
+                    appropriateFor: nil,
+                    create: true
+                )
+                let output = documents
+                    .appendingPathComponent("image-embedding-calibration-ios")
+                    .appendingPathExtension("json")
+                try report.write(to: output, atomically: true, encoding: .utf8)
+                print("EYESPIE_IMAGE_EMBEDDING_CALIBRATION=\(output.path)")
+            } catch {
+                print("EYESPIE_IMAGE_EMBEDDING_CALIBRATION_ERROR=\(error)")
+            }
         }
     }
 }
