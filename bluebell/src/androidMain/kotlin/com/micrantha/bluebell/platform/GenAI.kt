@@ -24,6 +24,7 @@ import kotlin.coroutines.resume
 actual class PlatformGenAI(
     private val context: Context
 ) : GenAI {
+    private val sessionLock = Any()
     private var llm: LlmInference? = null
     private var activeSession: LlmInferenceSession? = null
     private var sessionConfig: GenAIConfig.Session? = null
@@ -69,7 +70,9 @@ actual class PlatformGenAI(
         // inference calls create a fresh session so independent Eyespie operations share no
         // prompt or image history.
         createSession(config).close()
-        sessionConfig = config
+        synchronized(sessionLock) {
+            sessionConfig = config
+        }
         Result.success(Unit)
     } catch (err: Throwable) {
         Result.failure(err)
@@ -77,7 +80,8 @@ actual class PlatformGenAI(
 
     override fun generate(request: GenAIRequest): Result<String> = try {
         if (request.prompt.isBlank()) throw InvalidPromptException()
-        val response = if (sessionConfig == null) {
+        val configured = synchronized(sessionLock) { sessionConfig != null }
+        val response = if (!configured) {
             if (request.images.isNotEmpty()) throw SessionRequiredException()
             val inference = this.llm ?: throw NotInitializedException()
             inference.generateResponse(request.prompt)
@@ -107,17 +111,15 @@ actual class PlatformGenAI(
 
         var operationSession: LlmInferenceSession? = null
         var primaryFailure: Throwable? = null
-        val listener = { partialResult: String?, done: Boolean ->
+        val listener = { partialResult: String?, _: Boolean ->
             if (partialResult != null) {
                 trySend(partialResult)
-            }
-            if (done) {
-                close()
             }
         }
 
         try {
-            if (sessionConfig != null) {
+            val configured = synchronized(sessionLock) { sessionConfig != null }
+            if (configured) {
                 val newSession = freshOperationSession()
                 operationSession = newSession
                 newSession.updateWithRequest(request)
@@ -129,6 +131,7 @@ actual class PlatformGenAI(
                 ?: (llm ?: throw NotInitializedException()).generateResponseAsync(request.prompt, listener)
 
             response.awaitResult()
+            close()
             awaitClose {
                 response.cancel(true)
             }
@@ -147,18 +150,22 @@ actual class PlatformGenAI(
     }
 
     override fun close() {
-        closeActiveSession()
-        sessionConfig = null
+        val sessionToClose = synchronized(sessionLock) {
+            sessionConfig = null
+            activeSession.also { activeSession = null }
+        }
+        sessionToClose?.close()
     }
 
     override fun cancel() {
-        activeSession?.cancelGenerateResponseAsync()
+        val session = synchronized(sessionLock) { activeSession }
+        session?.cancelGenerateResponseAsync()
     }
 
-    private fun freshOperationSession(): LlmInferenceSession {
+    private fun freshOperationSession(): LlmInferenceSession = synchronized(sessionLock) {
         val config = sessionConfig ?: throw SessionRequiredException()
-        closeActiveSession()
-        return createSession(config).also {
+        if (activeSession != null) throw OperationInProgressException()
+        createSession(config).also {
             activeSession = it
         }
     }
@@ -183,15 +190,17 @@ actual class PlatformGenAI(
     }
 
     private fun closeOperationSession(operationSession: LlmInferenceSession) {
-        if (activeSession === operationSession) {
-            operationSession.close()
-            activeSession = null
+        val ownsSession = synchronized(sessionLock) {
+            if (activeSession === operationSession) {
+                activeSession = null
+                true
+            } else {
+                false
+            }
         }
-    }
-
-    private fun closeActiveSession() {
-        activeSession?.close()
-        activeSession = null
+        if (ownsSession) {
+            operationSession.close()
+        }
     }
 
     /**
@@ -267,6 +276,7 @@ actual class PlatformGenAI(
 
     inner class NotInitializedException : Exception()
     inner class SessionRequiredException : Exception()
+    inner class OperationInProgressException : Exception()
     inner class InvalidModelPathException : Exception()
     inner class InvalidPromptException : Exception()
     inner class InvalidImageInputException : Exception()
