@@ -361,6 +361,16 @@ def compare_reports(android: CalibrationReport, ios: CalibrationReport) -> dict[
     }
 
 
+def require_same_fixture_cross_platform_match(comparison: dict[str, Any]) -> None:
+    fixture_results = comparison["same_fixture_cross_platform_match"]["fixtures"]
+    failed = [fixture_id for fixture_id, matched in fixture_results.items() if not matched]
+    if failed:
+        raise CalibrationReportError(
+            "exact same-fixture cross-platform matching failed at the configured threshold: "
+            + ", ".join(failed)
+        )
+
+
 def render_markdown(comparison: dict[str, Any]) -> str:
     lines = [
         "# Image embedding calibration comparison",
@@ -488,6 +498,7 @@ def main() -> int:
                 args.markdown_output.write_text(markdown, encoding="utf-8")
             if not args.json_output and not args.markdown_output:
                 print(markdown, end="")
+            require_same_fixture_cross_platform_match(result)
     except CalibrationReportError as exc:
         parser.error(str(exc))
     return 0
