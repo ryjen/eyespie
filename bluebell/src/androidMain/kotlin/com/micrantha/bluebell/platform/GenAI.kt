@@ -28,6 +28,7 @@ actual class PlatformGenAI(
     private var llm: LlmInference? = null
     private var activeSession: LlmInferenceSession? = null
     private var closingSession: LlmInferenceSession? = null
+    private var pendingClosingCancellation: Pair<LlmInferenceSession, ListenableFuture<*>>? = null
     private var sessionLifecycleFailure: Throwable? = null
     private var sessionConfig: GenAIConfig.Session? = null
 
@@ -239,14 +240,30 @@ actual class PlatformGenAI(
         try {
             session.close()
         } catch (error: Throwable) {
-            synchronized(sessionLock) {
+            val pendingCancellation = synchronized(sessionLock) {
                 if (closingSession === session) closingSession = null
                 sessionLifecycleFailure = error
+                pendingClosingCancellation
+                    ?.takeIf { it.first === session }
+                    ?.second
+                    .also {
+                        if (pendingClosingCancellation?.first === session) {
+                            pendingClosingCancellation = null
+                        }
+                    }
+            }
+            try {
+                pendingCancellation?.cancel(true)
+            } catch (cancellationFailure: Throwable) {
+                error.addSuppressed(cancellationFailure)
             }
             throw error
         }
         synchronized(sessionLock) {
             if (closingSession === session) closingSession = null
+            if (pendingClosingCancellation?.first === session) {
+                pendingClosingCancellation = null
+            }
         }
     }
 
@@ -255,8 +272,12 @@ actual class PlatformGenAI(
         operationSession: LlmInferenceSession?,
     ) {
         synchronized(sessionLock) {
-            if (operationSession == null || activeSession === operationSession) {
-                response.cancel(true)
+            when {
+                operationSession == null -> response.cancel(true)
+                activeSession === operationSession -> response.cancel(true)
+                closingSession === operationSession -> {
+                    pendingClosingCancellation = operationSession to response
+                }
             }
         }
     }
