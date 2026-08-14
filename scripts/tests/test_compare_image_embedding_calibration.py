@@ -82,6 +82,10 @@ class ImageEmbeddingCalibrationComparatorTest(unittest.TestCase):
 
             self.assertEqual(1.0, result["cross_platform"]["burger"]["cosine_similarity"])
             self.assertEqual(0.0, result["cross_platform"]["burger"]["rmse"])
+            self.assertTrue(
+                result["cross_platform"]["burger"]["matches_configured_threshold"]
+            )
+            self.assertTrue(result["same_fixture_cross_platform_match"]["all_match"])
             self.assertEqual(
                 EXPECTED_FIXTURE_SHA256["burger"],
                 result["fixtures"]["burger"]["sha256"],
@@ -160,6 +164,10 @@ class ImageEmbeddingCalibrationComparatorTest(unittest.TestCase):
                 result["cross_platform_semantic_behavior"]["ios_reference_to_android"]
                 ["burger_crop"]["matches_configured_threshold"]
             )
+            self.assertFalse(
+                result["same_fixture_cross_platform_match"]["fixtures"]["burger"]
+            )
+            self.assertFalse(result["same_fixture_cross_platform_match"]["all_match"])
             self.assertFalse(
                 result["match_decision_consistency"]["fixtures"]["burger_crop"]
             )
