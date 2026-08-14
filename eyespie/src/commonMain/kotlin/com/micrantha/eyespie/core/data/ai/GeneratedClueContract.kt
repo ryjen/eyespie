@@ -33,6 +33,9 @@ internal class UnsupportedGeneratedClueSchemaException :
 internal class InvalidGeneratedClueResponseException :
     GeneratedClueResponseException("clue_response_invalid")
 
+internal class GeneratedClueRepairExecutionChangedException :
+    GeneratedClueResponseException("clue_repair_execution_changed")
+
 internal fun GeneratedClueResponse.validateAndMap(
     identity: SemanticInferenceIdentity,
     executionConfiguration: SemanticInferenceExecutionConfiguration?,
