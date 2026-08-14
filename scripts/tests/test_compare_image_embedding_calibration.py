@@ -7,6 +7,7 @@ import unittest
 from pathlib import Path
 
 from scripts.compare_image_embedding_calibration import (
+    EXPECTED_FIXTURE_SHA256,
     EXPECTED_MODEL_SHA256,
     CalibrationReportError,
     compare_reports,
@@ -58,6 +59,7 @@ class ImageEmbeddingCalibrationComparatorTest(unittest.TestCase):
                 {
                     "id": fixture_id,
                     "role": role,
+                    "source_sha256": EXPECTED_FIXTURE_SHA256[fixture_id],
                     "embedding": vector,
                     "repeat_count": 5,
                     "repeat_cosine_min": 1.0,
@@ -80,6 +82,10 @@ class ImageEmbeddingCalibrationComparatorTest(unittest.TestCase):
 
             self.assertEqual(1.0, result["cross_platform"]["burger"]["cosine_similarity"])
             self.assertEqual(0.0, result["cross_platform"]["burger"]["rmse"])
+            self.assertEqual(
+                EXPECTED_FIXTURE_SHA256["burger"],
+                result["fixtures"]["burger"]["sha256"],
+            )
             self.assertGreater(
                 result["android"]["semantic_behavior"]["burger_crop"]["cosine_similarity"],
                 result["android"]["semantic_behavior"]["cat"]["cosine_similarity"],
@@ -165,6 +171,17 @@ class ImageEmbeddingCalibrationComparatorTest(unittest.TestCase):
             path = self.write_report(root, "android", model_sha256="b" * 64)
 
             with self.assertRaisesRegex(CalibrationReportError, "pinned image-embedding model"):
+                load_report(path)
+
+    def test_rejects_unpinned_fixture_bytes(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            path = self.write_report(root, "android")
+            data = json.loads(path.read_text(encoding="utf-8"))
+            data["fixtures"][0]["source_sha256"] = "b" * 64
+            path.write_text(json.dumps(data), encoding="utf-8")
+
+            with self.assertRaisesRegex(CalibrationReportError, "pinned calibration fixture"):
                 load_report(path)
 
     def test_rejects_different_configured_thresholds(self) -> None:
