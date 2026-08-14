@@ -179,8 +179,9 @@ actual class PlatformGenAI(
     }
 
     override fun cancel() {
-        val session = synchronized(sessionLock) { activeSession }
-        session?.cancelGenerateResponseAsync()
+        synchronized(sessionLock) {
+            activeSession?.cancelGenerateResponseAsync()
+        }
     }
 
     private fun freshOperationSession(): LlmInferenceSession = synchronized(sessionLock) {
