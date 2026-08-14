@@ -49,7 +49,7 @@ class ClueDataRepositoryTest {
             return emptyFlow()
         }
 
-        override fun close() = Unit
+        override suspend fun close() = Unit
         override fun cancel() = Unit
     }
 
