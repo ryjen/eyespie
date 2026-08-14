@@ -94,9 +94,16 @@ internal class GenAISemanticInferenceProvider(
                 return@withLock Result.failure(it)
             }
             try {
-                lifecycleMutex.withLock {
-                    unavailableFailure()?.let { return@withLock Result.failure(it) }
-                    genAI.generate(request.toGenAIRequest()).also { it.failureOrCancellation() }
+                supervisorScope {
+                    val generation = lifecycleMutex.withLock {
+                        unavailableFailure()?.let { throw it }
+                        async(start = CoroutineStart.UNDISPATCHED) {
+                            val response = StringBuilder()
+                            genAI.generateFlow(request.toGenAIRequest()).collect { response.append(it) }
+                            response.toString()
+                        }
+                    }
+                    Result.success(generation.await())
                 }
             } catch (cancelled: CancellationException) {
                 throw cancelled
