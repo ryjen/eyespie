@@ -41,9 +41,12 @@ class MediaPipeImageEmbeddingGeneratorTest {
     }
 
     @Test
-    fun rejectsMissingFloatOutput() {
+    fun rejectsMissingOrQuantizedFloatOutput() {
         assertFailsWith<IllegalStateException> {
             canonicalMediaPipeEmbedding(listOf(null))
+        }
+        assertFailsWith<IllegalStateException> {
+            canonicalMediaPipeEmbedding(listOf(emptyList()))
         }
     }
 
@@ -56,6 +59,13 @@ class MediaPipeImageEmbeddingGeneratorTest {
             canonicalMediaPipeEmbedding(
                 listOf(List(ImageEmbeddingContract.dimensions) { index ->
                     if (index == 0) Float.NaN else 0f
+                })
+            )
+        }
+        assertFailsWith<InvalidEmbeddingException> {
+            canonicalMediaPipeEmbedding(
+                listOf(List(ImageEmbeddingContract.dimensions) { index ->
+                    if (index == 0) Float.POSITIVE_INFINITY else 0f
                 })
             )
         }
