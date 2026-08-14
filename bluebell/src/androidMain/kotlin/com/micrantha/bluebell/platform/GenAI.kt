@@ -28,6 +28,7 @@ actual class PlatformGenAI(
     private var llm: LlmInference? = null
     private var activeSession: LlmInferenceSession? = null
     private var closingSession: LlmInferenceSession? = null
+    private var failedSession: LlmInferenceSession? = null
     private var pendingClosingCancellation: Pair<LlmInferenceSession, ListenableFuture<*>>? = null
     private var sessionLifecycleFailure: Throwable? = null
     private var sessionConfig: GenAIConfig.Session? = null
@@ -62,6 +63,7 @@ actual class PlatformGenAI(
             .build()
         this.llm = LlmInference.createFromOptions(context, options)
         synchronized(sessionLock) {
+            failedSession = null
             sessionLifecycleFailure = null
         }
         Result.success(Unit)
@@ -242,6 +244,7 @@ actual class PlatformGenAI(
         } catch (error: Throwable) {
             val pendingCancellation = synchronized(sessionLock) {
                 if (closingSession === session) closingSession = null
+                failedSession = session
                 sessionLifecycleFailure = error
                 pendingClosingCancellation
                     ?.takeIf { it.first === session }
@@ -278,6 +281,7 @@ actual class PlatformGenAI(
                 closingSession === operationSession -> {
                     pendingClosingCancellation = operationSession to response
                 }
+                failedSession === operationSession -> response.cancel(true)
             }
         }
     }
