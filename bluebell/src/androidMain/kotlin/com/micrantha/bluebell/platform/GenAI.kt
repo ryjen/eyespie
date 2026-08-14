@@ -108,10 +108,10 @@ actual class PlatformGenAI(
         }
 
         try {
-            operationSession = if (sessionConfig != null) {
-                freshOperationSession().also { it.updateWithRequest(request) }
-            } else {
-                null
+            if (sessionConfig != null) {
+                val newSession = freshOperationSession()
+                operationSession = newSession
+                newSession.updateWithRequest(request)
             }
 
             val response = operationSession?.generateResponseAsync(listener)
