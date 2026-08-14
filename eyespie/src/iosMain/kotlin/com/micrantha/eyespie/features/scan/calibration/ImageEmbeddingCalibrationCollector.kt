@@ -9,6 +9,7 @@ import com.micrantha.eyespie.domain.entities.ImageEmbeddingContract
 import com.micrantha.eyespie.features.scan.usecase.MediaPipeImageEmbeddingGenerator
 import com.micrantha.eyespie.platform.scan.CameraImage
 import kotlinx.coroutines.runBlocking
+import okio.Buffer
 import okio.FileSystem
 import okio.Path.Companion.toPath
 import platform.Foundation.NSBundle
@@ -34,11 +35,17 @@ class ImageEmbeddingCalibrationCollector {
             Triple("burger_rotated", "related", "burger_rotated.jpg"),
             Triple("cat", "unrelated", "cat.jpg"),
         ).map { (id, role, fileName) ->
-            val image = EncodedCalibrationCameraImage(loadFixture(fileName))
+            val encoded = loadFixture(fileName)
+            val image = EncodedCalibrationCameraImage(encoded)
             val runs = List(IMAGE_EMBEDDING_CALIBRATION_REPEAT_COUNT) {
                 generator.generate(image)
             }
-            summarizeImageEmbeddingCalibrationFixture(id, role, runs)
+            summarizeImageEmbeddingCalibrationFixture(
+                id = id,
+                role = role,
+                sourceSha256 = sha256(Buffer().write(encoded)),
+                runs = runs,
+            )
         }
 
         val device = UIDevice.currentDevice
