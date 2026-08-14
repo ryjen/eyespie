@@ -8,8 +8,9 @@ This harness deliberately separates **evidence collection** from **product polic
 - fixtures are immutable MediaPipe testdata objects pinned by GCS generation and SHA-256 in `calibration/image-embedding-fixtures.json`;
 - Android and iOS collectors invoke the production `MediaPipeImageEmbeddingGenerator` adapters;
 - each fixture is inferred five times, retaining one canonical 1024-float vector plus repeated-inference stability metrics;
-- `scripts/compare_image_embedding_calibration.py` reports cosine similarity, RMSE, maximum component delta, and within-platform related/unrelated behavior;
-- the comparator contains **no product match threshold** and does not modify schema, normalization, or matching policy.
+- each report hashes the model bytes actually packaged on the device and records that build's configured cosine match threshold;
+- `scripts/compare_image_embedding_calibration.py` reports same-fixture cosine/RMSE/component deltas, within-platform behavior, and both cross-platform storage/scan directions;
+- the comparator evaluates the threshold recorded by the builds but never selects, rewrites, or calibrates a new product threshold.
 
 ## Fixture set
 
@@ -90,9 +91,13 @@ Review at least:
 
 - same-fixture Android/iOS cosine similarity, RMSE, and max absolute component delta;
 - repeated-inference minimum cosine and max component delta on each device;
-- `burger` → `burger_crop` and `burger` → `burger_rotated` cosine behavior;
-- `burger` → `cat` as the unrelated control;
-- whether both platforms lead to equivalent product-level match decisions under the **existing** match policy.
+- Android `burger` reference → Android transformed/unrelated scans;
+- iOS `burger` reference → iOS transformed/unrelated scans;
+- **Android-stored `burger` reference → iOS transformed/unrelated scans**;
+- **iOS-stored `burger` reference → Android transformed/unrelated scans**;
+- whether all four contexts produce equivalent product-level decisions under the **existing** match policy.
+
+The two directional checks matter because an embedding may be persisted from one platform and later compared with a scan produced by the other. A platform-specific preprocessing or embedding-basis shift can therefore pass both same-platform tests while breaking real cross-platform gameplay.
 
 Do not infer a new production threshold from one device pair. If evidence suggests a threshold change, treat that as a separate explicit policy change with its own fixture population, device coverage, rationale, and regression tests.
 
@@ -101,10 +106,11 @@ Do not infer a new production threshold from one device pair. If evidence sugges
 The slice is physically accepted only when:
 
 - one real Android report and one real iOS report validate successfully;
-- both reports identify the same model SHA-256 and 1024-dimensional schema;
+- both reports identify the pinned model SHA-256 and the same 1024-dimensional schema;
+- both reports identify the same configured product match threshold;
 - repeated inference is operationally stable enough to support matching;
 - transformed fixtures preserve useful semantic similarity relative to the unrelated control on both platforms;
-- the existing product match decision is consistent across platforms for the reviewed fixture set;
+- match decisions are consistent for Android→Android, iOS→iOS, Android→iOS, and iOS→Android storage/scan paths;
 - the two raw reports and generated comparison are attached or linked from #91/its implementation PR.
 
 CI may validate provenance, scripts, adapter compilation, and the Android instrumentation APK. CI must not be cited as satisfying the physical-device evidence items above.
