@@ -16,6 +16,7 @@ import com.micrantha.eyespie.domain.ai.InferenceLocality
 import com.micrantha.eyespie.domain.ai.SemanticInferenceAvailabilityController
 import com.micrantha.eyespie.domain.ai.SemanticInferenceIdentity
 import com.micrantha.eyespie.domain.ai.SemanticInferenceProvider
+import com.micrantha.eyespie.domain.ai.SemanticInferenceProviderSetup
 import com.micrantha.eyespie.model.androidModelAssetModule
 import com.micrantha.eyespie.platform.scan.LoadCameraImageUseCase
 import com.micrantha.eyespie.platform.scan.LoadCameraImageUseCaseImpl
@@ -68,6 +69,7 @@ fun androidDependencies(
         )
     }
     delegate<SemanticInferenceProvider>().to<GenAISemanticInferenceProvider>()
+    delegate<SemanticInferenceProviderSetup>().to<GenAISemanticInferenceProvider>()
     delegate<SemanticInferenceAvailabilityController>().to<GenAISemanticInferenceProvider>()
 
     bindFactory { namespace: String ->
