@@ -5,9 +5,6 @@ import com.micrantha.bluebell.observability.logger
 import com.micrantha.bluebell.ui.components.Router
 import com.micrantha.bluebell.ui.screen.ScreenContext
 import com.micrantha.bluebell.ui.screen.navigate
-import com.micrantha.eyespie.domain.ai.SemanticInferenceAvailability
-import com.micrantha.eyespie.domain.ai.SemanticInferenceProvider
-import com.micrantha.eyespie.domain.ai.SemanticInferenceReasonCode
 import com.micrantha.eyespie.domain.entities.Session
 import com.micrantha.eyespie.domain.repository.AccountRepository
 import com.micrantha.eyespie.domain.usecase.InitGenAIUseCase
@@ -33,7 +30,6 @@ class LoadMainUseCaseImpl(
     private val onboardingRepository: OnboardingRepository,
     private val initGenAIUseCase: InitGenAIUseCase,
     private val captureSyncRepository: CaptureSyncRepository,
-    private val inferenceProvider: SemanticInferenceProvider,
 ) : LoadMainUseCase {
     private val log by logger()
 
@@ -55,15 +51,7 @@ class LoadMainUseCaseImpl(
     }
 
     private suspend fun onboarding(input: Player): Result<Player> {
-        val localImageInferenceUnsupported =
-            (inferenceProvider.availability.value as? SemanticInferenceAvailability.Unavailable)
-                ?.reasonCode == SemanticInferenceReasonCode.PLATFORM_IMAGE_INPUT_UNSUPPORTED
-        val missingRequiredModel =
-            onboardingRepository.hasGenAI() &&
-                onboardingRepository.genAiModel().isNullOrBlank() &&
-                !localImageInferenceUnsupported
-
-        return if (onboardingRepository.hasRunOnce().not() || missingRequiredModel) {
+        return if (onboardingRepository.hasRunOnce().not()) {
             context.navigate<OnboardingScreen>(Router.Options.Replace)
             log.debug { "onboarding new user" }
             Result.failure(HandledException("onboarding required"))
