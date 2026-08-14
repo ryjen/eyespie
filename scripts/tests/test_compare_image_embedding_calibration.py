@@ -26,19 +26,22 @@ class ImageEmbeddingCalibrationComparatorTest(unittest.TestCase):
         model_sha256: str = EXPECTED_MODEL_SHA256,
         match_threshold: float = 0.5,
         non_finite: bool = False,
+        reference: tuple[float, float] = (1.0, 0.0),
         crop: tuple[float, float] = (0.98, 0.02),
+        rotated: tuple[float, float] = (0.95, 0.05),
+        cat: tuple[float, float] = (0.0, 1.0),
     ) -> Path:
-        reference = self.vector(1.0, 0.0)
+        reference_vector = self.vector(*reference)
         crop_vector = self.vector(*crop)
-        rotated = self.vector(0.95, 0.05)
-        cat = self.vector(0.0, 1.0)
+        rotated_vector = self.vector(*rotated)
+        cat_vector = self.vector(*cat)
         if non_finite:
-            reference[5] = math.nan
+            reference_vector[5] = math.nan
         fixtures = [
-            ("burger", "reference", reference),
+            ("burger", "reference", reference_vector),
             ("burger_crop", "related", crop_vector),
-            ("burger_rotated", "related", rotated),
-            ("cat", "unrelated", cat),
+            ("burger_rotated", "related", rotated_vector),
+            ("cat", "unrelated", cat_vector),
         ]
         payload = {
             "report_schema_version": 1,
@@ -82,9 +85,12 @@ class ImageEmbeddingCalibrationComparatorTest(unittest.TestCase):
                 result["android"]["semantic_behavior"]["cat"]["cosine_similarity"],
             )
             self.assertTrue(
-                result["android"]["semantic_behavior"]["burger_crop"][
-                    "matches_configured_threshold"
-                ]
+                result["cross_platform_semantic_behavior"]["android_reference_to_ios"]
+                ["burger_crop"]["matches_configured_threshold"]
+            )
+            self.assertTrue(
+                result["cross_platform_semantic_behavior"]["ios_reference_to_android"]
+                ["burger_crop"]["matches_configured_threshold"]
             )
             self.assertFalse(
                 result["android"]["semantic_behavior"]["cat"]["matches_configured_threshold"]
@@ -93,7 +99,7 @@ class ImageEmbeddingCalibrationComparatorTest(unittest.TestCase):
             self.assertFalse(result["match_policy"]["threshold_changed"])
             self.assertEqual(0.5, result["match_policy"]["cosine_threshold"])
 
-    def test_reports_inconsistent_cross_platform_match_decision(self) -> None:
+    def test_reports_inconsistent_within_platform_match_decision(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             android = load_report(self.write_report(root, "android", crop=(0.8, 0.6)))
@@ -101,6 +107,53 @@ class ImageEmbeddingCalibrationComparatorTest(unittest.TestCase):
 
             result = compare_reports(android, ios)
 
+            self.assertFalse(
+                result["match_decision_consistency"]["fixtures"]["burger_crop"]
+            )
+            self.assertFalse(result["match_decision_consistency"]["all_consistent"])
+
+    def test_detects_basis_shift_that_only_breaks_cross_platform_matching(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            android = load_report(
+                self.write_report(
+                    root,
+                    "android",
+                    match_threshold=0.8,
+                    reference=(1.0, 0.0),
+                    crop=(1.0, 0.0),
+                    rotated=(1.0, 0.0),
+                )
+            )
+            ios = load_report(
+                self.write_report(
+                    root,
+                    "ios",
+                    match_threshold=0.8,
+                    reference=(0.7, 0.714142842),
+                    crop=(0.7, 0.714142842),
+                    rotated=(0.7, 0.714142842),
+                )
+            )
+
+            result = compare_reports(android, ios)
+
+            self.assertTrue(
+                result["android"]["semantic_behavior"]["burger_crop"]
+                ["matches_configured_threshold"]
+            )
+            self.assertTrue(
+                result["ios"]["semantic_behavior"]["burger_crop"]
+                ["matches_configured_threshold"]
+            )
+            self.assertFalse(
+                result["cross_platform_semantic_behavior"]["android_reference_to_ios"]
+                ["burger_crop"]["matches_configured_threshold"]
+            )
+            self.assertFalse(
+                result["cross_platform_semantic_behavior"]["ios_reference_to_android"]
+                ["burger_crop"]["matches_configured_threshold"]
+            )
             self.assertFalse(
                 result["match_decision_consistency"]["fixtures"]["burger_crop"]
             )
