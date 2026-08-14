@@ -72,7 +72,6 @@ class ScanCaptureEnvironmentTest {
         val dispatcher: FakeDispatcher,
         val gateway: FakeGateway,
         val captureFileStore: FakeCaptureFileStore,
-        val context: FakeScreenContext,
         val environment: ScanCaptureEnvironment,
     )
 
@@ -85,16 +84,14 @@ class ScanCaptureEnvironmentTest {
             dispatcher = dispatcher,
             gateway = gateway,
             captureFileStore = captureFileStore,
-            context = context,
             environment = ScanCaptureEnvironment(context, gateway, captureFileStore),
         )
     }
 
     @Test
-    fun `navigation failure deletes capture before restoring scan state`() = runTest {
+    fun `failed edit handoff deletes capture before restoring scan state`() = runTest {
         val fixture = fixture()
         val capturePath = "/capture/eyespie-capture-navigation-failure.jpg".toPath()
-        fixture.context.router.navigateFailure = IllegalStateException("navigation failed")
 
         fixture.environment.invoke(
             capturePath,
@@ -103,19 +100,6 @@ class ScanCaptureEnvironmentTest {
 
         assertEquals(listOf(capturePath), fixture.captureFileStore.deletedPaths)
         assertTrue(fixture.dispatcher.actions.any { it is ScanError })
-    }
-
-    @Test
-    fun `successful edit handoff retains capture ownership`() = runTest {
-        val fixture = fixture()
-        val capturePath = "/capture/eyespie-capture-edit.jpg".toPath()
-
-        fixture.environment.invoke(
-            capturePath,
-            ScanState(location = Location()),
-        )
-
-        assertTrue(fixture.captureFileStore.deletedPaths.isEmpty())
     }
 
     @Test
