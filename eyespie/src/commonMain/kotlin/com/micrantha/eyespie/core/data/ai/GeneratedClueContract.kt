@@ -5,6 +5,7 @@ import com.micrantha.eyespie.domain.ai.GeneratedClues
 import com.micrantha.eyespie.domain.ai.SemanticInferenceExecutionConfiguration
 import com.micrantha.eyespie.domain.ai.SemanticInferenceIdentity
 import com.micrantha.eyespie.domain.entities.AiClue
+import com.micrantha.eyespie.domain.entities.ClueTextLimits
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -46,7 +47,7 @@ internal fun GeneratedClueResponse.validateAndMap(
     if (schemaVersion != CLUE_SCHEMA_VERSION) {
         throw UnsupportedGeneratedClueSchemaException()
     }
-    if (clues.size !in 1..MAX_CLUES) {
+    if (clues.size !in 1..ClueTextLimits.MAX_CLUES) {
         throw InvalidGeneratedClueResponseException()
     }
 
@@ -55,7 +56,8 @@ internal fun GeneratedClueResponse.validateAndMap(
         val answer = item.answer.trim()
         if (
             clue.isBlank() || answer.isBlank() ||
-            clue.length > MAX_CLUE_LENGTH || answer.length > MAX_ANSWER_LENGTH ||
+            clue.length > ClueTextLimits.MAX_CLUE_LENGTH ||
+            answer.length > ClueTextLimits.MAX_ANSWER_LENGTH ||
             !item.confidence.isFinite() || item.confidence !in 0f..1f
         ) {
             throw InvalidGeneratedClueResponseException()
@@ -89,6 +91,3 @@ internal fun GeneratedClueResponse.validateAndMap(
 }
 
 internal const val CLUE_SCHEMA_VERSION = 1
-internal const val MAX_CLUES = 3
-internal const val MAX_CLUE_LENGTH = 240
-internal const val MAX_ANSWER_LENGTH = 120
