@@ -26,61 +26,87 @@ actual class PlatformGenAI(
 ) : GenAI {
     private val sessionLock = Any()
     private var llm: LlmInference? = null
+    private var initializing = false
     private var activeSession: LlmInferenceSession? = null
     private var closingSession: LlmInferenceSession? = null
     private var failedSession: LlmInferenceSession? = null
     private var pendingClosingCancellation: Pair<LlmInferenceSession, ListenableFuture<*>>? = null
+    private var pendingClosingSessionCancellation: LlmInferenceSession? = null
     private var sessionLifecycleFailure: Throwable? = null
     private var sessionConfig: GenAIConfig.Session? = null
 
-    override fun initialize(config: GenAIConfig): Result<Unit> = try {
-        if (config.modelPath.isBlank()) throw InvalidModelPathException()
+    override fun initialize(config: GenAIConfig): Result<Unit> {
+        if (config.modelPath.isBlank()) return Result.failure(InvalidModelPathException())
 
-        synchronized(sessionLock) {
-            if (activeSession != null || closingSession != null) throw OperationInProgressException()
-            sessionConfig = null
-            failedSession?.cancelGenerateResponseAsync()
-        }
+        return try {
+            val failedToRecover = synchronized(sessionLock) {
+                if (initializing || activeSession != null || closingSession != null) {
+                    throw OperationInProgressException()
+                }
+                initializing = true
+                sessionConfig = null
+                failedSession?.also {
+                    failedSession = null
+                    closingSession = it
+                }
+            }
 
-        val options = LlmInference.LlmInferenceOptions.builder()
-            .setModelPath(config.modelPath).apply {
-                this.setVisionModelOptions(
-                    VisionModelOptions.builder().apply {
-                        config.visionEncoderPath?.let {
-                            setEncoderPath(it)
-                        }
-                        config.visionAdapterPath?.let {
-                            setAdapterPath(it)
-                        }
-                    }.build()
+            if (failedToRecover != null) {
+                try {
+                    failedToRecover.cancelGenerateResponseAsync()
+                } catch (error: Throwable) {
+                    synchronized(sessionLock) {
+                        if (closingSession === failedToRecover) closingSession = null
+                        failedSession = failedToRecover
+                        sessionLifecycleFailure = error
+                    }
+                    throw error
+                }
+                closeClaimedSession(failedToRecover)
+            }
+
+            val options = LlmInference.LlmInferenceOptions.builder()
+                .setModelPath(config.modelPath).apply {
+                    this.setVisionModelOptions(
+                        VisionModelOptions.builder().apply {
+                            config.visionEncoderPath?.let {
+                                setEncoderPath(it)
+                            }
+                            config.visionAdapterPath?.let {
+                                setAdapterPath(it)
+                            }
+                        }.build()
+                    )
+                    config.maxNumImages?.let {
+                        setMaxNumImages(it)
+                    }
+                    config.maxTokens?.let {
+                        setMaxTokens(it)
+                    }
+                    config.maxTopK?.let {
+                        setMaxTopK(it)
+                    }
+                }.setPreferredBackend(
+                    LlmInference.Backend.GPU
                 )
-                config.maxNumImages?.let {
-                    setMaxNumImages(it)
-                }
-                config.maxTokens?.let {
-                    setMaxTokens(it)
-                }
-                config.maxTopK?.let {
-                    setMaxTopK(it)
-                }
-            }.setPreferredBackend(
-                LlmInference.Backend.GPU
-            )
-            .build()
-        this.llm = LlmInference.createFromOptions(context, options)
-        synchronized(sessionLock) {
-            failedSession = null
-            pendingClosingCancellation = null
-            sessionLifecycleFailure = null
+                .build()
+            val newRuntime = LlmInference.createFromOptions(context, options)
+
+            synchronized(sessionLock) {
+                llm = newRuntime
+                sessionLifecycleFailure = null
+                initializing = false
+            }
+            Result.success(Unit)
+        } catch (err: Throwable) {
+            synchronized(sessionLock) {
+                initializing = false
+            }
+            Result.failure(err)
         }
-        Result.success(Unit)
-    } catch (err: Throwable) {
-        Result.failure(err)
     }
 
     override fun newSession(config: GenAIConfig.Session): Result<Unit> = try {
-        this.llm ?: throw NotInitializedException()
-
         // Validate the configured session once, but keep the validation teardown inside the
         // same lifecycle slot as normal request teardown. Public inference calls still create
         // fresh request sessions so independent Eyespie operations share no hidden context.
@@ -177,8 +203,8 @@ actual class PlatformGenAI(
 
     override fun close() {
         val sessionToClose = synchronized(sessionLock) {
-            sessionConfig = null
             requireSessionRuntimeHealthy()
+            sessionConfig = null
             if (closingSession != null) throw OperationInProgressException()
             activeSession?.also {
                 activeSession = null
@@ -190,13 +216,18 @@ actual class PlatformGenAI(
 
     override fun cancel() {
         synchronized(sessionLock) {
-            activeSession?.cancelGenerateResponseAsync()
+            when {
+                activeSession != null -> activeSession?.cancelGenerateResponseAsync()
+                closingSession != null -> pendingClosingSessionCancellation = closingSession
+                failedSession != null -> failedSession?.cancelGenerateResponseAsync()
+            }
         }
     }
 
     private fun freshOperationSession(): LlmInferenceSession = synchronized(sessionLock) {
+        requireSessionRuntimeHealthy()
         val config = sessionConfig ?: throw SessionRequiredException()
-        requireSessionSlotAvailable()
+        if (activeSession != null || closingSession != null) throw OperationInProgressException()
         createSession(config).also {
             activeSession = it
         }
@@ -208,6 +239,7 @@ actual class PlatformGenAI(
     }
 
     private fun requireSessionRuntimeHealthy() {
+        if (initializing) throw OperationInProgressException()
         sessionLifecycleFailure?.let { throw SessionLifecycleFailedException(it) }
     }
 
@@ -249,21 +281,34 @@ actual class PlatformGenAI(
         try {
             session.close()
         } catch (error: Throwable) {
-            val pendingCancellation = synchronized(sessionLock) {
+            val pending = synchronized(sessionLock) {
                 if (closingSession === session) closingSession = null
                 failedSession = session
                 sessionLifecycleFailure = error
-                pendingClosingCancellation
+
+                val response = pendingClosingCancellation
                     ?.takeIf { it.first === session }
                     ?.second
-                    .also {
-                        if (pendingClosingCancellation?.first === session) {
-                            pendingClosingCancellation = null
-                        }
-                    }
+                val cancelSession = pendingClosingSessionCancellation === session
+
+                if (pendingClosingCancellation?.first === session) {
+                    pendingClosingCancellation = null
+                }
+                if (cancelSession) {
+                    pendingClosingSessionCancellation = null
+                }
+                response to cancelSession
+            }
+
+            if (pending.second) {
+                try {
+                    session.cancelGenerateResponseAsync()
+                } catch (cancellationFailure: Throwable) {
+                    error.addSuppressed(cancellationFailure)
+                }
             }
             try {
-                pendingCancellation?.cancel(true)
+                pending.first?.cancel(true)
             } catch (cancellationFailure: Throwable) {
                 error.addSuppressed(cancellationFailure)
             }
@@ -274,6 +319,9 @@ actual class PlatformGenAI(
             if (pendingClosingCancellation?.first === session) {
                 pendingClosingCancellation = null
             }
+            if (pendingClosingSessionCancellation === session) {
+                pendingClosingSessionCancellation = null
+            }
         }
     }
 
@@ -282,13 +330,21 @@ actual class PlatformGenAI(
         operationSession: LlmInferenceSession?,
     ) {
         synchronized(sessionLock) {
+            if (response.isDone) return
             when {
                 operationSession == null -> response.cancel(true)
-                activeSession === operationSession -> response.cancel(true)
+                activeSession === operationSession -> {
+                    operationSession.cancelGenerateResponseAsync()
+                    response.cancel(true)
+                }
                 closingSession === operationSession -> {
+                    pendingClosingSessionCancellation = operationSession
                     pendingClosingCancellation = operationSession to response
                 }
-                failedSession === operationSession -> response.cancel(true)
+                failedSession === operationSession -> {
+                    operationSession.cancelGenerateResponseAsync()
+                    response.cancel(true)
+                }
             }
         }
     }
