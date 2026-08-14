@@ -12,6 +12,7 @@ import com.micrantha.eyespie.domain.ai.SemanticInferenceAvailability
 import com.micrantha.eyespie.domain.ai.SemanticInferenceAvailabilityController
 import com.micrantha.eyespie.domain.ai.SemanticInferenceIdentity
 import com.micrantha.eyespie.domain.ai.SemanticInferenceProvider
+import com.micrantha.eyespie.domain.ai.SemanticInferenceProviderSetup
 import com.micrantha.eyespie.domain.ai.SemanticInferenceReasonCode
 import com.micrantha.eyespie.model.iosModelAssetModule
 import org.kodein.di.DI
@@ -47,6 +48,7 @@ fun iosModules(app: AppDelegate) = DI {
         )
     }
     delegate<SemanticInferenceProvider>().to<GenAISemanticInferenceProvider>()
+    delegate<SemanticInferenceProviderSetup>().to<GenAISemanticInferenceProvider>()
     delegate<SemanticInferenceAvailabilityController>().to<GenAISemanticInferenceProvider>()
 
     bindSingletonOf(::DatabaseDriverFactory)
