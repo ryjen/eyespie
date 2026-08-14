@@ -6,8 +6,7 @@ import com.micrantha.eyespie.domain.repository.ThingRepository
 import com.micrantha.eyespie.platform.scan.CameraImage
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.emitAll
-import kotlinx.coroutines.flow.flow
+import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.map
 
 data class MatchResult(
@@ -22,7 +21,7 @@ class MatchCaptureUseCase(
     suspend operator fun invoke(
         image: CameraImage,
         thing: Thing,
-    ): Flow<Result<MatchResult>> = flow {
+    ): Flow<Result<MatchResult>> {
         val embedding = try {
             imageEmbeddingGenerator.generate(image).also {
                 require(it != Embedding.EMPTY) { "capture embedding must not be empty" }
@@ -30,20 +29,17 @@ class MatchCaptureUseCase(
         } catch (error: CancellationException) {
             throw error
         } catch (error: Throwable) {
-            emit(Result.failure(error))
-            return@flow
+            return flowOf(Result.failure(error))
         }
 
-        emitAll(
-            thingRepository.match(embedding).map { res ->
-                res.map { matches ->
-                    val matched = matches.any { it.id == thing.id }
-                    val bestSimilarity = matches.find { it.id == thing.id }?.similarity
-                        ?: matches.maxByOrNull { it.similarity }?.similarity
+        return thingRepository.match(embedding).map { res ->
+            res.map { matches ->
+                val matched = matches.any { it.id == thing.id }
+                val bestSimilarity = matches.find { it.id == thing.id }?.similarity
+                    ?: matches.maxByOrNull { it.similarity }?.similarity
 
-                    MatchResult(matched, bestSimilarity)
-                }
+                MatchResult(matched, bestSimilarity)
             }
-        )
+        }
     }
 }
