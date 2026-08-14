@@ -146,10 +146,10 @@ actual class PlatformGenAI(
             val response = operationSession?.generateResponseAsync(listener)
                 ?: (llm ?: throw NotInitializedException()).generateResponseAsync(request.prompt, listener)
 
-            response.awaitResult()
+            response.awaitResult(operationSession)
             close()
             awaitClose {
-                response.cancel(true)
+                cancelResponse(response, operationSession)
             }
         } catch (error: Throwable) {
             primaryFailure = error
@@ -250,6 +250,17 @@ actual class PlatformGenAI(
         }
     }
 
+    private fun cancelResponse(
+        response: ListenableFuture<*>,
+        operationSession: LlmInferenceSession?,
+    ) {
+        synchronized(sessionLock) {
+            if (operationSession == null || activeSession === operationSession) {
+                response.cancel(true)
+            }
+        }
+    }
+
     /**
      * Loads and preprocesses an image for the LLM session.
      * - Resizes to targetWidth x targetHeight (default 512x512)
@@ -290,24 +301,25 @@ actual class PlatformGenAI(
         return inference
     }
 
-    private suspend fun <T> ListenableFuture<T>.awaitResult(): T =
-        suspendCancellableCoroutine { continuation ->
-            continuation.invokeOnCancellation {
-                cancel(true)
-            }
-            addListener({
-                if (!continuation.isActive) return@addListener
-                try {
-                    continuation.resume(get())
-                } catch (cancelled: java.util.concurrent.CancellationException) {
-                    continuation.cancel(cancelled)
-                } catch (failed: ExecutionException) {
-                    continuation.resumeWith(Result.failure(failed.cause ?: failed))
-                } catch (failed: Throwable) {
-                    continuation.resumeWith(Result.failure(failed))
-                }
-            }, { runnable -> runnable.run() })
+    private suspend fun <T> ListenableFuture<T>.awaitResult(
+        operationSession: LlmInferenceSession?,
+    ): T = suspendCancellableCoroutine { continuation ->
+        continuation.invokeOnCancellation {
+            cancelResponse(this, operationSession)
         }
+        addListener({
+            if (!continuation.isActive) return@addListener
+            try {
+                continuation.resume(get())
+            } catch (cancelled: java.util.concurrent.CancellationException) {
+                continuation.cancel(cancelled)
+            } catch (failed: ExecutionException) {
+                continuation.resumeWith(Result.failure(failed.cause ?: failed))
+            } catch (failed: Throwable) {
+                continuation.resumeWith(Result.failure(failed))
+            }
+        }, { runnable -> runnable.run() })
+    }
 
     fun Context.copyAssetToFile(assetName: String): File {
         val file = File(filesDir, assetName)
