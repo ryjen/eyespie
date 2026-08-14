@@ -8,9 +8,12 @@ unless system('python3', model_stager, 'stage', '--target', 'ios')
   raise 'Failed to stage the pinned Eyespie image-embedder model'
 end
 
-fixture_stager = File.join(repo_root, 'scripts', 'stage_image_embedding_fixtures.py')
-unless system('python3', fixture_stager, 'stage', '--target', 'ios')
-  raise 'Failed to stage the pinned Eyespie image-embedding calibration fixtures'
+calibration_enabled = ENV.fetch('EYESPIE_IMAGE_EMBEDDING_CALIBRATION', '0') == '1'
+if calibration_enabled
+  fixture_stager = File.join(repo_root, 'scripts', 'stage_image_embedding_fixtures.py')
+  unless system('python3', fixture_stager, 'stage', '--target', 'ios')
+    raise 'Failed to stage the pinned Eyespie image-embedding calibration fixtures'
+  end
 end
 
 target 'iosApp' do
@@ -22,7 +25,9 @@ target 'iosApp' do
   pod 'EyespieMediaPipeTasksGenAIC', :podspec => 'MediaPipePodspecs/EyespieMediaPipeTasksGenAIC.podspec'
   pod 'EyespieMediaPipeTasksGenAI', :podspec => 'MediaPipePodspecs/EyespieMediaPipeTasksGenAI.podspec'
   pod 'EyespieImageEmbedderModel', :path => 'ModelArtifacts'
-  pod 'EyespieImageEmbeddingCalibrationFixtures', :path => 'CalibrationFixtures', :configurations => ['Debug']
+  if calibration_enabled
+    pod 'EyespieImageEmbeddingCalibrationFixtures', :path => 'CalibrationFixtures', :configurations => ['Debug']
+  end
 
   pod 'eyespie', :path => '../eyespie'
 end
