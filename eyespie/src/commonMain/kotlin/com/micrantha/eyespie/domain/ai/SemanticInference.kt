@@ -75,7 +75,10 @@ interface SemanticInferenceProvider {
 interface SemanticInferenceAvailabilityController {
     suspend fun markNotConfigured()
     suspend fun markInitializing()
-    suspend fun markAvailable(capabilities: SemanticInferenceCapabilities)
+    suspend fun markAvailable(
+        capabilities: SemanticInferenceCapabilities,
+        identity: SemanticInferenceIdentity? = null,
+    )
     suspend fun markUnavailable(reasonCode: String)
     suspend fun markFailed(diagnosticCode: String)
 }
