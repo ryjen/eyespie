@@ -55,6 +55,8 @@ data class GuessClue(
     override val data: String
 ) : EquatableClue<String>()
 
+fun AiClue.toGuessClue() = GuessClue(data)
+
 data class LocationClue(
     override val data: Location.Data, // TODO: make a geofence area
 ) : SortedClue<Location.Data>
