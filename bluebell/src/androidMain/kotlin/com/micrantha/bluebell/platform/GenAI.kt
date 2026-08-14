@@ -36,6 +36,12 @@ actual class PlatformGenAI(
     override fun initialize(config: GenAIConfig): Result<Unit> = try {
         if (config.modelPath.isBlank()) throw InvalidModelPathException()
 
+        synchronized(sessionLock) {
+            if (activeSession != null || closingSession != null) throw OperationInProgressException()
+            sessionConfig = null
+            failedSession?.cancelGenerateResponseAsync()
+        }
+
         val options = LlmInference.LlmInferenceOptions.builder()
             .setModelPath(config.modelPath).apply {
                 this.setVisionModelOptions(
@@ -64,6 +70,7 @@ actual class PlatformGenAI(
         this.llm = LlmInference.createFromOptions(context, options)
         synchronized(sessionLock) {
             failedSession = null
+            pendingClosingCancellation = null
             sessionLifecycleFailure = null
         }
         Result.success(Unit)
