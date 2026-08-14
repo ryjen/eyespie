@@ -10,10 +10,16 @@ import com.micrantha.bluebell.platform.GenAI
 import com.micrantha.bluebell.platform.Platform
 import com.micrantha.bluebell.platform.PlatformGenAI
 import com.micrantha.bluebell.platform.PlatformImpl
+import com.micrantha.eyespie.core.data.ai.GenAISemanticInferenceProvider
 import com.micrantha.eyespie.core.data.db.DatabaseDriverFactory
+import com.micrantha.eyespie.domain.ai.InferenceLocality
+import com.micrantha.eyespie.domain.ai.SemanticInferenceAvailabilityController
+import com.micrantha.eyespie.domain.ai.SemanticInferenceIdentity
+import com.micrantha.eyespie.domain.ai.SemanticInferenceProvider
 import com.micrantha.eyespie.model.androidModelAssetModule
 import com.micrantha.eyespie.platform.scan.LoadCameraImageUseCase
 import com.micrantha.eyespie.platform.scan.LoadCameraImageUseCaseImpl
+import java.io.File
 import org.kodein.di.DI
 import org.kodein.di.bindFactory
 import org.kodein.di.bindInstance
@@ -49,6 +55,20 @@ fun androidDependencies(
 
     bindSingleton { PlatformGenAI(instance()) }
     delegate<GenAI>().to<PlatformGenAI>()
+
+    bindSingleton {
+        GenAISemanticInferenceProvider(
+            genAI = instance(),
+            identity = SemanticInferenceIdentity(
+                providerId = "mediapipe-local",
+                runtimeId = "mediapipe-genai",
+                locality = InferenceLocality.LOCAL,
+            ),
+            imageInputValidator = { path -> File(path.toString()).isFile },
+        )
+    }
+    delegate<SemanticInferenceProvider>().to<GenAISemanticInferenceProvider>()
+    delegate<SemanticInferenceAvailabilityController>().to<GenAISemanticInferenceProvider>()
 
     bindFactory { namespace: String ->
         BackgroundDownloader(
