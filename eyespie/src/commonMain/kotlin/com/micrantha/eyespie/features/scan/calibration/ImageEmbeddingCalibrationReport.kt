@@ -10,8 +10,6 @@ import kotlinx.serialization.encodeToString
 import kotlinx.serialization.json.Json
 import kotlin.math.abs
 
-internal const val IMAGE_EMBEDDING_MODEL_SHA256 =
-    "f7b9a563cb803bdcba76e8c7e82abde06f5c7a8e67b5e54e43e23095dfe79a78"
 internal const val IMAGE_EMBEDDING_CALIBRATION_REPEAT_COUNT = 5
 
 @Serializable
@@ -29,14 +27,19 @@ internal data class ImageEmbeddingCalibrationRuntime(
 
 @Serializable
 internal data class ImageEmbeddingCalibrationModel(
+    val sha256: String,
     val id: String = ImageEmbeddingContract.logicalModelId,
-    val sha256: String = IMAGE_EMBEDDING_MODEL_SHA256,
 )
 
 @Serializable
 internal data class ImageEmbeddingCalibrationContract(
     val schema_version: Int = ImageEmbeddingContract.schemaVersion,
     val dimensions: Int = ImageEmbeddingContract.dimensions,
+)
+
+@Serializable
+internal data class ImageEmbeddingCalibrationMatchPolicy(
+    val cosine_threshold: Float,
 )
 
 @Serializable
@@ -55,7 +58,8 @@ internal data class ImageEmbeddingCalibrationReport(
     val platform: String,
     val device: ImageEmbeddingCalibrationDevice,
     val runtime: ImageEmbeddingCalibrationRuntime,
-    val model: ImageEmbeddingCalibrationModel = ImageEmbeddingCalibrationModel(),
+    val model: ImageEmbeddingCalibrationModel,
+    val match_policy: ImageEmbeddingCalibrationMatchPolicy,
     val embedding_contract: ImageEmbeddingCalibrationContract = ImageEmbeddingCalibrationContract(),
     val fixtures: List<ImageEmbeddingCalibrationFixture>,
 )
