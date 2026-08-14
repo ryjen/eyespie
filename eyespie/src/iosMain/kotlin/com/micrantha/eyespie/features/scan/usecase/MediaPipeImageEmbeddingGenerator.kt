@@ -91,7 +91,9 @@ internal fun canonicalMediaPipeEmbedding(heads: List<List<Float>?>): Embedding {
         throw IllegalStateException("expected exactly one image embedding head")
     }
     val values = heads.single()
-        ?: throw IllegalStateException("MediaPipe returned no float embedding")
+    if (values.isNullOrEmpty()) {
+        throw IllegalStateException("MediaPipe returned no float embedding")
+    }
     return values.toCanonicalEmbedding()
 }
 
