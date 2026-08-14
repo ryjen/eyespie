@@ -130,7 +130,21 @@ internal class GenAISemanticInferenceProvider(
     override suspend fun markInitializing() =
         transition { SemanticInferenceAvailability.Initializing }
 
+    override suspend fun markAvailable(capabilities: SemanticInferenceCapabilities) =
+        publishAvailable(capabilities, null)
+
     override suspend fun markAvailable(
+        capabilities: SemanticInferenceCapabilities,
+        identity: SemanticInferenceIdentity,
+    ) = publishAvailable(capabilities, identity)
+
+    override suspend fun markUnavailable(reasonCode: String) =
+        transition { SemanticInferenceAvailability.Unavailable(reasonCode) }
+
+    override suspend fun markFailed(diagnosticCode: String) =
+        transition { SemanticInferenceAvailability.Failed(diagnosticCode) }
+
+    private suspend fun publishAvailable(
         capabilities: SemanticInferenceCapabilities,
         identity: SemanticInferenceIdentity?,
     ) {
@@ -141,12 +155,6 @@ internal class GenAISemanticInferenceProvider(
             }
         }
     }
-
-    override suspend fun markUnavailable(reasonCode: String) =
-        transition { SemanticInferenceAvailability.Unavailable(reasonCode) }
-
-    override suspend fun markFailed(diagnosticCode: String) =
-        transition { SemanticInferenceAvailability.Failed(diagnosticCode) }
 
     private suspend fun transition(next: () -> SemanticInferenceAvailability) {
         lifecycleMutex.withLock {
