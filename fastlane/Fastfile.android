@@ -38,6 +38,9 @@ platform :android do
   desc "Run Android unit/snapshot tests and compile physical-device tests"
   lane :test do
     prepare_verification_config
+    Dir.chdir(repo_root) do
+      sh("python3 scripts/stage_image_embedding_fixtures.py stage --target android")
+    end
     gradle(
       project_dir: repo_root,
       tasks: [
