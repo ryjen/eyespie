@@ -1,16 +1,17 @@
 package com.micrantha.eyespie.core.data.ai
 
 import com.micrantha.eyespie.core.data.ai.source.CluePromptSource
+import com.micrantha.eyespie.domain.ai.InferenceLocality
 import com.micrantha.eyespie.domain.ai.SemanticImageInput
+import com.micrantha.eyespie.domain.ai.SemanticInferenceAvailability
 import com.micrantha.eyespie.domain.ai.SemanticInferenceProvider
 import com.micrantha.eyespie.domain.ai.SemanticInferenceRequest
-import com.micrantha.eyespie.domain.entities.AiClue
 import com.micrantha.eyespie.domain.entities.AiProof
 import com.micrantha.eyespie.domain.entities.GuessClue
 import com.micrantha.eyespie.domain.repository.ClueRepository
-import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.withTimeout
+import kotlinx.serialization.SerializationException
+import kotlinx.serialization.json.Json
 import okio.Path
 import kotlin.time.Duration
 import kotlin.time.Duration.Companion.minutes
@@ -19,6 +20,11 @@ internal class ClueDataRepository(
     private val inferenceProvider: SemanticInferenceProvider,
     private val cluePromptSource: CluePromptSource,
     private val timeout: Duration = 1.minutes,
+    private val json: Json = Json {
+        ignoreUnknownKeys = true
+        isLenient = false
+        allowSpecialFloatingPointValues = false
+    },
 ) : ClueRepository {
 
     override suspend fun guess(image: Path, clue: GuessClue): Result<String> =
@@ -32,22 +38,34 @@ internal class ClueDataRepository(
         }
 
     override suspend fun clues(image: Path): Result<AiProof> =
+        generateClueEnvelope(image).map { it.proof }
+
+    internal suspend fun generateClueEnvelope(image: Path): Result<GeneratedClueEnvelope> =
         withTimeout(timeout) {
-            inferenceProvider.generate(
+            val generated = inferenceProvider.generate(
                 request(
                     prompt = cluePromptSource.clues(),
                     image = image,
                 )
-            ).map(::toProof)
-        }
-
-    fun infer(image: Path): Flow<AiProof> =
-        inferenceProvider.generateFlow(
-            request(
-                prompt = cluePromptSource.clues(),
-                image = image,
             )
-        ).map(::toProof)
+            val output = generated.getOrElse { return@withTimeout Result.failure(it) }
+
+            val firstAttempt = parseEnvelope(output, repaired = false)
+            if (firstAttempt.isSuccess || !canRepairLocally()) {
+                return@withTimeout firstAttempt
+            }
+
+            val repair = inferenceProvider.generate(
+                SemanticInferenceRequest(
+                    prompt = cluePromptSource.repair(output.take(MAX_REPAIR_INPUT_LENGTH)),
+                    images = emptyList(),
+                )
+            )
+            repair.fold(
+                onSuccess = { parseEnvelope(it, repaired = true) },
+                onFailure = { Result.failure(it) },
+            )
+        }
 
     private fun request(prompt: String, image: Path): SemanticInferenceRequest {
         require(image.isAbsolute) { "image path must be absolute" }
@@ -57,12 +75,36 @@ internal class ClueDataRepository(
         )
     }
 
-    private fun toProof(output: String) =
-        output.lines().chunked(3).map { (clue, answer, confidence) ->
-            AiClue(
-                clue,
-                confidence.toFloat(),
-                answer,
+    private fun parseEnvelope(
+        output: String,
+        repaired: Boolean,
+    ): Result<GeneratedClueEnvelope> = try {
+        val response = json.decodeFromString<GeneratedClueResponse>(output)
+        Result.success(
+            response.validateAndMap(
+                identity = inferenceProvider.identity,
+                executionConfiguration = inferenceProvider.executionConfiguration,
+                promptId = cluePromptSource.cluePromptId,
+                promptVersion = cluePromptSource.cluePromptVersion,
+                repaired = repaired,
             )
-        }.toSet()
+        )
+    } catch (error: GeneratedClueResponseException) {
+        Result.failure(error)
+    } catch (_: SerializationException) {
+        Result.failure(MalformedGeneratedClueResponseException())
+    } catch (_: IllegalArgumentException) {
+        Result.failure(MalformedGeneratedClueResponseException())
+    }
+
+    private fun canRepairLocally(): Boolean {
+        val availability = inferenceProvider.availability.value as? SemanticInferenceAvailability.Available
+            ?: return false
+        return inferenceProvider.identity.locality == InferenceLocality.LOCAL &&
+            availability.capabilities.textGeneration
+    }
+
+    private companion object {
+        const val MAX_REPAIR_INPUT_LENGTH = 4096
+    }
 }
