@@ -237,6 +237,13 @@ kotlin {
             }
         }
 
+        val androidInstrumentedTest by getting {
+            dependencies {
+                implementation(kotlin("test"))
+                implementation(libs.androidx.test.junit)
+            }
+        }
+
         appleTest {
         }
     }
@@ -255,12 +262,14 @@ android {
     defaultConfig {
         minSdk = libs.versions.android.minSdk.get().toInt()
         targetSdk = libs.versions.android.targetSdk.get().toInt()
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         versionCode = 10
         versionName = "1.0.0"
     }
     sourceSets["main"].res.srcDirs("src/androidMain/res")
     sourceSets["main"].resources.srcDirs("src/commonMain/resources")
+    sourceSets["androidTest"].assets.srcDirs("src/androidInstrumentedTest/assets")
 
     buildFeatures {
         compose = true
