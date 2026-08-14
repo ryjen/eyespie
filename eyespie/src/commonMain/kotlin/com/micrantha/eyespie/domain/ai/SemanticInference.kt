@@ -68,6 +68,16 @@ data class SemanticInferenceExecutionConfiguration(
     val maxContextTokens: Int?,
 )
 
+data class SemanticInferenceExecutionSnapshot(
+    val identity: SemanticInferenceIdentity,
+    val configuration: SemanticInferenceExecutionConfiguration?,
+)
+
+data class SemanticInferenceOutput(
+    val text: String,
+    val execution: SemanticInferenceExecutionSnapshot,
+)
+
 data class SemanticInferenceInitialization(
     val modelPath: Path,
     val identity: SemanticInferenceIdentity,
@@ -90,6 +100,18 @@ interface SemanticInferenceProvider {
         get() = null
 
     suspend fun generate(request: SemanticInferenceRequest): Result<String>
+
+    suspend fun generateWithExecution(request: SemanticInferenceRequest): Result<SemanticInferenceOutput> =
+        generate(request).map { text ->
+            SemanticInferenceOutput(
+                text = text,
+                execution = SemanticInferenceExecutionSnapshot(
+                    identity = identity,
+                    configuration = executionConfiguration,
+                ),
+            )
+        }
+
     fun generateFlow(request: SemanticInferenceRequest): Flow<String>
     fun cancel()
     suspend fun close()
