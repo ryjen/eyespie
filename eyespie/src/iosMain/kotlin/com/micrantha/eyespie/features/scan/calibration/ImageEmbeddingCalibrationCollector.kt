@@ -8,6 +8,11 @@ import com.micrantha.eyespie.app.AppConfig
 import com.micrantha.eyespie.domain.entities.ImageEmbeddingContract
 import com.micrantha.eyespie.features.scan.usecase.MediaPipeImageEmbeddingGenerator
 import com.micrantha.eyespie.platform.scan.CameraImage
+import kotlinx.cinterop.ExperimentalForeignApi
+import kotlinx.cinterop.alloc
+import kotlinx.cinterop.memScoped
+import kotlinx.cinterop.ptr
+import kotlinx.cinterop.toKString
 import kotlinx.coroutines.runBlocking
 import okio.Buffer
 import okio.FileSystem
@@ -16,6 +21,8 @@ import platform.Foundation.NSBundle
 import platform.Foundation.NSData
 import platform.Foundation.dataWithContentsOfFile
 import platform.UIKit.UIDevice
+import platform.posix.uname
+import platform.posix.utsname
 import kotlin.Throws
 
 /**
@@ -53,7 +60,7 @@ class ImageEmbeddingCalibrationCollector {
             platform = "ios",
             device = ImageEmbeddingCalibrationDevice(
                 manufacturer = "Apple",
-                model = device.model(),
+                model = hardwareModelIdentifier(device),
                 os = "${device.systemName()} ${device.systemVersion}",
             ),
             runtime = ImageEmbeddingCalibrationRuntime(
@@ -90,6 +97,16 @@ class ImageEmbeddingCalibrationCollector {
         val path = NSBundle.mainBundle.pathForResource(baseName, ofType = extension)
             ?: error("image embedder model resource is unavailable")
         return sha256(FileSystem.SYSTEM.source(path.toPath()))
+    }
+
+    @OptIn(ExperimentalForeignApi::class)
+    private fun hardwareModelIdentifier(device: UIDevice): String = memScoped {
+        val info = alloc<utsname>()
+        if (uname(info.ptr) == 0) {
+            info.machine.toKString().ifBlank { device.model() }
+        } else {
+            device.model()
+        }
     }
 }
 
