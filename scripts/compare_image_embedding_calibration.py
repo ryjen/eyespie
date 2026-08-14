@@ -25,6 +25,12 @@ EXPECTED_ROLES = {
     "burger_rotated": "related",
     "cat": "unrelated",
 }
+EXPECTED_FIXTURE_SHA256 = {
+    "burger": "97c15bbbf3cf3615063b1031c85d669de55839f59262bbe145d15ca75b36ecbf",
+    "burger_crop": "8f58de573f0bf59a49c3d86cfabb9ad4061481f574aa049177e8da3963dddc50",
+    "burger_rotated": "b7bb5e59ef778f3ce6b3e616c511908a53d513b83a56aae58b7453e14b0a4b2a",
+    "cat": "2533197401eebe9410ea4d063f86c43fbd2666f3e8165a38aca155c0d09c21be",
+}
 SEMANTIC_FIXTURES = ("burger_crop", "burger_rotated", "cat")
 
 
@@ -36,6 +42,7 @@ class CalibrationReportError(ValueError):
 class FixtureResult:
     fixture_id: str
     role: str
+    source_sha256: str
     embedding: tuple[float, ...]
     repeat_count: int
     repeat_cosine_min: float
@@ -144,6 +151,14 @@ def load_report(path: Path) -> CalibrationReport:
         if fixture_id in fixtures:
             raise CalibrationReportError(f"duplicate fixture id: {fixture_id}")
 
+        source_sha256 = _nonempty_string(
+            raw.get("source_sha256"), f"fixture.{fixture_id}.source_sha256"
+        )
+        if source_sha256 != EXPECTED_FIXTURE_SHA256[fixture_id]:
+            raise CalibrationReportError(
+                f"fixture {fixture_id} SHA-256 does not match the pinned calibration fixture"
+            )
+
         raw_values = raw.get("embedding")
         if not isinstance(raw_values, list) or len(raw_values) != DIMENSIONS:
             raise CalibrationReportError(
@@ -168,6 +183,7 @@ def load_report(path: Path) -> CalibrationReport:
         fixtures[fixture_id] = FixtureResult(
             fixture_id,
             role,
+            source_sha256,
             values,
             repeat_count,
             repeat_cosine_min,
@@ -285,6 +301,10 @@ def compare_reports(android: CalibrationReport, ios: CalibrationReport) -> dict[
             "threshold_changed": False,
             "note": "Observed decisions use the threshold recorded by both builds; calibration does not select a new threshold.",
         },
+        "fixtures": {
+            fixture_id: {"sha256": EXPECTED_FIXTURE_SHA256[fixture_id]}
+            for fixture_id in EXPECTED_FIXTURES
+        },
         "android": {
             "runtime": {"name": android.runtime_name, "version": android.runtime_version},
             "device": android.device,
@@ -337,6 +357,7 @@ def render_markdown(comparison: dict[str, Any]) -> str:
         f"- Model SHA-256: `{comparison['model']['sha256']}`",
         f"- Dimensions: {comparison['embedding_contract']['dimensions']}",
         f"- Configured cosine threshold: {comparison['match_policy']['cosine_threshold']:.9g}",
+        "- Fixture provenance: **validated against pinned SHA-256 values**",
         "- Product match threshold changed: **no**",
         f"- Match decisions consistent across both storage/scan directions: **{'yes' if comparison['match_decision_consistency']['all_consistent'] else 'no'}**",
         "",
