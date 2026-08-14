@@ -156,25 +156,42 @@ actual fun CameraCapture(
                     onCameraError(it)
                     return@addListener
                 }
-            val outputOptions = ImageCapture.OutputFileOptions.Builder(outputFile).build()
-            val executor = Executors.newSingleThreadExecutor()
-
-            imageCapture.takePicture(
-                outputOptions,
-                executor,
-                object : ImageCapture.OnImageSavedCallback {
-                    override fun onError(exception: ImageCaptureException) {
-                        outputFile.delete()
-                        executor.shutdown()
-                        onCameraError(exception)
-                    }
-
-                    override fun onImageSaved(outputFileResults: ImageCapture.OutputFileResults) {
-                        executor.shutdown()
-                        onCameraImage(outputFile.toOkioPath())
-                    }
+            val outputOptions = runCatching {
+                ImageCapture.OutputFileOptions.Builder(outputFile).build()
+            }.getOrElse {
+                outputFile.delete()
+                onCameraError(it)
+                return@addListener
+            }
+            val executor = runCatching { Executors.newSingleThreadExecutor() }
+                .getOrElse {
+                    outputFile.delete()
+                    onCameraError(it)
+                    return@addListener
                 }
-            )
+
+            runCatching {
+                imageCapture.takePicture(
+                    outputOptions,
+                    executor,
+                    object : ImageCapture.OnImageSavedCallback {
+                        override fun onError(exception: ImageCaptureException) {
+                            outputFile.delete()
+                            executor.shutdown()
+                            onCameraError(exception)
+                        }
+
+                        override fun onImageSaved(outputFileResults: ImageCapture.OutputFileResults) {
+                            executor.shutdown()
+                            onCameraImage(outputFile.toOkioPath())
+                        }
+                    }
+                )
+            }.onFailure {
+                outputFile.delete()
+                executor.shutdown()
+                onCameraError(it)
+            }
         }, ContextCompat.getMainExecutor(context))
     }
 }
