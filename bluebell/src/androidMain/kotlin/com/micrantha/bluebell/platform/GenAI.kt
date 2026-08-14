@@ -18,6 +18,7 @@ import kotlinx.coroutines.flow.callbackFlow
 import kotlinx.coroutines.suspendCancellableCoroutine
 import java.io.File
 import java.io.FileOutputStream
+import java.util.concurrent.ExecutionException
 import kotlin.coroutines.resume
 
 actual class PlatformGenAI(
@@ -116,7 +117,7 @@ actual class PlatformGenAI(
             val response = operationSession?.generateResponseAsync(listener)
                 ?: (llm ?: throw NotInitializedException()).generateResponseAsync(request.prompt, listener)
 
-            response.await()
+            response.awaitResult()
             awaitClose {
                 response.cancel(true)
                 operationSession?.let(::closeOperationSession)
@@ -213,15 +214,24 @@ actual class PlatformGenAI(
         return inference
     }
 
-    suspend fun <T> ListenableFuture<T>.await() = suspendCancellableCoroutine { cont ->
-        this.addListener({
-            try {
-                cont.resume(this.get())
-            } catch (e: Exception) {
-                cont.resume(e)
+    private suspend fun <T> ListenableFuture<T>.awaitResult(): T =
+        suspendCancellableCoroutine { continuation ->
+            continuation.invokeOnCancellation {
+                cancel(true)
             }
-        }, { runnable -> runnable.run() })
-    }
+            addListener({
+                if (!continuation.isActive) return@addListener
+                try {
+                    continuation.resume(get())
+                } catch (cancelled: java.util.concurrent.CancellationException) {
+                    continuation.cancel(cancelled)
+                } catch (failed: ExecutionException) {
+                    continuation.resumeWith(Result.failure(failed.cause ?: failed))
+                } catch (failed: Throwable) {
+                    continuation.resumeWith(Result.failure(failed))
+                }
+            }, { runnable -> runnable.run() })
+        }
 
     fun Context.copyAssetToFile(assetName: String): File {
         val file = File(filesDir, assetName)
