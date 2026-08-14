@@ -17,7 +17,6 @@ import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flow
-import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.test.runTest
@@ -117,7 +116,7 @@ class GenAISemanticInferenceProviderTest {
     }
 
     @Test
-    fun `separate logical requests delegate without provider owned sessions`() = runTest {
+    fun `separate logical requests delegate through cancellable runtime path without provider owned sessions`() = runTest {
         val genAI = FakeGenAI()
         val provider = provider(genAI, available())
         val request = SemanticInferenceRequest(prompt = "make a clue")
@@ -125,13 +124,14 @@ class GenAISemanticInferenceProviderTest {
         assertEquals("ok", provider.generate(request).getOrThrow())
         assertEquals("ok", provider.generate(request).getOrThrow())
 
-        assertEquals(2, genAI.generateCount)
+        assertEquals(0, genAI.generateCount)
+        assertEquals(2, genAI.generateFlowCount)
         assertEquals(0, genAI.newSessionCount)
         assertEquals(0, genAI.closeCount)
     }
 
     @Test
-    fun `runtime cancellation returned as failure propagates without provider teardown`() = runTest {
+    fun `runtime async cancellation propagates without provider teardown`() = runTest {
         val genAI = FakeGenAI().apply {
             generateResult = Result.failure(CancellationException("cancelled"))
         }
@@ -141,7 +141,26 @@ class GenAISemanticInferenceProviderTest {
             provider.generate(SemanticInferenceRequest(prompt = "make a clue"))
         }
 
+        assertEquals(1, genAI.generateFlowCount)
         assertEquals(0, genAI.closeCount)
+    }
+
+    @Test
+    fun `close cancels active one shot generation before closing runtime`() = runTest {
+        val genAI = FakeGenAI().apply { holdStreamUntilCancelled = true }
+        val provider = provider(genAI, available())
+        val generating = launch {
+            provider.generate(SemanticInferenceRequest(prompt = "make a clue")).getOrThrow()
+        }
+        genAI.streamStarted.await()
+
+        provider.close()
+        generating.join()
+
+        assertTrue(generating.isCancelled)
+        assertEquals(listOf("cancel", "close"), genAI.lifecycleEvents)
+        assertEquals(1, genAI.cancelCount)
+        assertEquals(1, genAI.closeCount)
     }
 
     @Test
@@ -158,6 +177,7 @@ class GenAISemanticInferenceProviderTest {
 
         val unavailable = assertIs<SemanticInferenceAvailability.Unavailable>(provider.availability.value)
         assertEquals("provider_closed", unavailable.reasonCode)
+        assertEquals(listOf("cancel", "close"), genAI.lifecycleEvents)
         assertEquals(1, genAI.cancelCount)
         assertEquals(1, genAI.closeCount)
         val result = provider.generate(SemanticInferenceRequest(prompt = "another clue"))
@@ -241,9 +261,11 @@ class GenAISemanticInferenceProviderTest {
         private val streamCancelled = CompletableDeferred<Unit>()
         var newSessionCount = 0
         var generateCount = 0
+        var generateFlowCount = 0
         var closeCount = 0
         var cancelCount = 0
         val requests = mutableListOf<GenAIRequest>()
+        val lifecycleEvents = mutableListOf<String>()
 
         override fun initialize(config: GenAIConfig) = Result.success(Unit)
 
@@ -259,20 +281,28 @@ class GenAISemanticInferenceProviderTest {
         }
 
         override fun generateFlow(request: GenAIRequest): Flow<String> {
+            generateFlowCount += 1
             requests += request
-            if (holdStreamUntilCancelled) return flow {
-                streamStarted.complete(Unit)
-                emit("one")
-                streamCancelled.await()
+            return flow {
+                if (holdStreamUntilCancelled) {
+                    streamStarted.complete(Unit)
+                    emit("one")
+                    streamCancelled.await()
+                    throw CancellationException("cancelled")
+                }
+                generateResult.exceptionOrNull()?.let { throw it }
+                emit("o")
+                emit("k")
             }
-            return flowOf("one", "two")
         }
 
         override fun close() {
+            lifecycleEvents += "close"
             closeCount += 1
         }
 
         override fun cancel() {
+            lifecycleEvents += "cancel"
             cancelCount += 1
             streamCancelled.complete(Unit)
         }
