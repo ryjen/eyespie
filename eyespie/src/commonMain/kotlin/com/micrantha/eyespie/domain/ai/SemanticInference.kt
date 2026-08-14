@@ -44,6 +44,17 @@ sealed interface SemanticInferenceAvailability {
     data class Failed(val diagnosticCode: String) : SemanticInferenceAvailability
 }
 
+object SemanticInferenceReasonCode {
+    const val PLATFORM_IMAGE_INPUT_UNSUPPORTED = "platform_image_input_unsupported"
+    const val MODEL_NOT_CONFIGURED = "model_not_configured"
+    const val MODEL_UNAVAILABLE = "model_unavailable"
+}
+
+object SemanticInferenceDiagnosticCode {
+    const val MODEL_INTEGRITY_FAILED = "model_integrity_failed"
+    const val RUNTIME_INITIALIZATION_FAILED = "runtime_initialization_failed"
+}
+
 data class SemanticImageInput(val localPath: Path)
 
 data class SemanticInferenceRequest(
