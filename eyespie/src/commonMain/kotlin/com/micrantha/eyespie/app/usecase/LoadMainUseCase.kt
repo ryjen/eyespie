@@ -12,7 +12,6 @@ import com.micrantha.eyespie.features.dashboard.ui.DashboardScreen
 import com.micrantha.eyespie.features.login.ui.LoginScreen
 import com.micrantha.eyespie.features.onboarding.data.OnboardingRepository
 import com.micrantha.eyespie.features.onboarding.ui.OnboardingScreen
-import com.micrantha.eyespie.features.onboarding.ui.genai.GenAIDownloadScreen
 import com.micrantha.eyespie.features.players.domain.entities.Player
 import com.micrantha.eyespie.features.players.domain.usecase.LoadSessionPlayerUseCase
 import com.micrantha.eyespie.features.players.ui.create.NewPlayerScreen
@@ -29,7 +28,7 @@ class LoadMainUseCaseImpl(
     private val loadSessionPlayerUseCase: LoadSessionPlayerUseCase,
     private val onboardingRepository: OnboardingRepository,
     private val initGenAIUseCase: InitGenAIUseCase,
-    private val captureSyncRepository: CaptureSyncRepository
+    private val captureSyncRepository: CaptureSyncRepository,
 ) : LoadMainUseCase {
     private val log by logger()
 
@@ -40,7 +39,7 @@ class LoadMainUseCaseImpl(
             .then { player -> onboarding(player) }
             .then { player -> initGenAI(player) }
             .then { dashboard(Unit) }
-            .recover { 
+            .recover {
                 if (it is HandledException) Result.success(Unit) else Result.failure(it)
             }.map { }
     } catch (err: Throwable) {
@@ -90,10 +89,12 @@ class LoadMainUseCaseImpl(
     }
 
     private suspend fun initGenAI(input: Player): Result<Unit> {
-        return initGenAIUseCase().onFailure {
-            log.debug { "ai model not available" }
-            context.navigate<GenAIDownloadScreen>(Router.Options.Replace)
-        }.recover { throw HandledException("genai error", it) }
+        initGenAIUseCase().onFailure {
+            // Local inference is optional for alpha gameplay. Provider readiness remains fail-closed,
+            // while product routing can offer manual clue authoring instead of forcing a model route.
+            log.debug { "local semantic inference unavailable" }
+        }
+        return Result.success(Unit)
     }
 
     private class HandledException(message: String, cause: Throwable? = null) : Exception(message, cause)
