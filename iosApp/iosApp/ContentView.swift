@@ -27,15 +27,22 @@ struct ComposeView: UIViewControllerRepresentable {
 }
 
 struct ContentView: View {
+#if DEBUG
     @State private var didStartEmbeddingCalibration = false
+#endif
 
     var body: some View {
+#if DEBUG
         ComposeView().ignoresSafeArea(.all, edges: .bottom)
             .onAppear {
                 runEmbeddingCalibrationIfRequested()
             }
+#else
+        ComposeView().ignoresSafeArea(.all, edges: .bottom)
+#endif
     }
 
+#if DEBUG
     private func runEmbeddingCalibrationIfRequested() {
         guard !didStartEmbeddingCalibration else { return }
         guard ProcessInfo.processInfo.environment["EYESPIE_IMAGE_EMBEDDING_CALIBRATION"] == "1" else {
@@ -62,6 +69,7 @@ struct ContentView: View {
             }
         }
     }
+#endif
 }
 
 struct ContentView_Previews: PreviewProvider {
