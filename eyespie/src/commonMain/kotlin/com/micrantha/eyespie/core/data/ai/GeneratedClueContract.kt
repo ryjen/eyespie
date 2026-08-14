@@ -1,10 +1,10 @@
 package com.micrantha.eyespie.core.data.ai
 
-import com.micrantha.eyespie.domain.ai.InferenceLocality
+import com.micrantha.eyespie.domain.ai.GeneratedClueProvenance
+import com.micrantha.eyespie.domain.ai.GeneratedClues
 import com.micrantha.eyespie.domain.ai.SemanticInferenceExecutionConfiguration
 import com.micrantha.eyespie.domain.ai.SemanticInferenceIdentity
 import com.micrantha.eyespie.domain.entities.AiClue
-import com.micrantha.eyespie.domain.entities.AiProof
 import kotlinx.serialization.Serializable
 
 @Serializable
@@ -18,24 +18,6 @@ internal data class GeneratedClueItem(
     val clue: String,
     val answer: String,
     val confidence: Float,
-)
-
-internal data class GeneratedClueProvenance(
-    val schemaVersion: Int,
-    val providerId: String,
-    val runtimeId: String,
-    val locality: InferenceLocality,
-    val modelId: String?,
-    val modelVersion: String?,
-    val promptId: String,
-    val promptVersion: Int,
-    val executionConfiguration: SemanticInferenceExecutionConfiguration?,
-    val repaired: Boolean,
-)
-
-internal data class GeneratedClueEnvelope(
-    val proof: AiProof,
-    val provenance: GeneratedClueProvenance,
 )
 
 internal sealed class GeneratedClueResponseException(
@@ -57,7 +39,7 @@ internal fun GeneratedClueResponse.validateAndMap(
     promptId: String,
     promptVersion: Int,
     repaired: Boolean,
-): GeneratedClueEnvelope {
+): GeneratedClues {
     if (schemaVersion != CLUE_SCHEMA_VERSION) {
         throw UnsupportedGeneratedClueSchemaException()
     }
@@ -86,8 +68,8 @@ internal fun GeneratedClueResponse.validateAndMap(
         throw InvalidGeneratedClueResponseException()
     }
 
-    return GeneratedClueEnvelope(
-        proof = proof,
+    return GeneratedClues(
+        clues = proof,
         provenance = GeneratedClueProvenance(
             schemaVersion = schemaVersion,
             providerId = identity.providerId,
