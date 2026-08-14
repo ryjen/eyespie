@@ -21,7 +21,10 @@ internal class ClueDataRepository(
     private val timeout: Duration = 1.minutes
 ) : ClueRepository {
 
-    private fun imageParam(image: Path) = listOf("file://$image")
+    private fun imageParam(image: Path): List<String> {
+        require(image.isAbsolute) { "image path must be absolute" }
+        return listOf(image.asFileUri())
+    }
 
     override suspend fun guess(image: Path, clue: GuessClue): Result<String> =
         withTimeout(timeout) {
@@ -60,4 +63,24 @@ internal class ClueDataRepository(
                 clue, confidence.toFloat(), answer
             )
         }.toSet()
+
+    private fun Path.asFileUri(): String = "file://" + toString().encodePathForUri()
+
+    private fun String.encodePathForUri(): String {
+        val digits = "0123456789ABCDEF"
+        return buildString {
+            encodeToByteArray().forEach { byte ->
+                val value = byte.toInt() and 255
+                val safe = value in 48..57 || value in 65..90 || value in 97..122 ||
+                    value == 45 || value == 46 || value == 95 || value == 126 || value == 47
+                if (safe) {
+                    append(value.toChar())
+                } else {
+                    append('%')
+                    append(digits[value ushr 4])
+                    append(digits[value and 15])
+                }
+            }
+        }
+    }
 }
