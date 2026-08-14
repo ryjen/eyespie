@@ -194,10 +194,15 @@ class ClueDataRepositoryTest {
     }
 
     @Test
-    fun `blank values out of range confidence and too many clues should return typed validation failures`() = runTest {
+    fun `invalid cardinality values bounds and confidence should return typed validation failures`() = runTest {
+        val oversizedClue = "x".repeat(MAX_CLUE_LENGTH + 1)
+        val oversizedAnswer = "y".repeat(MAX_ANSWER_LENGTH + 1)
         val invalidResponses = listOf(
+            """{"schemaVersion":1,"clues":[]}""",
             """{"schemaVersion":1,"clues":[{"clue":" ","answer":"apple","confidence":0.9}]}""",
             """{"schemaVersion":1,"clues":[{"clue":"red thing","answer":" ","confidence":0.9}]}""",
+            """{"schemaVersion":1,"clues":[{"clue":"$oversizedClue","answer":"apple","confidence":0.9}]}""",
+            """{"schemaVersion":1,"clues":[{"clue":"red thing","answer":"$oversizedAnswer","confidence":0.9}]}""",
             """{"schemaVersion":1,"clues":[{"clue":"red thing","answer":"apple","confidence":1.1}]}""",
             validResponse(4),
         )
@@ -227,9 +232,14 @@ class ClueDataRepositoryTest {
     }
 
     @Test
-    fun `prose and fenced JSON should be rejected without an allowed repair`() = runTest {
+    fun `truncated prose and fenced JSON should be rejected without an allowed repair`() = runTest {
         val valid = validResponse(1)
-        for (response in listOf("prefix $valid", "```json\n$valid\n```")) {
+        val invalidResponses = listOf(
+            """{"schemaVersion":1,"clues":[""",
+            "prefix $valid",
+            "```json\n$valid\n```",
+        )
+        for (response in invalidResponses) {
             disableRepair()
             provider.responses += Result.success(response)
 
