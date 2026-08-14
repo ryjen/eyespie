@@ -62,6 +62,12 @@ data class SemanticInferenceSamplingConfiguration(
     val randomSeed: Int,
 )
 
+data class SemanticInferenceExecutionConfiguration(
+    val sampling: SemanticInferenceSamplingConfiguration,
+    val maxImages: Int,
+    val maxContextTokens: Int?,
+)
+
 data class SemanticInferenceInitialization(
     val modelPath: Path,
     val identity: SemanticInferenceIdentity,
@@ -80,6 +86,8 @@ data class SemanticInferenceRequest(
 interface SemanticInferenceProvider {
     val identity: SemanticInferenceIdentity
     val availability: StateFlow<SemanticInferenceAvailability>
+    val executionConfiguration: SemanticInferenceExecutionConfiguration?
+        get() = null
 
     suspend fun generate(request: SemanticInferenceRequest): Result<String>
     fun generateFlow(request: SemanticInferenceRequest): Flow<String>
