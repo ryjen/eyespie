@@ -9,6 +9,7 @@ import com.micrantha.eyespie.domain.ai.SemanticInferenceAvailabilityController
 import com.micrantha.eyespie.domain.ai.SemanticInferenceCapabilities
 import com.micrantha.eyespie.domain.ai.SemanticInferenceCapability
 import com.micrantha.eyespie.domain.ai.SemanticInferenceDiagnosticCode
+import com.micrantha.eyespie.domain.ai.SemanticInferenceExecutionConfiguration
 import com.micrantha.eyespie.domain.ai.SemanticInferenceIdentity
 import com.micrantha.eyespie.domain.ai.SemanticInferenceInitialization
 import com.micrantha.eyespie.domain.ai.SemanticInferenceProvider
@@ -52,10 +53,14 @@ internal class GenAISemanticInferenceProvider(
     private val lifecycleMutex = Mutex()
     private val closeMutex = Mutex()
     private var executionIdentity = identity
+    private var trustedExecutionConfiguration: SemanticInferenceExecutionConfiguration? = null
     private var closed = false
 
     override val identity: SemanticInferenceIdentity
         get() = executionIdentity
+
+    override val executionConfiguration: SemanticInferenceExecutionConfiguration?
+        get() = trustedExecutionConfiguration
 
     override val availability = state.asStateFlow()
 
@@ -74,6 +79,11 @@ internal class GenAISemanticInferenceProvider(
                         .failureOrCancellation()
                         ?.let { throw it }
                     executionIdentity = configuration.identity
+                    trustedExecutionConfiguration = SemanticInferenceExecutionConfiguration(
+                        sampling = configuration.sampling,
+                        maxImages = configuration.maxImages,
+                        maxContextTokens = configuration.capabilities.maxContextTokens,
+                    )
                     state.value = SemanticInferenceAvailability.Available(configuration.capabilities)
                     Result.success(Unit)
                 } catch (cancelled: CancellationException) {
