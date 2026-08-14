@@ -1,15 +1,19 @@
 package com.micrantha.eyespie.features.scan.calibration
 
+import android.content.Context
 import android.graphics.BitmapFactory
 import android.os.Build
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
+import com.micrantha.eyespie.app.AppConfig
+import com.micrantha.eyespie.domain.entities.ImageEmbeddingContract
 import com.micrantha.eyespie.features.scan.usecase.MediaPipeImageEmbeddingGenerator
 import com.micrantha.eyespie.platform.scan.PlatformCameraImage
 import kotlinx.coroutines.runBlocking
 import org.junit.Test
 import org.junit.runner.RunWith
 import java.io.File
+import java.security.MessageDigest
 import kotlin.test.assertEquals
 import kotlin.test.assertTrue
 
@@ -50,7 +54,7 @@ class PhysicalImageEmbeddingCalibrationTest {
 
         assertEquals(4, fixtures.size)
         fixtures.forEach { fixture ->
-            assertEquals(1024, fixture.embedding.size)
+            assertEquals(ImageEmbeddingContract.dimensions, fixture.embedding.size)
             assertEquals(IMAGE_EMBEDDING_CALIBRATION_REPEAT_COUNT, fixture.repeat_count)
             assertTrue(fixture.embedding.all(Float::isFinite))
         }
@@ -66,6 +70,12 @@ class PhysicalImageEmbeddingCalibrationTest {
                 name = "mediapipe-tasks-vision",
                 version = "0.10.35",
             ),
+            model = ImageEmbeddingCalibrationModel(
+                sha256 = sha256Asset(context, ImageEmbeddingContract.androidModelAssetName),
+            ),
+            match_policy = ImageEmbeddingCalibrationMatchPolicy(
+                cosine_threshold = AppConfig.MATCH_THRESHOLD.toFloat(),
+            ),
             fixtures = fixtures,
         )
 
@@ -73,5 +83,20 @@ class PhysicalImageEmbeddingCalibrationTest {
         output.parentFile?.mkdirs()
         output.writeText(report.toCalibrationJson())
         println("EYESPIE_IMAGE_EMBEDDING_CALIBRATION=${output.absolutePath}")
+    }
+
+    private fun sha256Asset(context: Context, assetName: String): String {
+        val digest = MessageDigest.getInstance("SHA-256")
+        context.assets.open(assetName).use { stream ->
+            val buffer = ByteArray(DEFAULT_BUFFER_SIZE)
+            while (true) {
+                val read = stream.read(buffer)
+                if (read < 0) break
+                if (read > 0) digest.update(buffer, 0, read)
+            }
+        }
+        return digest.digest().joinToString(separator = "") { byte ->
+            "%02x".format(byte.toInt() and 0xff)
+        }
     }
 }
