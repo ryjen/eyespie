@@ -2,21 +2,26 @@ package com.micrantha.eyespie.features.scan.ui.capture
 
 import com.micrantha.bluebell.arch.FakeDispatcher
 import com.micrantha.eyespie.core.ui.FakeScreenContext
+import com.micrantha.eyespie.domain.entities.Location
 import com.micrantha.eyespie.features.onboarding.data.CapabilityPermissionGateway
 import com.micrantha.eyespie.features.onboarding.entities.CapabilityAuthorization
 import com.micrantha.eyespie.features.onboarding.entities.CapabilityState
 import com.micrantha.eyespie.features.onboarding.entities.OnboardingCapability
+import com.micrantha.eyespie.features.scan.data.CaptureFileStore
 import com.micrantha.eyespie.features.scan.entities.ScanAction.CameraAuthorizationLoaded
 import com.micrantha.eyespie.features.scan.entities.ScanAction.CameraAuthorizationRequestFailed
 import com.micrantha.eyespie.features.scan.entities.ScanAction.CameraAuthorizationRequestResolved
 import com.micrantha.eyespie.features.scan.entities.ScanAction.OpenCameraSettings
 import com.micrantha.eyespie.features.scan.entities.ScanAction.RefreshCameraAuthorization
 import com.micrantha.eyespie.features.scan.entities.ScanAction.RequestCameraAuthorization
+import com.micrantha.eyespie.features.scan.entities.ScanAction.ScanError
 import com.micrantha.eyespie.features.scan.entities.ScanState
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.test.UnconfinedTestDispatcher
 import kotlinx.coroutines.test.runTest
+import okio.Path
+import okio.Path.Companion.toPath
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
@@ -55,21 +60,46 @@ class ScanCaptureEnvironmentTest {
         }
     }
 
+    private class FakeCaptureFileStore : CaptureFileStore {
+        val deletedPaths = mutableListOf<Path>()
+
+        override fun delete(path: Path): Result<Unit> = runCatching {
+            deletedPaths += path
+        }
+    }
+
     private data class Fixture(
         val dispatcher: FakeDispatcher,
         val gateway: FakeGateway,
+        val captureFileStore: FakeCaptureFileStore,
         val environment: ScanCaptureEnvironment,
     )
 
     private fun fixture(): Fixture {
         val dispatcher = FakeDispatcher(CoroutineScope(UnconfinedTestDispatcher()))
         val gateway = FakeGateway()
+        val captureFileStore = FakeCaptureFileStore()
         val context = FakeScreenContext(dispatcher = dispatcher)
         return Fixture(
             dispatcher = dispatcher,
             gateway = gateway,
-            environment = ScanCaptureEnvironment(context, gateway),
+            captureFileStore = captureFileStore,
+            environment = ScanCaptureEnvironment(context, gateway, captureFileStore),
         )
+    }
+
+    @Test
+    fun `failed edit handoff deletes capture before restoring scan state`() = runTest {
+        val fixture = fixture()
+        val capturePath = "/capture/eyespie-capture-navigation-failure.jpg".toPath()
+
+        fixture.environment.invoke(
+            capturePath,
+            ScanState(location = Location()),
+        )
+
+        assertEquals(listOf(capturePath), fixture.captureFileStore.deletedPaths)
+        assertTrue(fixture.dispatcher.actions.any { it is ScanError })
     }
 
     @Test

@@ -12,6 +12,7 @@ import com.micrantha.eyespie.features.onboarding.data.CapabilityPermissionGatewa
 import com.micrantha.eyespie.features.onboarding.entities.CapabilityAuthorization
 import com.micrantha.eyespie.features.onboarding.entities.CapabilityState
 import com.micrantha.eyespie.features.onboarding.entities.OnboardingCapability
+import com.micrantha.eyespie.features.scan.data.CaptureFileStore
 import com.micrantha.eyespie.features.scan.entities.ScanAction.Back
 import com.micrantha.eyespie.features.scan.entities.ScanAction.CameraAuthorizationLoaded
 import com.micrantha.eyespie.features.scan.entities.ScanAction.CameraAuthorizationRequestFailed
@@ -29,6 +30,7 @@ import okio.Path
 class ScanCaptureEnvironment(
     private val context: ScreenContext,
     private val capabilityPermissionGateway: CapabilityPermissionGateway,
+    private val captureFileStore: CaptureFileStore,
 ) : Reducer<ScanState>, Effect<ScanState>,
     Dispatcher by context.dispatcher {
 
@@ -48,6 +50,7 @@ class ScanCaptureEnvironment(
                     arg = ScanEditParams(action, state.location!!),
                 )
             } catch (_: Throwable) {
+                captureFileStore.delete(action)
                 dispatch(ScanError)
             }
 
