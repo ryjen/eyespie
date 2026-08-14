@@ -216,14 +216,17 @@ def max_abs_delta(a: tuple[float, ...], b: tuple[float, ...]) -> float:
     return max(abs(x - y) for x, y in zip(a, b))
 
 
-def _semantic_metrics(report: CalibrationReport) -> dict[str, dict[str, Any]]:
-    reference = report.fixtures["burger"].embedding
+def _semantic_metrics(
+    reference_report: CalibrationReport,
+    candidate_report: CalibrationReport,
+) -> dict[str, dict[str, Any]]:
+    reference = reference_report.fixtures["burger"].embedding
     result: dict[str, dict[str, Any]] = {}
     for fixture_id in SEMANTIC_FIXTURES:
-        similarity = cosine_similarity(reference, report.fixtures[fixture_id].embedding)
+        similarity = cosine_similarity(reference, candidate_report.fixtures[fixture_id].embedding)
         result[fixture_id] = {
             "cosine_similarity": similarity,
-            "matches_configured_threshold": similarity >= report.match_threshold,
+            "matches_configured_threshold": similarity >= reference_report.match_threshold,
         }
     return result
 
@@ -241,8 +244,10 @@ def compare_reports(android: CalibrationReport, ios: CalibrationReport) -> dict[
     if not math.isclose(android.match_threshold, ios.match_threshold, rel_tol=0.0, abs_tol=1e-7):
         raise CalibrationReportError("reports use different configured match thresholds")
 
-    android_semantic = _semantic_metrics(android)
-    ios_semantic = _semantic_metrics(ios)
+    android_semantic = _semantic_metrics(android, android)
+    ios_semantic = _semantic_metrics(ios, ios)
+    android_reference_to_ios = _semantic_metrics(android, ios)
+    ios_reference_to_android = _semantic_metrics(ios, android)
 
     cross_platform: dict[str, dict[str, float]] = {}
     for fixture_id in EXPECTED_FIXTURES:
@@ -254,12 +259,18 @@ def compare_reports(android: CalibrationReport, ios: CalibrationReport) -> dict[
             "max_abs_delta": max_abs_delta(a, b),
         }
 
-    decision_consistency = {
+    decision_sets = {
         fixture_id: (
-            android_semantic[fixture_id]["matches_configured_threshold"]
-            == ios_semantic[fixture_id]["matches_configured_threshold"]
+            android_semantic[fixture_id]["matches_configured_threshold"],
+            ios_semantic[fixture_id]["matches_configured_threshold"],
+            android_reference_to_ios[fixture_id]["matches_configured_threshold"],
+            ios_reference_to_android[fixture_id]["matches_configured_threshold"],
         )
         for fixture_id in SEMANTIC_FIXTURES
+    }
+    decision_consistency = {
+        fixture_id: len(set(decisions)) == 1
+        for fixture_id, decisions in decision_sets.items()
     }
 
     return {
@@ -301,9 +312,19 @@ def compare_reports(android: CalibrationReport, ios: CalibrationReport) -> dict[
             },
         },
         "cross_platform": cross_platform,
+        "cross_platform_semantic_behavior": {
+            "android_reference_to_ios": android_reference_to_ios,
+            "ios_reference_to_android": ios_reference_to_android,
+        },
         "match_decision_consistency": {
             "fixtures": decision_consistency,
             "all_consistent": all(decision_consistency.values()),
+            "contexts": [
+                "android_reference_to_android",
+                "ios_reference_to_ios",
+                "android_reference_to_ios",
+                "ios_reference_to_android",
+            ],
         },
     }
 
@@ -317,7 +338,7 @@ def render_markdown(comparison: dict[str, Any]) -> str:
         f"- Dimensions: {comparison['embedding_contract']['dimensions']}",
         f"- Configured cosine threshold: {comparison['match_policy']['cosine_threshold']:.9g}",
         "- Product match threshold changed: **no**",
-        f"- Cross-platform match decisions all consistent: **{'yes' if comparison['match_decision_consistency']['all_consistent'] else 'no'}**",
+        f"- Match decisions consistent across both storage/scan directions: **{'yes' if comparison['match_decision_consistency']['all_consistent'] else 'no'}**",
         "",
         "## Cross-platform same-fixture metrics",
         "",
@@ -349,7 +370,29 @@ def render_markdown(comparison: dict[str, Any]) -> str:
     lines.extend(
         [
             "",
-            "## Cross-platform match-decision consistency",
+            "## Cross-platform storage/scan behavior",
+            "",
+            "| Stored reference | Scan platform | Fixture | Cosine | Matches configured threshold |",
+            "|---|---|---|---:|---|",
+        ]
+    )
+    for direction, stored_platform, scan_platform in (
+        ("android_reference_to_ios", "android", "ios"),
+        ("ios_reference_to_android", "ios", "android"),
+    ):
+        for fixture_id, values in comparison["cross_platform_semantic_behavior"][direction].items():
+            decision = "yes" if values["matches_configured_threshold"] else "no"
+            lines.append(
+                f"| {stored_platform} | {scan_platform} | {fixture_id} | "
+                f"{values['cosine_similarity']:.9f} | {decision} |"
+            )
+
+    lines.extend(
+        [
+            "",
+            "## Match-decision consistency",
+            "",
+            "Consistency requires the same decision for Android→Android, iOS→iOS, Android→iOS, and iOS→Android.",
             "",
             "| Fixture | Consistent |",
             "|---|---|",
