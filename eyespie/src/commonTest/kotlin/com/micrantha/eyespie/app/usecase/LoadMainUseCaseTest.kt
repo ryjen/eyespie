@@ -10,6 +10,7 @@ import com.micrantha.eyespie.domain.ai.SemanticInferenceAvailabilityController
 import com.micrantha.eyespie.domain.ai.SemanticInferenceCapabilities
 import com.micrantha.eyespie.domain.ai.SemanticInferenceIdentity
 import com.micrantha.eyespie.domain.ai.SemanticInferenceProvider
+import com.micrantha.eyespie.domain.ai.SemanticInferenceReasonCode
 import com.micrantha.eyespie.domain.ai.SemanticInferenceRequest
 import com.micrantha.eyespie.domain.entities.Session
 import com.micrantha.eyespie.domain.repository.FakeAccountRepository
@@ -60,9 +61,14 @@ class LoadMainUseCaseTest {
     private val llm = FakeGenAI()
     private val semanticProvider = FakeSemanticProvider()
     private val loadModelConfig = object : LoadModelConfig {
-        override fun invoke() = Result.success(mapOf(
-            "test" to AiModel("url", "c643ac136b0e526f578ce56c2253b5005c4422b5640d61f363ad1802253d86cf")
-        ))
+        override fun invoke() = Result.success(
+            mapOf(
+                "test" to AiModel(
+                    "url",
+                    "c643ac136b0e526f578ce56c2253b5005c4422b5640d61f363ad1802253d86cf",
+                )
+            )
+        )
     }
     private val platform = object : Platform {
         override val name = "Fake"
@@ -99,7 +105,8 @@ class LoadMainUseCaseTest {
         loadSessionPlayerUseCase,
         onboardingRepository,
         initGenAIUseCase,
-        captureSyncRepository
+        captureSyncRepository,
+        semanticProvider,
     )
 
     @Test
@@ -113,7 +120,9 @@ class LoadMainUseCaseTest {
 
     @Test
     fun `when session exists but player missing should navigate to NewPlayerScreen`() = runTest {
-        accountRepository.sessionResult = Result.success(Session(id = "s", accessToken = "a", refreshToken = "r", userId = "u"))
+        accountRepository.sessionResult = Result.success(
+            Session(id = "s", accessToken = "a", refreshToken = "r", userId = "u")
+        )
         playerRepository.playerResult = Result.failure(Exception("Not found"))
 
         useCase()
@@ -123,14 +132,56 @@ class LoadMainUseCaseTest {
 
     @Test
     fun `when everything valid should navigate to DashboardScreen`() = runTest {
-        accountRepository.sessionResult = Result.success(Session(id = "s", accessToken = "a", refreshToken = "r", userId = "u"))
-        val player = Player("p1", Instant.parse("2023-01-01T00:00:00Z"), Player.Name("f", "l", "n"), "e", Player.Score(0))
-        playerRepository.playerResult = Result.success(player)
+        configureValidUser()
         onboardingRepository.runOnce = true
 
         useCase()
 
         assertIs<DashboardScreen>(context.router.lastNavigatedTo)
+    }
+
+    @Test
+    fun `unsupported local image inference does not require model selection after onboarding`() = runTest {
+        configureValidUser()
+        onboardingRepository.runOnce = true
+        onboardingRepository.hasGenAIValue = true
+        onboardingRepository.model = null
+        semanticProvider.availability.value = SemanticInferenceAvailability.Unavailable(
+            SemanticInferenceReasonCode.PLATFORM_IMAGE_INPUT_UNSUPPORTED,
+        )
+
+        useCase()
+
+        assertIs<DashboardScreen>(context.router.lastNavigatedTo)
+        assertIs<SemanticInferenceAvailability.Unavailable>(semanticProvider.availability.value)
+    }
+
+    @Test
+    fun `local inference initialization failure does not block dashboard`() = runTest {
+        configureValidUser()
+        onboardingRepository.runOnce = true
+        onboardingRepository.hasGenAIValue = true
+        onboardingRepository.model = "test"
+
+        useCase()
+
+        assertIs<DashboardScreen>(context.router.lastNavigatedTo)
+        assertIs<SemanticInferenceAvailability.Failed>(semanticProvider.availability.value)
+    }
+
+    private fun configureValidUser() {
+        accountRepository.sessionResult = Result.success(
+            Session(id = "s", accessToken = "a", refreshToken = "r", userId = "u")
+        )
+        playerRepository.playerResult = Result.success(
+            Player(
+                "p1",
+                Instant.parse("2023-01-01T00:00:00Z"),
+                Player.Name("f", "l", "n"),
+                "e",
+                Player.Score(0),
+            )
+        )
     }
 
     private class FakeSemanticProvider : SemanticInferenceProvider, SemanticInferenceAvailabilityController {
@@ -145,21 +196,27 @@ class LoadMainUseCaseTest {
 
         override suspend fun generate(request: SemanticInferenceRequest) =
             Result.failure<String>(UnsupportedOperationException())
+
         override fun generateFlow(request: SemanticInferenceRequest): Flow<String> = emptyFlow()
         override fun cancel() = Unit
         override suspend fun close() = Unit
+
         override suspend fun markNotConfigured() {
             availability.value = SemanticInferenceAvailability.NotConfigured
         }
+
         override suspend fun markInitializing() {
             availability.value = SemanticInferenceAvailability.Initializing
         }
+
         override suspend fun markAvailable(capabilities: SemanticInferenceCapabilities) {
             availability.value = SemanticInferenceAvailability.Available(capabilities)
         }
+
         override suspend fun markUnavailable(reasonCode: String) {
             availability.value = SemanticInferenceAvailability.Unavailable(reasonCode)
         }
+
         override suspend fun markFailed(diagnosticCode: String) {
             availability.value = SemanticInferenceAvailability.Failed(diagnosticCode)
         }
