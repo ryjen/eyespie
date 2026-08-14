@@ -1,6 +1,7 @@
 package com.micrantha.eyespie.core.data.ai
 
 import com.micrantha.eyespie.core.data.ai.source.CluePromptSource
+import com.micrantha.eyespie.domain.ai.GeneratedClues
 import com.micrantha.eyespie.domain.ai.InferenceLocality
 import com.micrantha.eyespie.domain.ai.SemanticImageInput
 import com.micrantha.eyespie.domain.ai.SemanticInferenceAvailability
@@ -8,7 +9,6 @@ import com.micrantha.eyespie.domain.ai.SemanticInferenceExecutionSnapshot
 import com.micrantha.eyespie.domain.ai.SemanticInferenceOutput
 import com.micrantha.eyespie.domain.ai.SemanticInferenceProvider
 import com.micrantha.eyespie.domain.ai.SemanticInferenceRequest
-import com.micrantha.eyespie.domain.entities.AiProof
 import com.micrantha.eyespie.domain.entities.GuessClue
 import com.micrantha.eyespie.domain.repository.ClueRepository
 import kotlinx.coroutines.withTimeout
@@ -39,10 +39,7 @@ internal class ClueDataRepository(
             )
         }
 
-    override suspend fun clues(image: Path): Result<AiProof> =
-        generateClueEnvelope(image).map { it.proof }
-
-    internal suspend fun generateClueEnvelope(image: Path): Result<GeneratedClueEnvelope> =
+    override suspend fun clues(image: Path): Result<GeneratedClues> =
         withTimeout(timeout) {
             val generated = inferenceProvider.generateWithExecution(
                 request(
@@ -80,7 +77,7 @@ internal class ClueDataRepository(
     private fun parseEnvelope(
         output: SemanticInferenceOutput,
         repaired: Boolean,
-    ): Result<GeneratedClueEnvelope> = try {
+    ): Result<GeneratedClues> = try {
         val response = json.decodeFromString<GeneratedClueResponse>(output.text)
         Result.success(
             response.validateAndMap(
