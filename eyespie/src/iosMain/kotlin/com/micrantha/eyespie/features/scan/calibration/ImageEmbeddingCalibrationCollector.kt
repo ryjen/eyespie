@@ -8,6 +8,7 @@ import com.micrantha.eyespie.platform.scan.CameraImage
 import kotlinx.coroutines.runBlocking
 import platform.Foundation.NSBundle
 import platform.Foundation.NSData
+import platform.Foundation.dataWithContentsOfFile
 import platform.UIKit.UIDevice
 import kotlin.Throws
 
@@ -40,8 +41,8 @@ class ImageEmbeddingCalibrationCollector {
             platform = "ios",
             device = ImageEmbeddingCalibrationDevice(
                 manufacturer = "Apple",
-                model = device.model,
-                os = "${device.systemName} ${device.systemVersion}",
+                model = device.model(),
+                os = "${device.systemName()} ${device.systemVersion}",
             ),
             runtime = ImageEmbeddingCalibrationRuntime(
                 name = "EyespieMediaPipeTasksVision",
