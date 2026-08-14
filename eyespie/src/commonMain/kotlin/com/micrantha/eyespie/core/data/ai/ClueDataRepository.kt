@@ -4,6 +4,8 @@ import com.micrantha.eyespie.core.data.ai.source.CluePromptSource
 import com.micrantha.eyespie.domain.ai.InferenceLocality
 import com.micrantha.eyespie.domain.ai.SemanticImageInput
 import com.micrantha.eyespie.domain.ai.SemanticInferenceAvailability
+import com.micrantha.eyespie.domain.ai.SemanticInferenceExecutionSnapshot
+import com.micrantha.eyespie.domain.ai.SemanticInferenceOutput
 import com.micrantha.eyespie.domain.ai.SemanticInferenceProvider
 import com.micrantha.eyespie.domain.ai.SemanticInferenceRequest
 import com.micrantha.eyespie.domain.entities.AiProof
@@ -42,7 +44,7 @@ internal class ClueDataRepository(
 
     internal suspend fun generateClueEnvelope(image: Path): Result<GeneratedClueEnvelope> =
         withTimeout(timeout) {
-            val generated = inferenceProvider.generate(
+            val generated = inferenceProvider.generateWithExecution(
                 request(
                     prompt = cluePromptSource.clues(),
                     image = image,
@@ -51,13 +53,13 @@ internal class ClueDataRepository(
             val output = generated.getOrElse { return@withTimeout Result.failure(it) }
 
             val firstAttempt = parseEnvelope(output, repaired = false)
-            if (firstAttempt.isSuccess || !canRepairLocally()) {
+            if (firstAttempt.isSuccess || !canRepairLocally(output.execution)) {
                 return@withTimeout firstAttempt
             }
 
-            val repair = inferenceProvider.generate(
+            val repair = inferenceProvider.generateWithExecution(
                 SemanticInferenceRequest(
-                    prompt = cluePromptSource.repair(output.take(MAX_REPAIR_INPUT_LENGTH)),
+                    prompt = cluePromptSource.repair(output.text.take(MAX_REPAIR_INPUT_LENGTH)),
                     images = emptyList(),
                 )
             )
@@ -76,14 +78,14 @@ internal class ClueDataRepository(
     }
 
     private fun parseEnvelope(
-        output: String,
+        output: SemanticInferenceOutput,
         repaired: Boolean,
     ): Result<GeneratedClueEnvelope> = try {
-        val response = json.decodeFromString<GeneratedClueResponse>(output)
+        val response = json.decodeFromString<GeneratedClueResponse>(output.text)
         Result.success(
             response.validateAndMap(
-                identity = inferenceProvider.identity,
-                executionConfiguration = inferenceProvider.executionConfiguration,
+                identity = output.execution.identity,
+                executionConfiguration = output.execution.configuration,
                 promptId = cluePromptSource.cluePromptId,
                 promptVersion = cluePromptSource.cluePromptVersion,
                 repaired = repaired,
@@ -97,10 +99,11 @@ internal class ClueDataRepository(
         Result.failure(MalformedGeneratedClueResponseException())
     }
 
-    private fun canRepairLocally(): Boolean {
+    private fun canRepairLocally(initialExecution: SemanticInferenceExecutionSnapshot): Boolean {
         val availability = inferenceProvider.availability.value as? SemanticInferenceAvailability.Available
             ?: return false
-        return inferenceProvider.identity.locality == InferenceLocality.LOCAL &&
+        return initialExecution.identity.locality == InferenceLocality.LOCAL &&
+            inferenceProvider.identity.locality == InferenceLocality.LOCAL &&
             availability.capabilities.textGeneration
     }
 
