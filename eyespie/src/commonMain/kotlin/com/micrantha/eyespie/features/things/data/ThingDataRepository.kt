@@ -19,17 +19,12 @@ internal class ThingDataRepository(
 ) : DomainRepository {
 
     override fun things(playerID: String): Flow<Result<List<Thing.Listing>>> = flow {
-        val cached = localSource.getAll().map { it.map(mapper::list) }
-        emit(cached)
-
-        remoteSource.things(playerID).onSuccess {
-            localSource.saveAll(it)
-            emit(Result.success(it.map(mapper::list)))
-        }.onFailure {
-            if (cached.isFailure) emit(Result.failure(it))
-        }
+        remoteSource.things(playerID)
+            .mapCatching { things -> things.map(mapper::list) }
+            .also { emit(it) }
     }
 
+    /** Full Thing authority is owner-only. Safe listing paths never hydrate this DTO/cache. */
     override fun thing(thingID: String): Flow<Result<Thing>> = flow {
         val cached = localSource.getAll().mapCatching { things ->
             mapper.map(things.first { it.id == thingID })
@@ -59,15 +54,9 @@ internal class ThingDataRepository(
         location: Point,
         distance: Double
     ): Flow<Result<List<Thing.Listing>>> = flow {
-        val cached = localSource.getAll().map { it.map(mapper::list) }
-        emit(cached)
-
-        remoteSource.nearby(mapper.nearby(location, distance)).onSuccess {
-            localSource.saveAll(it)
-            emit(Result.success(it.map(mapper::list)))
-        }.onFailure {
-            if (cached.isFailure) emit(Result.failure(it))
-        }
+        remoteSource.nearby(mapper.nearby(location, distance))
+            .mapCatching { things -> things.map(mapper::list) }
+            .also { emit(it) }
     }
 
     override fun match(thingID: String, embedding: Embedding): Flow<Result<Thing.Match>> = flow {
