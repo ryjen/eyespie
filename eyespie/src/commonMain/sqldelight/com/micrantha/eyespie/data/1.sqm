@@ -1,0 +1,6 @@
+ALTER TABLE ThingEntity ADD COLUMN clue_expected_answer TEXT;
+ALTER TABLE ThingEntity ADD COLUMN clue_origin TEXT NOT NULL DEFAULT 'LEGACY';
+ALTER TABLE ThingEntity ADD COLUMN clue_authority_version INTEGER NOT NULL DEFAULT 1;
+ALTER TABLE ThingEntity ADD COLUMN generated_provider_id TEXT;
+ALTER TABLE ThingEntity ADD COLUMN generated_model_id TEXT;
+ALTER TABLE ThingEntity ADD COLUMN generated_confidence REAL;
