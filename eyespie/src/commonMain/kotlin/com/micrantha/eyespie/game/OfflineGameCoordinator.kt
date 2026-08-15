@@ -8,7 +8,6 @@ import com.micrantha.eyespie.core.Game
 import com.micrantha.eyespie.core.GameId
 import com.micrantha.eyespie.core.GameRepository
 import com.micrantha.eyespie.core.MatchEngine
-import com.micrantha.eyespie.core.PlayerId
 import com.micrantha.eyespie.core.PlayerIdentity
 import com.micrantha.eyespie.core.PlayerIdentityRepository
 import com.micrantha.eyespie.core.Thing
@@ -293,13 +292,18 @@ class OfflineGameCoordinator(
         null
     }
 
-    private fun generateIds(): Pair<GameId, ThingId>? = try {
-        val gameToken = idGenerator().trim()
-        val thingToken = idGenerator().trim()
-        if (gameToken.isBlank() || thingToken.isBlank()) return null
-        GameId("game:$gameToken") to ThingId("thing:$thingToken")
-    } catch (_: Throwable) {
-        null
+    private fun generateIds(): Pair<GameId, ThingId>? {
+        return try {
+            val gameToken = idGenerator().trim()
+            val thingToken = idGenerator().trim()
+            if (gameToken.isBlank() || thingToken.isBlank()) {
+                null
+            } else {
+                GameId("game:$gameToken") to ThingId("thing:$thingToken")
+            }
+        } catch (_: Throwable) {
+            null
+        }
     }
 
     private fun prepareDraft(draft: ManualGameDraft): PreparedDraft {
