@@ -9,8 +9,11 @@ import com.micrantha.eyespie.domain.ai.SemanticInferenceAvailabilityController
 import com.micrantha.eyespie.domain.ai.SemanticInferenceCapabilities
 import com.micrantha.eyespie.domain.ai.SemanticInferenceCapability
 import com.micrantha.eyespie.domain.ai.SemanticInferenceDiagnosticCode
+import com.micrantha.eyespie.domain.ai.SemanticInferenceExecutionConfiguration
+import com.micrantha.eyespie.domain.ai.SemanticInferenceExecutionSnapshot
 import com.micrantha.eyespie.domain.ai.SemanticInferenceIdentity
 import com.micrantha.eyespie.domain.ai.SemanticInferenceInitialization
+import com.micrantha.eyespie.domain.ai.SemanticInferenceOutput
 import com.micrantha.eyespie.domain.ai.SemanticInferenceProvider
 import com.micrantha.eyespie.domain.ai.SemanticInferenceProviderSetup
 import com.micrantha.eyespie.domain.ai.SemanticInferenceReasonCode
@@ -52,10 +55,14 @@ internal class GenAISemanticInferenceProvider(
     private val lifecycleMutex = Mutex()
     private val closeMutex = Mutex()
     private var executionIdentity = identity
+    private var trustedExecutionConfiguration: SemanticInferenceExecutionConfiguration? = null
     private var closed = false
 
     override val identity: SemanticInferenceIdentity
         get() = executionIdentity
+
+    override val executionConfiguration: SemanticInferenceExecutionConfiguration?
+        get() = trustedExecutionConfiguration
 
     override val availability = state.asStateFlow()
 
@@ -74,6 +81,11 @@ internal class GenAISemanticInferenceProvider(
                         .failureOrCancellation()
                         ?.let { throw it }
                     executionIdentity = configuration.identity
+                    trustedExecutionConfiguration = SemanticInferenceExecutionConfiguration(
+                        sampling = configuration.sampling,
+                        maxImages = configuration.maxImages,
+                        maxContextTokens = configuration.capabilities.maxContextTokens,
+                    )
                     state.value = SemanticInferenceAvailability.Available(configuration.capabilities)
                     Result.success(Unit)
                 } catch (cancelled: CancellationException) {
@@ -89,28 +101,41 @@ internal class GenAISemanticInferenceProvider(
         }
 
     override suspend fun generate(request: SemanticInferenceRequest): Result<String> =
-        generationMutex.withLock {
-            validate(request, streaming = false).exceptionOrNull()?.let {
-                return@withLock Result.failure(it)
-            }
-            try {
-                supervisorScope {
-                    val generation = lifecycleMutex.withLock {
-                        unavailableFailure()?.let { throw it }
-                        async(start = CoroutineStart.UNDISPATCHED) {
-                            val response = StringBuilder()
-                            genAI.generateFlow(request.toGenAIRequest()).collect { response.append(it) }
-                            response.toString()
-                        }
-                    }
-                    Result.success(generation.await())
-                }
-            } catch (cancelled: CancellationException) {
-                throw cancelled
-            } catch (error: Throwable) {
-                Result.failure(error)
-            }
+        generateWithExecution(request).map { it.text }
+
+    override suspend fun generateWithExecution(
+        request: SemanticInferenceRequest,
+    ): Result<SemanticInferenceOutput> = generationMutex.withLock {
+        validate(request, streaming = false).exceptionOrNull()?.let {
+            return@withLock Result.failure(it)
         }
+        try {
+            supervisorScope {
+                val (execution, generation) = lifecycleMutex.withLock {
+                    unavailableFailure()?.let { throw it }
+                    val snapshot = SemanticInferenceExecutionSnapshot(
+                        identity = executionIdentity,
+                        configuration = trustedExecutionConfiguration,
+                    )
+                    snapshot to async(start = CoroutineStart.UNDISPATCHED) {
+                        val response = StringBuilder()
+                        genAI.generateFlow(request.toGenAIRequest()).collect { response.append(it) }
+                        response.toString()
+                    }
+                }
+                Result.success(
+                    SemanticInferenceOutput(
+                        text = generation.await(),
+                        execution = execution,
+                    )
+                )
+            }
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (error: Throwable) {
+            Result.failure(error)
+        }
+    }
 
     override fun generateFlow(request: SemanticInferenceRequest): Flow<String> = channelFlow {
         generationMutex.withLock {

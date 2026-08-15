@@ -56,7 +56,7 @@ class ScanEditEnvironment(
 
         is AnalyzedClues -> state.copy(
             clues = action.value,
-            selected = stateMapOf(action.value.mapIndexed { index, clue ->
+            selected = stateMapOf(action.value.clues.mapIndexed { index, clue ->
                 index to clue.toScanClue(index)
             }.toMap()),
             isBusy = false,
@@ -111,7 +111,7 @@ class ScanEditEnvironment(
     )
 
     private fun ScanEditState.asProof() = Proof(
-        clues = clues,
+        clues = clues?.clues,
         location = location
     )
 

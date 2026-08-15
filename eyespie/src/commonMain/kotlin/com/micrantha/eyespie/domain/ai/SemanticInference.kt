@@ -62,6 +62,22 @@ data class SemanticInferenceSamplingConfiguration(
     val randomSeed: Int,
 )
 
+data class SemanticInferenceExecutionConfiguration(
+    val sampling: SemanticInferenceSamplingConfiguration,
+    val maxImages: Int,
+    val maxContextTokens: Int?,
+)
+
+data class SemanticInferenceExecutionSnapshot(
+    val identity: SemanticInferenceIdentity,
+    val configuration: SemanticInferenceExecutionConfiguration?,
+)
+
+data class SemanticInferenceOutput(
+    val text: String,
+    val execution: SemanticInferenceExecutionSnapshot,
+)
+
 data class SemanticInferenceInitialization(
     val modelPath: Path,
     val identity: SemanticInferenceIdentity,
@@ -80,8 +96,29 @@ data class SemanticInferenceRequest(
 interface SemanticInferenceProvider {
     val identity: SemanticInferenceIdentity
     val availability: StateFlow<SemanticInferenceAvailability>
+    val executionConfiguration: SemanticInferenceExecutionConfiguration?
+        get() = null
 
     suspend fun generate(request: SemanticInferenceRequest): Result<String>
+
+    /**
+     * Returns output bound to the application-owned execution identity/configuration that produced it.
+     *
+     * The default implementation is only safe when identity/configuration cannot change between
+     * generation completion and snapshot reads. Providers with mutable lifecycle/configuration state
+     * must override this method and capture the snapshot atomically with request execution.
+     */
+    suspend fun generateWithExecution(request: SemanticInferenceRequest): Result<SemanticInferenceOutput> =
+        generate(request).map { text ->
+            SemanticInferenceOutput(
+                text = text,
+                execution = SemanticInferenceExecutionSnapshot(
+                    identity = identity,
+                    configuration = executionConfiguration,
+                ),
+            )
+        }
+
     fun generateFlow(request: SemanticInferenceRequest): Flow<String>
     fun cancel()
     suspend fun close()
