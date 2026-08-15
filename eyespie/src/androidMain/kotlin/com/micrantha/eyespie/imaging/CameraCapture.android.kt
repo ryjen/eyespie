@@ -74,28 +74,37 @@ actual fun CameraCapture(
     var cameraProvider by remember { mutableStateOf<ProcessCameraProvider?>(null) }
 
     DisposableEffect(lifecycleOwner, previewView) {
+        var disposed = false
         val future = ProcessCameraProvider.getInstance(context)
         future.addListener(
             {
                 runCatching {
                     val provider = future.get()
+                    if (disposed) {
+                        provider.unbindAll()
+                        return@runCatching
+                    }
                     cameraProvider = provider
                     val preview = Preview.Builder().build().also {
                         it.surfaceProvider = previewView.surfaceProvider
                     }
                     provider.unbindAll()
+                    if (disposed) return@runCatching
                     provider.bindToLifecycle(
                         lifecycleOwner,
                         CameraSelector.DEFAULT_BACK_CAMERA,
                         preview,
                         imageCapture,
                     )
-                }.onFailure(onCameraError)
+                }.onFailure {
+                    if (!disposed) onCameraError(it)
+                }
             },
             ContextCompat.getMainExecutor(context),
         )
 
         onDispose {
+            disposed = true
             cameraProvider?.unbindAll()
             cameraProvider = null
         }
