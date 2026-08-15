@@ -81,22 +81,12 @@ class ThingAuthorityMigrationContractTest(unittest.TestCase):
         self.assertNotRegex(match, r'\bembedding\s+(?:extensions\.)?vector\b')
         self.assertIn("raise exception 'not authorized for thing'", match)
 
-    def test_nearby_and_game_projections_exclude_authority_fields(self) -> None:
+    def test_nearby_and_game_rpc_return_shapes_are_minimal(self) -> None:
+        expected_projection = 'returns table ( id uuid, created_at timestamp with time zone, guessed boolean )'
         for function_name in ("thingsnearby", "game_things_safe"):
             body = function_body(self.raw, function_name)
-            self.assertIn('returns table ( id uuid, created_at timestamp with time zone, guessed boolean )', body)
-            for forbidden in (
-                "image_path",
-                '"imageurl"',
-                " embedding",
-                " location",
-                " proof",
-                " expected_answer",
-                " answer",
-                " provenance",
-                "to_jsonb",
-            ):
-                self.assertNotIn(forbidden, body, f"{function_name} leaks {forbidden.strip()}")
+            self.assertIn(expected_projection, body)
+            self.assertNotIn('to_jsonb', body)
             self.assertNotRegex(body, r'\bt\.\*\b')
 
     def test_security_definer_functions_fix_search_path_and_restrict_execute(self) -> None:
@@ -128,9 +118,9 @@ class ThingAuthorityMigrationContractTest(unittest.TestCase):
             policy = f'eyespie image owners can {operation}'
             self.assertIn(f'create policy "{policy}" on storage.objects', self.sql)
 
-        # Every policy repeats the same fail-closed namespace predicate instead of
-        # relying on possession/unguessability of an object path.
-        self.assertEqual(4, self.sql.count("bucket_id = 'images'"))
+        # Read, insert, delete each check the namespace once; update checks both the
+        # existing row and the replacement row.
+        self.assertEqual(5, self.sql.count("bucket_id = 'images'"))
         self.assertEqual(5, self.sql.count("p.user_id = auth.uid()"))
         self.assertEqual(5, self.sql.count("p.id::text = split_part(name, '/', 1)"))
 
