@@ -1,64 +1,46 @@
-# Repository Guidelines
+# Eyespie Repository Guidelines
 
-## Project Structure & Module Organization
-- `eyespie/`: Kotlin Multiplatform app module (Compose UI, shared logic, platform glue).
-  - Shared code: `eyespie/src/commonMain`
-  - Android-specific: `eyespie/src/androidMain`
-  - iOS-specific: `eyespie/src/iosMain`
-  - Tests: `eyespie/src/commonTest`
-  - Assets: `eyespie/bluebellAssets`
-- `bluebell/`: Shared framework code used by the app.
-- `iosApp/`: iOS wrapper app and CocoaPods integration.
-- `supabase/`: Database schema and migrations.
-- `fastlane/`: Build, test, and distribution automation.
-- `buildSrc/`: Gradle convention plugins and build tooling.
+## Architectural invariant
 
-## Build, Test, and Development Commands
-Use Gradle for local builds and Fastlane for CI-style workflows:
+Eyespie is a backendless-first Kotlin Multiplatform game. Core gameplay must build and function without a hosted account, backend configuration, or network connection.
+
+Cloud and peer networking are optional capabilities behind domain interfaces. Do not make Supabase, Firebase, Appwrite, PocketBase, or any other hosted provider a prerequisite for core domain behavior.
+
+## Core boundaries
+
+- `eyespie/src/commonMain`: portable domain, local gameplay, matching, and UI.
+- `eyespie/src/androidMain`: Android platform entry points and device integrations.
+- `eyespie/src/iosMain`: Apple platform entry points and device integrations.
+- `calibration/`, `models/`, `model-pack/`: retained model provenance and packaging infrastructure.
+- `iosApp/MediaPipePodspecs`: retained Eyespie MediaPipe Apple artifacts.
+
+Use interfaces for replaceable capabilities such as identity persistence, game persistence, game transport, and optional cloud sync.
+
+## Product rules
+
+- Local state is authoritative for offline play.
+- Image embeddings and similarity matching run on-device.
+- A hosted account is never required to create or play a local game.
+- Portable games may contain target embeddings; document the anti-cheat tradeoff rather than pretending device-local secrets are inaccessible to the device owner.
+- Stronger multiplayer authority belongs in an optional host-authoritative transport.
+- Cloud adapters must be removable without changing core domain entities.
+
+## Preservation
+
+The pre-reboot application is preserved at `archive/pre-backendless-reboot-2026-08-15` from commit `50091a631d971c520e48884cfbd15cf15dd7251b`.
+
+Do not copy old backend assumptions back into the reboot merely because code exists on that branch.
+
+Useful shared abstractions may be brought in deliberately from `hackelia-micrantha/bluebell` and `bluebell-community`; avoid restoring the previous vendored framework wholesale unless a concrete capability justifies it.
+
+## Build and test
 
 ```bash
-# Build debug (all platforms)
-./gradlew build
-
-# Android builds
-./gradlew assembleDebug
-./gradlew assembleRelease
-
-# Run tests
-./gradlew test
-./gradlew testDebugUnitTest
-
-# Fastlane pipelines
-fastlane build_debug
-fastlane build_release
-fastlane test
+./gradlew :app:testDebugUnitTest :app:assembleDebug
 ```
 
-## Coding Style & Naming Conventions
-- Language: Kotlin (Multiplatform + Compose). Use 4-space indentation and keep Kotlin DSL style in `*.gradle.kts`.
-- Naming: `PascalCase` for types, `camelCase` for functions/vars, `UPPER_SNAKE_CASE` for constants.
-- No repo-wide formatter detected; match the local style in the file you edit.
+Apple/MediaPipe integration is validated by `.github/workflows/ios-mediapipe.yml`.
 
-## Testing Guidelines
-- Framework: Kotlin `kotlin("test")` in `eyespie/src/commonTest`.
-- Naming: use `*Test.kt` (e.g., `LabelDataRepositoryTest.kt`).
-- Run tests with `./gradlew test` or `./gradlew testDebugUnitTest` for Android unit tests.
+## Changes
 
-## Commit & Pull Request Guidelines
-- Commit messages follow a Conventional Commits style: `type(scope): summary` or `type: summary` (e.g., `feat(scan): modularize scan feature`).
-- PRs should include a concise summary, testing notes (commands + results), and screenshots for UI changes.
-
-## Configuration & Secrets
-- Copy `env.example` to `.env.local` and set required keys (e.g., Supabase credentials). Keep secrets out of version control.
-
-## Common Anti-patterns to Avoid
-- **Nested Scrolling**: Never nest a `LazyColumn` inside a scrollable `Column`. Use `Modifier.weight(1f)` on the container or a single `LazyColumn` with multiple `item {}` blocks.
-- **Manual Navigation**: Prefer `context.navigate<Screen>()` (with type safety and DI) over `context.router.navigate(Screen())`.
-
-## Navigation Strategy
-- Side-effects in `Environment` classes should use `ScreenContext.navigate<T>()` to resolve screens via DI.
-- Use `Router.Options.Replace` for non-linear flows (like moving from capture to edit).
-
-## Offline Support Strategy
-- Use `okio` for persistent file-based caching in `commonMain`.
-- Data repositories should follow the "Network first, Cache fallback" pattern for remote areas.
+Use conventional commits. Keep reboot slices vertical and small: domain contract, local implementation, platform adapter, tests, then UI wiring. Optional network capability comes after the offline path works.

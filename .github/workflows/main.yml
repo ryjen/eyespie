@@ -14,149 +14,21 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  validate:
-    name: validate
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-
-      - name: Set up Ruby
-        uses: ruby/setup-ruby@95ef2b042f9d7a56d8268cba8559e2842e2ad01b # v1
-        with:
-          ruby-version: "3.2"
-          bundler-cache: true
-
-      - name: Validate Fastlane configuration
-        run: bundle exec fastlane lanes
-
-      - name: Run canonical validation lane
-        run: bundle exec fastlane android validate
-
-      - name: Upload validation diagnostics
-        if: failure()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: eyespie-validation-diagnostics-${{ github.sha }}
-          path: |
-            **/build/reports/problems/**
-          if-no-files-found: ignore
-          retention-days: 7
-
-  android-tests:
-    name: android-tests
-    needs: validate
+  android:
+    name: android-offline-core
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
-      - name: Checkout code
+      - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-
       - name: Set up JDK 21
         uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5.6.0
         with:
           java-version: "21"
           distribution: temurin
-
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@3f131e8634966bd73d06cc69884922b02e6faf92 # v6
-        with:
-          cache-read-only: ${{ github.ref != 'refs/heads/main' }}
-
-      - name: Set up Ruby
-        uses: ruby/setup-ruby@95ef2b042f9d7a56d8268cba8559e2842e2ad01b # v1
-        with:
-          ruby-version: "3.2"
-          bundler-cache: true
-
-      - name: Run canonical Android test lane
-        run: bundle exec fastlane android test
-
-      - name: Upload Android test diagnostics
-        if: failure()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: eyespie-android-test-diagnostics-${{ github.sha }}
-          path: |
-            **/build/reports/tests/**
-            **/build/test-results/**
-            **/build/outputs/roborazzi/**
-            **/build/roborazzi/**
-            **/build/reports/problems/**
-          if-no-files-found: ignore
-          retention-days: 7
-
-  android-bundle:
-    name: android-bundle
-    needs: [validate, android-tests]
-    runs-on: ubuntu-latest
-    timeout-minutes: 30
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-        with:
-          persist-credentials: false
-
-      - name: Set up JDK 21
-        uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5.6.0
-        with:
-          java-version: "21"
-          distribution: temurin
-
-      - name: Set up Gradle
-        uses: gradle/actions/setup-gradle@3f131e8634966bd73d06cc69884922b02e6faf92 # v6
-        with:
-          cache-read-only: ${{ github.ref != 'refs/heads/main' }}
-
-      - name: Set up Ruby
-        uses: ruby/setup-ruby@95ef2b042f9d7a56d8268cba8559e2842e2ad01b # v1
-        with:
-          ruby-version: "3.2"
-          bundler-cache: true
-
-      - name: Run canonical Android bundle lane
-        run: bundle exec fastlane android bundle_debug
-
-      - name: Add topology report to workflow summary
-        run: cat build/reports/android-bundle/topology.md >> "$GITHUB_STEP_SUMMARY"
-
-      - name: Upload bundle diagnostics
-        if: failure()
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: eyespie-android-bundle-diagnostics-${{ github.sha }}
-          path: |
-            **/build/reports/problems/**
-            build/reports/android-bundle/**
-          if-no-files-found: ignore
-          retention-days: 7
-
-      - name: Upload bundle topology report
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: eyespie-android-bundle-topology-${{ github.sha }}
-          path: build/reports/android-bundle/topology.md
-          if-no-files-found: error
-          retention-days: 7
-
-      - name: Upload debug app bundle
-        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
-        with:
-          name: eyespie-debug-aab-${{ github.sha }}
-          path: eyespie/build/outputs/bundle/debug/*.aab
-          if-no-files-found: error
-          retention-days: 7
-
-  production:
-    name: production
-    if: ${{ github.event_name == 'push' && github.ref == 'refs/heads/main' }}
-    needs: android-bundle
-    uses: ./.github/workflows/deploy-environment.yml
-    with:
-      deployment_environment: production
-      fastlane_lane: distribute_production
+      - name: Test and assemble offline core
+        run: ./gradlew :app:testDebugUnitTest :app:assembleDebug --no-daemon --stacktrace
