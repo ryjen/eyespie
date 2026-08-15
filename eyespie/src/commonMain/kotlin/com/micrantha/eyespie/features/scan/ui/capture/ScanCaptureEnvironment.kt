@@ -44,6 +44,7 @@ class ScanCaptureEnvironment(
                 }
             }
 
+<<<<<<< Updated upstream
             is Path -> try {
                 context.navigate<ScanEditScreen, ScanEditParams>(
                     options = Router.Options.Replace,
@@ -52,6 +53,30 @@ class ScanCaptureEnvironment(
             } catch (_: Throwable) {
                 captureFileStore.delete(action)
                 dispatch(ScanError)
+||||||| Stash base
+            is Path -> try {
+                context.navigate<ScanEditScreen, ScanEditParams>(
+                    options = Router.Options.Replace,
+                    arg = ScanEditParams(action, state.location!!),
+                )
+            } catch (_: Throwable) {
+                dispatch(ScanError)
+=======
+            is Path -> {
+                val location = state.location
+                if (location == null) {
+                    dispatch(ScanError)
+                } else {
+                    try {
+                        context.navigate<ScanEditScreen, ScanEditParams>(
+                            options = Router.Options.Replace,
+                            arg = ScanEditParams(action.toString(), location),
+                        )
+                    } catch (_: Throwable) {
+                        dispatch(ScanError)
+                    }
+                }
+>>>>>>> Stashed changes
             }
 
             is Back -> context.router.navigateBack()
@@ -61,6 +86,7 @@ class ScanCaptureEnvironment(
     override fun reduce(state: ScanState, action: Action) = when (action) {
         is Location -> state.copy(
             location = action,
+            enabled = true,
         )
 
         is CameraAuthorizationLoaded -> if (

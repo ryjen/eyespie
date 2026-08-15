@@ -54,7 +54,10 @@ class ScanCaptureScreen : Screen, StateRenderer<ScanUiState> {
 
         LaunchedEffect(Unit) {
             screenModel.dispatch(ScanAction.RefreshCameraAuthorization)
-            permissions.providePermission(Permission.LOCATION)
+            try {
+                permissions.providePermission(Permission.LOCATION)
+            } catch (_: Throwable) {
+            }
         }
 
         Render(state, screenModel)

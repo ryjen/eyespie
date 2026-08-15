@@ -110,6 +110,31 @@ class ScanEditEnvironmentTest {
             ScanEditState(path = "/test.jpg".toPath()),
             cameraImage,
         )
+<<<<<<< Updated upstream
+||||||| Stash base
+        
+        uploadCaptureUseCase.result = Result.success(com.micrantha.eyespie.domain.entities.Thing(
+            id = "t1",
+            createdBy = Player.Ref("p1", "p1"),
+            imageUrl = "url",
+            createdAt = Clock.System.now(),
+            location = com.micrantha.eyespie.domain.entities.Location.Point(1.0, 2.0),
+            guessed = false,
+            guesses = emptyList()
+        ))
+=======
+        
+        uploadCaptureUseCase.result = Result.success(com.micrantha.eyespie.domain.entities.Thing(
+            id = "t1",
+            createdBy = Player.Ref("p1", "p1"),
+            imageUrl = "url",
+            createdAt = Clock.System.now(),
+            location = com.micrantha.eyespie.domain.entities.Location.Point(1.0, 2.0),
+            clues = emptySet(),
+            guessed = false,
+            guesses = emptyList()
+        ))
+>>>>>>> Stashed changes
 
         assertTrue(loading.isBusy)
         environment.invoke(cameraImage, loading)

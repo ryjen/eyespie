@@ -1,10 +1,12 @@
 package com.micrantha.eyespie.features.scan.usecase
 
 import com.micrantha.bluebell.domain.usecase.dispatchUseCase
+import com.micrantha.bluebell.observability.logger
 import com.micrantha.bluebell.platform.FileSystem
 import com.micrantha.eyespie.core.data.account.model.CurrentSession
 import com.micrantha.eyespie.domain.entities.Proof
 import com.micrantha.eyespie.domain.entities.Thing
+import com.micrantha.eyespie.domain.entities.floats
 import com.micrantha.eyespie.domain.repository.StorageRepository
 import com.micrantha.eyespie.domain.repository.ThingRepository
 import com.micrantha.eyespie.platform.scan.LoadCameraImageUseCase
@@ -32,6 +34,20 @@ class UploadCaptureUseCaseImpl(
     private val session: CurrentSession = CurrentSession
 ) : UploadCaptureUseCase {
 
+<<<<<<< Updated upstream
+||||||| Stash base
+    override fun close() {
+        imageEmbeddingGenerator.close()
+    }
+
+=======
+    private val log by logger()
+
+    override fun close() {
+        imageEmbeddingGenerator.close()
+    }
+
+>>>>>>> Stashed changes
     @OptIn(ExperimentalUuidApi::class)
     override suspend fun invoke(
         proof: Proof,
@@ -47,17 +63,23 @@ class UploadCaptureUseCaseImpl(
         val cameraImage = loadCameraImageUseCase(image).getOrThrow()
         val embedding = imageEmbeddingGenerator.generate(cameraImage)
 
+        log.debug { "generated embedding version $modelVersion with ${embedding.floats().size} dimensions" }
+
         val imageID = Uuid.random().toString()
 
         storageRepository.upload(
             "${playerID}/${imageID}.${imageExtension}",
             imageData
-        ).map { url ->
+        ).onFailure {
+            log.error(it) { "failed to upload image" }
+        }.map { url ->
             thingRepository.create(
                 proof.copy(embedding = embedding),
                 url,
                 playerID
-            ).getOrThrow()
+            ).onFailure {
+                log.error(it) { "failed to create thing" }
+            }.getOrThrow()
         }.getOrThrow()
     }
 }

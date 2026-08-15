@@ -12,7 +12,6 @@ import com.micrantha.eyespie.features.scan.entities.ClueAuthoringMode
 import com.micrantha.eyespie.features.scan.entities.ScanClue
 import com.micrantha.eyespie.features.scan.entities.ScanEditParams
 import com.micrantha.eyespie.features.scan.entities.ScanEditUiState
-import okio.Path.Companion.toPath
 
 @Preview(showBackground = true, backgroundColor = 0xFF, widthDp = 200, heightDp = 400)
 @Composable
@@ -52,7 +51,7 @@ fun ScanEditPreview() = PreviewContext(
 ) {
     ScanEditScreen(
         ScanEditParams(
-            image = "some/image".toPath(),
+            image = "some/image",
             location = Location()
         )
     )

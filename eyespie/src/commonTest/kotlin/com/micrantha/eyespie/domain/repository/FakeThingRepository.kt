@@ -27,6 +27,7 @@ class FakeThingRepository : ThingRepository {
                 imageUrl = imageUrl,
                 createdAt = System.now(),
                 location = Location.Point(0.0, 0.0),
+                clues = proof.clues ?: emptySet(),
                 guessed = false,
                 guesses = emptyList()
             )

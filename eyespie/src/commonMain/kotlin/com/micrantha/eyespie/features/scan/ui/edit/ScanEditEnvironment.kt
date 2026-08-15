@@ -7,6 +7,7 @@ import com.micrantha.bluebell.arch.Effect
 import com.micrantha.bluebell.arch.Reducer
 import com.micrantha.bluebell.arch.StateMapper
 import com.micrantha.bluebell.domain.stateMapOf
+import com.micrantha.bluebell.observability.logger
 import com.micrantha.bluebell.ui.components.Router
 import com.micrantha.bluebell.ui.screen.ScreenContext
 import com.micrantha.eyespie.domain.entities.AiClue
@@ -36,6 +37,7 @@ import com.micrantha.eyespie.features.scan.entities.ScanEditUiState
 import com.micrantha.eyespie.features.scan.usecase.UploadCaptureUseCase
 import com.micrantha.eyespie.platform.scan.CameraImage
 import com.micrantha.eyespie.platform.scan.LoadCameraImageUseCase
+import okio.Path.Companion.toPath
 
 class ScanEditEnvironment(
     private val context: ScreenContext,
@@ -45,12 +47,30 @@ class ScanEditEnvironment(
 ) : Reducer<ScanEditState>, Effect<ScanEditState>,
     StateMapper<ScanEditState, ScanEditUiState>,
     Dispatcher by context.dispatcher,
+<<<<<<< Updated upstream
     Router by context.router {
+||||||| Stash base
+    Router by context.router, AutoCloseable {
+
+    override fun close() {
+        uploadCaptureUseCase.close()
+    }
+=======
+    Router by context.router, AutoCloseable {
+
+    private val log by logger()
+
+    override fun close() {
+        uploadCaptureUseCase.close()
+    }
+>>>>>>> Stashed changes
 
     override fun reduce(state: ScanEditState, action: Action) = when (action) {
         is Init -> state.copy(
-            path = action.params.image,
+            path = action.params.image.toPath(),
             location = action.params.location,
+            isError = false,
+            errorMessage = null
         )
 
         is CameraImage -> state.copy(
@@ -80,8 +100,58 @@ class ScanEditEnvironment(
             )
         } else {
             state.copy(
+<<<<<<< Updated upstream
                 authoringMode = ClueAuthoringMode.MANUAL,
                 generationUnavailable = true,
+||||||| Stash base
+                customClues = newCustom,
+                hasSelected = true
+            )
+        }
+
+        is RemoveCustomClue -> {
+            val newCustom = state.customClues?.remove(action.id)
+            state.copy(
+                customClues = newCustom,
+                hasSelected = (newCustom?.values?.any { it.isSelected } ?: false) || (state.selected?.values?.any { it.isSelected } ?: false)
+            )
+        }
+
+        is AnalyzedClues -> {
+            val newSelected = stateMapOf(action.value.mapIndexed { index, clue ->
+                index to clue.toScanClue(index)
+            }.toMap())
+            state.copy(
+                clues = action.value,
+                selected = newSelected,
+=======
+                customClues = newCustom,
+                hasSelected = true
+            )
+        }
+
+        is RemoveCustomClue -> {
+            val newCustom = state.customClues?.remove(action.id)
+            state.copy(
+                customClues = newCustom,
+                hasSelected = (newCustom?.values?.any { it.isSelected } ?: false) || (state.selected?.values?.any { it.isSelected } ?: false)
+            )
+        }
+
+        is Retry -> state.copy(
+            isBusy = true,
+            isError = false,
+            errorMessage = null
+        )
+
+        is AnalyzedClues -> {
+            val newSelected = stateMapOf(action.value.mapIndexed { index, clue ->
+                index to clue.toScanClue(index)
+            }.toMap())
+            state.copy(
+                clues = action.value,
+                selected = newSelected,
+>>>>>>> Stashed changes
                 isBusy = false,
                 isError = false,
             )
@@ -142,12 +212,19 @@ class ScanEditEnvironment(
         is LoadError -> state.copy(
             disabled = false,
             isBusy = false,
+<<<<<<< Updated upstream
             isError = true,
         )
 
         is Retry -> state.copy(
             isBusy = state.image == null,
             isError = false,
+||||||| Stash base
+            isError = true
+=======
+            isError = true,
+            errorMessage = action.message
+>>>>>>> Stashed changes
         )
 
         else -> state
@@ -155,6 +232,7 @@ class ScanEditEnvironment(
 
     override suspend fun invoke(action: Action, state: ScanEditState) {
         when (action) {
+<<<<<<< Updated upstream
             is Init -> loadImage(state)
 
             is CameraImage -> dispatch(
@@ -179,6 +257,21 @@ class ScanEditEnvironment(
                     }.onFailure {
                         dispatch(GeneratedCluesUnavailable)
                     }
+||||||| Stash base
+            is Init -> {
+                loadCameraImageUseCase(state.path!!).onSuccess {
+                    dispatch(it)
+                }.onFailure {
+                    dispatch(LoadError)
+=======
+            is Init -> {
+                val path = action.params.image.toPath()
+                loadCameraImageUseCase(path).onSuccess {
+                    dispatch(it)
+                }.onFailure {
+                    log.error(it) { "unable to load image from path $path" }
+                    dispatch(LoadError(it.message))
+>>>>>>> Stashed changes
                 }
             }
 
@@ -194,7 +287,14 @@ class ScanEditEnvironment(
                 ).onSuccess {
                     navigateBack()
                 }.onFailure {
+<<<<<<< Updated upstream
                     dispatch(SaveThingError)
+||||||| Stash base
+                    dispatch(LoadError)
+=======
+                    log.error(it) { "unable to get clues for path ${state.path}" }
+                    dispatch(LoadError(it.message))
+>>>>>>> Stashed changes
                 }
             }.onFailure {
                 dispatch(SaveThingError)
@@ -202,6 +302,7 @@ class ScanEditEnvironment(
         }
     }
 
+<<<<<<< Updated upstream
     override fun map(state: ScanEditState): ScanEditUiState {
         val canSave = when (state.authoringMode) {
             ClueAuthoringMode.CHOOSE -> false
@@ -210,6 +311,34 @@ class ScanEditEnvironment(
                 state.manualClue,
                 state.manualAnswer,
             ).isSuccess
+||||||| Stash base
+    override fun map(state: ScanEditState) = ScanEditUiState(
+        image = state.image?.let { BitmapPainter(it.toImageBitmap()) },
+        enabled = state.disabled.not() && state.hasSelected,
+        clues = (state.selected?.values ?: emptyList()) + (state.customClues?.values ?: emptyList()),
+        isBusy = state.isBusy,
+        isError = state.isError
+    )
+
+    private fun ScanEditState.asProof(): Proof {
+        val selectedClues = mutableListOf<AiClue>()
+        selected?.values?.filter { it.isSelected }?.forEach {
+            selectedClues.add(AiClue(it.clue, 1.0f, it.answer))
+=======
+    override fun map(state: ScanEditState) = ScanEditUiState(
+        image = state.image?.let { BitmapPainter(it.toImageBitmap()) },
+        enabled = state.disabled.not() && state.hasSelected,
+        clues = (state.selected?.values ?: emptyList()) + (state.customClues?.values ?: emptyList()),
+        isBusy = state.isBusy,
+        isError = state.isError,
+        errorMessage = state.errorMessage
+    )
+
+    private fun ScanEditState.asProof(): Proof {
+        val selectedClues = mutableListOf<AiClue>()
+        selected?.values?.filter { it.isSelected }?.forEach {
+            selectedClues.add(AiClue(it.clue, 1.0f, it.answer))
+>>>>>>> Stashed changes
         }
         return ScanEditUiState(
             image = state.image?.let { BitmapPainter(it.toImageBitmap()) },

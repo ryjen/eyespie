@@ -23,7 +23,7 @@ sealed interface ScanEditAction {
 
     data object SaveThingError : ScanEditAction
 
-    data object LoadError : ScanEditAction
+    data class LoadError(val message: String? = null) : ScanEditAction
 
     data object Retry : ScanEditAction
 

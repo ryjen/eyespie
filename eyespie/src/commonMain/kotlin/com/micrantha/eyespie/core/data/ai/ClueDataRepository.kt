@@ -28,6 +28,7 @@ internal class ClueDataRepository(
         allowSpecialFloatingPointValues = false
     },
 ) : ClueRepository {
+<<<<<<< Updated upstream
 
     override val canGenerateClues: Boolean
         get() {
@@ -37,14 +38,88 @@ internal class ClueDataRepository(
                 availability.capabilities.textGeneration &&
                 availability.capabilities.imageInput
         }
+||||||| Stash base
+    private val log by logger()
+    private val images = mutableSetOf<String>()
+
+    private fun imageParam(image: Path) = if (images.contains(image.toString()))
+        emptyList() // already added
+    else
+        images.apply { add("file://$image") }.toList()
+=======
+    private val log by logger()
+>>>>>>> Stashed changes
 
     override suspend fun guess(image: Path, clue: GuessClue): Result<String> =
         withTimeout(timeout) {
             inferenceProvider.generate(
                 request(
                     prompt = cluePromptSource.guess(clue.data),
+<<<<<<< Updated upstream
                     image = image,
+||||||| Stash base
+                    images = imageParam(image)
+=======
+                    images = listOf("file://$image")
+>>>>>>> Stashed changes
                 )
+<<<<<<< Updated upstream
+||||||| Stash base
+            ).onSuccess {
+                log.debug(it)
+            }.onFailure {
+                log.error(it) { "unable to infer" }
+            }
+        }
+
+    override suspend fun clues(image: Path): Result<AiProof> =
+        withTimeout(timeout) {
+            llm.generate(
+                GenAIRequest(
+                    prompt = cluePromptSource.clues(),
+                    images = imageParam(image)
+                )
+            ).onSuccess(log::debug).onFailure {
+                log.error(it) { "unable to infer" }
+            }.map(::toProof)
+        }
+
+
+    fun infer(image: Path): Flow<AiProof> {
+        return llm.generateFlow(
+            GenAIRequest(
+                prompt = cluePromptSource.clues(),
+                images = imageParam(image)
+=======
+            ).onSuccess {
+                log.debug(it)
+            }.onFailure {
+                log.error(it) { "unable to infer" }
+            }
+        }
+
+    override suspend fun clues(image: Path): Result<AiProof> =
+        withTimeout(timeout) {
+            log.debug { "requesting clues for $image" }
+            llm.generate(
+                GenAIRequest(
+                    prompt = cluePromptSource.clues(),
+                    images = listOf("file://$image")
+                )
+            ).onSuccess {
+                log.debug { "llm generated output: $it" }
+            }.onFailure {
+                log.error(it) { "llm.generate failed for $image" }
+            }.map(::toProof)
+        }
+
+
+    fun infer(image: Path): Flow<AiProof> {
+        return llm.generateFlow(
+            GenAIRequest(
+                prompt = cluePromptSource.clues(),
+                images = listOf("file://$image")
+>>>>>>> Stashed changes
             )
         }
 
@@ -89,6 +164,7 @@ internal class ClueDataRepository(
         )
     }
 
+<<<<<<< Updated upstream
     private fun parseEnvelope(
         output: SemanticInferenceOutput,
         repaired: Boolean,
@@ -123,4 +199,24 @@ internal class ClueDataRepository(
     private companion object {
         const val MAX_REPAIR_INPUT_LENGTH = 4096
     }
+||||||| Stash base
+    private fun toProof(output: String) =
+        output.lines().chunked(3).map { (clue, answer, confidence) ->
+            AiClue(
+                clue, confidence.toFloat(), answer
+            )
+        }.toSet()
+=======
+    private fun toProof(output: String) =
+        output.lines().asSequence()
+            .map { it.trim() }
+            .filter { it.isNotEmpty() }
+            .chunked(3)
+            .filter { it.size == 3 }
+            .mapNotNull { chunk ->
+                val (clue, answer, confidenceStr) = chunk
+                val confidence = confidenceStr.filter { it.isDigit() || it == '.' }.toFloatOrNull() ?: 1.0f
+                AiClue(clue, confidence, answer)
+            }.toSet()
+>>>>>>> Stashed changes
 }

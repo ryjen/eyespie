@@ -34,6 +34,43 @@ class MatchCaptureUseCaseTest {
 
     @Test
     fun `invoke should return match result`() = runTest {
+<<<<<<< Updated upstream
+||||||| Stash base
+        val image = object : CameraImage {
+            override val width = 0
+            override val height = 0
+            override fun toByteArray() = byteArrayOf()
+            override fun toImageBitmap() = TODO()
+        }
+        val thing = Thing(
+            id = "1",
+            createdAt = Instant.parse("2023-01-01T00:00:00Z"),
+            createdBy = Player.Ref("p1", "player"),
+            guessed = false,
+            guesses = emptyList(),
+            imageUrl = "url",
+            location = com.micrantha.eyespie.domain.entities.Location.Point(0.0, 0.0)
+        )
+
+=======
+        val image = object : CameraImage {
+            override val width = 0
+            override val height = 0
+            override fun toByteArray() = byteArrayOf()
+            override fun toImageBitmap() = TODO()
+        }
+        val thing = Thing(
+            id = "1",
+            createdAt = Instant.parse("2023-01-01T00:00:00Z"),
+            createdBy = Player.Ref("p1", "player"),
+            guessed = false,
+            guesses = emptyList(),
+            imageUrl = "url",
+            location = com.micrantha.eyespie.domain.entities.Location.Point(0.0, 0.0),
+            clues = emptySet()
+        )
+
+>>>>>>> Stashed changes
         repository.matchResult = Result.success(emptyList())
 
         val result = useCase(image(), thing()).first().getOrThrow()

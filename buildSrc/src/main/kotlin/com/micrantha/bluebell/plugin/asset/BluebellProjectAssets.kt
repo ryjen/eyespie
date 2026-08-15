@@ -115,6 +115,191 @@ abstract class ConfigureBluebellAssetsTask : DefaultTask() {
 
         generateAssetConfigs(projectDir, logger, propertyResolver, manifestVal, modelsVal, downloadsVal)
     }
+<<<<<<< Updated upstream
+||||||| Stash base
+
+    private fun generateModelManifest(projectDir: File, model: BluebellAsset.ModelAsset) {
+        val dest = model.destination(projectDir).firstOrNull() ?: return
+        val fileName = model.filename ?: model.name
+        val modelFile = dest.resolve(fileName)
+        if (!modelFile.exists()) return
+
+        val manifestFile = dest.resolve("manifest.json")
+        val sha256 = modelFile.sha256()
+        val size = modelFile.length()
+        val version = "${model.name}-local"
+
+        val manifestContent = """
+            {
+              "schemaVersion": 1,
+              "modelId": "eyespie-offline-model",
+              "version": "$version",
+              "filename": "$fileName",
+              "sizeBytes": $size,
+              "sha256": "$sha256",
+              "runtime": {
+                "engine": "mediapipe",
+                "minimumRuntimeVersion": "0.10.35",
+                "minimumModelAbi": 1
+              }
+            }
+        """.trimIndent()
+        manifestFile.writeText(manifestContent)
+
+        updateKotlinDescriptor(projectDir, version, fileName, size, sha256)
+    }
+
+    private fun updateKotlinDescriptor(
+        projectDir: File,
+        version: String,
+        filename: String,
+        size: Long,
+        sha256: String
+    ) {
+        val moduleFile = projectDir.resolve("src/androidMain/kotlin/com/micrantha/eyespie/model/Module.android.kt")
+        if (!moduleFile.exists()) return
+
+        val content = moduleFile.readText()
+        val pattern = Regex("""internal val androidSmokeModelDescriptor = ModelAssetDescriptor\(.*?\n\)""", RegexOption.DOT_MATCHES_ALL)
+        
+        val replacement = """
+            internal val androidSmokeModelDescriptor = ModelAssetDescriptor(
+                id = "eyespie-offline-model",
+                version = "$version",
+                filename = "$filename",
+                expectedBytes = ${size}L,
+                sha256 = "$sha256",
+                runtime = ModelRuntimeCompatibility(
+                    engine = "mediapipe",
+                    minimumRuntimeVersion = "0.10.35",
+                    minimumModelAbi = 1,
+                ),
+            )
+        """.trimIndent().trim()
+
+        val updated = content.replace(pattern, replacement)
+        if (updated != content) {
+            moduleFile.writeText(updated)
+        }
+    }
+=======
+
+    private fun generateModelManifest(projectDir: File, model: BluebellAsset.ModelAsset) {
+        val dest = model.destination(projectDir).firstOrNull() ?: return
+        val fileName = model.filename ?: model.name
+        val modelFile = dest.resolve(fileName)
+        if (!modelFile.exists()) return
+
+        val manifestFile = dest.resolve("manifest.json")
+        val sha256 = modelFile.sha256()
+        val size = modelFile.length()
+        val version = "${model.name}-local"
+
+        val manifestContent = """
+            {
+              "schemaVersion": 1,
+              "modelId": "eyespie-offline-model",
+              "version": "$version",
+              "filename": "$fileName",
+              "sizeBytes": $size,
+              "sha256": "$sha256",
+              "runtime": {
+                "engine": "mediapipe",
+                "minimumRuntimeVersion": "0.10.35",
+                "minimumModelAbi": 1
+              }
+            }
+        """.trimIndent()
+        manifestFile.writeText(manifestContent)
+
+        updateKotlinDescriptors(projectDir, version, fileName, size, sha256)
+    }
+
+    private fun updateKotlinDescriptors(
+        projectDir: File,
+        version: String,
+        filename: String,
+        size: Long,
+        sha256: String
+    ) {
+        updateAndroidDescriptor(projectDir, version, filename, size, sha256)
+        updateIosDescriptor(projectDir, version, filename, size, sha256)
+    }
+
+    private fun updateAndroidDescriptor(
+        projectDir: File,
+        version: String,
+        filename: String,
+        size: Long,
+        sha256: String
+    ) {
+        val moduleFile = projectDir.resolve("src/androidMain/kotlin/com/micrantha/eyespie/model/Module.android.kt")
+        if (!moduleFile.exists()) return
+
+        val content = moduleFile.readText()
+        val pattern = Regex("""internal val androidSmokeModelDescriptor = ModelAssetDescriptor\(.*?\n\)""", RegexOption.DOT_MATCHES_ALL)
+        
+        val replacement = """
+            internal val androidSmokeModelDescriptor = ModelAssetDescriptor(
+                id = "eyespie-offline-model",
+                version = "$version",
+                filename = "$filename",
+                expectedBytes = ${size}L,
+                sha256 = "$sha256",
+                runtime = ModelRuntimeCompatibility(
+                    engine = "mediapipe",
+                    minimumRuntimeVersion = "0.10.35",
+                    minimumModelAbi = 1,
+                ),
+            )
+        """.trimIndent().trim()
+
+        val updated = content.replace(pattern, replacement)
+        if (updated != content) {
+            moduleFile.writeText(updated)
+        }
+    }
+
+    private fun updateIosDescriptor(
+        projectDir: File,
+        version: String,
+        filename: String,
+        size: Long,
+        sha256: String
+    ) {
+        val moduleFile = projectDir.resolve("src/iosMain/kotlin/com/micrantha/eyespie/model/Module.ios.kt")
+        if (!moduleFile.exists()) return
+
+        val content = moduleFile.readText()
+        val pattern = Regex("""internal val iosSmokeModelDescriptor = ModelAssetDescriptor\(.*?\n\)""", RegexOption.DOT_MATCHES_ALL)
+        
+        val replacement = """
+            internal val iosSmokeModelDescriptor = ModelAssetDescriptor(
+                id = "eyespie-offline-model",
+                version = "$version",
+                filename = "$filename",
+                expectedBytes = ${size}L,
+                sha256 = "$sha256",
+                runtime = ModelRuntimeCompatibility(
+                    engine = "mediapipe",
+                    minimumRuntimeVersion = "0.10.35",
+                    minimumModelAbi = 1,
+                ),
+            )
+        """.trimIndent().trim()
+
+        val updated = if (content.contains("internal val iosSmokeModelDescriptor")) {
+            content.replace(pattern, replacement)
+        } else {
+            // If it doesn't exist, insert it before the first function
+            content.replaceFirst("internal fun", "$replacement\n\ninternal fun")
+        }
+
+        if (updated != content) {
+            moduleFile.writeText(updated)
+        }
+    }
+>>>>>>> Stashed changes
 }
 
 internal fun Project.configureAssets(assets: BluebellAssets, downloads: BluebellDownloads) {

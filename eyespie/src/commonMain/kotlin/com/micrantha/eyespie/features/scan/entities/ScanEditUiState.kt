@@ -12,5 +12,12 @@ data class ScanEditUiState(
     val canUseGenerated: Boolean,
     val isBusy: Boolean,
     val enabled: Boolean,
+<<<<<<< Updated upstream
     val isError: Boolean,
+||||||| Stash base
+    val isError: Boolean
+=======
+    val isError: Boolean,
+    val errorMessage: String? = null
+>>>>>>> Stashed changes
 )

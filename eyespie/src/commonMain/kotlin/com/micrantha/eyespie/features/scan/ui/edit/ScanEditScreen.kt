@@ -63,7 +63,7 @@ import com.micrantha.eyespie.generated.resources.use_generated_clues
 import com.micrantha.eyespie.generated.resources.write_clue_manually
 import org.jetbrains.compose.resources.stringResource
 
-class ScanEditScreen(
+data class ScanEditScreen(
     private val params: ScanEditParams
 ) : Screen, StateRenderer<ScanEditUiState> {
 
@@ -92,6 +92,7 @@ class ScanEditScreen(
                 )
             }
 
+<<<<<<< Updated upstream
             Box(
                 modifier = Modifier.align(Alignment.Center).fillMaxSize().padding(Dimensions.screen)
             ) {
@@ -99,6 +100,72 @@ class ScanEditScreen(
                     state.isBusy -> Loading()
                     state.isError -> Error(dispatch)
                     else -> Authoring(state, dispatch)
+||||||| Stash base
+            Spacer(Modifier.height(Dimensions.content))
+
+            if (state.isBusy) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(Dimensions.progress)
+                )
+            } else if (state.isError) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Block,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.error,
+                    )
+                    Spacer(Modifier.height(Dimensions.Padding.small))
+                    Text(
+                        textAlign = TextAlign.Center,
+                        text = stringResource(S.loading_error)
+                    )
+                    FilledIconButton(
+                        onClick = { dispatch(Retry) },
+                    ) {
+                        Icon(
+                            Icons.Default.Refresh, null
+                        )
+                    }
+=======
+            Spacer(Modifier.height(Dimensions.content))
+
+            if (state.isBusy) {
+                CircularProgressIndicator(
+                    modifier = Modifier.size(Dimensions.progress)
+                )
+            } else if (state.isError) {
+                Column(
+                    horizontalAlignment = Alignment.CenterHorizontally
+                ) {
+                    Icon(
+                        imageVector = Icons.Default.Block,
+                        contentDescription = null,
+                        tint = MaterialTheme.colorScheme.error,
+                    )
+                    Spacer(Modifier.height(Dimensions.Padding.small))
+                    Text(
+                        textAlign = TextAlign.Center,
+                        text = stringResource(S.loading_error)
+                    )
+                    state.errorMessage?.let {
+                        Spacer(Modifier.height(Dimensions.Padding.small))
+                        Text(
+                            textAlign = TextAlign.Center,
+                            text = it,
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.secondary
+                        )
+                    }
+                    FilledIconButton(
+                        onClick = { dispatch(Retry) },
+                    ) {
+                        Icon(
+                            Icons.Default.Refresh, null
+                        )
+                    }
+>>>>>>> Stashed changes
                 }
             }
 

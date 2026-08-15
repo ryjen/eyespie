@@ -13,7 +13,16 @@ data class Thing(
     val guesses: List<Guess>,
     val imageUrl: ImagePath,
     val location: Location.Point,
+<<<<<<< Updated upstream
     val embedding: Embedding? = null
+||||||| Stash base
+    val embedding: Embedding? = null,
+    val modelVersion: String? = null,
+=======
+    val clues: AiProof = emptySet(),
+    val embedding: Embedding? = null,
+    val modelVersion: String? = null,
+>>>>>>> Stashed changes
 ) : Entity, Creatable {
 
     data class Guess(

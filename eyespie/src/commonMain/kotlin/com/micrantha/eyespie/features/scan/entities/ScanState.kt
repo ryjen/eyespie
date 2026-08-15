@@ -6,7 +6,7 @@ import com.micrantha.eyespie.features.onboarding.entities.CapabilityAuthorizatio
 
 @Stable
 data class ScanState(
-    val enabled: Boolean = true,
+    val enabled: Boolean = false,
     val busy: Boolean = false,
     val location: Location? = null,
     val cameraAuthorization: CapabilityAuthorization = CapabilityAuthorization.NotRequested,

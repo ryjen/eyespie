@@ -1,19 +1,20 @@
 package com.micrantha.eyespie.domain.entities
 
+import com.micrantha.bluebell.platform.Serializable
 import com.micrantha.eyespie.domain.logic.distanceTo
-import kotlinx.serialization.Serializable
+import kotlinx.serialization.Serializable as KSerializable
 
-@Serializable
+@KSerializable
 data class Location(
     val point: Point = Point(),
     val data: Data? = null,
-) : Comparable<Location> {
+) : Comparable<Location>, Serializable {
 
-    @Serializable
+    @KSerializable
     data class Point(
         val latitude: Double = Double.NaN,
         val longitude: Double = Double.NaN
-    ) : Comparable<Point> {
+    ) : Comparable<Point>, Serializable {
 
         val isValid = !latitude.isNaN() && !longitude.isNaN()
 
@@ -26,14 +27,14 @@ data class Location(
         }
     }
 
-    @Serializable
+    @KSerializable
     data class Data(
         val name: String? = null,
         val city: String? = null,
         var region: String? = null,
         var country: String? = null,
         var accuracy: Float = Float.NaN
-    ) : Comparable<Data> {
+    ) : Comparable<Data>, Serializable {
         override fun compareTo(other: Data) =
             accuracy.compareTo(other.accuracy)
     }

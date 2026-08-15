@@ -29,5 +29,6 @@ data class ScanEditState(
     val path: Path? = null,
     val isBusy: Boolean = true,
     val isError: Boolean = false,
+    val errorMessage: String? = null,
     val hasSelected: Boolean = false,
 )

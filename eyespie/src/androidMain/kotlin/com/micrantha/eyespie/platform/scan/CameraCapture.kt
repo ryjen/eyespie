@@ -21,10 +21,12 @@ import androidx.camera.core.resolutionselector.AspectRatioStrategy
 import androidx.camera.core.resolutionselector.ResolutionSelector
 import androidx.camera.core.resolutionselector.ResolutionSelector.PREFER_HIGHER_RESOLUTION_OVER_CAPTURE_RATE
 import androidx.camera.core.resolutionselector.ResolutionStrategy
+import android.util.Log
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -37,11 +39,24 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.exifinterface.media.ExifInterface
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import com.google.common.util.concurrent.ListenableFuture
+import kotlinx.coroutines.suspendCancellableCoroutine
 import okio.Path
 import okio.Path.Companion.toOkioPath
 import java.io.File
+<<<<<<< Updated upstream
 import java.util.concurrent.Executors
+||||||| Stash base
+import java.io.FileOutputStream
+import java.util.concurrent.Executors
+=======
+import java.io.FileOutputStream
+>>>>>>> Stashed changes
 import java.util.concurrent.TimeUnit
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
+
+private const val TAG = "CameraCapture"
 
 private const val CAPTURE_PREFIX = "eyespie-capture-"
 private const val CAPTURE_SUFFIX = ".jpg"
@@ -82,8 +97,31 @@ actual fun CameraCapture(
     var cameraProvider by remember { mutableStateOf<ProcessCameraProvider?>(null) }
 
     val cameraSelector by remember { mutableStateOf(CameraSelector.DEFAULT_BACK_CAMERA) }
+<<<<<<< Updated upstream
+||||||| Stash base
+
+    val outputOptions = remember {
+        ImageCapture.OutputFileOptions.Builder(
+            context.contentResolver,
+            MediaStore.Images.Media.EXTERNAL_CONTENT_URI,
+            ContentValues()
+        ).build()
+    }
+=======
+
+    val photoFile = remember { File.createTempFile("camera", ".jpg", context.cacheDir) }
+
+    val outputOptions = remember {
+        ImageCapture.OutputFileOptions.Builder(photoFile).build()
+    }
+
+>>>>>>> Stashed changes
     var camera by remember { mutableStateOf<Camera?>(null) }
     val rotation = remember { mutableIntStateOf(context.getDisplayRotation()) }
+
+    LaunchedEffect(context) {
+        cameraProvider = ProcessCameraProvider.getInstance(context).await(context)
+    }
 
     DisposableEffect(Unit) {
         context.pruneStaleCaptureFiles()
@@ -103,12 +141,6 @@ actual fun CameraCapture(
         }
     }
 
-    DisposableEffect(cameraSelector) {
-        onDispose {
-            cameraProvider?.unbindAll()
-        }
-    }
-
     AndroidView(
         modifier = modifier,
         factory = { context ->
@@ -117,28 +149,20 @@ actual fun CameraCapture(
             }
         },
         update = { previewView ->
-            val context = previewView.context
-            val executor = ContextCompat.getMainExecutor(context)
+            val provider = cameraProvider ?: return@AndroidView
 
-            ProcessCameraProvider.getInstance(context).apply {
-                addListener({
-                    cameraProvider = get().apply {
-                        unbindAll()
-                        camera = bindToLifecycle(
-                            lifecycleOwner,
-                            cameraSelector,
-                            createCameraUseCases(
-                                previewView.surfaceProvider,
-                                resolutionSelector,
-                                imageCapture,
-                            )
-                        ).apply {
-                            previewView.enableZoom(this)
-                        }
-                    }
-                }, executor)
+            provider.unbindAll()
+            camera = provider.bindToLifecycle(
+                lifecycleOwner,
+                cameraSelector,
+                createCameraUseCases(
+                    previewView.surfaceProvider,
+                    resolutionSelector,
+                    imageCapture,
+                )
+            ).apply {
+                previewView.enableZoom(this)
             }
-
         }
     )
 
@@ -151,10 +175,37 @@ actual fun CameraCapture(
             .build()
 
         camera?.cameraControl?.startFocusAndMetering(focusAction)?.addListener({
+<<<<<<< Updated upstream
             val outputFile = runCatching { context.createCaptureFile() }
                 .getOrElse {
                     onCameraError(it)
                     return@addListener
+||||||| Stash base
+            val executor = Executors.newSingleThreadExecutor()
+            imageCapture.takePicture(
+                outputOptions,
+                executor,
+                object : ImageCapture.OnImageSavedCallback {
+                    override fun onError(exception: ImageCaptureException) {
+                        onCameraError(exception)
+                    }
+
+                    override fun onImageSaved(outputFileResults: ImageCapture.OutputFileResults) {
+                        onCameraImage(context.saveImageToPath(outputFileResults.savedUri!!))
+                    }
+=======
+            imageCapture.takePicture(
+                outputOptions,
+                ContextCompat.getMainExecutor(context),
+                object : ImageCapture.OnImageSavedCallback {
+                    override fun onError(exception: ImageCaptureException) {
+                        onCameraError(exception)
+                    }
+
+                    override fun onImageSaved(outputFileResults: ImageCapture.OutputFileResults) {
+                        onCameraImage(photoFile.absolutePath.toPath())
+                    }
+>>>>>>> Stashed changes
                 }
             val outputOptions = runCatching {
                 ImageCapture.OutputFileOptions.Builder(outputFile).build()
@@ -194,6 +245,16 @@ actual fun CameraCapture(
             }
         }, ContextCompat.getMainExecutor(context))
     }
+}
+
+suspend fun <T> ListenableFuture<T>.await(context: Context) = suspendCancellableCoroutine { cont ->
+    addListener({
+        try {
+            cont.resume(get())
+        } catch (e: Exception) {
+            cont.resumeWithException(e)
+        }
+    }, ContextCompat.getMainExecutor(context))
 }
 
 fun exifOrientationToDegrees(orientation: Int): Int {

@@ -67,6 +67,7 @@ class CaptureSyncRepositoryTest {
             imageUrl = "url",
             createdAt = kotlin.time.Clock.System.now(),
             location = com.micrantha.eyespie.domain.entities.Location.Point(0.0, 0.0),
+            clues = emptySet(),
             guessed = false,
             guesses = emptyList()
         ))

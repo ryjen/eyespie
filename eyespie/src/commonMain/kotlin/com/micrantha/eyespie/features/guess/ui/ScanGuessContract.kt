@@ -1,8 +1,9 @@
 package com.micrantha.eyespie.features.guess.ui
 
+import com.micrantha.bluebell.platform.Serializable
 import com.micrantha.eyespie.domain.entities.Thing
 import com.micrantha.eyespie.platform.scan.CameraImage
-import kotlinx.serialization.Serializable
+import kotlinx.serialization.Serializable as KSerializable
 
 data class ScanGuessState(
     val thing: Thing? = null,
@@ -15,10 +16,10 @@ data class ScanGuessUiState(
     val similarity: Float? = null
 )
 
-@Serializable
+@KSerializable
 data class ScanGuessArgs(
     val id: String
-)
+) : Serializable
 
 sealed interface ScanGuessAction {
     data class ImageCaptured(val image: CameraImage) : ScanGuessAction

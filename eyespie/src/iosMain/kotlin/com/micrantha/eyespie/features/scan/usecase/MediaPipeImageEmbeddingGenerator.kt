@@ -9,6 +9,7 @@ import com.micrantha.eyespie.domain.entities.Embedding
 import com.micrantha.eyespie.domain.entities.ImageEmbeddingContract
 import com.micrantha.eyespie.domain.entities.toCanonicalEmbedding
 import com.micrantha.eyespie.platform.scan.CameraImage
+<<<<<<< Updated upstream
 import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.cinterop.ObjCObjectVar
 import kotlinx.cinterop.addressOf
@@ -20,19 +21,47 @@ import kotlinx.cinterop.usePinned
 import kotlinx.cinterop.value
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+||||||| Stash base
+import okio.ByteString
+=======
+import com.micrantha.eyespie.platform.scan.PlatformCameraImage
+import okio.ByteString
+import okio.ByteString.Companion.toByteString
+>>>>>>> Stashed changes
 import org.kodein.di.DI
+<<<<<<< Updated upstream
 import platform.Foundation.NSBundle
 import platform.Foundation.NSData
 import platform.Foundation.NSError
 import platform.Foundation.NSNumber
 import platform.Foundation.create
 import platform.UIKit.UIImage
+||||||| Stash base
+=======
+import cocoapods.MediaPipeTasksVision.MPPImageEmbedder
+import cocoapods.MediaPipeTasksVision.MPPImageEmbedderOptions
+import cocoapods.MediaPipeTasksVision.MPPImage
+import platform.Foundation.NSBundle
+import kotlinx.cinterop.ExperimentalForeignApi
+import kotlinx.cinterop.addressOf
+import kotlinx.cinterop.usePinned
+>>>>>>> Stashed changes
 
+<<<<<<< Updated upstream
 @OptIn(ExperimentalForeignApi::class)
 class MediaPipeImageEmbeddingGenerator(
     private val modelPathProvider: () -> String = ::resolveImageEmbedderModelPath,
 ) : ImageEmbeddingGenerator {
+||||||| Stash base
+class MediaPipeImageEmbeddingGenerator : ImageEmbeddingGenerator {
+=======
+@OptIn(ExperimentalForeignApi::class)
+class MediaPipeImageEmbeddingGenerator(
+    private val modelAssetPath: String = "mobilenet_v3_large.tflite"
+) : ImageEmbeddingGenerator {
+>>>>>>> Stashed changes
 
+<<<<<<< Updated upstream
     override suspend fun generate(image: CameraImage): Embedding = withContext(Dispatchers.Default) {
         autoreleasepool {
             // CameraImage is the public boundary. Production PlatformCameraImage supplies an owned PNG;
@@ -41,7 +70,13 @@ class MediaPipeImageEmbeddingGenerator(
             val mpImage = createMediaPipeImage(uiImage)
             val embedder = createImageEmbedder(modelPathProvider())
             val result = embedImage(embedder, mpImage)
+||||||| Stash base
+    override val version: String = "deterministic-v1"
+=======
+    override val version: String = "mobilenet_v3_large"
+>>>>>>> Stashed changes
 
+<<<<<<< Updated upstream
             canonicalMediaPipeEmbedding(
                 result.embeddingResult.embeddings.map { rawEmbedding ->
                     val embedding = rawEmbedding as? MPPEmbedding
@@ -55,7 +90,14 @@ class MediaPipeImageEmbeddingGenerator(
             )
         }
     }
+||||||| Stash base
+    override suspend fun generate(image: CameraImage): Embedding = 
+        DeterministicImageEmbeddingGenerator().generate(image)
+=======
+    private var imageEmbedder: MPPImageEmbedder? = null
+>>>>>>> Stashed changes
 
+<<<<<<< Updated upstream
     private fun createImageEmbedder(modelPath: String): MPPImageEmbedder = memScoped {
         val options = MPPImageEmbedderOptions().apply {
             baseOptions = MPPBaseOptions().apply {
@@ -83,6 +125,62 @@ class MediaPipeImageEmbeddingGenerator(
         embedder.embedImage(image = image, error = error.ptr)
             ?: mediaPipeFailure("inference", error.value)
     }
+||||||| Stash base
+    override fun close() = Unit
+=======
+    private fun getOrCreateModel(): MPPImageEmbedder {
+        imageEmbedder?.let { return it }
+
+        val mainBundle = NSBundle.mainBundle
+        val path = mainBundle.pathForResource(modelAssetPath.substringBeforeLast("."), modelAssetPath.substringAfterLast("."))
+            ?: throw IllegalStateException("Model not found in bundle: $modelAssetPath")
+
+        val options = MPPImageEmbedderOptions()
+        options.baseOptions.modelAssetPath = path
+        
+        // Quantize is not a direct property on iOS options in the same way, 
+        // it depends on the model itself.
+
+        imageEmbedder = MPPImageEmbedder.imageEmbedderWithOptions(options, null)
+            ?: throw IllegalStateException("Failed to create ImageEmbedder")
+            
+        return imageEmbedder!!
+    }
+
+    override suspend fun generate(image: CameraImage): Embedding {
+        val platformImage = image as PlatformCameraImage
+        val cgImage = platformImage.asCGImage() ?: throw IllegalStateException("Failed to get CGImage")
+        
+        val mppImage = MPPImage(cgImage = cgImage, orientation = platformImage.orientation)
+
+        val result = getOrCreateModel().embedImage(mppImage, null)
+            ?: throw IllegalStateException("Embedding failed")
+
+        val embedding = result.embeddingResult.embeddings.firstOrNull() as? cocoapods.MediaPipeTasksVision.MPPEmbedding
+            ?: throw IllegalStateException("No embedding found")
+
+        val floats = embedding.floatEmbedding
+        if (floats != null) {
+            val count = floats.size.toInt()
+            val byteArray = ByteArray(count * 4)
+            for (i in 0 until count) {
+                val f = floats[i] as Float
+                val bits = f.toBits()
+                byteArray[i * 4] = (bits shr 24).toByte()
+                byteArray[i * 4 + 1] = (bits shr 16).toByte()
+                byteArray[i * 4 + 2] = (bits shr 8).toByte()
+                byteArray[i * 4 + 3] = bits.toByte()
+            }
+            return byteArray.toByteString()
+        }
+
+        throw IllegalStateException("No float embedding found")
+    }
+
+    override fun close() {
+        imageEmbedder = null
+    }
+>>>>>>> Stashed changes
 }
 
 internal fun canonicalMediaPipeEmbedding(heads: List<List<Float>?>): Embedding {
