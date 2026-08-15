@@ -97,6 +97,26 @@ class OfflineGameCoordinatorTest {
     }
 
     @Test
+    fun similarEmbeddingAboveThresholdMatches() = runTest {
+        val coordinator = coordinator(
+            embeddings = QueueEmbeddingGenerator(
+                axis(0),
+                similarToAxisZero(),
+            ),
+        )
+        val created = assertIs<OfflineResult.Success<PlayableGameState>>(
+            coordinator.createManualGame(draft(), image()),
+        ).value
+
+        val outcome = assertIs<OfflineResult.Success<GuessOutcome>>(
+            coordinator.guess(created.id, created.things.single().id, image()),
+        ).value
+
+        assertTrue(outcome.matched)
+        assertEquals(0.8, outcome.similarity, 0.000001)
+    }
+
+    @Test
     fun invalidEmbeddingFailsClosedWithoutSavingAuthority() = runTest {
         val games = MemoryGameRepository()
         val coordinator = coordinator(
@@ -211,6 +231,14 @@ class OfflineGameCoordinatorTest {
     private fun image(): CapturedImage = CapturedImage.fromEncoded(byteArrayOf(1, 2, 3))
 
     private fun axis(index: Int): List<Float> = List(1024) { if (it == index) 1f else 0f }
+
+    private fun similarToAxisZero(): List<Float> = List(1024) { index ->
+        when (index) {
+            0 -> 0.8f
+            1 -> 0.6f
+            else -> 0f
+        }
+    }
 
     private object StaticIdentityRepository : PlayerIdentityRepository {
         override suspend fun current(): PlayerIdentity = PlayerIdentity(
