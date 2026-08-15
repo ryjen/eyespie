@@ -3,7 +3,6 @@ package com.micrantha.eyespie.features.things.data
 import com.micrantha.eyespie.core.data.system.mapping.LocationDomainMapper
 import com.micrantha.eyespie.domain.entities.ImageEmbeddingContract
 import com.micrantha.eyespie.domain.entities.toCanonicalEmbedding
-import com.micrantha.eyespie.domain.entities.toPostgresVector
 import com.micrantha.eyespie.features.things.data.mapping.ThingsDomainMapper
 import com.micrantha.eyespie.features.things.data.model.MatchRequest
 import com.micrantha.eyespie.features.things.data.model.MatchResponse
@@ -27,14 +26,14 @@ class ThingDataRepositoryTest {
         var saveResult: Result<ThingResponse> = Result.failure(Exception("Not implemented"))
         var thingResult: Result<ThingResponse> = Result.failure(Exception("Not found"))
         var nearbyResult: Result<List<ThingResponse>> = Result.success(emptyList())
-        var matchResult: Result<List<MatchResponse>> = Result.success(emptyList())
+        var matchResult: Result<MatchResponse> = Result.failure(Exception("Not configured"))
         var matchRequest: MatchRequest? = null
 
         override suspend fun save(data: ThingRequest) = saveResult
         override suspend fun things(playerID: String) = thingsResult
         override suspend fun thing(thingID: String) = thingResult
         override suspend fun nearby(request: NearbyRequest) = nearbyResult
-        override suspend fun match(request: MatchRequest): Result<List<MatchResponse>> {
+        override suspend fun match(request: MatchRequest): Result<MatchResponse> {
             matchRequest = request
             return matchResult
         }
@@ -70,29 +69,26 @@ class ThingDataRepositoryTest {
     }
 
     @Test
-    fun `match should return canonical local result and send 1024 floats remotely`() = runTest {
+    fun `match should send canonical embedding only for explicit target`() = runTest {
         val embedding = List(ImageEmbeddingContract.dimensions) { index ->
             if (index == 0) 1f else 0f
         }.toCanonicalEmbedding()
-        localSource.things = listOf(
-            ThingData(
-                id = "1",
-                imageUrl = "",
-                createdBy = "u1",
-                embedding = embedding.toPostgresVector(),
-            )
+        remoteSource.matchResult = Result.success(
+            MatchResponse(id = "target-1", similarity = 0.91f, matched = true)
         )
 
-        val results = repository.match(embedding).toList()
+        val results = repository.match("target-1", embedding).toList()
 
-        val local = results.first().getOrThrow()
-        assertEquals(1, local.size)
-        assertEquals("1", local.first().id)
-        assertEquals(1f, local.first().similarity)
+        val match = results.single().getOrThrow()
+        assertEquals("target-1", match.id)
+        assertEquals(0.91f, match.similarity)
+        assertTrue(match.matched)
 
         val request = remoteSource.matchRequest!!
+        assertEquals("target-1", request.thingID)
         assertEquals(ImageEmbeddingContract.dimensions, request.embedding.size)
         assertEquals(1f, request.embedding.first())
         assertTrue(request.embedding.drop(1).all { it == 0f })
+        assertEquals(mapper.matchThreshold, request.threshold)
     }
 }
