@@ -19,6 +19,7 @@ import kotlinx.cinterop.alloc
 import kotlinx.cinterop.memScoped
 import kotlinx.cinterop.ptr
 import kotlinx.cinterop.value
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.Job
@@ -182,6 +183,8 @@ private class IosCameraCaptureController {
                     frame.toCapturedImage()
                 },
             )
+        } catch (cancelled: CancellationException) {
+            throw cancelled
         } catch (error: Throwable) {
             Result.failure(error)
         } finally {
@@ -228,6 +231,8 @@ private class CameraStream(
                     CVPixelBufferRelease(pixelBuffer)
                 }
                 onCameraFrame(frame)
+            } catch (cancelled: CancellationException) {
+                throw cancelled
             } catch (error: Throwable) {
                 onCameraError(error)
             } finally {
