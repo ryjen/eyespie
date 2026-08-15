@@ -8,7 +8,6 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.weight
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
@@ -177,7 +176,7 @@ fun AppUnavailable() {
                 Spacer(Modifier.height(12.dp))
                 Text("The local game runtime could not be initialized.")
                 Text(
-                    "Verify the packaged image-embedding model and relaunch the app.",
+                    "Verify required local components and relaunch the app.",
                     style = MaterialTheme.typography.bodyMedium,
                 )
             }
