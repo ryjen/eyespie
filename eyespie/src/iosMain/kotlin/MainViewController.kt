@@ -6,7 +6,13 @@ import com.micrantha.eyespie.game.createIosEyespieRuntime
 import platform.UIKit.UIViewController
 
 fun MainViewController(): UIViewController = ComposeUIViewController {
-    val runtime = remember { runCatching(::createIosEyespieRuntime).getOrNull() }
+    val runtime = remember {
+        try {
+            createIosEyespieRuntime()
+        } catch (_: Exception) {
+            null
+        }
+    }
     if (runtime == null) {
         AppUnavailable()
     } else {
