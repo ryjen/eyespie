@@ -30,7 +30,7 @@ class CaptureSyncRepositoryTest {
         networkMonitor = FakeNetworkMonitor()
         connectivityStatus = ConnectivityStatus(networkMonitor)
         connectivityStatus.start()
-        
+
         repository = CaptureSyncDataRepository(
             source,
             uploadUseCase,
@@ -46,7 +46,7 @@ class CaptureSyncRepositoryTest {
 
         val proof = Proof(clues = setOf(AiClue("c1", 1f, "a1")), location = null)
         val imagePath = "/test.jpg".toPath()
-        
+
         repository.queue(proof, imagePath, "p1")
 
         assertEquals(1, source.queued.size)
@@ -59,11 +59,11 @@ class CaptureSyncRepositoryTest {
         val proof = Proof(clues = setOf(AiClue("c1", 1f, "a1")), location = null)
         val imagePath = "/test.jpg".toPath()
         repository.queue(proof, imagePath, "p1")
-        
+
         uploadUseCase.result = Result.success(com.micrantha.eyespie.domain.entities.Thing(
             id = "t1",
             createdBy = com.micrantha.eyespie.features.players.domain.entities.Player.Ref("p1", "p1"),
-            imageUrl = "url",
+            imagePath = "p1/image.jpg",
             createdAt = kotlin.time.Clock.System.now(),
             location = com.micrantha.eyespie.domain.entities.Location.Point(0.0, 0.0),
             guessed = false,
@@ -71,8 +71,6 @@ class CaptureSyncRepositoryTest {
         ))
 
         networkMonitor.update(true)
-
-        // Wait for sync to complete in the background scope
         testScope.testScheduler.runCurrent()
 
         assertEquals(0, source.queued.size)
