@@ -17,13 +17,11 @@ import org.kodein.di.bindProviderOf
 import org.kodein.di.delegate
 import org.kodein.di.instance
 
-
 internal fun module() = DI.Module("Things") {
-    bindProvider { 
+    bindProvider {
         ThingsDomainMapper(
             locationMapper = instance(),
             matchThreshold = AppConfig.MATCH_THRESHOLD.toFloat(),
-            matchCount = AppConfig.MATCH_COUNT.toInt()
         )
     }
     bindProviderOf(::ThingDataRepository)
