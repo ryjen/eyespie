@@ -20,12 +20,12 @@ class SqlGameRepository(
     private val queries = database.eyesPieQueries
 
     override suspend fun list(): List<Game> = queries.selectAllGames { id, name, creatorId ->
-        loadGame(id, name, creatorId)
-    }.executeAsList()
+        GameRow(id, name, creatorId)
+    }.executeAsList().map(::loadGame)
 
     override suspend fun get(id: GameId): Game? = queries.selectGameById(id.value) { gameId, name, creatorId ->
-        loadGame(gameId, name, creatorId)
-    }.executeAsOneOrNull()
+        GameRow(gameId, name, creatorId)
+    }.executeAsOneOrNull()?.let(::loadGame)
 
     override suspend fun save(game: Game) {
         queries.transaction {
@@ -53,11 +53,11 @@ class SqlGameRepository(
         }
     }
 
-    private fun loadGame(id: String, name: String, creatorId: String): Game = Game(
-        id = GameId(id),
-        name = name,
-        creator = PlayerId(creatorId),
-        things = queries.selectThingsByGame(id) { thingId, _, clue, targetEmbedding, matchThreshold, _ ->
+    private fun loadGame(row: GameRow): Game = Game(
+        id = GameId(row.id),
+        name = row.name,
+        creator = PlayerId(row.creatorId),
+        things = queries.selectThingsByGame(row.id) { thingId, _, clue, targetEmbedding, matchThreshold, _ ->
             Thing(
                 id = ThingId(thingId),
                 clue = clue,
@@ -65,6 +65,12 @@ class SqlGameRepository(
                 matchThreshold = matchThreshold,
             )
         }.executeAsList(),
+    )
+
+    private data class GameRow(
+        val id: String,
+        val name: String,
+        val creatorId: String,
     )
 }
 

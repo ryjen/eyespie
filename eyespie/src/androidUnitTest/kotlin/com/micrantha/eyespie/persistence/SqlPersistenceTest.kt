@@ -62,6 +62,15 @@ class SqlPersistenceTest {
                 bestSimilarity = 0.94,
             ),
         )
+        progress.save(
+            ThingProgress(
+                gameId = game.id,
+                thingId = stale.id,
+                playerId = playerId,
+                matched = false,
+                bestSimilarity = 0.42,
+            ),
+        )
 
         val updatedFirst = first.copy(clue = "Updated first")
         games.save(game.copy(things = listOf(updatedFirst)))
