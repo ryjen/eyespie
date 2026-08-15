@@ -4,5 +4,6 @@ data class ScanClue(
     val id: Int,
     val answer: String,
     val clue: String,
+    val confidence: Float,
     val isSelected: Boolean,
 )
