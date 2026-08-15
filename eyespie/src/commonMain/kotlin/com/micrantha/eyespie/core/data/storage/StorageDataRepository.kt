@@ -16,9 +16,8 @@ internal class StorageDataRepository(
             localSource.put(path, it)
         }
 
-    override suspend fun upload(path: String, data: ByteArray): Result<String> {
-        return remoteSource.upload(imagesBucketID, path, data).map { (_, url) -> url }
-    }
+    override suspend fun upload(path: String, data: ByteArray): Result<String> =
+        remoteSource.upload(imagesBucketID, path, data)
 
     override fun get(path: String) = localSource.get(path)
 }
