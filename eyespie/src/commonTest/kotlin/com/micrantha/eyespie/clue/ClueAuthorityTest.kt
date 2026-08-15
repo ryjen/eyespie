@@ -62,6 +62,43 @@ class ClueAuthorityTest {
     }
 
     @Test
+    fun sharedAuthorityPreservesOnlyPlayableClueWithoutFabricatingCreatorState() {
+        val authority = ClueAuthority.shared("  Shared   clue ")
+
+        assertEquals(ClueOrigin.SHARED, authority.origin)
+        assertEquals("Shared clue", authority.clueText)
+        assertNull(authority.expectedAnswer)
+        assertNull(authority.generatedProvenance)
+        assertEquals(PlayableClue("Shared clue"), authority.playable())
+    }
+
+    @Test
+    fun persistedSharedAuthorityRejectsInjectedCreatorOrGeneratedState() {
+        assertFailsWith<IllegalArgumentException> {
+            ClueAuthority.persisted(
+                schemaVersion = ClueAuthority.CURRENT_SCHEMA_VERSION,
+                clueText = "Shared clue",
+                expectedAnswer = "invented answer",
+                origin = ClueOrigin.SHARED.name,
+                generatedProviderId = null,
+                generatedModelId = null,
+                generatedConfidence = null,
+            )
+        }
+        assertFailsWith<IllegalArgumentException> {
+            ClueAuthority.persisted(
+                schemaVersion = ClueAuthority.CURRENT_SCHEMA_VERSION,
+                clueText = "Shared clue",
+                expectedAnswer = null,
+                origin = ClueOrigin.SHARED.name,
+                generatedProviderId = "provider",
+                generatedModelId = "model",
+                generatedConfidence = null,
+            )
+        }
+    }
+
+    @Test
     fun persistedManualAuthorityRejectsInjectedGeneratedProvenance() {
         assertFailsWith<IllegalArgumentException> {
             ClueAuthority.persisted(
