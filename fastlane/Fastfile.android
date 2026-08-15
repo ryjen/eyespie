@@ -22,7 +22,7 @@ platform :android do
     FileUtils.cp(example_path, env_path) unless File.exist?(env_path)
   end
 
-  desc "Validate model, calibration, and Android bundle contracts"
+  desc "Validate model, calibration, security, and Android bundle contracts"
   lane :validate do
     Dir.chdir(repo_root) do
       sh("python3 scripts/stage_android_model_artifact.py verify")
@@ -32,6 +32,7 @@ platform :android do
       sh("python3 -m unittest scripts.tests.test_stage_image_embedding_fixtures")
       sh("python3 -m unittest scripts.tests.test_compare_image_embedding_calibration")
       sh("python3 -m unittest scripts.tests.test_validate_android_bundle")
+      sh("python3 -m unittest scripts.tests.test_thing_authority_migration")
     end
   end
 
