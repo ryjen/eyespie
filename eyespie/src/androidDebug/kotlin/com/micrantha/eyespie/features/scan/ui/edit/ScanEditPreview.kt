@@ -8,6 +8,7 @@ import androidx.compose.ui.graphics.painter.Painter
 import androidx.compose.ui.tooling.preview.Preview
 import com.micrantha.eyespie.core.PreviewContext
 import com.micrantha.eyespie.domain.entities.Location
+import com.micrantha.eyespie.features.scan.entities.ClueAuthoringMode
 import com.micrantha.eyespie.features.scan.entities.ScanClue
 import com.micrantha.eyespie.features.scan.entities.ScanEditParams
 import com.micrantha.eyespie.features.scan.entities.ScanEditUiState
@@ -24,6 +25,11 @@ fun ScanEditPreview() = PreviewContext(
             }
         },
         enabled = true,
+        authoringMode = ClueAuthoringMode.GENERATED,
+        manualClue = "",
+        manualAnswer = "",
+        generationUnavailable = false,
+        canUseGenerated = true,
         isBusy = false,
         isError = false,
         clues = listOf(
@@ -31,13 +37,15 @@ fun ScanEditPreview() = PreviewContext(
                 id = 0,
                 answer = "An apple",
                 clue = "I spy something that is round and red.",
-                isSelected = false
+                confidence = 0.9f,
+                isSelected = false,
             ),
             ScanClue(
                 id = 1,
                 answer = "A tree",
                 clue = "I spy something that is tall and green.",
-                isSelected = true
+                confidence = 0.8f,
+                isSelected = true,
             )
         )
     )
