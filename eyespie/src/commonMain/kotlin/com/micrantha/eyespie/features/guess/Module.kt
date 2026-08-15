@@ -10,7 +10,6 @@ import org.kodein.di.DI
 import org.kodein.di.bindFactory
 import org.kodein.di.bindProviderOf
 
-
 internal fun module() = DI.Module("Guess") {
     bindProviderOf(::ScanGuessMapper)
     bindFactory { args: ScanGuessArgs ->
@@ -18,7 +17,6 @@ internal fun module() = DI.Module("Guess") {
     }
     bindFactory { args: ScanGuessArgs -> ScanGuessScreen(args) }
     bindFactory { args: ScanGuessArgs ->
-        ScanGuessEnvironment(args, get(), get(), get())
+        ScanGuessEnvironment(args, get(), get())
     }
-
 }
