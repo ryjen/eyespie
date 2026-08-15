@@ -52,19 +52,32 @@ class ScanEditEnvironment(
             location = action.params.location,
         )
 
-        is CameraImage -> state.copy(
-            image = action,
-            authoringMode = ClueAuthoringMode.CHOOSE,
-            isBusy = false,
-            isError = false,
-        )
+        is CameraImage -> {
+            val canGenerate = clueRepository.canGenerateClues
+            state.copy(
+                image = action,
+                authoringMode = if (canGenerate) ClueAuthoringMode.CHOOSE else ClueAuthoringMode.MANUAL,
+                generationUnavailable = canGenerate.not(),
+                isBusy = false,
+                isError = false,
+            )
+        }
 
-        is GenerateClues -> state.copy(
-            authoringMode = ClueAuthoringMode.GENERATED,
-            generationUnavailable = false,
-            isBusy = true,
-            isError = false,
-        )
+        is GenerateClues -> if (clueRepository.canGenerateClues) {
+            state.copy(
+                authoringMode = ClueAuthoringMode.GENERATED,
+                generationUnavailable = false,
+                isBusy = true,
+                isError = false,
+            )
+        } else {
+            state.copy(
+                authoringMode = ClueAuthoringMode.MANUAL,
+                generationUnavailable = true,
+                isBusy = false,
+                isError = false,
+            )
+        }
 
         is GeneratedCluesUnavailable -> state.copy(
             authoringMode = ClueAuthoringMode.MANUAL,
@@ -139,6 +152,10 @@ class ScanEditEnvironment(
             }
 
             is GenerateClues -> {
+                if (!clueRepository.canGenerateClues) {
+                    dispatch(GeneratedCluesUnavailable)
+                    return
+                }
                 val path = state.path
                 if (path == null) {
                     dispatch(GeneratedCluesUnavailable)
