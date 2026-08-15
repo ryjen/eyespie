@@ -40,7 +40,7 @@ import platform.CoreMedia.CMSampleBufferRef
 import platform.CoreVideo.CVPixelBufferRelease
 import platform.CoreVideo.CVPixelBufferRetain
 import platform.CoreVideo.kCVPixelBufferPixelFormatTypeKey
-import platform.CoreVideo.kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange
+import platform.CoreVideo.kCVPixelBufferPixelFormatType_420YpCbCr8BiPlanarVideoRange
 import platform.Foundation.NSError
 import platform.ImageIO.kCGImagePropertyOrientationDown
 import platform.ImageIO.kCGImagePropertyOrientationLeft
@@ -61,16 +61,9 @@ actual fun CameraCapture(
     onCaptured: (CapturedImage) -> Unit,
     captureButton: @Composable ((capture: () -> Unit) -> Unit),
 ) {
-    val controller = remember { IosCameraCaptureController() }
+    val controller: ImageCapture = remember { IosCameraCaptureController() }
     val compositionScope = rememberCoroutineScope()
-    var authorized by remember { mutableStateOf<Boolean?>(null) }
-
-    LaunchedEffect(Unit) {
-        authorized = requestCameraAccess()
-        if (authorized == false) {
-            onCameraError(IllegalStateException("camera permission was denied"))
-        }
-    }
+    var authorized by remember { mutableStateOf(currentCameraAuthorization()) }
 
     val device = remember(authorized) {
         if (authorized == true) AVCaptureDevice.defaultDeviceWithMediaType(AVMediaTypeVideo) else null
@@ -82,7 +75,7 @@ actual fun CameraCapture(
                 onCameraError = { error ->
                     compositionScope.launch { onCameraError(error) }
                 },
-                onCameraFrame = controller::updateFrame,
+                onCameraFrame = (controller as IosCameraCaptureController)::updateFrame,
             )
         }
     }
@@ -116,15 +109,28 @@ actual fun CameraCapture(
                 authorized = requestCameraAccess()
                 if (authorized != true) {
                     onCameraError(IllegalStateException("camera permission was denied"))
-                    return@launch
                 }
+                // A newly granted permission must first recompose and start the camera session.
+                return@launch
             }
-            controller.capture()
-                .onSuccess(onCaptured)
-                .onFailure(onCameraError)
+
+            try {
+                onCaptured(controller.capture())
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Throwable) {
+                onCameraError(error)
+            }
         }
     }
 }
+
+private fun currentCameraAuthorization(): Boolean? =
+    when (AVCaptureDevice.authorizationStatusForMediaType(AVMediaTypeVideo)) {
+        AVAuthorizationStatusAuthorized -> true
+        AVAuthorizationStatusNotDetermined -> null
+        else -> false
+    }
 
 private suspend fun requestCameraAccess(): Boolean =
     when (AVCaptureDevice.authorizationStatusForMediaType(AVMediaTypeVideo)) {
@@ -139,7 +145,11 @@ private suspend fun requestCameraAccess(): Boolean =
         else -> false
     }
 
-private class IosCameraCaptureController {
+/**
+ * iOS implementation of the common [ImageCapture] contract backed by the most recent app-owned
+ * frame. At most one explicit encoding operation is owned at a time; concurrent taps fail closed.
+ */
+private class IosCameraCaptureController : ImageCapture {
     private val stateMutex = Mutex()
     private var latestFrame: OwnedCameraFrame? = null
     private var captureInFlight = false
@@ -148,34 +158,23 @@ private class IosCameraCaptureController {
         stateMutex.withLock { latestFrame = frame }
     }
 
-    suspend fun capture(): Result<CapturedImage> {
-        val selected = stateMutex.withLock {
+    override suspend fun capture(): CapturedImage {
+        val frame = stateMutex.withLock {
             when {
-                captureInFlight -> Result.failure(
-                    IllegalStateException("a camera capture is already in progress"),
-                )
-                latestFrame == null -> Result.failure(
-                    IllegalStateException("no camera frame is available to capture"),
-                )
+                captureInFlight -> throw IllegalStateException("a camera capture is already in progress")
+                latestFrame == null -> throw IllegalStateException("no camera frame is available to capture")
                 else -> {
                     captureInFlight = true
-                    Result.success(latestFrame!!)
+                    latestFrame!!
                 }
             }
         }
-        val frame = selected.getOrElse { return Result.failure(it) }
 
         return try {
-            Result.success(
-                withContext(Dispatchers.Default) {
-                    currentCoroutineContext().ensureActive()
-                    frame.toCapturedImage()
-                },
-            )
-        } catch (cancelled: CancellationException) {
-            throw cancelled
-        } catch (error: Throwable) {
-            Result.failure(error)
+            withContext(Dispatchers.Default) {
+                currentCoroutineContext().ensureActive()
+                frame.toCapturedImage()
+            }
         } finally {
             withContext(NonCancellable) {
                 stateMutex.withLock { captureInFlight = false }
@@ -247,13 +246,13 @@ private class CameraStream(
         val output = AVCaptureVideoDataOutput().apply {
             setSampleBufferDelegate(this@CameraStream, dispatchQueue)
             if (availableVideoCVPixelFormatTypes.contains(
-                    kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange,
+                    kCVPixelBufferPixelFormatType_420YpCbCr8BiPlanarVideoRange,
                 )
             ) {
                 setVideoSettings(
                     mapOf(
                         kCVPixelBufferPixelFormatTypeKey to
-                            kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange,
+                            kCVPixelBufferPixelFormatType_420YpCbCr8BiPlanarVideoRange,
                     ),
                 )
             }
