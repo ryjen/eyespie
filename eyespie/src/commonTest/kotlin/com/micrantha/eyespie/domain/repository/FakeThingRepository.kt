@@ -5,7 +5,6 @@ import com.micrantha.eyespie.domain.entities.Location
 import com.micrantha.eyespie.domain.entities.Proof
 import com.micrantha.eyespie.domain.entities.Thing
 import com.micrantha.eyespie.domain.entities.ThingList
-import com.micrantha.eyespie.domain.entities.ThingMatches
 import com.micrantha.eyespie.features.players.domain.entities.Player
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.flowOf
@@ -16,8 +15,9 @@ import kotlin.time.ExperimentalTime
 class FakeThingRepository : ThingRepository {
     val things = mutableListOf<Thing>()
     var createResult: Result<Thing>? = null
-    var matchResult: Result<ThingMatches>? = null
-    var matchFlow: Flow<Result<ThingMatches>>? = null
+    var matchResult: Result<Thing.Match>? = null
+    var matchFlow: Flow<Result<Thing.Match>>? = null
+    var matchedThingID: String? = null
 
     override suspend fun create(proof: Proof, imageUrl: String, playerID: String): Result<Thing> {
         return createResult ?: run {
@@ -46,6 +46,10 @@ class FakeThingRepository : ThingRepository {
     override fun nearby(location: Location.Point, distance: Double): Flow<Result<ThingList>> =
         flowOf(Result.success(things.map { Thing.Listing(it.id, it.id, it.createdAt, it.guessed, it.imageUrl) }))
 
-    override fun match(embedding: Embedding): Flow<Result<ThingMatches>> =
-        matchFlow ?: flowOf(matchResult ?: Result.success(emptyList()))
+    override fun match(thingID: String, embedding: Embedding): Flow<Result<Thing.Match>> {
+        matchedThingID = thingID
+        return matchFlow ?: flowOf(
+            matchResult ?: Result.success(Thing.Match(thingID, similarity = 0f, matched = false))
+        )
+    }
 }
