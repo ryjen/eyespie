@@ -80,10 +80,7 @@ actual fun CameraCapture(
             {
                 runCatching {
                     val provider = future.get()
-                    if (disposed) {
-                        provider.unbindAll()
-                        return@runCatching
-                    }
+                    if (disposed) return@runCatching
                     cameraProvider = provider
                     val preview = Preview.Builder().build().also {
                         it.surfaceProvider = previewView.surfaceProvider
