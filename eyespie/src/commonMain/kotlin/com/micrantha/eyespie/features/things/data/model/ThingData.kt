@@ -4,33 +4,37 @@ import kotlinx.serialization.SerialName
 import kotlinx.serialization.Serializable
 import kotlinx.serialization.json.JsonElement
 
+/** Full Thing authority. This DTO is creator-only under #122 RLS. */
 @Serializable
-data class ThingData(
+data class ThingAuthorityData(
     val id: String? = null,
     @SerialName("created_at") val createdAt: String? = null,
-    @SerialName("image_url") val imageUrl: String,
+    @SerialName("image_path") val imagePath: String? = null,
     @SerialName("created_by") val createdBy: String,
     val location: String? = null,
     val proof: JsonElement? = null,
     val embedding: String? = null,
-    @SerialName("game_thing") val game: ThingData.GameThing? = null,
-) {
-    override fun equals(other: Any?): Boolean {
-        if (this === other) return true
-        if (other == null || other !is ThingData) return false
-        return id == other.id
-    }
+    val guessed: Boolean? = null,
+)
 
-    override fun hashCode() = id.hashCode()
+/** Insert/update authority contract. Signed URLs are never accepted here. */
+@Serializable
+data class ThingRequest(
+    val id: String? = null,
+    @SerialName("created_at") val createdAt: String? = null,
+    @SerialName("image_path") val imagePath: String,
+    @SerialName("created_by") val createdBy: String,
+    val location: String? = null,
+    val proof: JsonElement? = null,
+    val embedding: String? = null,
+)
 
-    @Serializable
-    data class GameThing(
-        @SerialName("game_id") val gameId: String? = null,
-        val guessed: Boolean? = null,
-        @SerialName("created_at") val createdAt: String? = null
-    )
-}
+/** Safe list/nearby projection. No image path, location, proof, or embedding. */
+@Serializable
+data class ThingListing(
+    val id: String,
+    @SerialName("created_at") val createdAt: String? = null,
+    val guessed: Boolean? = null,
+)
 
-typealias ThingRequest = ThingData
-typealias ThingResponse = ThingData
-typealias ThingListing = ThingData
+typealias ThingResponse = ThingAuthorityData
