@@ -106,6 +106,93 @@ class SqlPersistenceTest {
         assertNull(progress.get(game.id, stale.id, playerId))
     }
 
+    @Test
+    fun migrationPreservesLegacyClueWithoutInventingAnswerOrProvenance() {
+        val driver = JdbcSqliteDriver(JdbcSqliteDriver.IN_MEMORY)
+        try {
+            driver.execute(
+                identifier = null,
+                sql = """
+                    CREATE TABLE GameEntity (
+                        id TEXT NOT NULL PRIMARY KEY,
+                        name TEXT NOT NULL,
+                        creator_id TEXT NOT NULL
+                    )
+                """.trimIndent(),
+                parameters = 0,
+                binders = null,
+            )
+            driver.execute(
+                identifier = null,
+                sql = """
+                    CREATE TABLE ThingEntity (
+                        id TEXT NOT NULL PRIMARY KEY,
+                        game_id TEXT NOT NULL,
+                        clue TEXT NOT NULL,
+                        target_embedding BLOB NOT NULL,
+                        match_threshold REAL NOT NULL,
+                        sort_order INTEGER NOT NULL,
+                        FOREIGN KEY (game_id) REFERENCES GameEntity(id) ON DELETE CASCADE
+                    )
+                """.trimIndent(),
+                parameters = 0,
+                binders = null,
+            )
+            driver.execute(
+                identifier = null,
+                sql = "INSERT INTO GameEntity(id, name, creator_id) VALUES ('game-legacy', 'Trip', 'creator-1')",
+                parameters = 0,
+                binders = null,
+            )
+            driver.execute(
+                identifier = null,
+                sql = """
+                    INSERT INTO ThingEntity(id, game_id, clue, target_embedding, match_threshold, sort_order)
+                    VALUES ('thing-legacy', 'game-legacy', 'Old clue', x'00000000', 0.75, 0)
+                """.trimIndent(),
+                parameters = 0,
+                binders = null,
+            )
+
+            EyesPieDatabase.Schema.migrate(driver, 1L, 2L)
+
+            val migrated = EyesPieDatabase(driver).eyesPieQueries.selectThingsByGame("game-legacy") {
+                    _,
+                    _,
+                    clue,
+                    _,
+                    _,
+                    _,
+                    expectedAnswer,
+                    origin,
+                    version,
+                    providerId,
+                    modelId,
+                    confidence,
+                ->
+                MigratedClueRow(
+                    clue = clue,
+                    expectedAnswer = expectedAnswer,
+                    origin = origin,
+                    version = version,
+                    providerId = providerId,
+                    modelId = modelId,
+                    confidence = confidence,
+                )
+            }.executeAsOne()
+
+            assertEquals("Old clue", migrated.clue)
+            assertNull(migrated.expectedAnswer)
+            assertEquals("LEGACY", migrated.origin)
+            assertEquals(1L, migrated.version)
+            assertNull(migrated.providerId)
+            assertNull(migrated.modelId)
+            assertNull(migrated.confidence)
+        } finally {
+            driver.close()
+        }
+    }
+
     private fun accepted(result: ClueAuthoringResult): ClueAuthority = when (result) {
         is ClueAuthoringResult.Accepted -> result.authority
         is ClueAuthoringResult.Rejected -> error("expected accepted clue authority, got ${result.error}")
@@ -120,4 +207,14 @@ class SqlPersistenceTest {
             driver.close()
         }
     }
+
+    private data class MigratedClueRow(
+        val clue: String,
+        val expectedAnswer: String?,
+        val origin: String,
+        val version: Long,
+        val providerId: String?,
+        val modelId: String?,
+        val confidence: Double?,
+    )
 }
