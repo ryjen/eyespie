@@ -10,7 +10,9 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.platform.LocalContext
 import java.io.ByteArrayOutputStream
 import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.withContext
 
 private const val EYESPIE_MIME_TYPE = "application/octet-stream"
 private const val READ_BUFFER_SIZE = 8 * 1024
@@ -83,18 +85,7 @@ private class AndroidGameDocumentTransfer(
             pendingWrite = selection
             launcher(suggestedFileName)
             val uri = selection.await() ?: return GameDocumentWriteResult.Cancelled
-
-            try {
-                val output = resolver.openOutputStream(uri, "wt")
-                    ?: return GameDocumentWriteResult.Failed
-                output.use {
-                    it.write(bytes)
-                    it.flush()
-                }
-                GameDocumentWriteResult.Success
-            } catch (_: Exception) {
-                GameDocumentWriteResult.Failed
-            }
+            writeBounded(uri, bytes)
         } finally {
             if (pendingWrite === selection && selection.isCompleted) pendingWrite = null
             operationMutex.unlock()
@@ -118,22 +109,44 @@ private class AndroidGameDocumentTransfer(
         }
     }
 
-    private fun readBounded(uri: Uri): GameDocumentReadResult = try {
-        val input = resolver.openInputStream(uri) ?: return GameDocumentReadResult.Failed
-        input.use {
-            val output = ByteArrayOutputStream()
-            val buffer = ByteArray(READ_BUFFER_SIZE)
-            var total = 0
-            while (true) {
-                val count = it.read(buffer)
-                if (count < 0) break
-                total += count
-                if (total > GAME_BUNDLE_MAX_BYTES) return GameDocumentReadResult.TooLarge
-                output.write(buffer, 0, count)
+    private suspend fun writeBounded(
+        uri: Uri,
+        bytes: ByteArray,
+    ): GameDocumentWriteResult = withContext(Dispatchers.IO) {
+        try {
+            val output = resolver.openOutputStream(uri, "rwt")
+                ?: return@withContext GameDocumentWriteResult.Failed
+            output.use {
+                it.write(bytes)
+                it.flush()
             }
-            GameDocumentReadResult.Success(output.toByteArray())
+            GameDocumentWriteResult.Success
+        } catch (_: Exception) {
+            GameDocumentWriteResult.Failed
         }
-    } catch (_: Exception) {
-        GameDocumentReadResult.Failed
+    }
+
+    private suspend fun readBounded(uri: Uri): GameDocumentReadResult = withContext(Dispatchers.IO) {
+        try {
+            val input = resolver.openInputStream(uri)
+                ?: return@withContext GameDocumentReadResult.Failed
+            input.use {
+                val output = ByteArrayOutputStream()
+                val buffer = ByteArray(READ_BUFFER_SIZE)
+                var total = 0
+                while (true) {
+                    val count = it.read(buffer)
+                    if (count < 0) break
+                    total += count
+                    if (total > GAME_BUNDLE_MAX_BYTES) {
+                        return@withContext GameDocumentReadResult.TooLarge
+                    }
+                    output.write(buffer, 0, count)
+                }
+                GameDocumentReadResult.Success(output.toByteArray())
+            }
+        } catch (_: Exception) {
+            GameDocumentReadResult.Failed
+        }
     }
 }
