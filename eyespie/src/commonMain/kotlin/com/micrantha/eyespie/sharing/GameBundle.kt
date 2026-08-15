@@ -363,7 +363,7 @@ private fun isCanonicalId(value: String): Boolean =
     value.isNotBlank() &&
         value.length <= MAX_ID_CHARS &&
         value == value.trim() &&
-        value.none(Char::isISOControl)
+        value.none { it.isISOControl() }
 
 private fun isCanonicalText(value: String, maxChars: Int): Boolean =
     value.isNotBlank() &&
@@ -386,8 +386,8 @@ private const val MAX_ID_BYTES = 640
 private const val MAX_GAME_NAME_CHARS = 80
 private const val MAX_GAME_NAME_BYTES = 320
 private const val MAX_CLUE_BYTES = ClueAuthority.MAX_CLUE_LENGTH * 4
-private const val MAX_PLAYER_ID_BYTES = 64
+private const val MAX_PLAYER_ID_BYTES = 69
 private const val MAX_MODEL_ID_BYTES = 160
 private const val P256_X963_PUBLIC_KEY_BYTES = 65
 private const val P256_UNCOMPRESSED_PREFIX: Byte = 0x04
-private val PLAYER_ID_REGEX = Regex("[0-9a-f]{64}")
+private val PLAYER_ID_REGEX = Regex("p256:[0-9a-f]{64}")
