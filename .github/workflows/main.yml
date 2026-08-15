@@ -46,6 +46,42 @@ jobs:
           if-no-files-found: ignore
           retention-days: 7
 
+  supabase-security:
+    name: supabase-security
+    needs: validate
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up Supabase CLI
+        uses: supabase/setup-cli@ab058987d8d6c725971f6cf9d0b5c98467e30bd1 # v1
+
+      - name: Start local Supabase
+        run: supabase start
+
+      - name: Replay migrations from scratch
+        run: supabase db reset
+
+      - name: Exercise Thing authority and Storage RLS
+        env:
+          PGPASSWORD: postgres
+        run: |
+          psql \
+            --host 127.0.0.1 \
+            --port 54322 \
+            --username postgres \
+            --dbname postgres \
+            --set ON_ERROR_STOP=1 \
+            --file scripts/tests/thing_authority_runtime.sql
+
+      - name: Stop local Supabase
+        if: always()
+        run: supabase stop --no-backup
+
   android-tests:
     name: android-tests
     needs: validate
@@ -93,7 +129,7 @@ jobs:
 
   android-bundle:
     name: android-bundle
-    needs: [validate, android-tests]
+    needs: [validate, supabase-security, android-tests]
     runs-on: ubuntu-latest
     timeout-minutes: 30
     steps:
