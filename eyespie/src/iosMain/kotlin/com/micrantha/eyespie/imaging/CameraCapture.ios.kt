@@ -211,21 +211,21 @@ private class CameraStream(
 
         CVPixelBufferRetain(pixelBuffer)
         frameInFlight = true
-        scope.launch {
+        val conversionJob = scope.launch {
             try {
-                val frame = try {
-                    copyCameraFrame(pixelBuffer, orientation)
-                } finally {
-                    CVPixelBufferRelease(pixelBuffer)
-                }
+                val frame = copyCameraFrame(pixelBuffer, orientation)
                 onCameraFrame(frame)
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (error: Throwable) {
                 onCameraError(error)
-            } finally {
-                dispatch_async(dispatchQueue) { frameInFlight = false }
             }
+        }
+        // Completion is the native ownership boundary. This also runs when the scope was already
+        // cancelled before the coroutine body started, so every retain has exactly one release.
+        conversionJob.invokeOnCompletion {
+            CVPixelBufferRelease(pixelBuffer)
+            dispatch_async(dispatchQueue) { frameInFlight = false }
         }
     }
 
