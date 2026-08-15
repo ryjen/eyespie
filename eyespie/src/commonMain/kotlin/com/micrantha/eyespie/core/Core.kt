@@ -21,7 +21,13 @@ data class Thing(
     val id: ThingId,
     val clue: String,
     val targetEmbedding: List<Float>,
-)
+    val matchThreshold: Double = MatchEngine.DEFAULT_THRESHOLD,
+) {
+    init {
+        require(targetEmbedding.isNotEmpty()) { "target embedding must not be empty" }
+        require(matchThreshold in -1.0..1.0) { "match threshold must be a cosine similarity" }
+    }
+}
 
 data class Game(
     val id: GameId,
@@ -29,6 +35,20 @@ data class Game(
     val creator: PlayerId,
     val things: List<Thing> = emptyList(),
 )
+
+data class ThingProgress(
+    val gameId: GameId,
+    val thingId: ThingId,
+    val playerId: PlayerId,
+    val matched: Boolean,
+    val bestSimilarity: Double? = null,
+) {
+    init {
+        require(bestSimilarity == null || bestSimilarity in -1.0..1.0) {
+            "best similarity must be a cosine similarity"
+        }
+    }
+}
 
 data class MatchResult(
     val similarity: Double,
@@ -77,6 +97,12 @@ interface GameRepository {
     suspend fun list(): List<Game>
     suspend fun get(id: GameId): Game?
     suspend fun save(game: Game)
+}
+
+interface ThingProgressRepository {
+    suspend fun get(gameId: GameId, thingId: ThingId, playerId: PlayerId): ThingProgress?
+    suspend fun list(gameId: GameId, playerId: PlayerId): List<ThingProgress>
+    suspend fun save(progress: ThingProgress)
 }
 
 interface GameTransport {

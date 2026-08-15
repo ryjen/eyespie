@@ -1,0 +1,86 @@
+CREATE TABLE GameEntity (
+    id TEXT NOT NULL PRIMARY KEY,
+    name TEXT NOT NULL,
+    creator_id TEXT NOT NULL
+);
+
+CREATE TABLE ThingEntity (
+    id TEXT NOT NULL PRIMARY KEY,
+    game_id TEXT NOT NULL,
+    clue TEXT NOT NULL,
+    target_embedding BLOB NOT NULL,
+    match_threshold REAL NOT NULL,
+    sort_order INTEGER NOT NULL,
+    FOREIGN KEY (game_id) REFERENCES GameEntity(id) ON DELETE CASCADE
+);
+
+CREATE INDEX ThingEntity_game_id_idx ON ThingEntity(game_id);
+
+CREATE TABLE ThingProgressEntity (
+    game_id TEXT NOT NULL,
+    thing_id TEXT NOT NULL,
+    player_id TEXT NOT NULL,
+    matched INTEGER NOT NULL,
+    best_similarity REAL,
+    PRIMARY KEY (game_id, thing_id, player_id),
+    FOREIGN KEY (game_id) REFERENCES GameEntity(id) ON DELETE CASCADE,
+    FOREIGN KEY (thing_id) REFERENCES ThingEntity(id) ON DELETE CASCADE
+);
+
+upsertGame:
+INSERT INTO GameEntity(id, name, creator_id)
+VALUES (?, ?, ?)
+ON CONFLICT(id) DO UPDATE SET
+    name = excluded.name,
+    creator_id = excluded.creator_id;
+
+selectAllGames:
+SELECT * FROM GameEntity
+ORDER BY name, id;
+
+selectGameById:
+SELECT * FROM GameEntity
+WHERE id = ?;
+
+selectThingsByGame:
+SELECT * FROM ThingEntity
+WHERE game_id = ?
+ORDER BY sort_order, id;
+
+selectThingIdsByGame:
+SELECT id FROM ThingEntity
+WHERE game_id = ?;
+
+upsertThing:
+INSERT INTO ThingEntity(id, game_id, clue, target_embedding, match_threshold, sort_order)
+VALUES (?, ?, ?, ?, ?, ?)
+ON CONFLICT(id) DO UPDATE SET
+    game_id = excluded.game_id,
+    clue = excluded.clue,
+    target_embedding = excluded.target_embedding,
+    match_threshold = excluded.match_threshold,
+    sort_order = excluded.sort_order;
+
+deleteProgressForThing:
+DELETE FROM ThingProgressEntity
+WHERE thing_id = ?;
+
+deleteThing:
+DELETE FROM ThingEntity
+WHERE id = ?;
+
+upsertThingProgress:
+INSERT INTO ThingProgressEntity(game_id, thing_id, player_id, matched, best_similarity)
+VALUES (?, ?, ?, ?, ?)
+ON CONFLICT(game_id, thing_id, player_id) DO UPDATE SET
+    matched = excluded.matched,
+    best_similarity = excluded.best_similarity;
+
+selectThingProgress:
+SELECT * FROM ThingProgressEntity
+WHERE game_id = ? AND thing_id = ? AND player_id = ?;
+
+selectProgressByGameAndPlayer:
+SELECT * FROM ThingProgressEntity
+WHERE game_id = ? AND player_id = ?
+ORDER BY thing_id;
