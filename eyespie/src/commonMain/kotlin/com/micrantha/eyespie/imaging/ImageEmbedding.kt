@@ -39,5 +39,8 @@ fun canonicalImageEmbedding(values: List<Float>): List<Float> {
     return values.toList()
 }
 
+const val IMAGE_EMBEDDING_CONTRACT_VERSION = 1
 const val IMAGE_EMBEDDING_DIMENSIONS = 1024
+const val IMAGE_EMBEDDER_MODEL_ID = "mediapipe-mobilenet-v3-small-100-224-embedder-v1"
+const val IMAGE_EMBEDDER_MODEL_SHA256 = "f7b9a563cb803bdcba76e8c7e82abde06f5c7a8e67b5e54e43e23095dfe79a78"
 const val IMAGE_EMBEDDER_MODEL_FILE = "mobilenet_v3_small_100_224_embedder.tflite"
