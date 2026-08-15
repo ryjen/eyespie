@@ -67,7 +67,7 @@ class SupaClient {
     )
 
     suspend fun match(request: MatchRequest) = supabase.postgrest.rpc(
-        function = "match_things",
+        function = "match_thing",
         parameters = request
     )
 }
