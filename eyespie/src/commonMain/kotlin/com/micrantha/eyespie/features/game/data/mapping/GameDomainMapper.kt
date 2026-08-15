@@ -5,10 +5,10 @@ import com.micrantha.eyespie.domain.entities.Game.Limits
 import com.micrantha.eyespie.domain.entities.Thing
 import com.micrantha.eyespie.features.game.data.model.GameData
 import com.micrantha.eyespie.features.game.data.model.GameRemoteDetails
+import com.micrantha.eyespie.features.game.data.model.SafeGamePlayerData
 import com.micrantha.eyespie.features.game.data.model.SafeGameThingData
 import com.micrantha.eyespie.features.players.domain.entities.Player
 import com.micrantha.eyespie.graphql.GameListQuery
-import com.micrantha.eyespie.graphql.GameNodeQuery.Node
 import kotlin.time.Duration
 import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
@@ -56,35 +56,27 @@ class GameDomainMapper {
         limits = Limits(0..0, 0..0)
     )
 
-    fun map(details: GameRemoteDetails) = details.node.onGame!!.let { data ->
-        Game(
-            id = data.id,
-            name = data.name,
-            createdAt = Instant.parse(data.created_at),
-            expires = Instant.parse(data.expires),
-            turnDuration = Duration.parse(data.turn_duration),
-            players = data.players?.edges?.filterNotNull()?.map { it.node }?.map(::player)
-                ?: emptyList(),
-            things = details.things.map(::thing),
-            limits = Limits(
-                player = IntRange(data.min_players ?: 1, data.max_players ?: 10),
-                thing = IntRange(data.min_things ?: 1, data.max_things ?: 10)
-            )
+    fun map(details: GameRemoteDetails) = Game(
+        id = details.id,
+        name = details.name,
+        createdAt = Instant.parse(details.createdAt),
+        expires = Instant.parse(details.expiresAt),
+        turnDuration = Duration.parse(details.turnDuration),
+        players = details.players.map(::player),
+        things = details.things.map(::thing),
+        limits = Limits(
+            player = IntRange(details.minPlayers ?: 1, details.maxPlayers ?: 10),
+            thing = IntRange(details.minThings ?: 1, details.maxThings ?: 10)
         )
-    }
+    )
 
-    private fun player(node: Node): Player.Listing {
-        val score = node.score ?: 0
-        return node.player.let { data ->
-            Player.Listing(
-                id = data.id,
-                nodeId = data.nodeId,
-                createdAt = Instant.parse(data.created_at),
-                name = "${data.first_name} ${data.last_name}",
-                score = score
-            )
-        }
-    }
+    private fun player(data: SafeGamePlayerData) = Player.Listing(
+        id = data.id,
+        nodeId = data.nodeId,
+        createdAt = Instant.parse(data.createdAt),
+        name = "${data.firstName} ${data.lastName}",
+        score = data.score,
+    )
 
     private fun thing(data: SafeGameThingData) = Thing.Listing(
         id = data.id,
