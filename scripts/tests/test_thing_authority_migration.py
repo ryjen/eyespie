@@ -118,11 +118,14 @@ class ThingAuthorityMigrationContractTest(unittest.TestCase):
             policy = f'eyespie image owners can {operation}'
             self.assertIn(f'create policy "{policy}" on storage.objects', self.sql)
 
+        storage_sql = self.sql[
+            self.sql.index('create policy "eyespie image owners can read" on storage.objects'):
+        ]
         # Read, insert, delete each check the namespace once; update checks both the
         # existing row and the replacement row.
-        self.assertEqual(5, self.sql.count("bucket_id = 'images'"))
-        self.assertEqual(5, self.sql.count("p.user_id = auth.uid()"))
-        self.assertEqual(5, self.sql.count("p.id::text = split_part(name, '/', 1)"))
+        self.assertEqual(5, storage_sql.count("bucket_id = 'images'"))
+        self.assertEqual(5, storage_sql.count("p.user_id = auth.uid()"))
+        self.assertEqual(5, storage_sql.count("p.id::text = split_part(name, '/', 1)"))
 
     def test_game_thing_mutation_requires_membership_and_ownership(self) -> None:
         self.assertIn('drop policy if exists "user_policy" on public."gamething"', self.sql)
