@@ -5,6 +5,8 @@ import com.micrantha.eyespie.domain.ai.GeneratedClues
 sealed interface ScanEditAction {
     data class Init(val params: ScanEditParams) : ScanEditAction
 
+    data class ClueGenerationAvailability(val available: Boolean) : ScanEditAction
+
     data object GenerateClues : ScanEditAction
 
     data object GeneratedCluesUnavailable : ScanEditAction
