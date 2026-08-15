@@ -1,25 +1,2 @@
-//
-//  NetworkMonitor.swift
-//  iosApp
-//
-//  Created by Ryan Jennings on 2024-08-04.
-//  Copyright © 2024 orgName. All rights reserved.
-//
-import Network
-import eyespie
-
-class iOSNetworkMonitor: BluebellNetworkMonitor {
-    private let monitor = NWPathMonitor()
-    private let queue = DispatchQueue(label: "NetworkMonitor")
-
-    func startMonitoring(onUpdate: @escaping (KotlinBoolean) -> Void) {
-        monitor.pathUpdateHandler = { path in
-            onUpdate(KotlinBoolean(value: path.status == .satisfied))
-        }
-        monitor.start(queue: queue)
-    }
-    
-    func stopMonitoring() {
-        monitor.cancel()
-    }
-}
+// Network transport is intentionally absent from the backendless reboot core.
+// Keep this source file in the Xcode target until the project file is simplified.
