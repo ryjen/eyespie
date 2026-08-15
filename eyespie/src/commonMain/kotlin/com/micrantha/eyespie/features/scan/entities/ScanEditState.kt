@@ -7,10 +7,20 @@ import com.micrantha.eyespie.domain.entities.Location
 import com.micrantha.eyespie.platform.scan.CameraImage
 import okio.Path
 
+enum class ClueAuthoringMode {
+    CHOOSE,
+    GENERATED,
+    MANUAL,
+}
+
 data class ScanEditState(
     val image: CameraImage? = null,
     val clues: GeneratedClues? = null,
     val selected: StateMap<Int, ScanClue>? = null,
+    val authoringMode: ClueAuthoringMode = ClueAuthoringMode.CHOOSE,
+    val manualClue: String = "",
+    val manualAnswer: String = "",
+    val generationUnavailable: Boolean = false,
     val embedding: Embedding? = null,
     val name: String? = null,
     val disabled: Boolean = false,
