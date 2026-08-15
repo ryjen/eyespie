@@ -37,8 +37,8 @@ internal class SupabaseGameRemoteSource(
                 id = player.id,
                 nodeId = player.nodeId,
                 createdAt = player.created_at,
-                firstName = player.first_name,
-                lastName = player.last_name,
+                firstName = player.first_name.orEmpty(),
+                lastName = player.last_name.orEmpty(),
                 score = edge.node.score ?: 0,
             )
         }
