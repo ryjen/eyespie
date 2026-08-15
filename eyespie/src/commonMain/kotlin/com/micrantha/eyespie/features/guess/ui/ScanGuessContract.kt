@@ -1,11 +1,11 @@
 package com.micrantha.eyespie.features.guess.ui
 
-import com.micrantha.eyespie.domain.entities.Thing
 import com.micrantha.eyespie.platform.scan.CameraImage
 import kotlinx.serialization.Serializable
 
 data class ScanGuessState(
-    val thing: Thing? = null,
+    val thingID: String? = null,
+    val guessed: Boolean = false,
     val bestSimilarity: Float? = null
 )
 
@@ -27,5 +27,5 @@ sealed interface ScanGuessAction {
     data class SimilarityUpdated(val similarity: Float?) : ScanGuessAction
 
     data object Load : ScanGuessAction
-    data class Loaded(val thing: Thing) : ScanGuessAction
+    data class Loaded(val thingID: String) : ScanGuessAction
 }
