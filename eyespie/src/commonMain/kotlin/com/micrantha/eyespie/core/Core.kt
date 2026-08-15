@@ -1,5 +1,6 @@
 package com.micrantha.eyespie.core
 
+import kotlin.jvm.JvmInline
 import kotlin.math.sqrt
 
 @JvmInline
