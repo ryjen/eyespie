@@ -18,6 +18,7 @@ import okio.Path.Companion.toPath
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
@@ -56,7 +57,7 @@ class UploadCaptureUseCaseTest {
     )
 
     @Test
-    fun `should upload image with its actual format and create thing`() = runTest {
+    fun `should persist opaque image object path and create thing`() = runTest {
         val player = Player("p1", Instant.parse("2023-01-01T00:00:00Z"), Player.Name("f", "l", "n"), "e", Player.Score(0))
         session.update(Session("a", "r", "u", "s"))
         session.update(player)
@@ -68,9 +69,25 @@ class UploadCaptureUseCaseTest {
 
         assertTrue(result.isSuccess)
         assertEquals(1, thingRepository.things.size)
-        assertTrue(thingRepository.things.first().imageUrl.matches(Regex("http://fakeurl/p1/.+\\.png")))
-        assertEquals(1, storageRepository.storage.size)
-        assertTrue(storageRepository.storage.keys.single().endsWith(".png"))
+        val imagePath = thingRepository.things.first().imagePath
+        assertTrue(imagePath.matches(Regex("p1/.+\\.png")))
+        assertFalse(imagePath.startsWith("http"))
+        assertEquals(imagePath, storageRepository.storage.keys.single())
+    }
+
+    @Test
+    fun `upload should fail closed when storage returns a different object identity`() = runTest {
+        val player = Player("p1", Instant.parse("2023-01-01T00:00:00Z"), Player.Name("f", "l", "n"), "e", Player.Score(0))
+        session.update(Session("a", "r", "u", "s"))
+        session.update(player)
+        storageRepository.uploadResult = Result.success("other-player/unexpected.png")
+
+        val result = useCase(
+            proof = Proof(clues = null, location = null),
+            image = "/test.png".toPath(),
+        )
+
+        assertTrue(result.isFailure)
     }
 
     @Test
