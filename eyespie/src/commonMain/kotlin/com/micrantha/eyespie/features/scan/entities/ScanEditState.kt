@@ -20,6 +20,7 @@ data class ScanEditState(
     val authoringMode: ClueAuthoringMode = ClueAuthoringMode.CHOOSE,
     val manualClue: String = "",
     val manualAnswer: String = "",
+    val generationAvailable: Boolean = false,
     val generationUnavailable: Boolean = false,
     val embedding: Embedding? = null,
     val name: String? = null,
