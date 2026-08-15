@@ -19,7 +19,7 @@ internal interface ThingsRemoteSource {
 
     suspend fun nearby(request: NearbyRequest): Result<List<ThingResponse>>
 
-    suspend fun match(request: MatchRequest): Result<List<MatchResponse>>
+    suspend fun match(request: MatchRequest): Result<MatchResponse>
 }
 
 internal class SupabaseThingsRemoteSource(
@@ -66,7 +66,7 @@ internal class SupabaseThingsRemoteSource(
     }
 
     override suspend fun match(request: MatchRequest) = try {
-        val res = supaClient.match(request).decodeList<MatchResponse>()
+        val res = supaClient.match(request).decodeSingle<MatchResponse>()
         Result.success(res)
     } catch (err: Throwable) {
         Result.failure(err)
