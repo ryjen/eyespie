@@ -15,6 +15,7 @@ import com.micrantha.eyespie.domain.repository.ClueRepository
 import com.micrantha.eyespie.features.players.domain.entities.Player
 import com.micrantha.eyespie.features.scan.entities.ClueAuthoringMode
 import com.micrantha.eyespie.features.scan.entities.ScanEditAction.AnalyzedClues
+import com.micrantha.eyespie.features.scan.entities.ScanEditAction.ClueGenerationAvailability
 import com.micrantha.eyespie.features.scan.entities.ScanEditAction.GenerateClues
 import com.micrantha.eyespie.features.scan.entities.ScanEditAction.GeneratedCluesUnavailable
 import com.micrantha.eyespie.features.scan.entities.ScanEditAction.SaveScanEdit
@@ -105,13 +106,17 @@ class ScanEditEnvironmentTest {
 
     @Test
     fun `loaded image should wait for explicit authoring choice without invoking inference`() = runTest {
-        val state = environment.reduce(
+        val loading = environment.reduce(
             ScanEditState(path = "/test.jpg".toPath()),
             cameraImage,
         )
 
-        environment.invoke(cameraImage, state)
+        assertTrue(loading.isBusy)
+        environment.invoke(cameraImage, loading)
+        val availability = assertIs<ClueGenerationAvailability>(dispatcher.actions.last())
+        val state = environment.reduce(loading, availability)
 
+        assertTrue(availability.available)
         assertEquals(ClueAuthoringMode.CHOOSE, state.authoringMode)
         assertFalse(state.isBusy)
         assertEquals(0, clueRepository.requests)
@@ -121,12 +126,15 @@ class ScanEditEnvironmentTest {
     fun `image generation unavailable should route directly to manual without provider request`() = runTest {
         clueRepository.generatedAvailable = false
 
-        val state = environment.reduce(
+        val loading = environment.reduce(
             ScanEditState(path = "/test.jpg".toPath()),
             cameraImage,
         )
-        environment.invoke(cameraImage, state)
+        environment.invoke(cameraImage, loading)
+        val availability = assertIs<ClueGenerationAvailability>(dispatcher.actions.last())
+        val state = environment.reduce(loading, availability)
 
+        assertFalse(availability.available)
         assertEquals(ClueAuthoringMode.MANUAL, state.authoringMode)
         assertTrue(state.generationUnavailable)
         assertFalse(state.isBusy)
@@ -151,6 +159,7 @@ class ScanEditEnvironmentTest {
         clueRepository.generatedAvailable = false
         val generating = ScanEditState(
             path = "/test.jpg".toPath(),
+            generationAvailable = true,
             authoringMode = ClueAuthoringMode.GENERATED,
             isBusy = true,
         )
@@ -165,7 +174,11 @@ class ScanEditEnvironmentTest {
     fun `generated failure dispatches actionable manual fallback instead of generic load error`() = runTest {
         clueRepository.result = Result.failure(IllegalStateException("provider unavailable"))
         val generating = environment.reduce(
-            ScanEditState(path = "/test.jpg".toPath(), isBusy = false),
+            ScanEditState(
+                path = "/test.jpg".toPath(),
+                generationAvailable = true,
+                isBusy = false,
+            ),
             GenerateClues,
         )
 
@@ -175,6 +188,7 @@ class ScanEditEnvironmentTest {
         val action = assertIs<GeneratedCluesUnavailable>(dispatcher.actions.last())
         val fallback = environment.reduce(generating, action)
         assertEquals(ClueAuthoringMode.MANUAL, fallback.authoringMode)
+        assertFalse(fallback.generationAvailable)
         assertTrue(fallback.generationUnavailable)
         assertFalse(fallback.isBusy)
         assertFalse(fallback.isError)
@@ -185,6 +199,7 @@ class ScanEditEnvironmentTest {
         val state = environment.reduce(ScanEditState(), AnalyzedClues(generatedClues))
 
         assertSame(generatedClues, state.clues)
+        assertTrue(state.generationAvailable)
         assertEquals("test-local", state.clues?.provenance?.providerId)
         assertEquals(setOf("clue A", "clue B", "clue C"), state.selected?.values?.map { it.clue }?.toSet())
         assertEquals(setOf(0.7f, 0.8f, 0.9f), state.selected?.values?.map { it.confidence }?.toSet())
