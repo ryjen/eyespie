@@ -1,7 +1,6 @@
 package com.micrantha.eyespie.features.scan.usecase
 
 import com.micrantha.eyespie.domain.entities.Embedding
-import com.micrantha.eyespie.domain.entities.Thing
 import com.micrantha.eyespie.domain.repository.ThingRepository
 import com.micrantha.eyespie.platform.scan.CameraImage
 import kotlinx.coroutines.CancellationException
@@ -20,8 +19,10 @@ class MatchCaptureUseCase(
 ) {
     suspend operator fun invoke(
         image: CameraImage,
-        thing: Thing,
+        thingID: String,
     ): Flow<Result<MatchResult>> {
+        require(thingID.isNotBlank()) { "target Thing id must not be blank" }
+
         val embedding = try {
             imageEmbeddingGenerator.generate(image).also {
                 require(it != Embedding.EMPTY) { "capture embedding must not be empty" }
@@ -32,7 +33,7 @@ class MatchCaptureUseCase(
             return flowOf(Result.failure(error))
         }
 
-        return thingRepository.match(thing.id, embedding).map { res ->
+        return thingRepository.match(thingID, embedding).map { res ->
             res.map { match ->
                 MatchResult(
                     matched = match.matched,
