@@ -42,10 +42,10 @@ internal class ThingDataRepository(
 
     override suspend fun create(
         proof: Proof,
-        imageUrl: String,
+        imagePath: String,
         playerID: String,
     ): Result<Thing> {
-        val request = runCatching { mapper.new(proof, imageUrl, playerID) }
+        val request = runCatching { mapper.new(proof, imagePath, playerID) }
             .getOrElse { return Result.failure(it) }
         return remoteSource.save(request).mapCatching(mapper::map)
     }
