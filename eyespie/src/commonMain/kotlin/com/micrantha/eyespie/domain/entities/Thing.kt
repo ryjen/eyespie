@@ -32,12 +32,11 @@ data class Thing(
 
     data class Match(
         override val id: String,
-        val embedding: Embedding,
-        val similarity: Float
+        val similarity: Float,
+        val matched: Boolean,
     ) : Entity
 }
 
 typealias ThingList = List<Thing.Listing>
-typealias ThingMatches = List<Thing.Match>
 
 typealias ImagePath = String
