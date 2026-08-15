@@ -7,17 +7,17 @@ import android.view.Surface
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.camera.core.CameraSelector
-import androidx.camera.core.ImageCapture
 import androidx.camera.core.ImageCaptureException
 import androidx.camera.core.Preview
+import androidx.camera.core.ImageCapture as CameraXImageCapture
 import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -25,6 +25,14 @@ import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import java.io.File
+import java.util.concurrent.ExecutorService
+import java.util.concurrent.Executors
+import java.util.concurrent.atomic.AtomicBoolean
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.launch
+import kotlinx.coroutines.suspendCancellableCoroutine
+import kotlin.coroutines.resume
+import kotlin.coroutines.resumeWithException
 
 private const val CAPTURE_PREFIX = "eyespie-capture-"
 private const val CAPTURE_SUFFIX = ".jpg"
@@ -38,6 +46,7 @@ actual fun CameraCapture(
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
+    val compositionScope = rememberCoroutineScope()
     var permissionGranted by remember {
         mutableStateOf(
             ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) ==
@@ -53,10 +62,8 @@ actual fun CameraCapture(
         }
     }
 
-    LaunchedEffect(Unit) {
-        if (!permissionGranted) permissionLauncher.launch(Manifest.permission.CAMERA)
-    }
-
+    // Do not trigger a native permission prompt merely because the surface entered composition.
+    // The user-provided capture control is the explicit contextual request point.
     if (!permissionGranted) {
         captureButton { permissionLauncher.launch(Manifest.permission.CAMERA) }
         return
@@ -65,15 +72,21 @@ actual fun CameraCapture(
     val previewView = remember {
         PreviewView(context).apply { scaleType = PreviewView.ScaleType.FILL_CENTER }
     }
-    val imageCapture = remember {
-        ImageCapture.Builder()
-            .setCaptureMode(ImageCapture.CAPTURE_MODE_MAXIMIZE_QUALITY)
-            .setFlashMode(ImageCapture.FLASH_MODE_AUTO)
+    val cameraXImageCapture = remember {
+        CameraXImageCapture.Builder()
+            .setCaptureMode(CameraXImageCapture.CAPTURE_MODE_MAXIMIZE_QUALITY)
+            .setFlashMode(CameraXImageCapture.FLASH_MODE_AUTO)
             .build()
+    }
+    val preview = remember(previewView) {
+        Preview.Builder().build().also { it.surfaceProvider = previewView.surfaceProvider }
+    }
+    val imageCapture: ImageCapture = remember(context, cameraXImageCapture) {
+        AndroidImageCapture(context.applicationContext, cameraXImageCapture)
     }
     var cameraProvider by remember { mutableStateOf<ProcessCameraProvider?>(null) }
 
-    DisposableEffect(lifecycleOwner, previewView) {
+    DisposableEffect(lifecycleOwner, preview, cameraXImageCapture, imageCapture) {
         var disposed = false
         val future = ProcessCameraProvider.getInstance(context)
         future.addListener(
@@ -82,16 +95,11 @@ actual fun CameraCapture(
                     val provider = future.get()
                     if (disposed) return@runCatching
                     cameraProvider = provider
-                    val preview = Preview.Builder().build().also {
-                        it.surfaceProvider = previewView.surfaceProvider
-                    }
-                    provider.unbindAll()
-                    if (disposed) return@runCatching
                     provider.bindToLifecycle(
                         lifecycleOwner,
                         CameraSelector.DEFAULT_BACK_CAMERA,
                         preview,
-                        imageCapture,
+                        cameraXImageCapture,
                     )
                 }.onFailure {
                     if (!disposed) onCameraError(it)
@@ -102,8 +110,9 @@ actual fun CameraCapture(
 
         onDispose {
             disposed = true
-            cameraProvider?.unbindAll()
+            cameraProvider?.unbind(preview, cameraXImageCapture)
             cameraProvider = null
+            (imageCapture as AndroidImageCapture).close()
         }
     }
 
@@ -113,43 +122,96 @@ actual fun CameraCapture(
     )
 
     captureButton {
-        imageCapture.targetRotation = previewView.display?.rotation ?: Surface.ROTATION_0
-        captureImage(context, imageCapture, onCameraError, onCaptured)
+        cameraXImageCapture.targetRotation = previewView.display?.rotation ?: Surface.ROTATION_0
+        compositionScope.launch {
+            try {
+                onCaptured(imageCapture.capture())
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (error: Throwable) {
+                onCameraError(error)
+            }
+        }
     }
 }
 
-private fun captureImage(
-    context: Context,
-    imageCapture: ImageCapture,
-    onCameraError: (Throwable) -> Unit,
-    onCaptured: (CapturedImage) -> Unit,
-) {
-    val outputFile = runCatching {
-        File.createTempFile(CAPTURE_PREFIX, CAPTURE_SUFFIX, context.cacheDir)
-    }.getOrElse {
-        onCameraError(it)
-        return
-    }
-    val outputOptions = ImageCapture.OutputFileOptions.Builder(outputFile).build()
+/**
+ * CameraX-backed implementation of the common [ImageCapture] contract.
+ *
+ * One capture may be owned at a time. A cancelled caller does not release that gate early because
+ * CameraX may still be writing the app-private temporary file; the callback owns final cleanup.
+ */
+private class AndroidImageCapture(
+    private val context: Context,
+    private val cameraXImageCapture: CameraXImageCapture,
+    private val executor: ExecutorService = Executors.newSingleThreadExecutor(),
+) : ImageCapture, AutoCloseable {
+    private val captureInFlight = AtomicBoolean(false)
 
-    imageCapture.takePicture(
-        outputOptions,
-        ContextCompat.getMainExecutor(context),
-        object : ImageCapture.OnImageSavedCallback {
-            override fun onError(exception: ImageCaptureException) {
+    override suspend fun capture(): CapturedImage {
+        check(
+            ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) ==
+                PackageManager.PERMISSION_GRANTED,
+        ) { "camera permission is unavailable" }
+        check(captureInFlight.compareAndSet(false, true)) {
+            "a camera capture is already in progress"
+        }
+
+        val outputFile = try {
+            File.createTempFile(CAPTURE_PREFIX, CAPTURE_SUFFIX, context.cacheDir)
+        } catch (error: Throwable) {
+            captureInFlight.set(false)
+            throw error
+        }
+        val outputOptions = CameraXImageCapture.OutputFileOptions.Builder(outputFile).build()
+
+        return suspendCancellableCoroutine { continuation ->
+            fun finish() {
                 outputFile.delete()
-                onCameraError(exception)
+                captureInFlight.set(false)
             }
 
-            override fun onImageSaved(outputFileResults: ImageCapture.OutputFileResults) {
-                try {
-                    onCaptured(CapturedImage.fromEncoded(outputFile.readBytes()))
-                } catch (error: Throwable) {
-                    onCameraError(error)
-                } finally {
-                    outputFile.delete()
+            try {
+                cameraXImageCapture.takePicture(
+                    outputOptions,
+                    executor,
+                    object : CameraXImageCapture.OnImageSavedCallback {
+                        override fun onError(exception: ImageCaptureException) {
+                            finish()
+                            if (continuation.isActive) {
+                                continuation.resumeWithException(exception)
+                            }
+                        }
+
+                        override fun onImageSaved(
+                            outputFileResults: CameraXImageCapture.OutputFileResults,
+                        ) {
+                            try {
+                                if (continuation.isActive) {
+                                    continuation.resume(
+                                        CapturedImage.fromEncoded(outputFile.readBytes()),
+                                    )
+                                }
+                            } catch (error: Throwable) {
+                                if (continuation.isActive) {
+                                    continuation.resumeWithException(error)
+                                }
+                            } finally {
+                                finish()
+                            }
+                        }
+                    },
+                )
+            } catch (error: Throwable) {
+                finish()
+                if (continuation.isActive) {
+                    continuation.resumeWithException(error)
                 }
             }
-        },
-    )
+        }
+    }
+
+    override fun close() {
+        executor.shutdown()
+    }
 }
