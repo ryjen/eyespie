@@ -31,34 +31,6 @@ query GameNode($nodeId: ID!) {
             max_things
             min_players
             max_players
-            things: gameThingCollection {
-                edges {
-                    node {
-                        thing {
-                            id
-                            nodeId
-                            imageUrl
-                            name
-                            created_at
-                            clues
-                            guessed
-                            guesses {
-                                edges {
-                                    node {
-                                        created_by {
-                                            name
-                                            id
-                                            nodeId
-                                        }
-                                        created_at
-                                        correct
-                                    }
-                                }
-                            }
-                        }
-                    }
-                }
-            }
             players: gamePlayerCollection {
                 edges {
                     node {
