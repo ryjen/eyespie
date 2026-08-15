@@ -11,7 +11,7 @@ data class Thing(
     val createdBy: Player.Ref,
     val guessed: Boolean,
     val guesses: List<Guess>,
-    val imageUrl: ImagePath,
+    val imagePath: ImagePath,
     val location: Location.Point,
     val embedding: Embedding? = null
 ) : Entity, Creatable {
@@ -22,12 +22,12 @@ data class Thing(
         val correct: Boolean
     )
 
+    /** Safe list/game projection. Authority-only image/location/proof/embedding are absent. */
     data class Listing(
         override val id: String,
         val nodeId: String,
         override val createdAt: Instant,
         val guessed: Boolean,
-        val imageUrl: ImagePath,
     ) : Entity, Creatable
 
     data class Match(
