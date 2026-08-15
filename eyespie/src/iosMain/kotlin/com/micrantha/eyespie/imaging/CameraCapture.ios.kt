@@ -94,7 +94,9 @@ actual fun CameraCapture(
         device?.let {
             CameraStream(
                 device = it,
-                onCameraError = onCameraError,
+                onCameraError = { error ->
+                    compositionScope.launch { onCameraError(error) }
+                },
                 onCameraFrame = controller::updateFrame,
             )
         }
