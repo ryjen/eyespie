@@ -4,7 +4,6 @@ import com.micrantha.eyespie.core.data.client.SupaClient
 import com.micrantha.eyespie.features.things.data.model.MatchRequest
 import com.micrantha.eyespie.features.things.data.model.MatchResponse
 import com.micrantha.eyespie.features.things.data.model.NearbyRequest
-import com.micrantha.eyespie.features.things.data.model.ThingData
 import com.micrantha.eyespie.features.things.data.model.ThingListing
 import com.micrantha.eyespie.features.things.data.model.ThingRequest
 import com.micrantha.eyespie.features.things.data.model.ThingResponse
@@ -17,7 +16,7 @@ internal interface ThingsRemoteSource {
 
     suspend fun thing(thingID: String): Result<ThingResponse>
 
-    suspend fun nearby(request: NearbyRequest): Result<List<ThingResponse>>
+    suspend fun nearby(request: NearbyRequest): Result<List<ThingListing>>
 
     suspend fun match(request: MatchRequest): Result<MatchResponse>
 }
@@ -34,7 +33,7 @@ internal class SupabaseThingsRemoteSource(
 
     override suspend fun things(playerID: String) = try {
         val result = supaClient.things().select(
-            Columns.type<ThingData>()
+            Columns.type<ThingListing>()
         ) {
             filter {
                 eq("created_by", playerID)
@@ -47,7 +46,7 @@ internal class SupabaseThingsRemoteSource(
 
     override suspend fun thing(thingID: String) = try {
         val result = supaClient.things().select(
-            Columns.type<ThingData>()
+            Columns.type<ThingResponse>()
         ) {
             filter {
                 eq("id", thingID)
@@ -59,7 +58,7 @@ internal class SupabaseThingsRemoteSource(
     }
 
     override suspend fun nearby(request: NearbyRequest) = try {
-        val res = supaClient.nearby(request).decodeList<ThingResponse>()
+        val res = supaClient.nearby(request).decodeList<ThingListing>()
         Result.success(res)
     } catch (err: Throwable) {
         Result.failure(err)
