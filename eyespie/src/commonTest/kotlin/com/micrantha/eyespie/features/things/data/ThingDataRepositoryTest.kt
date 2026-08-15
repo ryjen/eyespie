@@ -72,6 +72,23 @@ class ThingDataRepositoryTest {
     }
 
     @Test
+    fun `full thing authority should never be emitted from unscoped local cache`() = runTest {
+        localSource.things = listOf(
+            ThingAuthorityData(
+                id = "target-1",
+                createdBy = "previous-account-player",
+                imagePath = "previous-account-player/private.png",
+            )
+        )
+        remoteSource.thingResult = Result.failure(IllegalStateException("not authorized"))
+
+        val results = repository.thing("target-1").toList()
+
+        assertEquals(1, results.size)
+        assertTrue(results.single().isFailure)
+    }
+
+    @Test
     fun `match should send canonical embedding only for explicit target`() = runTest {
         val embedding = List(ImageEmbeddingContract.dimensions) { index ->
             if (index == 0) 1f else 0f
