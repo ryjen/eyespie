@@ -29,7 +29,8 @@ class SqlGameRepository(
 
     override suspend fun save(game: Game) {
         queries.transaction {
-            queries.upsertGame(game.id.value, game.name, game.creator.value)
+            queries.insertGame(game.id.value, game.name, game.creator.value)
+            queries.updateGame(game.name, game.creator.value, game.id.value)
 
             val retainedThingIds = game.things.mapTo(mutableSetOf()) { it.id.value }
             queries.selectThingIdsByGame(game.id.value)
@@ -41,13 +42,23 @@ class SqlGameRepository(
                 }
 
             game.things.forEachIndexed { index, thing ->
-                queries.upsertThing(
+                val embedding = EmbeddingBlobCodec.encode(thing.targetEmbedding)
+                val sortOrder = index.toLong()
+                queries.insertThing(
                     thing.id.value,
                     game.id.value,
                     thing.clue,
-                    EmbeddingBlobCodec.encode(thing.targetEmbedding),
+                    embedding,
                     thing.matchThreshold,
-                    index.toLong(),
+                    sortOrder,
+                )
+                queries.updateThing(
+                    game.id.value,
+                    thing.clue,
+                    embedding,
+                    thing.matchThreshold,
+                    sortOrder,
+                    thing.id.value,
                 )
             }
         }
