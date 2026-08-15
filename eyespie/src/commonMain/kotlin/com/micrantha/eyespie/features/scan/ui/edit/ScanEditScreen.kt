@@ -4,6 +4,7 @@ import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxScope
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -114,13 +115,7 @@ class ScanEditScreen(
     }
 
     @Composable
-    private fun BoxScopeLoading() = Unit
-
-    @Composable
-    private fun BoxScopeAuthoring() = Unit
-
-    @Composable
-    private fun Box.Loading() {
+    private fun BoxScope.Loading() {
         CircularProgressIndicator(
             modifier = Modifier.align(Alignment.Center).background(
                 Color.Gray.copy(alpha = 0.5f),
@@ -130,7 +125,7 @@ class ScanEditScreen(
     }
 
     @Composable
-    private fun Box.Error(dispatch: Dispatch) {
+    private fun BoxScope.Error(dispatch: Dispatch) {
         Column(
             Modifier.align(Alignment.Center).background(
                 Color.Gray.copy(alpha = 0.5f),
@@ -155,7 +150,7 @@ class ScanEditScreen(
     }
 
     @Composable
-    private fun Box.Authoring(state: ScanEditUiState, dispatch: Dispatch) {
+    private fun BoxScope.Authoring(state: ScanEditUiState, dispatch: Dispatch) {
         when (state.authoringMode) {
             ClueAuthoringMode.CHOOSE -> AuthoringChoice(dispatch)
             ClueAuthoringMode.GENERATED -> GeneratedAuthoring(state, dispatch)
@@ -164,7 +159,7 @@ class ScanEditScreen(
     }
 
     @Composable
-    private fun Box.AuthoringChoice(dispatch: Dispatch) {
+    private fun BoxScope.AuthoringChoice(dispatch: Dispatch) {
         Column(
             modifier = Modifier.align(Alignment.Center).background(
                 Color.Gray.copy(alpha = 0.5f),
@@ -187,7 +182,7 @@ class ScanEditScreen(
     }
 
     @Composable
-    private fun Box.GeneratedAuthoring(state: ScanEditUiState, dispatch: Dispatch) {
+    private fun BoxScope.GeneratedAuthoring(state: ScanEditUiState, dispatch: Dispatch) {
         Column(
             modifier = Modifier.fillMaxSize(),
             horizontalAlignment = Alignment.CenterHorizontally,
@@ -205,7 +200,7 @@ class ScanEditScreen(
     }
 
     @Composable
-    private fun Box.ManualAuthoring(state: ScanEditUiState, dispatch: Dispatch) {
+    private fun BoxScope.ManualAuthoring(state: ScanEditUiState, dispatch: Dispatch) {
         Column(
             modifier = Modifier.align(Alignment.Center).fillMaxWidth().background(
                 Color.Gray.copy(alpha = 0.5f),
