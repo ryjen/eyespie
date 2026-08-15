@@ -75,34 +75,22 @@ class DashboardEnvironmentTest {
     @Test
     fun `reduce Load action should return Busy status`() {
         val state = DashboardState(status = UiResult.Default)
-        val action = Load
-
-        val newState = environment.reduce(state, action)
-
+        val newState = environment.reduce(state, Load)
         assertIs<UiResult.Busy>(newState.status)
     }
 
     @Test
     fun `reduce Loaded action should return Ready status`() {
         val state = DashboardState(status = UiResult.Busy())
-        val action = Loaded(
-            nearbyThings = emptyList(),
-            nearbyPlayers = emptyList(),
-            friends = emptyList()
-        )
-
+        val action = Loaded(emptyList(), emptyList(), emptyList())
         val newState = environment.reduce(state, action)
-
         assertIs<UiResult.Ready<*>>(newState.status)
     }
 
     @Test
     fun `reduce LoadError action should return Failure status`() {
         val state = DashboardState(status = UiResult.Busy())
-        val action = LoadError
-
-        val newState = environment.reduce(state, action)
-
+        val newState = environment.reduce(state, LoadError)
         assertIs<UiResult.Failure>(newState.status)
     }
 
@@ -117,19 +105,13 @@ class DashboardEnvironmentTest {
             totalThings = 0,
             totalPlayers = 0
         )
-        val action = GameAction.GameClicked(game)
-
-        environment.invoke(action, DashboardState())
-
+        environment.invoke(GameAction.GameClicked(game), DashboardState())
         assertIs<GameDetailsScreen>(context.router.lastNavigatedTo)
     }
 
     @Test
     fun `invoke ScanNewThing action should navigate to ScanCaptureScreen`() = runTest {
-        val action = ScanNewThing
-
-        environment.invoke(action, DashboardState())
-
+        environment.invoke(ScanNewThing, DashboardState())
         assertIs<ScanCaptureScreen>(context.router.lastNavigatedTo)
     }
 
@@ -140,46 +122,29 @@ class DashboardEnvironmentTest {
             createdAt = Instant.parse("2023-01-01T00:00:00Z"),
             nodeId = "1",
             guessed = false,
-            imageUrl = "url",
         )
-        val action = GuessThing(thing)
-
-        environment.invoke(action, DashboardState())
-
+        environment.invoke(GuessThing(thing), DashboardState())
         assertIs<ScanGuessScreen>(context.router.lastNavigatedTo)
     }
 
     @Test
     fun `invoke Load action should call use case and dispatch Loaded`() = runTest {
-        val action = Load
-        val loaded = Loaded(emptyList(), emptyList(), emptyList())
-        
-        environment.invoke(action, DashboardState())
-        
-        useCase.flow.emit(Result.success(loaded))
-
+        environment.invoke(Load, DashboardState())
+        useCase.flow.emit(Result.success(Loaded(emptyList(), emptyList(), emptyList())))
         assertIs<Loaded>(dispatcher.actions.find { it is Loaded })
     }
 
     @Test
     fun `invoke Load action should call use case and dispatch LoadError on failure`() = runTest {
-        val action = Load
-        
-        environment.invoke(action, DashboardState())
-        
+        environment.invoke(Load, DashboardState())
         useCase.flow.emit(Result.failure(Exception("Error")))
-
         assertIs<LoadError>(dispatcher.actions.find { it is LoadError })
     }
 
     @Test
     fun `invoke Load action should monitor capture sync count`() = runTest {
-        val action = Load
-        
-        environment.invoke(action, DashboardState())
-        
+        environment.invoke(Load, DashboardState())
         captureSyncRepository.countFlow.value = 5
-
         val syncAction = dispatcher.actions.filterIsInstance<SyncCountUpdated>().last()
         assertEquals(5, syncAction.count)
     }
