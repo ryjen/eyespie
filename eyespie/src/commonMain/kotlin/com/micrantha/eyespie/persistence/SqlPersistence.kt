@@ -1,5 +1,6 @@
 package com.micrantha.eyespie.persistence
 
+import com.micrantha.eyespie.clue.ClueAuthority
 import com.micrantha.eyespie.core.Game
 import com.micrantha.eyespie.core.GameId
 import com.micrantha.eyespie.core.GameRepository
@@ -44,20 +45,34 @@ class SqlGameRepository(
             game.things.forEachIndexed { index, thing ->
                 val embedding = EmbeddingBlobCodec.encode(thing.targetEmbedding)
                 val sortOrder = index.toLong()
+                val clueAuthority = thing.clueAuthority
+                val generatedProvenance = clueAuthority.generatedProvenance
                 queries.insertThing(
                     thing.id.value,
                     game.id.value,
-                    thing.clue,
+                    clueAuthority.clueText,
                     embedding,
                     thing.matchThreshold,
                     sortOrder,
+                    clueAuthority.expectedAnswer,
+                    clueAuthority.origin.name,
+                    clueAuthority.schemaVersion.toLong(),
+                    generatedProvenance?.providerId,
+                    generatedProvenance?.modelId,
+                    generatedProvenance?.confidence,
                 )
                 queries.updateThing(
                     game.id.value,
-                    thing.clue,
+                    clueAuthority.clueText,
                     embedding,
                     thing.matchThreshold,
                     sortOrder,
+                    clueAuthority.expectedAnswer,
+                    clueAuthority.origin.name,
+                    clueAuthority.schemaVersion.toLong(),
+                    generatedProvenance?.providerId,
+                    generatedProvenance?.modelId,
+                    generatedProvenance?.confidence,
                     thing.id.value,
                 )
             }
@@ -68,10 +83,31 @@ class SqlGameRepository(
         id = GameId(row.id),
         name = row.name,
         creator = PlayerId(row.creatorId),
-        things = queries.selectThingsByGame(row.id) { thingId, _, clue, targetEmbedding, matchThreshold, _ ->
+        things = queries.selectThingsByGame(row.id) {
+                thingId,
+                _,
+                clue,
+                targetEmbedding,
+                matchThreshold,
+                _,
+                expectedAnswer,
+                clueOrigin,
+                clueAuthorityVersion,
+                generatedProviderId,
+                generatedModelId,
+                generatedConfidence,
+            ->
             Thing(
                 id = ThingId(thingId),
-                clue = clue,
+                clueAuthority = ClueAuthority.persisted(
+                    schemaVersion = clueAuthorityVersion.toInt(),
+                    clueText = clue,
+                    expectedAnswer = expectedAnswer,
+                    origin = clueOrigin,
+                    generatedProviderId = generatedProviderId,
+                    generatedModelId = generatedModelId,
+                    generatedConfidence = generatedConfidence,
+                ),
                 targetEmbedding = EmbeddingBlobCodec.decode(targetEmbedding),
                 matchThreshold = matchThreshold,
             )
