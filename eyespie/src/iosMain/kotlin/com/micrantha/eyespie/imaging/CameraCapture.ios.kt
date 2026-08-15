@@ -35,6 +35,8 @@ import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import platform.AVFoundation.AVCaptureConnection
 import platform.AVFoundation.AVCaptureDevice
+import platform.AVFoundation.AVCaptureDevice.Companion.authorizationStatusForMediaType
+import platform.AVFoundation.AVCaptureDevice.Companion.requestAccessForMediaType
 import platform.AVFoundation.AVCaptureDeviceInput
 import platform.AVFoundation.AVCaptureOutput
 import platform.AVFoundation.AVCaptureSession
@@ -83,7 +85,7 @@ actual fun CameraCapture(
     LaunchedEffect(Unit) {
         authorized = requestCameraAccess()
         if (authorized == false) {
-            onCameraError(SecurityException("camera permission was denied"))
+            onCameraError(IllegalStateException("camera permission was denied"))
         }
     }
 
@@ -130,7 +132,7 @@ actual fun CameraCapture(
             if (authorized != true) {
                 authorized = requestCameraAccess()
                 if (authorized != true) {
-                    onCameraError(SecurityException("camera permission was denied"))
+                    onCameraError(IllegalStateException("camera permission was denied"))
                     return@launch
                 }
             }
@@ -145,7 +147,9 @@ private suspend fun requestCameraAccess(): Boolean =
     when (AVCaptureDevice.authorizationStatusForMediaType(AVMediaTypeVideo)) {
         AVAuthorizationStatusAuthorized -> true
         AVAuthorizationStatusNotDetermined -> suspendCancellableCoroutine { continuation ->
-            AVCaptureDevice.requestAccessForMediaType(AVMediaTypeVideo) { granted ->
+            AVCaptureDevice.requestAccessForMediaType(
+                mediaType = AVMediaTypeVideo,
+            ) { granted: Boolean ->
                 if (continuation.isActive) continuation.resume(granted)
             }
         }
