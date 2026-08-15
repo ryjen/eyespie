@@ -1,20 +1,15 @@
 package com.micrantha.eyespie.android
 
-import MainActivityContent
 import android.os.Bundle
+import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.fragment.app.FragmentActivity
+import com.micrantha.eyespie.App
 
-class MainActivity : FragmentActivity() {
-
+class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
-
         enableEdgeToEdge()
-
-        setContent {
-            MainActivityContent()
-        }
+        setContent { App() }
     }
 }

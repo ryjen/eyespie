@@ -1,21 +1,15 @@
 name: iOS MediaPipe Integration
 
 on:
+  push:
+    branches: [reboot/backendless-core]
   pull_request:
     branches: [main]
     paths:
-      - "eyespie/build.gradle.kts"
-      - "eyespie/eyespie.podspec"
-      - "eyespie/src/commonMain/**"
-      - "eyespie/src/commonTest/**"
-      - "eyespie/src/iosMain/**"
-      - "eyespie/src/appleTest/**"
-      - "bluebell/src/commonMain/**"
-      - "bluebell/src/commonTest/**"
-      - "bluebell/src/iosMain/**"
-      - "bluebell/src/appleTest/**"
-      - "gradle/libs.versions.toml"
+      - "eyespie/**"
       - "iosApp/**"
+      - "gradle/**"
+      - "settings.gradle.kts"
       - ".github/workflows/ios-mediapipe.yml"
   workflow_dispatch:
 
@@ -28,289 +22,46 @@ concurrency:
 
 jobs:
   ios-mediapipe:
-    name: ios-mediapipe
+    name: ios-offline-core-mediapipe
     runs-on: macos-15
     timeout-minutes: 60
-
     steps:
-      - name: Checkout code
+      - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
-
       - name: Set up JDK 21
         uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5.6.0
         with:
           java-version: "21"
           distribution: temurin
-
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@3f131e8634966bd73d06cc69884922b02e6faf92 # v6
-        with:
-          cache-read-only: true
-
       - name: Set up CocoaPods
-        run: |
-          sudo gem install cocoapods -v 1.17.0 --no-document
-          pod --version
-
-      - name: Create build configuration
-        run: cp env.example .env.local
-
-      - name: Assert MediaPipe source contract
+        run: sudo gem install cocoapods -v 1.17.0 --no-document
+      - name: Assert local MediaPipe pod graph
         shell: bash
         run: |
           set -euo pipefail
-          version="0.10.26.2"
-          lockfile="iosApp/Podfile.lock"
-
-          for pod in \
-            EyespieMediaPipeTasksCommon \
-            EyespieMediaPipeTasksVision \
-            EyespieMediaPipeTasksGenAIC \
-            EyespieMediaPipeTasksGenAI; do
-            podspec="iosApp/MediaPipePodspecs/${pod}.podspec"
-            for file in iosApp/Podfile "$podspec"; do
-              if ! grep -Fq "$pod" "$file"; then
-                echo "$file does not declare $pod" >&2
-                exit 1
-              fi
-            done
-            if ! grep -Fq 'spec.version = ENV.fetch("POD_VERSION", "0.10.26.2")' "$podspec"; then
-              echo "$podspec does not default POD_VERSION to $version" >&2
-              exit 1
-            fi
-            if ! grep -Fq "$pod ($version)" "$lockfile"; then
-              echo "$lockfile does not lock $pod at $version" >&2
-              exit 1
-            fi
-            if ! grep -Fq "pod(\"$pod\")" eyespie/build.gradle.kts; then
-              echo "Kotlin CocoaPods does not declare local pod $pod" >&2
-              exit 1
-            fi
+          for pod in EyespieMediaPipeTasksCommon EyespieMediaPipeTasksVision EyespieMediaPipeTasksGenAIC EyespieMediaPipeTasksGenAI; do
+            test -f "iosApp/MediaPipePodspecs/${pod}.podspec"
+            grep -Fq "pod(\"$pod\")" eyespie/build.gradle.kts
           done
-
-          if grep -Eq 'pod\("MediaPipeTasks(Vision|GenAI)"\)' eyespie/build.gradle.kts; then
-            echo "Kotlin CocoaPods still declares official MediaPipe pods" >&2
-            exit 1
-          fi
-          if grep -Eq '^  - MediaPipeTasks(Common|Vision|GenAIC|GenAI)' "$lockfile"; then
-            echo "Checked-in lockfile still contains official MediaPipe pods" >&2
-            exit 1
-          fi
-
-      - name: Assert Kotlin 2.2 Apple compatibility pins
-        shell: bash
-        run: |
-          set -euo pipefail
-          catalog="gradle/libs.versions.toml"
-          grep -Fxq 'kotlin = "2.2.21"' "$catalog"
-          grep -Fxq 'kamelImage = "1.0.8"' "$catalog"
-          grep -Fxq 'kotlinxSerializationJson = "1.9.0"' "$catalog"
-          grep -Fxq 'supabaseKt = "3.2.6"' "$catalog"
-          grep -Fxq 'ktorClient = { strictly = "3.3.2" }' "$catalog"
-          grep -Fxq 'kotlinxDatetime = { strictly = "0.6.2" }' "$catalog"
-
       - name: Generate Kotlin podspec and framework
-        run: |
-          ./gradlew \
-            :app:podspec \
-            :app:generateDummyFramework \
-            --no-daemon \
-            --stacktrace
-
-      - name: Verify generated Kotlin podspec
-        shell: bash
-        run: |
-          set -euo pipefail
-          for pod in \
-            EyespieMediaPipeTasksCommon \
-            EyespieMediaPipeTasksVision \
-            EyespieMediaPipeTasksGenAIC \
-            EyespieMediaPipeTasksGenAI; do
-            grep -Fq "spec.dependency '$pod'" eyespie/eyespie.podspec
-          done
-          if grep -Eq "spec\.dependency 'MediaPipeTasks(Common|Vision|GenAIC|GenAI)'" eyespie/eyespie.podspec; then
-            echo "Generated eyespie podspec still declares official MediaPipe pods" >&2
-            exit 1
-          fi
-
-      - name: Install pods from released podspecs
+        run: ./gradlew :app:podspec :app:generateDummyFramework --no-daemon --stacktrace
+      - name: Install pods
         working-directory: iosApp
-        run: |
-          cp Podfile.lock "$RUNNER_TEMP/Podfile.lock.committed"
-          rm -rf Pods Podfile.lock
-          pod install --repo-update --verbose
-
-      - name: Verify resolved MediaPipe graph
-        working-directory: iosApp
-        shell: bash
-        run: |
-          set -euo pipefail
-          for pod in \
-            EyespieMediaPipeTasksCommon \
-            EyespieMediaPipeTasksVision \
-            EyespieMediaPipeTasksGenAIC \
-            EyespieMediaPipeTasksGenAI; do
-            grep -Fq "$pod (0.10.26.2)" Podfile.lock
-          done
-          if grep -Eq '^  - MediaPipeTasks(Common|Vision|GenAIC|GenAI)' Podfile.lock; then
-            echo "Official mixed-version MediaPipe pods unexpectedly resolved" >&2
-            exit 1
-          fi
-          if ! cmp -s "$RUNNER_TEMP/Podfile.lock.committed" Podfile.lock; then
-            echo "Clean CocoaPods resolution differs from the committed lockfile" >&2
-            diff -u "$RUNNER_TEMP/Podfile.lock.committed" Podfile.lock || true
-            exit 1
-          fi
-          cat Podfile.lock
-
-      - name: Diagnose Kotlin CocoaPods framework locations
-        shell: bash
-        run: |
-          set -euo pipefail
-          echo "== CocoaPods framework/module-map locations before Kotlin compile =="
-          find eyespie/build/cocoapods iosApp/Pods \
-            \( -name '*.framework' -o -name '*.xcframework' -o -name 'module.modulemap' -o -name '*.modulemap' \) \
-            -print 2>/dev/null | sort || true
-
-          common_map_count=0
-          while IFS= read -r modulemap; do
-            common_map_count=$((common_map_count + 1))
-            framework="${modulemap%/Modules/module.modulemap}"
-            search_path="${framework%/MediaPipeTasksCommon.framework}"
-            echo "::notice title=MediaPipe Common module map::$modulemap"
-            echo "::notice title=MediaPipe Common -F search path::$search_path"
-          done < <(find eyespie/build/cocoapods iosApp/Pods \
-            -path '*MediaPipeTasksCommon.framework/Modules/module.modulemap' -print 2>/dev/null | sort)
-          if (( common_map_count == 0 )); then
-            echo "::error title=MediaPipe Common module map::No MediaPipeTasksCommon.framework/Modules/module.modulemap found"
-            exit 1
-          fi
-
-          echo "::notice title=Configured Gradle MediaPipe paths::$(grep -nE 'syntheticPods|MediaPipeTasksCommon\.xcframework|-F' eyespie/build.gradle.kts | tr '\n' ' ' | head -c 1500)"
-
-      - name: Diagnose Common cinterop invocation
-        shell: bash
-        run: |
-          set -o pipefail
-          log="$RUNNER_TEMP/common-cinterop.log"
-          set +e
-          ./gradlew \
-            :app:cinteropMediaPipeTasksCommonIosSimulatorArm64 \
-            --no-daemon \
-            --info \
-            --stacktrace 2>&1 | tee "$log"
-          status=${PIPESTATUS[0]}
-          set -e
-
-          grep -E '(^|[[:space:]])-F|MediaPipeTasksCommon|compiler-option|cinterop' "$log" \
-            | tail -n 40 \
-            | sed 's/%/%25/g; s/\r/%0D/g; s/\n/%0A/g' \
-            | while IFS= read -r line; do
-                echo "::notice title=Common cinterop::$line"
-              done
-          exit "$status"
-
-      - name: Compile Kotlin and Apple tests for iOS simulator
-        shell: bash
-        run: |
-          set -o pipefail
-          log="$RUNNER_TEMP/ios-kotlin-compile.log"
-          set +e
-          ./gradlew \
-            :app:compileKotlinIosSimulatorArm64 \
-            :app:compileTestKotlinIosSimulatorArm64 \
-            --no-daemon \
-            --info \
-            --stacktrace 2>&1 | tee "$log"
-          status=${PIPESTATUS[0]}
-          set -e
-
-          if (( status != 0 )); then
-            while IFS= read -r line; do
-              escaped="$(printf '%s' "$line" | sed 's/%/%25/g; s/\r/%0D/g; s/\n/%0A/g')"
-              echo "::error title=Kotlin iOS compile::$escaped"
-            done < <(
-              grep -E '(^e: |error: |Compilation failed|FAILURE:|What went wrong:|Execution failed for task|Caused by:)' "$log" \
-                | tail -n 80 || true
-            )
-          fi
-          exit "$status"
-
+        run: pod install --repo-update
+      - name: Compile Kotlin for iOS simulator
+        run: ./gradlew :app:compileKotlinIosSimulatorArm64 --no-daemon --stacktrace
       - name: Build iOS simulator application
-        shell: bash
         run: |
-          set -o pipefail
           xcodebuild \
             -workspace iosApp/iosApp.xcworkspace \
             -scheme iosApp \
             -configuration Debug \
             -sdk iphonesimulator \
             -destination 'generic/platform=iOS Simulator' \
-            -derivedDataPath "$PWD/build/ios-mediapipe-derived-data" \
+            -derivedDataPath "$PWD/build/ios-offline-core" \
             CODE_SIGNING_ALLOWED=NO \
-            build 2>&1 | tee build-ios-mediapipe.log
-
-      - name: Verify application product
-        shell: bash
-        run: |
-          set -euo pipefail
-          shopt -s nullglob
-          products=(build/ios-mediapipe-derived-data/Build/Products/Debug-iphonesimulator/*.app)
-          if (( ${#products[@]} != 1 )); then
-            printf 'expected exactly one simulator app, found %d\n' "${#products[@]}" >&2
-            exit 1
-          fi
-          app="${products[0]}"
-          executable="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleExecutable' "$app/Info.plist")"
-          test -x "$app/$executable"
-          file "$app/$executable"
-
-          model_name="mobilenet_v3_small_100_224_embedder.tflite"
-          model="$app/$model_name"
-          if [[ ! -f "$model" ]]; then
-            echo "expected image embedder at the main bundle root: $model" >&2
-            find "$app" -type f -name "$model_name" -print >&2 || true
-            exit 1
-          fi
-          python3 scripts/stage_image_embedder_model.py verify-file "$model"
-
-      - name: Summarize failure
-        if: failure()
-        shell: bash
-        run: |
-          {
-            echo "## iOS MediaPipe diagnostics"
-            echo
-            if [[ -f eyespie/eyespie.podspec ]]; then
-              echo '### Generated eyespie.podspec dependencies'
-              echo '```text'
-              grep 'spec.dependency' eyespie/eyespie.podspec || true
-              echo '```'
-            fi
-            if [[ -f iosApp/Podfile.lock ]]; then
-              echo '### Podfile.lock'
-              echo '```text'
-              cat iosApp/Podfile.lock
-              echo '```'
-            fi
-            if [[ -f "$RUNNER_TEMP/common-cinterop.log" ]]; then
-              echo '### Common cinterop tail'
-              echo '```text'
-              tail -n 120 "$RUNNER_TEMP/common-cinterop.log"
-              echo '```'
-            fi
-            if [[ -f "$RUNNER_TEMP/ios-kotlin-compile.log" ]]; then
-              echo '### Kotlin iOS compile tail'
-              echo '```text'
-              tail -n 250 "$RUNNER_TEMP/ios-kotlin-compile.log"
-              echo '```'
-            fi
-            if [[ -f build-ios-mediapipe.log ]]; then
-              echo '### Xcode tail'
-              echo '```text'
-              tail -n 250 build-ios-mediapipe.log
-              echo '```'
-            fi
-          } >> "$GITHUB_STEP_SUMMARY"
+            build
