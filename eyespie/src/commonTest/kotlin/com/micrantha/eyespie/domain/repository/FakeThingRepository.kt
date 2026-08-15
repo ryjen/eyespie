@@ -19,12 +19,12 @@ class FakeThingRepository : ThingRepository {
     var matchFlow: Flow<Result<Thing.Match>>? = null
     var matchedThingID: String? = null
 
-    override suspend fun create(proof: Proof, imageUrl: String, playerID: String): Result<Thing> {
+    override suspend fun create(proof: Proof, imagePath: String, playerID: String): Result<Thing> {
         return createResult ?: run {
             val thing = Thing(
                 id = "t${things.size + 1}",
                 createdBy = Player.Ref(playerID, "player"),
-                imagePath = imageUrl,
+                imagePath = imagePath,
                 createdAt = System.now(),
                 location = Location.Point(0.0, 0.0),
                 guessed = false,
