@@ -7,7 +7,7 @@ import com.micrantha.eyespie.features.things.data.mapping.ThingsDomainMapper
 import com.micrantha.eyespie.features.things.data.model.MatchRequest
 import com.micrantha.eyespie.features.things.data.model.MatchResponse
 import com.micrantha.eyespie.features.things.data.model.NearbyRequest
-import com.micrantha.eyespie.features.things.data.model.ThingData
+import com.micrantha.eyespie.features.things.data.model.ThingAuthorityData
 import com.micrantha.eyespie.features.things.data.model.ThingListing
 import com.micrantha.eyespie.features.things.data.model.ThingRequest
 import com.micrantha.eyespie.features.things.data.model.ThingResponse
@@ -17,6 +17,7 @@ import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 
 class ThingDataRepositoryTest {
@@ -25,7 +26,7 @@ class ThingDataRepositoryTest {
         var thingsResult: Result<List<ThingListing>> = Result.success(emptyList())
         var saveResult: Result<ThingResponse> = Result.failure(Exception("Not implemented"))
         var thingResult: Result<ThingResponse> = Result.failure(Exception("Not found"))
-        var nearbyResult: Result<List<ThingResponse>> = Result.success(emptyList())
+        var nearbyResult: Result<List<ThingListing>> = Result.success(emptyList())
         var matchResult: Result<MatchResponse> = Result.failure(Exception("Not configured"))
         var matchRequest: MatchRequest? = null
 
@@ -40,12 +41,12 @@ class ThingDataRepositoryTest {
     }
 
     private class FakeThingsLocalSource : ThingsLocalSource {
-        var things: List<ThingData> = emptyList()
-        var saveAllCalledWith: List<ThingData>? = null
+        var things: List<ThingAuthorityData> = emptyList()
+        var saveAllCalledWith: List<ThingAuthorityData>? = null
 
-        override fun getAll(): Result<List<ThingData>> = Result.success(things)
+        override fun getAll(): Result<List<ThingAuthorityData>> = Result.success(things)
 
-        override fun saveAll(things: List<ThingData>): Result<Unit> {
+        override fun saveAll(things: List<ThingAuthorityData>): Result<Unit> {
             saveAllCalledWith = things
             this.things = things
             return Result.success(Unit)
@@ -58,14 +59,16 @@ class ThingDataRepositoryTest {
     private val repository = ThingDataRepository(remoteSource, localSource, mapper)
 
     @Test
-    fun `things should fetch from remote and save to local on success`() = runTest {
+    fun `safe things listing should not hydrate authority cache`() = runTest {
         val playerID = "user123"
-        val remoteThings = listOf(ThingData(id = "1", imageUrl = "", createdBy = playerID))
-        remoteSource.thingsResult = Result.success(remoteThings)
+        remoteSource.thingsResult = Result.success(
+            listOf(ThingListing(id = "1", createdAt = "2026-08-14T00:00:00Z", guessed = false))
+        )
 
-        repository.things(playerID).toList()
+        val result = repository.things(playerID).toList().single().getOrThrow()
 
-        assertEquals(remoteThings, localSource.saveAllCalledWith)
+        assertEquals(listOf("1"), result.map { it.id })
+        assertNull(localSource.saveAllCalledWith)
     }
 
     @Test
