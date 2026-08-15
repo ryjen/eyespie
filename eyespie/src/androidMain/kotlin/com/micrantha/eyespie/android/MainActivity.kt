@@ -14,7 +14,13 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
         setContent {
-            val runtime = remember { runCatching { createAndroidEyespieRuntime(this) }.getOrNull() }
+            val runtime = remember {
+                try {
+                    createAndroidEyespieRuntime(this)
+                } catch (_: Exception) {
+                    null
+                }
+            }
             if (runtime == null) {
                 AppUnavailable()
             } else {
