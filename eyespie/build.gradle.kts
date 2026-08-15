@@ -102,6 +102,7 @@ kotlin {
             implementation(libs.compose.foundation)
             implementation(libs.compose.material3)
             implementation(libs.sqldelight.coroutines)
+            implementation(libs.okio)
         }
         commonTest.dependencies {
             implementation(kotlin("test"))
