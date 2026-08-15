@@ -101,11 +101,13 @@ kotlin {
             implementation(libs.compose.ui)
             implementation(libs.compose.foundation)
             implementation(libs.compose.material3)
+            implementation(libs.kotlinx.coroutines.core)
             implementation(libs.sqldelight.coroutines)
             implementation(libs.okio)
         }
         commonTest.dependencies {
             implementation(kotlin("test"))
+            implementation(libs.kotlinx.coroutines.test)
         }
         androidMain.dependencies {
             implementation(libs.androidx.activity.compose)
