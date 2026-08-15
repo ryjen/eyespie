@@ -3,21 +3,32 @@ package com.micrantha.eyespie.game
 import com.micrantha.eyespie.core.GameId
 import com.micrantha.eyespie.core.ThingId
 import com.micrantha.eyespie.identity.LocalPlayerIdentityRepository
+import com.micrantha.eyespie.identity.PlatformSigningIdentity
 import com.micrantha.eyespie.imaging.MediaPipeImageEmbeddingGenerator
 import com.micrantha.eyespie.persistence.IosEyespieDatabaseFactory
 import com.micrantha.eyespie.persistence.SqlGameRepository
 import com.micrantha.eyespie.persistence.SqlThingProgressRepository
+import com.micrantha.eyespie.sharing.GameBundleService
 import platform.Foundation.NSUUID
 
 fun createIosEyespieRuntime(): EyespieRuntime {
     val database = IosEyespieDatabaseFactory().create()
+    val signingIdentity = PlatformSigningIdentity()
+    val identityRepository = LocalPlayerIdentityRepository(signingIdentity)
+    val gameRepository = SqlGameRepository(database)
+    val progressRepository = SqlThingProgressRepository(database)
     return EyespieRuntime(
-        LocalGameLoop(
-            identityRepository = LocalPlayerIdentityRepository(),
-            gameRepository = SqlGameRepository(database),
-            progressRepository = SqlThingProgressRepository(database),
+        gameLoop = LocalGameLoop(
+            identityRepository = identityRepository,
+            gameRepository = gameRepository,
+            progressRepository = progressRepository,
             embeddingGenerator = MediaPipeImageEmbeddingGenerator(),
             idGenerator = IosLocalGameIdGenerator(),
+        ),
+        gameBundleService = GameBundleService(
+            identityRepository = identityRepository,
+            signingIdentity = signingIdentity,
+            gameRepository = gameRepository,
         ),
     )
 }
