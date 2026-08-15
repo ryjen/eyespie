@@ -56,7 +56,7 @@ class GameDomainMapper {
         limits = Limits(0..0, 0..0)
     )
 
-    fun map(details: GameRemoteDetails) = Game(
+    internal fun map(details: GameRemoteDetails) = Game(
         id = details.id,
         name = details.name,
         createdAt = Instant.parse(details.createdAt),
