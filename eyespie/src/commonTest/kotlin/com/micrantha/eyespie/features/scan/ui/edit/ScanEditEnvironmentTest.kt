@@ -92,6 +92,7 @@ class ScanEditEnvironmentTest {
         Dispatchers.setMain(UnconfinedTestDispatcher())
         dispatcher.actions.clear()
         clueRepository.requests = 0
+        clueRepository.generatedAvailable = true
         clueRepository.result = Result.success(generatedClues)
         uploadCaptureUseCase.invokedWith = null
         uploadCaptureUseCase.result = Result.success(savedThing())
@@ -117,6 +118,22 @@ class ScanEditEnvironmentTest {
     }
 
     @Test
+    fun `image generation unavailable should route directly to manual without provider request`() = runTest {
+        clueRepository.generatedAvailable = false
+
+        val state = environment.reduce(
+            ScanEditState(path = "/test.jpg".toPath()),
+            cameraImage,
+        )
+        environment.invoke(cameraImage, state)
+
+        assertEquals(ClueAuthoringMode.MANUAL, state.authoringMode)
+        assertTrue(state.generationUnavailable)
+        assertFalse(state.isBusy)
+        assertEquals(0, clueRepository.requests)
+    }
+
+    @Test
     fun `manual authoring can be selected without invoking generated provider`() = runTest {
         val state = environment.reduce(
             ScanEditState(path = "/test.jpg".toPath(), isBusy = false),
@@ -127,6 +144,21 @@ class ScanEditEnvironmentTest {
 
         assertEquals(ClueAuthoringMode.MANUAL, state.authoringMode)
         assertEquals(0, clueRepository.requests)
+    }
+
+    @Test
+    fun `generated request rechecks readiness before invoking provider`() = runTest {
+        clueRepository.generatedAvailable = false
+        val generating = ScanEditState(
+            path = "/test.jpg".toPath(),
+            authoringMode = ClueAuthoringMode.GENERATED,
+            isBusy = true,
+        )
+
+        environment.invoke(GenerateClues, generating)
+
+        assertEquals(0, clueRepository.requests)
+        assertIs<GeneratedCluesUnavailable>(dispatcher.actions.last())
     }
 
     @Test
@@ -243,7 +275,11 @@ class ScanEditEnvironmentTest {
         generatedClues: GeneratedClues,
     ) : ClueRepository {
         var requests = 0
+        var generatedAvailable = true
         var result: Result<GeneratedClues> = Result.success(generatedClues)
+
+        override val canGenerateClues: Boolean
+            get() = generatedAvailable
 
         override suspend fun clues(image: Path): Result<GeneratedClues> {
             requests += 1
