@@ -14,6 +14,7 @@ import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.flow
 import kotlinx.coroutines.test.runTest
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
 import kotlin.test.assertFalse
 import kotlin.test.assertSame
@@ -33,12 +34,16 @@ class MatchCaptureUseCaseTest {
     private val useCase = MatchCaptureUseCase(generator, repository)
 
     @Test
-    fun `invoke should return match result`() = runTest {
-        repository.matchResult = Result.success(emptyList())
+    fun `invoke should return target-specific match result`() = runTest {
+        repository.matchResult = Result.success(
+            Thing.Match(id = "1", similarity = 0.82f, matched = true)
+        )
 
         val result = useCase(image(), thing()).first().getOrThrow()
 
-        assertFalse(result.matched)
+        assertTrue(result.matched)
+        assertEquals(0.82f, result.bestSimilarity)
+        assertEquals("1", repository.matchedThingID)
     }
 
     @Test
