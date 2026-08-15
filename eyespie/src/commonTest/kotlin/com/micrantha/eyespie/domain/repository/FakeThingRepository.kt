@@ -24,7 +24,7 @@ class FakeThingRepository : ThingRepository {
             val thing = Thing(
                 id = "t${things.size + 1}",
                 createdBy = Player.Ref(playerID, "player"),
-                imageUrl = imageUrl,
+                imagePath = imageUrl,
                 createdAt = System.now(),
                 location = Location.Point(0.0, 0.0),
                 guessed = false,
@@ -40,11 +40,11 @@ class FakeThingRepository : ThingRepository {
 
     override fun things(playerID: String): Flow<Result<ThingList>> =
         flowOf(Result.success(things.filter { it.createdBy.id == playerID }.map {
-             Thing.Listing(it.id, it.id, it.createdAt, it.guessed, it.imageUrl)
+             Thing.Listing(it.id, it.id, it.createdAt, it.guessed)
         }))
 
     override fun nearby(location: Location.Point, distance: Double): Flow<Result<ThingList>> =
-        flowOf(Result.success(things.map { Thing.Listing(it.id, it.id, it.createdAt, it.guessed, it.imageUrl) }))
+        flowOf(Result.success(things.map { Thing.Listing(it.id, it.id, it.createdAt, it.guessed) }))
 
     override fun match(thingID: String, embedding: Embedding): Flow<Result<Thing.Match>> {
         matchedThingID = thingID
