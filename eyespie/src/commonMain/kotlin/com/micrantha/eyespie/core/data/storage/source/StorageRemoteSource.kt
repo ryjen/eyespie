@@ -1,7 +1,6 @@
 package com.micrantha.eyespie.core.data.storage.source
 
 import com.micrantha.eyespie.core.data.client.SupaClient
-import kotlin.time.Duration.Companion.days
 
 internal interface StorageRemoteSource {
     fun url(bucketID: String, path: String): Result<String>
@@ -10,7 +9,7 @@ internal interface StorageRemoteSource {
         bucketId: String,
         path: String,
         data: ByteArray
-    ): Result<Pair<String, String>>
+    ): Result<String>
 }
 
 internal class SupabaseStorageRemoteSource(
@@ -36,12 +35,10 @@ internal class SupabaseStorageRemoteSource(
         bucketId: String,
         path: String,
         data: ByteArray
-    ): Result<Pair<String, String>> = try {
-        with(supabase.storage(bucketId)) {
-            val key = upload(path, data).key!!
-            val url = createSignedUrl(path, 365.days)
-            Result.success(Pair(key, url))
-        }
+    ): Result<String> = try {
+        val key = supabase.storage(bucketId).upload(path, data).key
+            ?: return Result.failure(IllegalStateException("storage upload returned no object key"))
+        Result.success(key)
     } catch (err: Throwable) {
         Result.failure(err)
     }
