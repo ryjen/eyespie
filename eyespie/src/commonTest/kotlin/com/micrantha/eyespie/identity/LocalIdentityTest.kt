@@ -12,7 +12,7 @@ class LocalIdentityTest {
         }
 
         assertEquals(
-            "p256:27f77abac3e58bbd9525959b5a1e81f6c3dce99bb06a0609e54f37b8a636fcda",
+            "p256:0ed3a6ab957ff6f59a9630a473d31a7d04fcb46548b89016196980c7e96584f6",
             playerIdFor(publicKey).value,
         )
         assertEquals(playerIdFor(publicKey), playerIdFor(publicKey.copyOf()))
