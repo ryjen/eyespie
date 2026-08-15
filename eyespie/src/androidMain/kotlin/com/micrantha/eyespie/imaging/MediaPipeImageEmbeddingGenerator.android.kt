@@ -5,16 +5,23 @@ import android.graphics.BitmapFactory
 import com.google.mediapipe.framework.image.BitmapImageBuilder
 import com.google.mediapipe.tasks.core.BaseOptions
 import com.google.mediapipe.tasks.vision.imageembedder.ImageEmbedder
+import java.nio.ByteBuffer
 
 class MediaPipeImageEmbeddingGenerator(
     context: Context,
-    modelAssetPath: String = IMAGE_EMBEDDER_MODEL_FILE,
+    private val modelBuffer: ByteBuffer,
 ) : ImageEmbeddingGenerator {
+    init {
+        require(modelBuffer.isDirect) {
+            "MediaPipe image embedder model buffer must be direct or memory-mapped"
+        }
+    }
+
     private val embedder: ImageEmbedder by lazy {
         val options = ImageEmbedder.ImageEmbedderOptions.builder()
             .setBaseOptions(
                 BaseOptions.builder()
-                    .setModelAssetPath(modelAssetPath)
+                    .setModelAssetBuffer(modelBuffer.asReadOnlyBuffer())
                     .build(),
             )
             .setQuantize(false)
