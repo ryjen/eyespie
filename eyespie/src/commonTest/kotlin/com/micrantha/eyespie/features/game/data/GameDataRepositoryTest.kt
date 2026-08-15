@@ -2,10 +2,10 @@ package com.micrantha.eyespie.features.game.data
 
 import com.micrantha.eyespie.features.game.data.mapping.GameDomainMapper
 import com.micrantha.eyespie.features.game.data.model.GameData
+import com.micrantha.eyespie.features.game.data.model.GameRemoteDetails
 import com.micrantha.eyespie.features.game.data.source.GameRemoteSource
 import com.micrantha.eyespie.features.game.data.source.GamesLocalSource
 import com.micrantha.eyespie.graphql.GameListQuery
-import com.micrantha.eyespie.graphql.GameNodeQuery
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.flow.toList
 import kotlinx.coroutines.test.runTest
@@ -17,7 +17,7 @@ class GameDataRepositoryTest {
 
     private class FakeGameRemoteSource : GameRemoteSource {
         var gamesResult: Result<List<GameListQuery.Node>> = Result.success(emptyList())
-        var gameResult: Result<GameNodeQuery.GameNode> = Result.failure(Exception("Not found"))
+        var gameResult: Result<GameRemoteDetails> = Result.failure(Exception("Not found"))
 
         override suspend fun games() = gamesResult
         override suspend fun game(id: String) = gameResult
