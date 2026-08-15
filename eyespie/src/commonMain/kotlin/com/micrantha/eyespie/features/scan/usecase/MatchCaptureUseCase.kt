@@ -32,13 +32,12 @@ class MatchCaptureUseCase(
             return flowOf(Result.failure(error))
         }
 
-        return thingRepository.match(embedding).map { res ->
-            res.map { matches ->
-                val matched = matches.any { it.id == thing.id }
-                val bestSimilarity = matches.find { it.id == thing.id }?.similarity
-                    ?: matches.maxByOrNull { it.similarity }?.similarity
-
-                MatchResult(matched, bestSimilarity)
+        return thingRepository.match(thing.id, embedding).map { res ->
+            res.map { match ->
+                MatchResult(
+                    matched = match.matched,
+                    bestSimilarity = match.similarity,
+                )
             }
         }
     }
