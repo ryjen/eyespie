@@ -24,20 +24,17 @@ internal class ThingDataRepository(
             .also { emit(it) }
     }
 
-    /** Full Thing authority is owner-only. Safe listing paths never hydrate this DTO/cache. */
+    /**
+     * Full Thing authority is owner-only and must always be authorized by the server.
+     *
+     * Do not emit the legacy authority cache before this read: stale rows can survive an account
+     * transition on-device and are not scoped by the current authenticated subject. Pending/offline
+     * creator captures use the dedicated capture-sync store instead of this remote-authority path.
+     */
     override fun thing(thingID: String): Flow<Result<Thing>> = flow {
-        val cached = localSource.getAll().mapCatching { things ->
-            mapper.map(things.first { it.id == thingID })
-        }
-        if (cached.isSuccess) {
-            emit(cached)
-        }
-
-        remoteSource.thing(thingID).mapCatching(mapper::map).onSuccess {
-            emit(Result.success(it))
-        }.onFailure {
-            if (cached.isFailure) emit(Result.failure(it))
-        }
+        remoteSource.thing(thingID)
+            .mapCatching(mapper::map)
+            .also { emit(it) }
     }
 
     override suspend fun create(
