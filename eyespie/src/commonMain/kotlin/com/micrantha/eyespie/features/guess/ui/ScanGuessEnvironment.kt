@@ -7,7 +7,6 @@ import com.micrantha.bluebell.ui.components.message.popup
 import com.micrantha.bluebell.ui.screen.ScreenContext
 import com.micrantha.bluebell.ui.screen.ScreenEnvironment
 import com.micrantha.eyespie.app.S
-import com.micrantha.eyespie.domain.repository.ThingRepository
 import com.micrantha.eyespie.features.guess.ui.ScanGuessAction.ImageCaptured
 import com.micrantha.eyespie.features.guess.ui.ScanGuessAction.Load
 import com.micrantha.eyespie.features.guess.ui.ScanGuessAction.Loaded
@@ -24,33 +23,31 @@ class ScanGuessEnvironment(
     private val args: ScanGuessArgs,
     private val context: ScreenContext,
     private val matchCaptureUseCase: MatchCaptureUseCase,
-    private val thingRepository: ThingRepository
 ) : ScreenEnvironment<ScanGuessState>,
     Dispatcher by context.dispatcher,
     Router by context.router {
 
     override fun reduce(state: ScanGuessState, action: Action) = when (action) {
-        is Loaded -> state.copy(thing = action.thing)
+        is Loaded -> state.copy(thingID = action.thingID)
+        is ThingMatched -> state.copy(guessed = true)
         is SimilarityUpdated -> state.copy(bestSimilarity = action.similarity)
         else -> state
     }
 
     override suspend fun invoke(action: Action, state: ScanGuessState) {
         when (action) {
-            is Load -> thingRepository.thing(args.id).onEach { res ->
-                res.onSuccess {
-                    dispatch(Loaded(it))
-                }.onFailure {
-                    dispatch(context.popup(S.no_data_found, S.ok) {
-                        navigateBack()
-                    })
-                }
-            }.launchIn(dispatchScope)
+            is Load -> if (args.id.isNotBlank()) {
+                dispatch(Loaded(args.id))
+            } else {
+                dispatch(context.popup(S.no_data_found, S.ok) {
+                    navigateBack()
+                })
+            }
 
-            is ImageCaptured -> if (state.thing != null) {
+            is ImageCaptured -> state.thingID?.let { thingID ->
                 matchCaptureUseCase(
                     action.image,
-                    state.thing
+                    thingID,
                 ).onEach { res ->
                     res.onSuccess { result ->
                         if (result.matched) {
@@ -65,7 +62,6 @@ class ScanGuessEnvironment(
                     }
                 }.launchIn(dispatchScope)
             }
-
         }
     }
 }
