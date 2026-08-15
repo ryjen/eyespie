@@ -1,6 +1,9 @@
 package com.micrantha.eyespie.persistence
 
 import app.cash.sqldelight.driver.jdbc.sqlite.JdbcSqliteDriver
+import com.micrantha.eyespie.clue.ClueAuthority
+import com.micrantha.eyespie.clue.ClueAuthoringResult
+import com.micrantha.eyespie.clue.GeneratedClueProvenance
 import com.micrantha.eyespie.core.Game
 import com.micrantha.eyespie.core.GameId
 import com.micrantha.eyespie.core.PlayerId
@@ -15,8 +18,25 @@ import kotlin.test.assertNull
 
 class SqlPersistenceTest {
     @Test
-    fun gameRepositoryRoundTripsOrderedThingsAndEmbeddingThresholds() = withDatabase { database ->
+    fun gameRepositoryRoundTripsOrderedThingsEmbeddingThresholdsAndClueAuthority() = withDatabase { database ->
         val repository = SqlGameRepository(database)
+        val manualAuthority = accepted(
+            ClueAuthority.manual(
+                clueText = "Something striped",
+                expectedAnswer = "crosswalk",
+            ),
+        )
+        val generatedAuthority = accepted(
+            ClueAuthority.generated(
+                clueText = "Something round",
+                expectedAnswer = "traffic sign",
+                provenance = GeneratedClueProvenance(
+                    providerId = "local-test-provider",
+                    modelId = "test-model-v1",
+                    confidence = 0.72,
+                ),
+            ),
+        )
         val game = Game(
             id = GameId("game-1"),
             name = "Road Trip",
@@ -24,13 +44,13 @@ class SqlPersistenceTest {
             things = listOf(
                 Thing(
                     id = ThingId("thing-b"),
-                    clue = "Something striped",
+                    clueAuthority = manualAuthority,
                     targetEmbedding = listOf(0.25f, -1.5f, 2f),
                     matchThreshold = 0.82,
                 ),
                 Thing(
                     id = ThingId("thing-a"),
-                    clue = "Something round",
+                    clueAuthority = generatedAuthority,
                     targetEmbedding = listOf(-0.5f, 4f, 1.25f),
                     matchThreshold = 0.71,
                 ),
@@ -41,6 +61,7 @@ class SqlPersistenceTest {
 
         assertEquals(game, repository.get(game.id))
         assertEquals(listOf(game), repository.list())
+        assertEquals("Something striped", repository.get(game.id)?.things?.first()?.playableClue()?.clueText)
     }
 
     @Test
@@ -72,7 +93,9 @@ class SqlPersistenceTest {
             ),
         )
 
-        val updatedFirst = first.copy(clue = "Updated first")
+        val updatedFirst = first.copy(
+            clueAuthority = accepted(ClueAuthority.manual("Updated first", "first")),
+        )
         games.save(game.copy(things = listOf(updatedFirst)))
 
         assertEquals(listOf(updatedFirst), games.get(game.id)?.things)
@@ -81,6 +104,11 @@ class SqlPersistenceTest {
             progress.get(game.id, first.id, playerId),
         )
         assertNull(progress.get(game.id, stale.id, playerId))
+    }
+
+    private fun accepted(result: ClueAuthoringResult): ClueAuthority = when (result) {
+        is ClueAuthoringResult.Accepted -> result.authority
+        is ClueAuthoringResult.Rejected -> error("expected accepted clue authority, got ${result.error}")
     }
 
     private fun withDatabase(block: suspend (EyesPieDatabase) -> Unit) = runTest {
