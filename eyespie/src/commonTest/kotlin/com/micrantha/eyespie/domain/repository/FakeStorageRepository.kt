@@ -10,7 +10,7 @@ class FakeStorageRepository : StorageRepository {
     override suspend fun upload(path: String, data: ByteArray): Result<String> {
         return uploadResult ?: run {
             storage[path] = data
-            Result.success("http://fakeurl/$path")
+            Result.success(path)
         }
     }
 
