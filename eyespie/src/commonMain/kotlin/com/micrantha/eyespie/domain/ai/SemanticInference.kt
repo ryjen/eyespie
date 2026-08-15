@@ -2,8 +2,10 @@ package com.micrantha.eyespie.domain.ai
 
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.serialization.Serializable
 import okio.Path
 
+@Serializable
 enum class InferenceLocality { LOCAL, REMOTE }
 
 enum class SemanticInferenceCapability {
@@ -55,6 +57,7 @@ object SemanticInferenceDiagnosticCode {
     const val RUNTIME_INITIALIZATION_FAILED = "runtime_initialization_failed"
 }
 
+@Serializable
 data class SemanticInferenceSamplingConfiguration(
     val topK: Int,
     val topP: Float,
@@ -62,6 +65,7 @@ data class SemanticInferenceSamplingConfiguration(
     val randomSeed: Int,
 )
 
+@Serializable
 data class SemanticInferenceExecutionConfiguration(
     val sampling: SemanticInferenceSamplingConfiguration,
     val maxImages: Int,

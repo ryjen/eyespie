@@ -1,7 +1,8 @@
 package com.micrantha.eyespie.features.scan.data
 
 import com.micrantha.bluebell.platform.ConnectivityStatus
-import com.micrantha.eyespie.domain.entities.AiClue
+import com.micrantha.eyespie.domain.entities.AuthoredClue
+import com.micrantha.eyespie.domain.entities.ClueAuthority
 import com.micrantha.eyespie.domain.entities.Proof
 import com.micrantha.eyespie.features.scan.usecase.FakeUploadCaptureUseCase
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -30,7 +31,7 @@ class CaptureSyncRepositoryTest {
         networkMonitor = FakeNetworkMonitor()
         connectivityStatus = ConnectivityStatus(networkMonitor)
         connectivityStatus.start()
-        
+
         repository = CaptureSyncDataRepository(
             source,
             uploadUseCase,
@@ -44,9 +45,9 @@ class CaptureSyncRepositoryTest {
     fun `should queue capture when disconnected`() = runTest {
         networkMonitor.update(false)
 
-        val proof = Proof(clues = setOf(AiClue("c1", 1f, "a1")), location = null)
+        val proof = testProof()
         val imagePath = "/test.jpg".toPath()
-        
+
         repository.queue(proof, imagePath, "p1")
 
         assertEquals(1, source.queued.size)
@@ -56,10 +57,10 @@ class CaptureSyncRepositoryTest {
     @Test
     fun `should sync captures when connectivity is restored`() = runTest {
         networkMonitor.update(false)
-        val proof = Proof(clues = setOf(AiClue("c1", 1f, "a1")), location = null)
+        val proof = testProof()
         val imagePath = "/test.jpg".toPath()
         repository.queue(proof, imagePath, "p1")
-        
+
         uploadUseCase.result = Result.success(com.micrantha.eyespie.domain.entities.Thing(
             id = "t1",
             createdBy = com.micrantha.eyespie.features.players.domain.entities.Player.Ref("p1", "p1"),
@@ -72,10 +73,17 @@ class CaptureSyncRepositoryTest {
 
         networkMonitor.update(true)
 
-        // Wait for sync to complete in the background scope
         testScope.testScheduler.runCurrent()
 
         assertEquals(0, source.queued.size)
         assertEquals(1, uploadUseCase.invokedWith?.let { 1 } ?: 0)
+        assertEquals(proof.clues, uploadUseCase.invokedWith?.first?.clues)
     }
+
+    private fun testProof() = Proof(
+        clues = ClueAuthority(
+            listOf(AuthoredClue.Manual(clue = "c1", expectedAnswer = "a1"))
+        ),
+        location = null,
+    )
 }
