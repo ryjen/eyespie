@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.weight
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
@@ -96,63 +97,65 @@ fun App(runtime: EyespieRuntime) {
                     )
                 }
 
-                when {
-                    loading && snapshot == null -> {
-                        Spacer(Modifier.height(24.dp))
-                        CircularProgressIndicator()
-                    }
+                Column(modifier = Modifier.fillMaxWidth().weight(1f)) {
+                    when {
+                        loading && snapshot == null -> {
+                            Spacer(Modifier.height(24.dp))
+                            CircularProgressIndicator()
+                        }
 
-                    screen == AppScreen.Home -> HomeScreen(
-                        snapshot = snapshot,
-                        onCreate = {
-                            failure = null
-                            screen = AppScreen.Create
-                        },
-                        onPlay = { gameId, thingId ->
-                            failure = null
-                            screen = AppScreen.Play(gameId, thingId)
-                        },
-                        onRefresh = {
-                            scope.launch { refreshSnapshot() }
-                        },
-                    )
+                        screen == AppScreen.Home -> HomeScreen(
+                            snapshot = snapshot,
+                            onCreate = {
+                                failure = null
+                                screen = AppScreen.Create
+                            },
+                            onPlay = { gameId, thingId ->
+                                failure = null
+                                screen = AppScreen.Play(gameId, thingId)
+                            },
+                            onRefresh = {
+                                scope.launch { refreshSnapshot() }
+                            },
+                        )
 
-                    screen == AppScreen.Create -> CreateGameScreen(
-                        runtime = runtime,
-                        onBack = {
-                            failure = null
-                            screen = AppScreen.Home
-                        },
-                        onCreated = { _: CreatedGame ->
-                            scope.launch {
-                                refreshSnapshot()
+                        screen == AppScreen.Create -> CreateGameScreen(
+                            runtime = runtime,
+                            onBack = {
+                                failure = null
                                 screen = AppScreen.Home
-                            }
-                        },
-                        onFailure = { failure = it },
-                    )
-
-                    screen is AppScreen.Play -> {
-                        val selected = screen as AppScreen.Play
-                        val game = snapshot?.games?.firstOrNull { it.id == selected.gameId }
-                        val thing = game?.things?.firstOrNull { it.id == selected.thingId }
-                        if (game == null || thing == null) {
-                            Text("This local game is no longer available.")
-                            Button(onClick = { screen = AppScreen.Home }) { Text("Back") }
-                        } else {
-                            PlayGameScreen(
-                                runtime = runtime,
-                                game = game,
-                                thing = thing,
-                                onBack = {
-                                    failure = null
+                            },
+                            onCreated = { _: CreatedGame ->
+                                scope.launch {
+                                    refreshSnapshot()
                                     screen = AppScreen.Home
-                                },
-                                onGuessed = { _: GuessOutcome ->
-                                    scope.launch { refreshSnapshot() }
-                                },
-                                onFailure = { failure = it },
-                            )
+                                }
+                            },
+                            onFailure = { failure = it },
+                        )
+
+                        screen is AppScreen.Play -> {
+                            val selected = screen as AppScreen.Play
+                            val game = snapshot?.games?.firstOrNull { it.id == selected.gameId }
+                            val thing = game?.things?.firstOrNull { it.id == selected.thingId }
+                            if (game == null || thing == null) {
+                                Text("This local game is no longer available.")
+                                Button(onClick = { screen = AppScreen.Home }) { Text("Back") }
+                            } else {
+                                PlayGameScreen(
+                                    runtime = runtime,
+                                    game = game,
+                                    thing = thing,
+                                    onBack = {
+                                        failure = null
+                                        screen = AppScreen.Home
+                                    },
+                                    onGuessed = { _: GuessOutcome ->
+                                        scope.launch { refreshSnapshot() }
+                                    },
+                                    onFailure = { failure = it },
+                                )
+                            }
                         }
                     }
                 }
