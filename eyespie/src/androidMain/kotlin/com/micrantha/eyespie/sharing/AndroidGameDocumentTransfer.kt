@@ -58,11 +58,15 @@ private class AndroidGameDocumentTransfer(
     }
 
     fun completeWriteSelection(uri: Uri?) {
-        pendingWrite?.complete(uri)
+        val pending = pendingWrite ?: return
+        pending.complete(uri)
+        if (pendingWrite === pending) pendingWrite = null
     }
 
     fun completeReadSelection(uri: Uri?) {
-        pendingRead?.complete(uri)
+        val pending = pendingRead ?: return
+        pending.complete(uri)
+        if (pendingRead === pending) pendingRead = null
     }
 
     override suspend fun write(
@@ -70,11 +74,12 @@ private class AndroidGameDocumentTransfer(
         bytes: ByteArray,
     ): GameDocumentWriteResult {
         if (bytes.size > GAME_BUNDLE_MAX_BYTES) return GameDocumentWriteResult.TooLarge
+        if (pendingWrite != null || pendingRead != null) return GameDocumentWriteResult.Busy
         if (!operationMutex.tryLock()) return GameDocumentWriteResult.Busy
 
+        val selection = CompletableDeferred<Uri?>()
         return try {
             val launcher = launchWrite ?: return GameDocumentWriteResult.Failed
-            val selection = CompletableDeferred<Uri?>()
             pendingWrite = selection
             launcher(suggestedFileName)
             val uri = selection.await() ?: return GameDocumentWriteResult.Cancelled
@@ -91,23 +96,24 @@ private class AndroidGameDocumentTransfer(
                 GameDocumentWriteResult.Failed
             }
         } finally {
-            pendingWrite = null
+            if (pendingWrite === selection && selection.isCompleted) pendingWrite = null
             operationMutex.unlock()
         }
     }
 
     override suspend fun read(): GameDocumentReadResult {
+        if (pendingWrite != null || pendingRead != null) return GameDocumentReadResult.Busy
         if (!operationMutex.tryLock()) return GameDocumentReadResult.Busy
 
+        val selection = CompletableDeferred<Uri?>()
         return try {
             val launcher = launchRead ?: return GameDocumentReadResult.Failed
-            val selection = CompletableDeferred<Uri?>()
             pendingRead = selection
             launcher()
             val uri = selection.await() ?: return GameDocumentReadResult.Cancelled
             readBounded(uri)
         } finally {
-            pendingRead = null
+            if (pendingRead === selection && selection.isCompleted) pendingRead = null
             operationMutex.unlock()
         }
     }
