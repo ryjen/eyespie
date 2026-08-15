@@ -61,6 +61,11 @@ class SupaClient {
 
     fun storage(bucketId: String): StorageCall = supabase.storage[bucketId]
 
+    suspend fun gameThings(gameID: String) = supabase.postgrest.rpc(
+        function = "game_things_safe",
+        parameters = mapOf("target_game_id" to gameID),
+    )
+
     suspend fun nearby(request: NearbyRequest) = supabase.postgrest.rpc(
         function = "thingsnearby",
         parameters = request
