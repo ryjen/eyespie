@@ -95,7 +95,7 @@ class LocalGameLoop(
             identityRepository.current()
         } catch (cancelled: CancellationException) {
             throw cancelled
-        } catch (_: Throwable) {
+        } catch (_: Exception) {
             return failure(LocalGameFailureCode.IDENTITY_UNAVAILABLE)
         }
 
@@ -103,7 +103,7 @@ class LocalGameLoop(
             gameRepository.list()
         } catch (cancelled: CancellationException) {
             throw cancelled
-        } catch (_: Throwable) {
+        } catch (_: Exception) {
             return failure(LocalGameFailureCode.PERSISTENCE_FAILED)
         }
 
@@ -126,7 +126,7 @@ class LocalGameLoop(
             }
         } catch (cancelled: CancellationException) {
             throw cancelled
-        } catch (_: Throwable) {
+        } catch (_: Exception) {
             return failure(LocalGameFailureCode.PERSISTENCE_FAILED)
         }
 
@@ -165,7 +165,7 @@ class LocalGameLoop(
             identityRepository.current()
         } catch (cancelled: CancellationException) {
             throw cancelled
-        } catch (_: Throwable) {
+        } catch (_: Exception) {
             return@exclusiveOperation failure(LocalGameFailureCode.IDENTITY_UNAVAILABLE)
         }
 
@@ -173,7 +173,7 @@ class LocalGameLoop(
             canonicalImageEmbedding(embeddingGenerator.generate(targetImage))
         } catch (cancelled: CancellationException) {
             throw cancelled
-        } catch (_: Throwable) {
+        } catch (_: Exception) {
             return@exclusiveOperation failure(LocalGameFailureCode.TARGET_EMBEDDING_FAILED)
         }
 
@@ -195,7 +195,7 @@ class LocalGameLoop(
             gameRepository.save(game)
         } catch (cancelled: CancellationException) {
             throw cancelled
-        } catch (_: Throwable) {
+        } catch (_: Exception) {
             return@exclusiveOperation failure(LocalGameFailureCode.PERSISTENCE_FAILED)
         }
 
@@ -218,7 +218,7 @@ class LocalGameLoop(
             identityRepository.current()
         } catch (cancelled: CancellationException) {
             throw cancelled
-        } catch (_: Throwable) {
+        } catch (_: Exception) {
             return@exclusiveOperation failure(LocalGameFailureCode.IDENTITY_UNAVAILABLE)
         }
 
@@ -226,7 +226,7 @@ class LocalGameLoop(
             gameRepository.get(gameId)
         } catch (cancelled: CancellationException) {
             throw cancelled
-        } catch (_: Throwable) {
+        } catch (_: Exception) {
             return@exclusiveOperation failure(LocalGameFailureCode.PERSISTENCE_FAILED)
         } ?: return@exclusiveOperation failure(LocalGameFailureCode.GAME_NOT_FOUND)
 
@@ -237,7 +237,7 @@ class LocalGameLoop(
             canonicalImageEmbedding(embeddingGenerator.generate(guessImage))
         } catch (cancelled: CancellationException) {
             throw cancelled
-        } catch (_: Throwable) {
+        } catch (_: Exception) {
             return@exclusiveOperation failure(LocalGameFailureCode.GUESS_EMBEDDING_FAILED)
         }
 
@@ -245,7 +245,7 @@ class LocalGameLoop(
             MatchEngine(thing.matchThreshold).compare(thing.targetEmbedding, guessEmbedding)
         } catch (cancelled: CancellationException) {
             throw cancelled
-        } catch (_: Throwable) {
+        } catch (_: Exception) {
             return@exclusiveOperation failure(LocalGameFailureCode.MATCH_POLICY_INVALID)
         }
 
@@ -253,7 +253,7 @@ class LocalGameLoop(
             progressRepository.get(gameId, thingId, identity.id)
         } catch (cancelled: CancellationException) {
             throw cancelled
-        } catch (_: Throwable) {
+        } catch (_: Exception) {
             return@exclusiveOperation failure(LocalGameFailureCode.PERSISTENCE_FAILED)
         }
         val bestSimilarity = existing?.bestSimilarity?.let { maxOf(it, match.similarity) }
@@ -270,7 +270,7 @@ class LocalGameLoop(
             progressRepository.save(progress)
         } catch (cancelled: CancellationException) {
             throw cancelled
-        } catch (_: Throwable) {
+        } catch (_: Exception) {
             return@exclusiveOperation failure(LocalGameFailureCode.PERSISTENCE_FAILED)
         }
 
