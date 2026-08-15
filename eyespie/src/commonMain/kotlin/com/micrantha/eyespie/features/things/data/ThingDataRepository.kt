@@ -4,10 +4,7 @@ import com.micrantha.eyespie.domain.entities.Embedding
 import com.micrantha.eyespie.domain.entities.Location.Point
 import com.micrantha.eyespie.domain.entities.Proof
 import com.micrantha.eyespie.domain.entities.Thing
-import com.micrantha.eyespie.domain.entities.ThingMatches
-import com.micrantha.eyespie.domain.entities.cosineSimilarity
 import com.micrantha.eyespie.domain.entities.requireCanonical
-import com.micrantha.eyespie.domain.entities.toPostgresEmbedding
 import com.micrantha.eyespie.features.things.data.mapping.ThingsDomainMapper
 import com.micrantha.eyespie.features.things.data.source.ThingsLocalSource
 import com.micrantha.eyespie.features.things.data.source.ThingsRemoteSource
@@ -73,38 +70,16 @@ internal class ThingDataRepository(
         }
     }
 
-    override fun match(embedding: Embedding): Flow<Result<ThingMatches>> = flow {
+    override fun match(thingID: String, embedding: Embedding): Flow<Result<Thing.Match>> = flow {
         val canonical = runCatching { embedding.requireCanonical() }
             .getOrElse {
                 emit(Result.failure(it))
                 return@flow
             }
 
-        val localMatches = localSource.getAll().mapCatching { localThings ->
-            localThings.mapNotNull { thing ->
-                val vector = thing.embedding ?: return@mapNotNull null
-                runCatching {
-                    val thingEmbedding = vector.toPostgresEmbedding()
-                    val similarity = canonical.cosineSimilarity(thingEmbedding)
-                    if (similarity >= mapper.matchThreshold) {
-                        Thing.Match(thing.id!!, thingEmbedding, similarity)
-                    } else {
-                        null
-                    }
-                }.getOrNull()
-            }.sortedByDescending { it.similarity }.take(mapper.matchCount)
-        }
-
-        localMatches.onSuccess {
-            emit(Result.success(it))
-        }
-
-        remoteSource.match(mapper.match(canonical)).mapCatching { matches ->
-            matches.map(mapper::match)
-        }.onSuccess {
-            emit(Result.success(it))
-        }.onFailure {
-            if (localMatches.isFailure) emit(Result.failure(it))
-        }
+        remoteSource.match(mapper.match(thingID, canonical))
+            .mapCatching(mapper::match)
+            .onSuccess { emit(Result.success(it)) }
+            .onFailure { emit(Result.failure(it)) }
     }
 }
