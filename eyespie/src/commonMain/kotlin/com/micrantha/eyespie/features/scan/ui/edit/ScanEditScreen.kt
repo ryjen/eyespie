@@ -2,6 +2,7 @@ package com.micrantha.eyespie.features.scan.ui.edit
 
 import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
@@ -11,16 +12,17 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.weight
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Block
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ElevatedButton
-import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
@@ -38,14 +40,27 @@ import com.micrantha.bluebell.ui.theme.Dimensions
 import com.micrantha.eyespie.app.S
 import com.micrantha.eyespie.core.ui.Screen
 import com.micrantha.eyespie.features.scan.components.ScannedClues
+import com.micrantha.eyespie.features.scan.entities.ClueAuthoringMode
+import com.micrantha.eyespie.features.scan.entities.ScanEditAction.GenerateClues
 import com.micrantha.eyespie.features.scan.entities.ScanEditAction.Init
 import com.micrantha.eyespie.features.scan.entities.ScanEditAction.Retry
 import com.micrantha.eyespie.features.scan.entities.ScanEditAction.SaveScanEdit
+import com.micrantha.eyespie.features.scan.entities.ScanEditAction.UpdateManualAnswer
+import com.micrantha.eyespie.features.scan.entities.ScanEditAction.UpdateManualClue
+import com.micrantha.eyespie.features.scan.entities.ScanEditAction.UseGeneratedAuthoring
+import com.micrantha.eyespie.features.scan.entities.ScanEditAction.UseManualAuthoring
 import com.micrantha.eyespie.features.scan.entities.ScanEditParams
 import com.micrantha.eyespie.features.scan.entities.ScanEditUiState
+import com.micrantha.eyespie.generated.resources.clue_authoring_prompt
 import com.micrantha.eyespie.generated.resources.done
+import com.micrantha.eyespie.generated.resources.generate_clues
+import com.micrantha.eyespie.generated.resources.generated_clues_unavailable
 import com.micrantha.eyespie.generated.resources.loading_error
+import com.micrantha.eyespie.generated.resources.manual_answer
+import com.micrantha.eyespie.generated.resources.manual_clue
 import com.micrantha.eyespie.generated.resources.new_thing
+import com.micrantha.eyespie.generated.resources.use_generated_clues
+import com.micrantha.eyespie.generated.resources.write_clue_manually
 import org.jetbrains.compose.resources.stringResource
 
 class ScanEditScreen(
@@ -55,7 +70,6 @@ class ScanEditScreen(
     @Composable
     override fun Content() {
         val screenModel: ScanEditScreenModel = rememberScreenModel()
-
         val title = stringResource(S.new_thing)
 
         LaunchedEffect(title) {
@@ -63,17 +77,12 @@ class ScanEditScreen(
         }
 
         val state by screenModel.state.collectAsState()
-
         Render(state, screenModel)
     }
 
-    @OptIn(ExperimentalMaterial3Api::class)
     @Composable
     override fun Render(state: ScanEditUiState, dispatch: Dispatch) {
-
-        Box(
-            modifier = Modifier.fillMaxSize()
-        ) {
+        Box(modifier = Modifier.fillMaxSize()) {
             state.image?.let {
                 Image(
                     contentScale = ContentScale.FillHeight,
@@ -86,59 +95,150 @@ class ScanEditScreen(
             Box(
                 modifier = Modifier.align(Alignment.Center).fillMaxSize().padding(Dimensions.screen)
             ) {
-                if (state.isBusy) {
-
-                    CircularProgressIndicator(
-                        modifier = Modifier.align(Alignment.Center).background(
-                            Color.Gray.copy(alpha = 0.5f),
-                            RoundedCornerShape(Dimensions.Border.medium)
-                        ).padding(Dimensions.content).size(Dimensions.progress)
-                    )
-                } else if (state.isError) {
-                    Column(
-                        Modifier.align(Alignment.Center).background(
-                            Color.Gray.copy(alpha = 0.5f),
-                            RoundedCornerShape(Dimensions.Border.medium)
-                        ).padding(Dimensions.content),
-                        horizontalAlignment = Alignment.CenterHorizontally
-                    ) {
-                        Icon(
-                            imageVector = Icons.Default.Block,
-                            contentDescription = null,
-                            tint = MaterialTheme.colorScheme.error,
-                        )
-                        Spacer(Modifier.heightIn(Dimensions.Padding.small))
-                        Text(
-                            textAlign = TextAlign.Center,
-                            text = stringResource(S.loading_error)
-                        )
-                        FilledIconButton(
-                            onClick = { dispatch(Retry) },
-                        ) {
-                            Icon(
-                                Icons.Default.Refresh, null
-                            )
-                        }
-                    }
-                } else {
-                    ScannedClues(
-                        modifier = Modifier.align(Alignment.Center)
-                            .padding(Dimensions.content)
-                            .fillMaxWidth(),
-                        clues = state.clues,
-                        dispatch = dispatch
-                    )
+                when {
+                    state.isBusy -> Loading()
+                    state.isError -> Error(dispatch)
+                    else -> Authoring(state, dispatch)
                 }
             }
 
             ElevatedButton(
-                modifier = Modifier
-                    .align(Alignment.BottomCenter),
+                modifier = Modifier.align(Alignment.BottomCenter),
                 enabled = state.enabled,
-                onClick = { dispatch(SaveScanEdit) }) {
+                onClick = { dispatch(SaveScanEdit) },
+            ) {
                 Text(stringResource(S.done))
             }
             Spacer(Modifier.height(Dimensions.screen))
+        }
+    }
+
+    @Composable
+    private fun BoxScopeLoading() = Unit
+
+    @Composable
+    private fun BoxScopeAuthoring() = Unit
+
+    @Composable
+    private fun Box.Loading() {
+        CircularProgressIndicator(
+            modifier = Modifier.align(Alignment.Center).background(
+                Color.Gray.copy(alpha = 0.5f),
+                RoundedCornerShape(Dimensions.Border.medium)
+            ).padding(Dimensions.content).size(Dimensions.progress)
+        )
+    }
+
+    @Composable
+    private fun Box.Error(dispatch: Dispatch) {
+        Column(
+            Modifier.align(Alignment.Center).background(
+                Color.Gray.copy(alpha = 0.5f),
+                RoundedCornerShape(Dimensions.Border.medium)
+            ).padding(Dimensions.content),
+            horizontalAlignment = Alignment.CenterHorizontally,
+        ) {
+            Icon(
+                imageVector = Icons.Default.Block,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.error,
+            )
+            Spacer(Modifier.heightIn(Dimensions.Padding.small))
+            Text(
+                textAlign = TextAlign.Center,
+                text = stringResource(S.loading_error),
+            )
+            FilledIconButton(onClick = { dispatch(Retry) }) {
+                Icon(Icons.Default.Refresh, null)
+            }
+        }
+    }
+
+    @Composable
+    private fun Box.Authoring(state: ScanEditUiState, dispatch: Dispatch) {
+        when (state.authoringMode) {
+            ClueAuthoringMode.CHOOSE -> AuthoringChoice(dispatch)
+            ClueAuthoringMode.GENERATED -> GeneratedAuthoring(state, dispatch)
+            ClueAuthoringMode.MANUAL -> ManualAuthoring(state, dispatch)
+        }
+    }
+
+    @Composable
+    private fun Box.AuthoringChoice(dispatch: Dispatch) {
+        Column(
+            modifier = Modifier.align(Alignment.Center).background(
+                Color.Gray.copy(alpha = 0.5f),
+                RoundedCornerShape(Dimensions.Border.medium)
+            ).padding(Dimensions.content),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(Dimensions.Padding.small),
+        ) {
+            Text(
+                text = stringResource(S.clue_authoring_prompt),
+                textAlign = TextAlign.Center,
+            )
+            ElevatedButton(onClick = { dispatch(GenerateClues) }) {
+                Text(stringResource(S.generate_clues))
+            }
+            ElevatedButton(onClick = { dispatch(UseManualAuthoring) }) {
+                Text(stringResource(S.write_clue_manually))
+            }
+        }
+    }
+
+    @Composable
+    private fun Box.GeneratedAuthoring(state: ScanEditUiState, dispatch: Dispatch) {
+        Column(
+            modifier = Modifier.fillMaxSize(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(Dimensions.Padding.small),
+        ) {
+            ElevatedButton(onClick = { dispatch(UseManualAuthoring) }) {
+                Text(stringResource(S.write_clue_manually))
+            }
+            ScannedClues(
+                modifier = Modifier.weight(1f).fillMaxWidth().padding(Dimensions.content),
+                clues = state.clues,
+                dispatch = dispatch,
+            )
+        }
+    }
+
+    @Composable
+    private fun Box.ManualAuthoring(state: ScanEditUiState, dispatch: Dispatch) {
+        Column(
+            modifier = Modifier.align(Alignment.Center).fillMaxWidth().background(
+                Color.Gray.copy(alpha = 0.5f),
+                RoundedCornerShape(Dimensions.Border.medium)
+            ).padding(Dimensions.content),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(Dimensions.Padding.small),
+        ) {
+            if (state.generationUnavailable) {
+                Text(
+                    text = stringResource(S.generated_clues_unavailable),
+                    textAlign = TextAlign.Center,
+                )
+            }
+            OutlinedTextField(
+                modifier = Modifier.fillMaxWidth(),
+                value = state.manualClue,
+                onValueChange = { dispatch(UpdateManualClue(it)) },
+                label = { Text(stringResource(S.manual_clue)) },
+                singleLine = false,
+            )
+            OutlinedTextField(
+                modifier = Modifier.fillMaxWidth(),
+                value = state.manualAnswer,
+                onValueChange = { dispatch(UpdateManualAnswer(it)) },
+                label = { Text(stringResource(S.manual_answer)) },
+                singleLine = true,
+            )
+            if (state.canUseGenerated) {
+                ElevatedButton(onClick = { dispatch(UseGeneratedAuthoring) }) {
+                    Text(stringResource(S.use_generated_clues))
+                }
+            }
         }
     }
 }
