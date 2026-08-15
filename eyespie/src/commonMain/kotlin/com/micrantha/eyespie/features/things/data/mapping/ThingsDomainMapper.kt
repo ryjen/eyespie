@@ -16,8 +16,6 @@ import com.micrantha.eyespie.features.things.data.model.NearbyRequest
 import com.micrantha.eyespie.features.things.data.model.ThingListing
 import com.micrantha.eyespie.features.things.data.model.ThingRequest
 import com.micrantha.eyespie.features.things.data.model.ThingResponse
-import kotlinx.serialization.json.Json
-import kotlinx.serialization.json.decodeFromJsonElement
 import kotlin.time.Clock.System
 import kotlin.time.ExperimentalTime
 import kotlin.time.Instant
@@ -26,7 +24,6 @@ import kotlin.time.Instant
 class ThingsDomainMapper(
     private val locationMapper: LocationDomainMapper,
     val matchThreshold: Float = 0.5f,
-    val matchCount: Int = 5
 ) {
 
     fun new(proof: Proof, imageUrl: String, playerId: String) =
@@ -78,24 +75,15 @@ class ThingsDomainMapper(
         distance = distance
     )
 
-    fun match(embedding: Embedding): MatchRequest = MatchRequest(
+    fun match(thingID: String, embedding: Embedding): MatchRequest = MatchRequest(
+        thingID = thingID,
         embedding = embedding.requireCanonical().floats(),
         threshold = matchThreshold,
-        count = matchCount,
     )
 
-    fun match(data: MatchResponse): Thing.Match {
-        val content = Json.decodeFromJsonElement<ThingResponse>(data.content)
-        if (content.id != null && content.id != data.id) {
-            throw IllegalArgumentException("match RPC Thing id does not match result id")
-        }
-        val embedding = content.embedding?.toPostgresEmbedding()
-            ?: throw IllegalArgumentException("match RPC Thing is missing embedding")
-
-        return Thing.Match(
-            id = data.id,
-            embedding = embedding,
-            similarity = data.similarity
-        )
-    }
+    fun match(data: MatchResponse) = Thing.Match(
+        id = data.id,
+        similarity = data.similarity,
+        matched = data.matched,
+    )
 }
