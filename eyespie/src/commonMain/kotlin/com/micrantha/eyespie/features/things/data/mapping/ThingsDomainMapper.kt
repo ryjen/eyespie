@@ -26,9 +26,9 @@ class ThingsDomainMapper(
     val matchThreshold: Float = 0.5f,
 ) {
 
-    fun new(proof: Proof, imageUrl: String, playerId: String) =
+    fun new(proof: Proof, imagePath: String, playerId: String) =
         ThingRequest(
-            imageUrl = imageUrl,
+            imagePath = imagePath,
             createdBy = playerId,
             location = proof.location.toString(),
             embedding = proof.embedding.toPostgresVector()
@@ -37,7 +37,7 @@ class ThingsDomainMapper(
     fun map(thing: Thing) = ThingRequest(
         id = thing.id,
         createdAt = thing.createdAt.toString(),
-        imageUrl = thing.imageUrl,
+        imagePath = thing.imagePath,
         createdBy = thing.createdBy.id,
         location = thing.location.toString(),
         embedding = thing.embedding?.toPostgresVector()
@@ -45,12 +45,14 @@ class ThingsDomainMapper(
 
     fun map(data: ThingResponse): Thing {
         val point = data.location?.let { locationMapper.point(it) } ?: Point()
+        val imagePath = data.imagePath
+            ?: throw IllegalArgumentException("Thing authority is missing durable image path")
 
         return Thing(
             id = data.id!!,
             createdAt = data.createdAt?.let { Instant.parse(it) } ?: System.now(),
-            imageUrl = data.imageUrl,
-            guessed = data.game?.guessed ?: false,
+            imagePath = imagePath,
+            guessed = data.guessed ?: false,
             createdBy = Player.Ref(
                 id = data.createdBy,
                 name = "" // TODO: graphql
@@ -62,11 +64,10 @@ class ThingsDomainMapper(
     }
 
     fun list(data: ThingListing) = Thing.Listing(
-        id = data.id!!,
+        id = data.id,
         createdAt = data.createdAt?.let { Instant.parse(it) } ?: System.now(),
         nodeId = data.id,
-        guessed = data.game?.guessed == true,
-        imageUrl = data.imageUrl
+        guessed = data.guessed == true,
     )
 
     fun nearby(location: Point, distance: Double) = NearbyRequest(
