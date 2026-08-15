@@ -36,6 +36,15 @@ import kotlin.coroutines.resumeWithException
 
 private const val CAPTURE_PREFIX = "eyespie-capture-"
 private const val CAPTURE_SUFFIX = ".jpg"
+private const val STALE_CAPTURE_AGE_MS = 24L * 60L * 60L * 1000L
+
+// Process-scoped so a CameraX callback that completes after UI disposal still has an executor on
+// which it can delete its app-private temporary file and release the capture gate.
+private val cameraCaptureExecutor: ExecutorService by lazy {
+    Executors.newSingleThreadExecutor { runnable ->
+        Thread(runnable, "eyespie-camera-capture").apply { isDaemon = true }
+    }
+}
 
 @Composable
 actual fun CameraCapture(
@@ -82,6 +91,7 @@ actual fun CameraCapture(
         Preview.Builder().build().also { it.surfaceProvider = previewView.surfaceProvider }
     }
     val imageCapture: ImageCapture = remember(context, cameraXImageCapture) {
+        pruneStaleCaptureFiles(context.applicationContext)
         AndroidImageCapture(context.applicationContext, cameraXImageCapture)
     }
     var cameraProvider by remember { mutableStateOf<ProcessCameraProvider?>(null) }
@@ -112,7 +122,6 @@ actual fun CameraCapture(
             disposed = true
             cameraProvider?.unbind(preview, cameraXImageCapture)
             cameraProvider = null
-            (imageCapture as AndroidImageCapture).close()
         }
     }
 
@@ -144,8 +153,8 @@ actual fun CameraCapture(
 private class AndroidImageCapture(
     private val context: Context,
     private val cameraXImageCapture: CameraXImageCapture,
-    private val executor: ExecutorService = Executors.newSingleThreadExecutor(),
-) : ImageCapture, AutoCloseable {
+    private val executor: ExecutorService = cameraCaptureExecutor,
+) : ImageCapture {
     private val captureInFlight = AtomicBoolean(false)
 
     override suspend fun capture(): CapturedImage {
@@ -210,8 +219,16 @@ private class AndroidImageCapture(
             }
         }
     }
+}
 
-    override fun close() {
-        executor.shutdown()
+private fun pruneStaleCaptureFiles(context: Context, nowMillis: Long = System.currentTimeMillis()) {
+    val cutoff = nowMillis - STALE_CAPTURE_AGE_MS
+    context.cacheDir.listFiles { file ->
+        file.isFile &&
+            file.name.startsWith(CAPTURE_PREFIX) &&
+            file.name.endsWith(CAPTURE_SUFFIX) &&
+            file.lastModified() < cutoff
+    }?.forEach { stale ->
+        runCatching { stale.delete() }
     }
 }
