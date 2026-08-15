@@ -11,13 +11,14 @@ interface ThingRepository {
 
     fun things(playerID: String): Flow<Result<ThingList>>
 
+    /** Creator-authority lookup. Game/guesser paths must not use this full-row contract. */
     fun thing(thingID: String): Flow<Result<Thing>>
 
     fun match(thingID: String, embedding: Embedding): Flow<Result<Thing.Match>>
 
     suspend fun create(
         proof: Proof,
-        imageUrl: String,
+        imagePath: String,
         playerID: String,
     ): Result<Thing>
 
