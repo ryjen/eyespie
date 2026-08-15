@@ -18,6 +18,7 @@ import com.micrantha.eyespie.domain.repository.ClueRepository
 import com.micrantha.eyespie.features.scan.entities.ClueAuthoringMode
 import com.micrantha.eyespie.features.scan.entities.ScanClue
 import com.micrantha.eyespie.features.scan.entities.ScanEditAction.AnalyzedClues
+import com.micrantha.eyespie.features.scan.entities.ScanEditAction.ClueGenerationAvailability
 import com.micrantha.eyespie.features.scan.entities.ScanEditAction.GenerateClues
 import com.micrantha.eyespie.features.scan.entities.ScanEditAction.GeneratedCluesUnavailable
 import com.micrantha.eyespie.features.scan.entities.ScanEditAction.Init
@@ -52,18 +53,25 @@ class ScanEditEnvironment(
             location = action.params.location,
         )
 
-        is CameraImage -> {
-            val canGenerate = clueRepository.canGenerateClues
-            state.copy(
-                image = action,
-                authoringMode = if (canGenerate) ClueAuthoringMode.CHOOSE else ClueAuthoringMode.MANUAL,
-                generationUnavailable = canGenerate.not(),
-                isBusy = false,
-                isError = false,
-            )
-        }
+        is CameraImage -> state.copy(
+            image = action,
+            isBusy = true,
+            isError = false,
+        )
 
-        is GenerateClues -> if (clueRepository.canGenerateClues) {
+        is ClueGenerationAvailability -> state.copy(
+            generationAvailable = action.available,
+            generationUnavailable = action.available.not(),
+            authoringMode = if (action.available) {
+                ClueAuthoringMode.CHOOSE
+            } else {
+                ClueAuthoringMode.MANUAL
+            },
+            isBusy = false,
+            isError = false,
+        )
+
+        is GenerateClues -> if (state.generationAvailable) {
             state.copy(
                 authoringMode = ClueAuthoringMode.GENERATED,
                 generationUnavailable = false,
@@ -80,6 +88,7 @@ class ScanEditEnvironment(
         }
 
         is GeneratedCluesUnavailable -> state.copy(
+            generationAvailable = false,
             authoringMode = ClueAuthoringMode.MANUAL,
             generationUnavailable = true,
             isBusy = false,
@@ -120,6 +129,7 @@ class ScanEditEnvironment(
             selected = stateMapOf(action.value.clues.mapIndexed { index, clue ->
                 index to clue.toScanClue(index)
             }.toMap()),
+            generationAvailable = true,
             authoringMode = ClueAuthoringMode.GENERATED,
             hasSelected = false,
             generationUnavailable = false,
@@ -146,6 +156,10 @@ class ScanEditEnvironment(
     override suspend fun invoke(action: Action, state: ScanEditState) {
         when (action) {
             is Init -> loadImage(state)
+
+            is CameraImage -> dispatch(
+                ClueGenerationAvailability(clueRepository.canGenerateClues)
+            )
 
             is Retry -> if (state.image == null) {
                 loadImage(state)
