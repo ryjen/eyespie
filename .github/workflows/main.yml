@@ -61,7 +61,20 @@ jobs:
         uses: supabase/setup-cli@ab058987d8d6c725971f6cf9d0b5c98467e30bd1 # v1
 
       - name: Start local Supabase
-        run: supabase start
+        shell: bash
+        run: |
+          set -o pipefail
+          log="$RUNNER_TEMP/supabase-start.log"
+          set +e
+          supabase start --debug 2>&1 | tee "$log"
+          status=${PIPESTATUS[0]}
+          set -e
+
+          if (( status != 0 )); then
+            excerpt="$(tail -n 80 "$log" | sed 's/%/%25/g; s/\r/%0D/g' | awk 'BEGIN { ORS="%0A" } { print }')"
+            echo "::error title=Supabase local startup::$excerpt"
+          fi
+          exit "$status"
 
       - name: Replay migrations from scratch
         run: supabase db reset
