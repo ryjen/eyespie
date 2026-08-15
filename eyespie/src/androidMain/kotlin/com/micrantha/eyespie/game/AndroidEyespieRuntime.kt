@@ -4,27 +4,38 @@ import android.content.Context
 import com.micrantha.eyespie.core.GameId
 import com.micrantha.eyespie.core.ThingId
 import com.micrantha.eyespie.identity.LocalPlayerIdentityRepository
+import com.micrantha.eyespie.identity.PlatformSigningIdentity
 import com.micrantha.eyespie.imaging.IMAGE_EMBEDDER_MODEL_FILE
 import com.micrantha.eyespie.imaging.MediaPipeImageEmbeddingGenerator
 import com.micrantha.eyespie.persistence.AndroidEyespieDatabaseFactory
 import com.micrantha.eyespie.persistence.SqlGameRepository
 import com.micrantha.eyespie.persistence.SqlThingProgressRepository
+import com.micrantha.eyespie.sharing.GameBundleService
 import java.nio.ByteBuffer
 import java.util.UUID
 
 fun createAndroidEyespieRuntime(context: Context): EyespieRuntime {
     val applicationContext = context.applicationContext
     val database = AndroidEyespieDatabaseFactory(applicationContext).create()
+    val signingIdentity = PlatformSigningIdentity()
+    val identityRepository = LocalPlayerIdentityRepository(signingIdentity)
+    val gameRepository = SqlGameRepository(database)
+    val progressRepository = SqlThingProgressRepository(database)
     return EyespieRuntime(
-        LocalGameLoop(
-            identityRepository = LocalPlayerIdentityRepository(),
-            gameRepository = SqlGameRepository(database),
-            progressRepository = SqlThingProgressRepository(database),
+        gameLoop = LocalGameLoop(
+            identityRepository = identityRepository,
+            gameRepository = gameRepository,
+            progressRepository = progressRepository,
             embeddingGenerator = MediaPipeImageEmbeddingGenerator(
                 context = applicationContext,
                 modelBuffer = loadImageEmbedderModel(applicationContext),
             ),
             idGenerator = AndroidLocalGameIdGenerator(),
+        ),
+        gameBundleService = GameBundleService(
+            identityRepository = identityRepository,
+            signingIdentity = signingIdentity,
+            gameRepository = gameRepository,
         ),
     )
 }
