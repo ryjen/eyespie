@@ -199,7 +199,7 @@ class LocalGameLoopTest {
         )
 
         blocking.release.complete(unitVector(0))
-        assertIs<LocalGameResult.Success<CreatedGame>>(first.await())
+        assertTrue(first.await() is LocalGameResult.Success)
     }
 
     private fun loop(
@@ -226,8 +226,10 @@ class LocalGameLoopTest {
         is ClueAuthoringResult.Rejected -> error("expected accepted clue authority")
     }
 
-    private fun <T> success(result: LocalGameResult<T>): T =
-        assertIs<LocalGameResult.Success<T>>(result).value
+    private fun <T> success(result: LocalGameResult<T>): T = when (result) {
+        is LocalGameResult.Success -> result.value
+        is LocalGameResult.Failure -> error("expected success, got ${result.failure.code}")
+    }
 }
 
 private class FixedIdentityRepository(
