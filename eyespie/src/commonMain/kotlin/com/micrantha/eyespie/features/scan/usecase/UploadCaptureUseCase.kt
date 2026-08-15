@@ -48,14 +48,16 @@ class UploadCaptureUseCaseImpl(
         val embedding = imageEmbeddingGenerator.generate(cameraImage)
 
         val imageID = Uuid.random().toString()
+        val requestedPath = "${playerID}/${imageID}.${imageExtension}"
 
         storageRepository.upload(
-            "${playerID}/${imageID}.${imageExtension}",
+            requestedPath,
             imageData
-        ).map { url ->
+        ).map { imagePath ->
+            require(imagePath == requestedPath) { "storage upload returned unexpected object identity" }
             thingRepository.create(
                 proof.copy(embedding = embedding),
-                url,
+                imagePath,
                 playerID
             ).getOrThrow()
         }.getOrThrow()
