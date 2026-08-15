@@ -2,7 +2,7 @@ package com.micrantha.eyespie.features.scan.data.source
 
 import com.micrantha.eyespie.data.EyesPieDatabase
 import com.micrantha.eyespie.data.PendingCapture
-import com.micrantha.eyespie.domain.entities.AiProof
+import com.micrantha.eyespie.domain.entities.ClueAuthority
 import com.micrantha.eyespie.domain.entities.Proof
 import kotlin.time.Clock
 import kotlin.time.ExperimentalTime
@@ -32,7 +32,7 @@ internal class SqlCaptureSyncSource(
             player_id = playerID,
             latitude = proof.location?.point?.latitude,
             longitude = proof.location?.point?.longitude,
-            clues = proof.clues?.let { json.encodeToString<AiProof>(it) },
+            clues = proof.clues?.let { json.encodeToString<ClueAuthority>(it) },
             embedding = proof.embedding.toByteArray(),
             created_at = Clock.System.now().toString()
         )

@@ -29,6 +29,15 @@ internal class ClueDataRepository(
     },
 ) : ClueRepository {
 
+    override val canGenerateClues: Boolean
+        get() {
+            val availability = inferenceProvider.availability.value as? SemanticInferenceAvailability.Available
+                ?: return false
+            return inferenceProvider.identity.locality == InferenceLocality.LOCAL &&
+                availability.capabilities.textGeneration &&
+                availability.capabilities.imageInput
+        }
+
     override suspend fun guess(image: Path, clue: GuessClue): Result<String> =
         withTimeout(timeout) {
             inferenceProvider.generate(

@@ -4,7 +4,7 @@ import kotlinx.serialization.Serializable
 import okio.ByteString
 
 data class Proof(
-    val clues: AiProof?,
+    val clues: ClueAuthority?,
     val location: Location?,
     val embedding: Embedding = ByteString.EMPTY,
 )

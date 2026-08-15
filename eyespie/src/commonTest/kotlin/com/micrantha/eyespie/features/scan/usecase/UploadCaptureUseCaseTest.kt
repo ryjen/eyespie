@@ -2,7 +2,8 @@ package com.micrantha.eyespie.features.scan.usecase
 
 import com.micrantha.bluebell.platform.FileSystem
 import com.micrantha.eyespie.core.data.account.model.CurrentSession
-import com.micrantha.eyespie.domain.entities.AiClue
+import com.micrantha.eyespie.domain.entities.AuthoredClue
+import com.micrantha.eyespie.domain.entities.ClueAuthority
 import com.micrantha.eyespie.domain.entities.Embedding
 import com.micrantha.eyespie.domain.entities.Proof
 import com.micrantha.eyespie.domain.entities.Session
@@ -63,7 +64,12 @@ class UploadCaptureUseCaseTest {
         session.update(player)
 
         val result = useCase(
-            proof = Proof(clues = setOf(AiClue("clue", 0.9f, "answer")), location = null),
+            proof = Proof(
+                clues = ClueAuthority(
+                    listOf(AuthoredClue.Manual(clue = "clue", expectedAnswer = "answer"))
+                ),
+                location = null,
+            ),
             image = "/test.png".toPath()
         )
 
