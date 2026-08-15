@@ -2,7 +2,7 @@ name: EyesPie CI
 
 on:
   push:
-    branches: [main, reboot/backendless-core]
+    branches: [main]
   pull_request:
     branches: [main]
 

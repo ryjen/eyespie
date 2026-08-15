@@ -1,8 +1,6 @@
 name: iOS MediaPipe Integration
 
 on:
-  push:
-    branches: [reboot/backendless-core]
   pull_request:
     branches: [main]
     paths:
