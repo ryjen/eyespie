@@ -53,6 +53,14 @@
     <string name="done">Done</string>
     <string name="skip">Skip</string>
     <string name="retry">Retry</string>
+    <string name="clue_authoring_prompt">Choose how to create the clue.</string>
+    <string name="generate_clues">Generate clues on this device</string>
+    <string name="write_clue_manually">Write clue manually</string>
+    <string name="generated_clues_unavailable">Generated clues are unavailable. Write a clue manually to continue.</string>
+    <string name="manual_clue">Clue</string>
+    <string name="manual_answer">Expected answer</string>
+    <string name="use_generated_clues">Use generated clues</string>
+    <string name="try_generation_again">Try generation again</string>
     <string name="onboarding_genai_text">Download artificial intelligence models?\n\nModels will download in the background and help improve gameplay experience and privacy.</string>
     <string name="onboarding_genai_title">On Device Models</string>
     <string name="onboarding_welcome_title">Welcome to EyesPie</string>
