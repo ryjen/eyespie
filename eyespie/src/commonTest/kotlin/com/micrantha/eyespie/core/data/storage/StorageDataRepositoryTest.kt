@@ -11,7 +11,7 @@ class StorageDataRepositoryTest {
 
     private class FakeStorageRemoteSource : StorageRemoteSource {
         var downloadResult: Result<ByteArray> = Result.failure(Exception("Not found"))
-        var uploadResult: Result<Pair<String, String>> = Result.failure(Exception("Upload failed"))
+        var uploadResult: Result<String> = Result.failure(Exception("Upload failed"))
 
         override fun url(bucketID: String, path: String) = Result.success("http://$bucketID/$path")
         override suspend fun download(bucketID: String, path: String) = downloadResult
@@ -45,15 +45,14 @@ class StorageDataRepositoryTest {
     }
 
     @Test
-    fun `upload should return url from remoteSource`() = runTest {
-        val path = "test/path"
+    fun `upload should return durable object key from remoteSource`() = runTest {
+        val path = "player/test.png"
         val data = byteArrayOf(1, 2, 3)
-        val url = "http://example.com/test"
-        remoteSource.uploadResult = Result.success("key" to url)
+        remoteSource.uploadResult = Result.success(path)
 
         val result = repository.upload(path, data)
 
         assertTrue(result.isSuccess)
-        assertEquals(url, result.getOrNull())
+        assertEquals(path, result.getOrNull())
     }
 }
