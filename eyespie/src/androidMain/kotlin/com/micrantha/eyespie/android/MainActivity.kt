@@ -8,6 +8,7 @@ import androidx.compose.runtime.remember
 import com.micrantha.eyespie.App
 import com.micrantha.eyespie.AppUnavailable
 import com.micrantha.eyespie.game.createAndroidEyespieRuntime
+import com.micrantha.eyespie.sharing.rememberAndroidGameDocumentTransfer
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
@@ -24,7 +25,8 @@ class MainActivity : ComponentActivity() {
             if (runtime == null) {
                 AppUnavailable()
             } else {
-                App(runtime)
+                val documentTransfer = rememberAndroidGameDocumentTransfer()
+                App(runtime, documentTransfer)
             }
         }
     }
