@@ -1,12 +1,13 @@
 package com.micrantha.eyespie.features.game.data.source
 
 import com.micrantha.eyespie.core.data.client.SupaClient
+import com.micrantha.eyespie.features.game.data.model.GameRemoteDetails
+import com.micrantha.eyespie.features.game.data.model.SafeGameThingData
 import com.micrantha.eyespie.graphql.GameListQuery
-import com.micrantha.eyespie.graphql.GameNodeQuery
 
 internal interface GameRemoteSource {
     suspend fun games(): Result<List<GameListQuery.Node>>
-    suspend fun game(id: String): Result<GameNodeQuery.GameNode>
+    suspend fun game(id: String): Result<GameRemoteDetails>
 }
 
 internal class SupabaseGameRemoteSource(
@@ -23,10 +24,13 @@ internal class SupabaseGameRemoteSource(
     }
 
     override suspend fun game(id: String) = try {
-        val game = with(client.game(id).execute()) {
+        val gameNode = with(client.game(id).execute()) {
             dataAssertNoErrors.gameNode!!
         }
-        Result.success(game)
+        val gameID = gameNode.onGame?.id
+            ?: throw IllegalArgumentException("GraphQL game node is missing Game id")
+        val things = client.gameThings(gameID).decodeList<SafeGameThingData>()
+        Result.success(GameRemoteDetails(gameNode, things))
     } catch (e: Throwable) {
         Result.failure(e)
     }
