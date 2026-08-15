@@ -4,6 +4,7 @@ enum class ClueOrigin {
     LEGACY,
     MANUAL,
     GENERATED,
+    SHARED,
 }
 
 data class GeneratedClueProvenance(
@@ -72,6 +73,10 @@ data class ClueAuthority private constructor(
                 requireValidExpectedAnswer(expectedAnswer)
                 require(generatedProvenance != null) { "generated clue authority requires generated provenance" }
             }
+            ClueOrigin.SHARED -> {
+                require(expectedAnswer == null) { "shared clue authority cannot contain a creator-only expected answer" }
+                require(generatedProvenance == null) { "shared clue authority cannot contain generated provenance" }
+            }
         }
     }
 
@@ -119,6 +124,14 @@ data class ClueAuthority private constructor(
                 ),
             )
         }
+
+        fun shared(clueText: String): ClueAuthority = ClueAuthority(
+            schemaVersion = CURRENT_SCHEMA_VERSION,
+            clueText = normalize(clueText),
+            expectedAnswer = null,
+            origin = ClueOrigin.SHARED,
+            generatedProvenance = null,
+        )
 
         fun legacy(clueText: String): ClueAuthority = ClueAuthority(
             schemaVersion = CURRENT_SCHEMA_VERSION,
