@@ -173,6 +173,25 @@ class LocalGameLoopTest {
     }
 
     @Test
+    fun fatalErrorsPropagateInsteadOfBecomingRecoverableApplicationFailures() = runTest {
+        val loop = loop(
+            embeddings = QueueEmbeddingGenerator(
+                outputs = mutableListOf(),
+                failure = AssertionError("fatal runtime failure"),
+            ),
+        )
+
+        assertFailsWith<AssertionError> {
+            loop.createGame(
+                name = "Trip",
+                clueText = "Striped",
+                expectedAnswer = "crosswalk",
+                targetImage = image(),
+            )
+        }
+    }
+
+    @Test
     fun overlappingOperationFailsClosedInsteadOfQueueing() = runTest {
         val blocking = BlockingEmbeddingGenerator()
         val loop = loop(embeddings = blocking)
