@@ -66,7 +66,13 @@ internal fun module() = DI.Module("Core Feature") {
     bindSingleton { CoroutineScope(SupervisorJob() + Dispatchers.Default) }
 
     bindSingleton {
-        EyesPieDatabase(instance<DatabaseDriverFactory>().createDriver())
+        EyesPieDatabase(instance<DatabaseDriverFactory>().createDriver()).also { database ->
+            // #122: ThingEntity is a pre-authority-boundary cache containing image paths,
+            // location/proof, and embeddings without account scoping. Full Thing reads are now
+            // server-authorized, while offline creator captures live in PendingCapture, so retain
+            // no legacy Thing authority across an app restart/account transition.
+            database.eyesPieQueries.deleteAllThings()
+        }
     }
 
     bindProviderOf(::SupabaseAccountRemoteSource)
