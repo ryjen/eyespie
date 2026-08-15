@@ -5,7 +5,6 @@ import com.micrantha.eyespie.domain.entities.Location
 import com.micrantha.eyespie.domain.entities.Proof
 import com.micrantha.eyespie.domain.entities.Thing
 import com.micrantha.eyespie.domain.entities.ThingList
-import com.micrantha.eyespie.domain.entities.ThingMatches
 import kotlinx.coroutines.flow.Flow
 
 interface ThingRepository {
@@ -14,7 +13,7 @@ interface ThingRepository {
 
     fun thing(thingID: String): Flow<Result<Thing>>
 
-    fun match(embedding: Embedding): Flow<Result<ThingMatches>>
+    fun match(thingID: String, embedding: Embedding): Flow<Result<Thing.Match>>
 
     suspend fun create(
         proof: Proof,
