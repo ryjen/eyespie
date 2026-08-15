@@ -99,7 +99,7 @@ class ScanEditEnvironmentTest {
         uploadCaptureUseCase.result = Result.success(com.micrantha.eyespie.domain.entities.Thing(
             id = "t1",
             createdBy = Player.Ref("p1", "p1"),
-            imageUrl = "url",
+            imagePath = "p1/image.jpg",
             createdAt = Clock.System.now(),
             location = com.micrantha.eyespie.domain.entities.Location.Point(1.0, 2.0),
             guessed = false,
