@@ -120,6 +120,13 @@ class IosGameDocumentTransfer(
         completeSelection(didPickDocumentAtURL)
     }
 
+    override fun documentPicker(
+        controller: UIDocumentPickerViewController,
+        didPickDocumentsAtURLs: List<*>,
+    ) {
+        completeSelection(didPickDocumentsAtURLs.firstOrNull() as? NSURL)
+    }
+
     override fun documentPickerWasCancelled(controller: UIDocumentPickerViewController) {
         completeSelection(null)
     }
