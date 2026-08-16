@@ -10,5 +10,8 @@ description = "Assemble the Android offline-core debug artifact"
 run = "./gradlew :app:assembleDebug --no-daemon --stacktrace"
 
 [tasks.ci]
-description = "Run the canonical Android offline-core validation gate"
-run = "./gradlew :app:testDebugUnitTest :app:assembleDebug --no-daemon --stacktrace"
+description = "Run candidate-identity verification plus the Android offline-core gate"
+run = """
+python3 scripts/release_candidate_identity.py verify
+./gradlew :app:testDebugUnitTest :app:assembleDebug --no-daemon --stacktrace
+"""
