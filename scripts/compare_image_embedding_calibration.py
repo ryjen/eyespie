@@ -3,7 +3,7 @@
 
 Reports are hostile evidence until validated against both the checked-in fixture provenance manifest
 and an exact clean candidate-identity manifest produced by release_candidate_identity.py. The tool
-evaluates the threshold recorded by the candidate; it never selects or rewrites product policy.
+evaluates the threshold bound into that candidate; it never selects or rewrites product policy.
 """
 
 from __future__ import annotations
@@ -39,6 +39,7 @@ class CandidateIdentity:
     source_commit: str
     application_version: str
     application_build: int
+    match_threshold: float
     model_id: str
     model_sha256: str
     embedding_schema_version: int
@@ -105,6 +106,13 @@ def _finite_number(value: Any, field: str) -> float:
     return result
 
 
+def _cosine_threshold(value: Any, field: str) -> float:
+    result = _finite_number(value, field)
+    if result < -1.0 or result > 1.0:
+        raise CalibrationReportError(f"{field} must be within [-1, 1]")
+    return result
+
+
 def _lower_sha256(value: Any, field: str) -> str:
     result = _nonempty_string(value, field)
     if len(result) != 64 or any(ch not in "0123456789abcdef" for ch in result):
@@ -141,7 +149,6 @@ def _load_fixture_specs() -> dict[str, FixtureSpec]:
 
 FIXTURE_SPECS = _load_fixture_specs()
 EXPECTED_FIXTURES = tuple(FIXTURE_SPECS)
-EXPECTED_ROLES = {fixture_id: spec.role for fixture_id, spec in FIXTURE_SPECS.items()}
 EXPECTED_FIXTURE_SHA256 = {
     fixture_id: spec.sha256 for fixture_id, spec in FIXTURE_SPECS.items()
 }
@@ -156,11 +163,15 @@ def load_candidate_identity(path: Path) -> CandidateIdentity:
 
     source = payload.get("source")
     application = payload.get("application")
+    match_policy = payload.get("match_policy")
     embedding = payload.get("image_embedding")
     mediapipe = payload.get("mediapipe")
-    if not all(isinstance(value, dict) for value in (source, application, embedding, mediapipe)):
+    if not all(
+        isinstance(value, dict)
+        for value in (source, application, match_policy, embedding, mediapipe)
+    ):
         raise CalibrationReportError(
-            "candidate source/application/image_embedding/mediapipe objects are required"
+            "candidate source/application/match_policy/image_embedding/mediapipe objects are required"
         )
 
     source_commit = _nonempty_string(source.get("commit_sha"), "candidate.source.commit_sha")
@@ -172,14 +183,16 @@ def load_candidate_identity(path: Path) -> CandidateIdentity:
     application_version = _nonempty_string(
         application.get("version"), "candidate.application.version"
     )
-    application_build = _positive_int(
-        application.get("build"), "candidate.application.build"
-    )
+    application_build = _positive_int(application.get("build"), "candidate.application.build")
     candidate = _nonempty_string(payload.get("candidate"), "candidate")
     expected_candidate = f"{application_version}+{application_build}@{source_commit[:12]}"
     if candidate != expected_candidate:
         raise CalibrationReportError("candidate identity string does not match source/version/build")
 
+    candidate_threshold = _cosine_threshold(
+        match_policy.get("default_cosine_threshold"),
+        "candidate.match_policy.default_cosine_threshold",
+    )
     model_id = _nonempty_string(embedding.get("model_id"), "candidate.image_embedding.model_id")
     model_sha256 = _lower_sha256(
         embedding.get("model_sha256"), "candidate.image_embedding.model_sha256"
@@ -187,9 +200,7 @@ def load_candidate_identity(path: Path) -> CandidateIdentity:
     embedding_schema_version = _positive_int(
         embedding.get("contract_version"), "candidate.image_embedding.contract_version"
     )
-    dimensions = _positive_int(
-        embedding.get("dimensions"), "candidate.image_embedding.dimensions"
-    )
+    dimensions = _positive_int(embedding.get("dimensions"), "candidate.image_embedding.dimensions")
 
     android = mediapipe.get("android")
     ios = mediapipe.get("ios")
@@ -207,6 +218,7 @@ def load_candidate_identity(path: Path) -> CandidateIdentity:
         source_commit=source_commit,
         application_version=application_version,
         application_build=application_build,
+        match_threshold=candidate_threshold,
         model_id=model_id,
         model_sha256=model_sha256,
         embedding_schema_version=embedding_schema_version,
@@ -262,9 +274,7 @@ def load_report(path: Path, candidate: CandidateIdentity) -> CalibrationReport:
         candidate.android_runtime_version if platform == "android" else candidate.ios_runtime_version
     )
     if runtime_version != expected_runtime_version:
-        raise CalibrationReportError(
-            f"{platform} runtime version does not match candidate identity"
-        )
+        raise CalibrationReportError(f"{platform} runtime version does not match candidate identity")
 
     model_id = _nonempty_string(model.get("id"), "model.id")
     model_sha256 = _lower_sha256(model.get("sha256"), "model.sha256")
@@ -277,18 +287,16 @@ def load_report(path: Path, candidate: CandidateIdentity) -> CalibrationReport:
             "packaged model SHA-256 does not match the candidate image-embedding model"
         )
 
-    match_threshold = _finite_number(
+    match_threshold = _cosine_threshold(
         match_policy.get("cosine_threshold"), "match_policy.cosine_threshold"
     )
-    if match_threshold < -1.0 or match_threshold > 1.0:
-        raise CalibrationReportError("match_policy.cosine_threshold must be within [-1, 1]")
+    if not math.isclose(match_threshold, candidate.match_threshold, rel_tol=0.0, abs_tol=1e-7):
+        raise CalibrationReportError("report match threshold does not match candidate identity")
 
     schema_version = embedding.get("schema_version")
     dimensions = embedding.get("dimensions")
     if schema_version != candidate.embedding_schema_version:
-        raise CalibrationReportError(
-            "embedding schema version does not match candidate identity"
-        )
+        raise CalibrationReportError("embedding schema version does not match candidate identity")
     if dimensions != candidate.dimensions:
         raise CalibrationReportError(
             f"embedding dimensions must be {candidate.dimensions}, was {dimensions!r}"
@@ -333,14 +341,12 @@ def load_report(path: Path, candidate: CandidateIdentity) -> CalibrationReport:
             raise CalibrationReportError(
                 f"fixture {fixture_id} repeat_count must be exactly {REPEAT_COUNT}"
             )
-        repeat_cosine_min = _finite_number(
+        repeat_cosine_min = _cosine_threshold(
             raw.get("repeat_cosine_min"), f"fixture.{fixture_id}.repeat_cosine_min"
         )
         repeat_max_abs_delta = _finite_number(
             raw.get("repeat_max_abs_delta"), f"fixture.{fixture_id}.repeat_max_abs_delta"
         )
-        if repeat_cosine_min < -1.0 or repeat_cosine_min > 1.0:
-            raise CalibrationReportError(f"fixture {fixture_id} repeat cosine is outside [-1, 1]")
         if repeat_max_abs_delta < 0.0:
             raise CalibrationReportError(f"fixture {fixture_id} repeat delta must be non-negative")
 
@@ -355,9 +361,7 @@ def load_report(path: Path, candidate: CandidateIdentity) -> CalibrationReport:
         )
 
     if tuple(fixtures) != EXPECTED_FIXTURES:
-        raise CalibrationReportError(
-            f"fixture ids/order must be {', '.join(EXPECTED_FIXTURES)}"
-        )
+        raise CalibrationReportError(f"fixture ids/order must be {', '.join(EXPECTED_FIXTURES)}")
 
     return CalibrationReport(
         platform=platform,
@@ -403,14 +407,15 @@ def _semantic_metrics(
     candidate_report: CalibrationReport,
 ) -> dict[str, dict[str, Any]]:
     reference = reference_report.fixtures["burger"].embedding
-    result: dict[str, dict[str, Any]] = {}
-    for fixture_id in SEMANTIC_FIXTURES:
-        similarity = cosine_similarity(reference, candidate_report.fixtures[fixture_id].embedding)
-        result[fixture_id] = {
-            "cosine_similarity": similarity,
+    return {
+        fixture_id: {
+            "cosine_similarity": (similarity := cosine_similarity(
+                reference, candidate_report.fixtures[fixture_id].embedding
+            )),
             "matches_configured_threshold": similarity >= reference_report.match_threshold,
         }
-    return result
+        for fixture_id in SEMANTIC_FIXTURES
+    }
 
 
 def compare_reports(
@@ -444,11 +449,8 @@ def compare_reports(
             "cosine_similarity": similarity,
             "rmse": rmse(a, b),
             "max_abs_delta": max_abs_delta(a, b),
-            "matches_configured_threshold": similarity >= android.match_threshold,
+            "matches_configured_threshold": similarity >= candidate.match_threshold,
         }
-    same_fixture_all_match = all(
-        metrics["matches_configured_threshold"] for metrics in cross_platform.values()
-    )
 
     decision_sets = {
         fixture_id: (
@@ -480,10 +482,10 @@ def compare_reports(
             "dimensions": android.dimensions,
         },
         "match_policy": {
-            "cosine_threshold": android.match_threshold,
+            "cosine_threshold": candidate.match_threshold,
             "threshold_changed": False,
             "note": (
-                "Observed decisions use the threshold recorded by both candidate builds; "
+                "Observed decisions use the threshold bound into the candidate manifest; "
                 "calibration does not select a new threshold."
             ),
         },
@@ -519,7 +521,9 @@ def compare_reports(
         },
         "cross_platform": cross_platform,
         "same_fixture_cross_platform_match": {
-            "all_match": same_fixture_all_match,
+            "all_match": all(
+                metrics["matches_configured_threshold"] for metrics in cross_platform.values()
+            ),
             "fixtures": {
                 fixture_id: metrics["matches_configured_threshold"]
                 for fixture_id, metrics in cross_platform.items()
@@ -579,15 +583,13 @@ def render_markdown(comparison: dict[str, Any]) -> str:
             f"{metrics['rmse']:.9g} | {metrics['max_abs_delta']:.9g} | {decision} |"
         )
 
-    lines.extend(
-        [
-            "",
-            "## Within-platform semantic behavior",
-            "",
-            "| Platform | Fixture | Cosine to reference | Matches configured threshold |",
-            "|---|---|---:|---|",
-        ]
-    )
+    lines.extend([
+        "",
+        "## Within-platform semantic behavior",
+        "",
+        "| Platform | Fixture | Cosine to reference | Matches configured threshold |",
+        "|---|---|---:|---|",
+    ])
     for platform in ("android", "ios"):
         for fixture_id, values in comparison[platform]["semantic_behavior"].items():
             decision = "yes" if values["matches_configured_threshold"] else "no"
@@ -595,15 +597,13 @@ def render_markdown(comparison: dict[str, Any]) -> str:
                 f"| {platform} | {fixture_id} | {values['cosine_similarity']:.9f} | {decision} |"
             )
 
-    lines.extend(
-        [
-            "",
-            "## Cross-platform storage/scan behavior",
-            "",
-            "| Stored reference | Scan platform | Fixture | Cosine | Matches configured threshold |",
-            "|---|---|---|---:|---|",
-        ]
-    )
+    lines.extend([
+        "",
+        "## Cross-platform storage/scan behavior",
+        "",
+        "| Stored reference | Scan platform | Fixture | Cosine | Matches configured threshold |",
+        "|---|---|---|---:|---|",
+    ])
     for direction, stored_platform, scan_platform in (
         ("android_reference_to_ios", "android", "ios"),
         ("ios_reference_to_android", "ios", "android"),
@@ -615,29 +615,13 @@ def render_markdown(comparison: dict[str, Any]) -> str:
                 f"{values['cosine_similarity']:.9f} | {decision} |"
             )
 
-    lines.extend(
-        [
-            "",
-            "## Match-decision consistency",
-            "",
-            "Consistency requires the same decision for Android→Android, iOS→iOS, Android→iOS, and iOS→Android.",
-            "",
-            "| Fixture | Consistent |",
-            "|---|---|",
-        ]
-    )
-    for fixture_id, consistent in comparison["match_decision_consistency"]["fixtures"].items():
-        lines.append(f"| {fixture_id} | {'yes' if consistent else 'no'} |")
-
-    lines.extend(
-        [
-            "",
-            "## Repeated-inference stability",
-            "",
-            "| Platform | Fixture | Runs | Min cosine to first | Max abs delta |",
-            "|---|---|---:|---:|---:|",
-        ]
-    )
+    lines.extend([
+        "",
+        "## Repeated-inference stability",
+        "",
+        "| Platform | Fixture | Runs | Min cosine to first | Max abs delta |",
+        "|---|---|---:|---:|---:|",
+    ])
     for platform in ("android", "ios"):
         for fixture_id, values in comparison[platform]["repeat_stability"].items():
             lines.append(
