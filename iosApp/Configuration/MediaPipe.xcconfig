@@ -1,0 +1,2 @@
+// Canonical project-specific iOS MediaPipe Tasks artifact identity.
+IOS_MEDIAPIPE_TASKS_VERSION = 0.10.26.2

@@ -2,7 +2,7 @@
 
 Every release/physical evidence run must identify the exact software and compatibility contracts under test. This metadata is provenance only; it does not prove that a physical scenario passed.
 
-## Version source of truth
+## Version sources of truth
 
 `iosApp/Configuration/Version.xcconfig` is the canonical checked-in application version source:
 
@@ -18,6 +18,16 @@ Both platform packages consume these values:
 
 `APP_BUILD` must increase for every candidate uploaded to a store channel. Version/build changes are reviewed source changes; release jobs must not silently synthesize a different installed identity.
 
+`iosApp/Configuration/MediaPipe.xcconfig` is the canonical project-specific iOS MediaPipe Tasks artifact version source. The same value is consumed by:
+
+- all four KMP CocoaPods MediaPipe declarations;
+- the iOS Debug/Release Xcode configurations;
+- `EyespieMediaPipeTasksVersion` in the installed app Info.plist;
+- candidate identity rendering;
+- the iOS physical calibration report.
+
+Candidate verification fails if any of those paths stops consuming the canonical value.
+
 ## Verify repository identity wiring
 
 Run from a clean checkout:
@@ -28,7 +38,7 @@ python3 scripts/release_candidate_identity.py verify
 
 The canonical Android `mise run ci` gate runs this verification before tests/assembly.
 
-Verification fails closed when version wiring is inconsistent, required compatibility constants cannot be derived, MediaPipe iOS artifacts do not share one version, model/match-policy identity is malformed, or the working tree is dirty.
+Verification fails closed when version wiring is inconsistent, required compatibility constants cannot be derived, the project-specific iOS MediaPipe identity is not wired consistently through Gradle/Xcode/Info.plist, model/match-policy identity is malformed, or the working tree is dirty.
 
 ## Render evidence metadata
 

@@ -14,6 +14,7 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 VERSION_CONFIG = ROOT / "iosApp/Configuration/Version.xcconfig"
+MEDIAPIPE_CONFIG = ROOT / "iosApp/Configuration/MediaPipe.xcconfig"
 BUILD_GRADLE = ROOT / "eyespie/build.gradle.kts"
 INFO_PLIST = ROOT / "iosApp/iosApp/Info.plist"
 DEBUG_XCCONFIG = ROOT / "iosApp/Configuration/Config.debug.xcconfig"
@@ -26,6 +27,7 @@ SQLDELIGHT_DIR = ROOT / "eyespie/src/commonMain/sqldelight/com/micrantha/eyespie
 
 CANDIDATE_IDENTITY_SCHEMA_VERSION = 2
 SEMVER_RE = re.compile(r"^[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.-]+)?$")
+NUMERIC_VERSION_RE = re.compile(r"^[0-9]+\.[0-9]+\.[0-9]+(?:\.[0-9]+)?$")
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 
 
@@ -40,20 +42,27 @@ def read_text(path: Path) -> str:
         raise CandidateIdentityError(f"cannot read required file: {path.relative_to(ROOT)}") from exc
 
 
-def xcconfig_values() -> dict[str, str]:
+def simple_xcconfig_values(path: Path) -> dict[str, str]:
     values: dict[str, str] = {}
-    for raw_line in read_text(VERSION_CONFIG).splitlines():
+    for raw_line in read_text(path).splitlines():
         line = raw_line.strip()
         if not line or line.startswith("//"):
             continue
         if "=" not in line:
-            raise CandidateIdentityError("Version.xcconfig contains a non-assignment line")
+            raise CandidateIdentityError(
+                f"{path.name} contains a non-assignment line"
+            )
         key, value = (part.strip() for part in line.split("=", 1))
         if not key or not value:
-            raise CandidateIdentityError("Version.xcconfig contains an empty key/value")
+            raise CandidateIdentityError(f"{path.name} contains an empty key/value")
         if key in values:
-            raise CandidateIdentityError(f"duplicate version key: {key}")
+            raise CandidateIdentityError(f"duplicate {path.name} key: {key}")
         values[key] = value
+    return values
+
+
+def version_config_values() -> dict[str, str]:
+    values = simple_xcconfig_values(VERSION_CONFIG)
     if set(values) != {"APP_VERSION", "APP_BUILD"}:
         raise CandidateIdentityError("Version.xcconfig must define exactly APP_VERSION and APP_BUILD")
     if not SEMVER_RE.fullmatch(values["APP_VERSION"]):
@@ -65,6 +74,20 @@ def xcconfig_values() -> dict[str, str]:
     if build <= 0 or str(build) != values["APP_BUILD"]:
         raise CandidateIdentityError("APP_BUILD must be a canonical positive integer")
     return values
+
+
+def ios_mediapipe_version() -> str:
+    values = simple_xcconfig_values(MEDIAPIPE_CONFIG)
+    if set(values) != {"IOS_MEDIAPIPE_TASKS_VERSION"}:
+        raise CandidateIdentityError(
+            "MediaPipe.xcconfig must define exactly IOS_MEDIAPIPE_TASKS_VERSION"
+        )
+    version = values["IOS_MEDIAPIPE_TASKS_VERSION"]
+    if not NUMERIC_VERSION_RE.fullmatch(version):
+        raise CandidateIdentityError(
+            "IOS_MEDIAPIPE_TASKS_VERSION must be numeric-version shaped"
+        )
+    return version
 
 
 def require_regex(text: str, pattern: str, description: str) -> re.Match[str]:
@@ -115,42 +138,60 @@ def current_sqldelight_schema_version() -> int:
     return max(migrations, default=0) + 1
 
 
-def verify_wiring(version: str, build: int) -> None:
+def verify_wiring(version: str, build: int, ios_mediapipe: str) -> None:
     gradle = read_text(BUILD_GRADLE)
     info = read_text(INFO_PLIST)
     debug_config = read_text(DEBUG_XCCONFIG)
     release_config = read_text(RELEASE_XCCONFIG)
 
     required_gradle_fragments = (
-        'versionConfigValue("APP_VERSION")',
-        'versionConfigValue("APP_BUILD")',
+        'xcconfigValue("iosApp/Configuration/Version.xcconfig", "APP_VERSION")',
+        'xcconfigValue("iosApp/Configuration/Version.xcconfig", "APP_BUILD")',
+        'xcconfigValue(',
+        '"iosApp/Configuration/MediaPipe.xcconfig"',
+        '"IOS_MEDIAPIPE_TASKS_VERSION"',
         "versionCode = appBuild",
         "versionName = appVersion",
     )
     for fragment in required_gradle_fragments:
         if fragment not in gradle:
-            raise CandidateIdentityError(f"Android version wiring missing: {fragment}")
+            raise CandidateIdentityError(f"build version wiring missing: {fragment}")
+    if gradle.count("version = iosMediaPipeTasksVersion") != 4:
+        raise CandidateIdentityError(
+            "all four project-specific iOS MediaPipe pods must use iosMediaPipeTasksVersion"
+        )
 
     if "<string>$(APP_VERSION)</string>" not in info:
         raise CandidateIdentityError("iOS marketing version is not wired to APP_VERSION")
     if "<string>$(APP_BUILD)</string>" not in info:
         raise CandidateIdentityError("iOS build number is not wired to APP_BUILD")
+    if "<key>EyespieMediaPipeTasksVersion</key>" not in info or (
+        "<string>$(IOS_MEDIAPIPE_TASKS_VERSION)</string>" not in info
+    ):
+        raise CandidateIdentityError(
+            "iOS runtime MediaPipe identity is not wired to IOS_MEDIAPIPE_TASKS_VERSION"
+        )
     if "NSLocationWhenInUseUsageDescription" in info:
         raise CandidateIdentityError("stale iOS location usage declaration is present")
 
     for name, content in (("debug", debug_config), ("release", release_config)):
         if '#include "Version.xcconfig"' not in content:
             raise CandidateIdentityError(f"iOS {name} config does not include Version.xcconfig")
+        if '#include "MediaPipe.xcconfig"' not in content:
+            raise CandidateIdentityError(f"iOS {name} config does not include MediaPipe.xcconfig")
 
     if version == "1.0" and build == 1:
         raise CandidateIdentityError("legacy iOS-only version identity unexpectedly survived")
+    if not NUMERIC_VERSION_RE.fullmatch(ios_mediapipe):
+        raise CandidateIdentityError("invalid canonical iOS MediaPipe version")
 
 
 def build_identity(*, allow_dirty: bool) -> dict[str, Any]:
-    version_values = xcconfig_values()
+    version_values = version_config_values()
     version = version_values["APP_VERSION"]
     build = int(version_values["APP_BUILD"])
-    verify_wiring(version, build)
+    ios_mediapipe = ios_mediapipe_version()
+    verify_wiring(version, build, ios_mediapipe)
 
     source_sha = git("rev-parse", "HEAD")
     dirty = bool(git("status", "--porcelain"))
@@ -164,17 +205,6 @@ def build_identity(*, allow_dirty: bool) -> dict[str, Any]:
     core = read_text(CORE_SOURCE)
     embedding = read_text(EMBEDDING_SOURCE)
     bundle = read_text(BUNDLE_SOURCE)
-
-    ios_versions = set(
-        re.findall(
-            r'pod\("EyespieMediaPipe[^\"]+"\)\s*\{\s*version\s*=\s*"([^\"]+)"',
-            gradle,
-            flags=re.MULTILINE,
-        )
-    )
-    if len(ios_versions) != 1:
-        raise CandidateIdentityError("project-specific iOS MediaPipe pods must share one version")
-    ios_mediapipe = next(iter(ios_versions))
 
     ios_deployment = require_regex(
         gradle,
