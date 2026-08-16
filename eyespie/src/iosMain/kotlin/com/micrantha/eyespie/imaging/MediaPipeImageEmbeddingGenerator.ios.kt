@@ -15,7 +15,6 @@ import kotlinx.cinterop.memScoped
 import kotlinx.cinterop.ptr
 import kotlinx.cinterop.usePinned
 import kotlinx.cinterop.value
-import platform.Foundation.NSBundle
 import platform.Foundation.NSData
 import platform.Foundation.NSError
 import platform.Foundation.NSNumber
@@ -23,12 +22,14 @@ import platform.Foundation.create
 import platform.UIKit.UIImage
 
 class MediaPipeImageEmbeddingGenerator(
-    private val modelPathProvider: () -> String = ::resolveImageEmbedderModelPath,
+    private val modelPathProvider: () -> String = { loadIosImageEmbeddingModel().path },
 ) : ImageEmbeddingGenerator {
+    private val modelPath: String by lazy(modelPathProvider)
+
     override suspend fun generate(image: CapturedImage): List<Float> = autoreleasepool {
         val uiImage = image.encodedBytes().toUIImage()
         val mpImage = createMediaPipeImage(uiImage)
-        val embedder = createImageEmbedder(modelPathProvider())
+        val embedder = createImageEmbedder(modelPath)
         val result = embedImage(embedder, mpImage)
 
         val heads = result.embeddingResult.embeddings.map { rawEmbedding ->
@@ -85,13 +86,6 @@ private fun ByteArray.toUIImage(): UIImage {
     }
     return UIImage.imageWithData(data)
         ?: throw IllegalArgumentException("captured image bytes are not a supported iOS image")
-}
-
-private fun resolveImageEmbedderModelPath(): String {
-    val extension = IMAGE_EMBEDDER_MODEL_FILE.substringAfterLast('.')
-    val baseName = IMAGE_EMBEDDER_MODEL_FILE.removeSuffix(".$extension")
-    return NSBundle.mainBundle.pathForResource(baseName, ofType = extension)
-        ?: throw IllegalStateException("image embedder model resource is unavailable")
 }
 
 private fun mediaPipeFailure(stage: String, error: NSError?): Nothing {
