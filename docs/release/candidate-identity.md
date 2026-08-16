@@ -38,6 +38,8 @@ For a candidate that will be installed on physical devices:
 python3 scripts/release_candidate_identity.py render --output /tmp/eyespie-candidate.json
 ```
 
+The current manifest is **candidate identity schema v2**. Schema v2 adds the application-owned match threshold as required provenance. Schema-v1 manifests are intentionally rejected by the current physical-evidence validator instead of being silently interpreted under the stronger contract.
+
 The generated JSON records only bounded provenance metadata:
 
 - exact Git commit;
