@@ -23,10 +23,10 @@ class ImageEmbeddingCalibrationComparatorTest(unittest.TestCase):
 
     def write_candidate(self, root: Path) -> Path:
         path = root / "candidate.json"
-        path.write_text(
-            json.dumps(build_identity(allow_dirty=True)),
-            encoding="utf-8",
-        )
+        payload = build_identity(allow_dirty=True)
+        # Unit tests use synthetic evidence; local uncommitted work must not alter these fixtures.
+        payload["source"]["dirty"] = False
+        path.write_text(json.dumps(payload), encoding="utf-8")
         return path
 
     def write_report(
