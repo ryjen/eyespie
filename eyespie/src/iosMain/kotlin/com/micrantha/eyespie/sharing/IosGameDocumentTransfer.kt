@@ -1,7 +1,9 @@
 package com.micrantha.eyespie.sharing
 
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.withContext
 import okio.Buffer
@@ -45,6 +47,9 @@ class IosGameDocumentTransfer(
 
             val url = selection.await() ?: return GameDocumentReadResult.Cancelled
             withContext(Dispatchers.Default) { readBounded(url) }
+        } catch (cancelled: CancellationException) {
+            abandonSelection(selection)
+            throw cancelled
         } finally {
             clearCompletedSelection(selection)
             operationMutex.unlock()
@@ -90,10 +95,13 @@ class IosGameDocumentTransfer(
             } else {
                 GameDocumentWriteResult.Success
             }
+        } catch (cancelled: CancellationException) {
+            abandonSelection(selection)
+            throw cancelled
         } finally {
             clearCompletedSelection(selection)
             temporaryPath?.let { path ->
-                withContext(Dispatchers.Default) {
+                withContext(NonCancellable + Dispatchers.Default) {
                     try {
                         FileSystem.SYSTEM.delete(path, mustExist = false)
                     } catch (_: Exception) {
@@ -120,6 +128,14 @@ class IosGameDocumentTransfer(
         val pending = pendingSelection ?: return
         pending.complete(url)
         if (pendingSelection === pending) pendingSelection = null
+        activePicker = null
+    }
+
+    private fun abandonSelection(selection: CompletableDeferred<NSURL?>) {
+        if (pendingSelection !== selection) return
+        activePicker?.delegate = null
+        activePicker?.dismissViewControllerAnimated(true, completion = null)
+        pendingSelection = null
         activePicker = null
     }
 
