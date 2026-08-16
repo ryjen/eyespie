@@ -24,10 +24,11 @@ private const val IOS_DATA_UTI = "public.data"
 
 class IosGameDocumentTransfer(
     private val presenter: () -> UIViewController?,
-) : NSObject(), GameDocumentTransfer, UIDocumentPickerDelegateProtocol {
+) : GameDocumentTransfer {
     private val operationMutex = Mutex()
     private var pendingSelection: CompletableDeferred<NSURL?>? = null
     private var activePicker: UIDocumentPickerViewController? = null
+    private val pickerDelegate = IosDocumentPickerDelegate(::completeSelection)
 
     override suspend fun read(): GameDocumentReadResult {
         if (pendingSelection != null) return GameDocumentReadResult.Busy
@@ -40,7 +41,7 @@ class IosGameDocumentTransfer(
                 documentTypes = listOf(IOS_DATA_UTI),
                 inMode = UIDocumentPickerMode.UIDocumentPickerModeOpen,
             )
-            picker.delegate = this
+            picker.delegate = pickerDelegate
             pendingSelection = selection
             activePicker = picker
             presenter.presentViewController(picker, animated = true, completion = null)
@@ -85,7 +86,7 @@ class IosGameDocumentTransfer(
                 uRL = sourceUrl,
                 inMode = UIDocumentPickerMode.UIDocumentPickerModeExportToService,
             )
-            picker.delegate = this
+            picker.delegate = pickerDelegate
             pendingSelection = selection
             activePicker = picker
             presenter.presentViewController(picker, animated = true, completion = null)
@@ -111,24 +112,6 @@ class IosGameDocumentTransfer(
             }
             operationMutex.unlock()
         }
-    }
-
-    override fun documentPicker(
-        controller: UIDocumentPickerViewController,
-        didPickDocumentAtURL: NSURL,
-    ) {
-        completeSelection(didPickDocumentAtURL)
-    }
-
-    override fun documentPicker(
-        controller: UIDocumentPickerViewController,
-        didPickDocumentsAtURLs: List<*>,
-    ) {
-        completeSelection(didPickDocumentsAtURLs.firstOrNull() as? NSURL)
-    }
-
-    override fun documentPickerWasCancelled(controller: UIDocumentPickerViewController) {
-        completeSelection(null)
     }
 
     private fun completeSelection(url: NSURL?) {
@@ -184,5 +167,27 @@ class IosGameDocumentTransfer(
         val leaf = suggestedFileName.substringAfterLast('/').substringAfterLast('\\')
         val safeLeaf = if (leaf.endsWith(".eyespie")) leaf else "$leaf.eyespie"
         return "${NSTemporaryDirectory()}${NSUUID().UUIDString}-$safeLeaf".toPath()
+    }
+}
+
+private class IosDocumentPickerDelegate(
+    private val onSelection: (NSURL?) -> Unit,
+) : NSObject(), UIDocumentPickerDelegateProtocol {
+    override fun documentPicker(
+        controller: UIDocumentPickerViewController,
+        didPickDocumentAtURL: NSURL,
+    ) {
+        onSelection(didPickDocumentAtURL)
+    }
+
+    override fun documentPicker(
+        controller: UIDocumentPickerViewController,
+        didPickDocumentsAtURLs: List<*>,
+    ) {
+        onSelection(didPickDocumentsAtURLs.firstOrNull() as? NSURL)
+    }
+
+    override fun documentPickerWasCancelled(controller: UIDocumentPickerViewController) {
+        onSelection(null)
     }
 }
