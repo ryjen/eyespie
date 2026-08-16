@@ -21,11 +21,13 @@ class ImageEmbeddingCalibrationComparatorTest(unittest.TestCase):
     def vector(self, *components: float) -> list[float]:
         return list(components) + [0.0] * (1024 - len(components))
 
-    def write_candidate(self, root: Path) -> Path:
+    def write_candidate(self, root: Path, *, match_threshold: float | None = None) -> Path:
         path = root / "candidate.json"
         payload = build_identity(allow_dirty=True)
         # Unit tests use synthetic evidence; local uncommitted work must not alter these fixtures.
         payload["source"]["dirty"] = False
+        if match_threshold is not None:
+            payload["match_policy"]["default_cosine_threshold"] = match_threshold
         path.write_text(json.dumps(payload), encoding="utf-8")
         return path
 
@@ -41,7 +43,7 @@ class ImageEmbeddingCalibrationComparatorTest(unittest.TestCase):
         application_build: int | None = None,
         runtime_version: str | None = None,
         report_schema_version: int = 2,
-        match_threshold: float = 0.5,
+        match_threshold: float | None = None,
         repeat_count: int = 5,
         non_finite: bool = False,
         reference: tuple[float, float] = (1.0, 0.0),
@@ -55,6 +57,7 @@ class ImageEmbeddingCalibrationComparatorTest(unittest.TestCase):
             if platform == "android"
             else candidate_payload["mediapipe"]["ios"]["project_artifact_version"]
         )
+        expected_threshold = candidate_payload["match_policy"]["default_cosine_threshold"]
         reference_vector = self.vector(*reference)
         crop_vector = self.vector(*crop)
         rotated_vector = self.vector(*rotated)
@@ -86,7 +89,11 @@ class ImageEmbeddingCalibrationComparatorTest(unittest.TestCase):
                 "sha256": model_sha256
                 or candidate_payload["image_embedding"]["model_sha256"],
             },
-            "match_policy": {"cosine_threshold": match_threshold},
+            "match_policy": {
+                "cosine_threshold": expected_threshold
+                if match_threshold is None
+                else match_threshold
+            },
             "embedding_contract": {
                 "schema_version": candidate_payload["image_embedding"]["contract_version"],
                 "dimensions": candidate_payload["image_embedding"]["dimensions"],
@@ -108,8 +115,8 @@ class ImageEmbeddingCalibrationComparatorTest(unittest.TestCase):
         path.write_text(json.dumps(payload), encoding="utf-8")
         return path
 
-    def load_pair(self, root: Path, **report_kwargs):
-        candidate_path = self.write_candidate(root)
+    def load_pair(self, root: Path, *, candidate_threshold: float | None = None, **report_kwargs):
+        candidate_path = self.write_candidate(root, match_threshold=candidate_threshold)
         candidate = load_candidate_identity(candidate_path)
         android = load_report(
             self.write_report(root, "android", candidate_path, **report_kwargs),
@@ -139,21 +146,16 @@ class ImageEmbeddingCalibrationComparatorTest(unittest.TestCase):
             )
             self.assertTrue(result["match_decision_consistency"]["all_consistent"])
             self.assertFalse(result["match_policy"]["threshold_changed"])
-            self.assertEqual(0.5, result["match_policy"]["cosine_threshold"])
+            self.assertEqual(candidate.match_threshold, result["match_policy"]["cosine_threshold"])
             require_same_fixture_cross_platform_match(result)
 
     def test_reports_inconsistent_within_platform_match_decision(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            candidate_path = self.write_candidate(root)
+            candidate_path = self.write_candidate(root, match_threshold=0.5)
             candidate = load_candidate_identity(candidate_path)
             android = load_report(
-                self.write_report(
-                    root,
-                    "android",
-                    candidate_path,
-                    crop=(0.8, 0.6),
-                ),
+                self.write_report(root, "android", candidate_path, crop=(0.8, 0.6)),
                 candidate,
             )
             ios = load_report(
@@ -168,22 +170,19 @@ class ImageEmbeddingCalibrationComparatorTest(unittest.TestCase):
 
             result = compare_reports(android, ios, candidate)
 
-            self.assertFalse(
-                result["match_decision_consistency"]["fixtures"]["burger_crop"]
-            )
+            self.assertFalse(result["match_decision_consistency"]["fixtures"]["burger_crop"])
             self.assertFalse(result["match_decision_consistency"]["all_consistent"])
 
     def test_detects_basis_shift_that_only_breaks_cross_platform_matching(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
-            candidate_path = self.write_candidate(root)
+            candidate_path = self.write_candidate(root, match_threshold=0.8)
             candidate = load_candidate_identity(candidate_path)
             android = load_report(
                 self.write_report(
                     root,
                     "android",
                     candidate_path,
-                    match_threshold=0.8,
                     reference=(1.0, 0.0),
                     crop=(1.0, 0.0),
                     rotated=(1.0, 0.0),
@@ -195,7 +194,6 @@ class ImageEmbeddingCalibrationComparatorTest(unittest.TestCase):
                     root,
                     "ios",
                     candidate_path,
-                    match_threshold=0.8,
                     reference=(0.7, 0.714142842),
                     crop=(0.7, 0.714142842),
                     rotated=(0.7, 0.714142842),
@@ -263,14 +261,19 @@ class ImageEmbeddingCalibrationComparatorTest(unittest.TestCase):
             root = Path(directory)
             candidate_path = self.write_candidate(root)
             candidate = load_candidate_identity(candidate_path)
-            path = self.write_report(
-                root,
-                "ios",
-                candidate_path,
-                runtime_version="0.0.0",
-            )
+            path = self.write_report(root, "ios", candidate_path, runtime_version="0.0.0")
 
             with self.assertRaisesRegex(CalibrationReportError, "runtime version"):
+                load_report(path, candidate)
+
+    def test_rejects_report_threshold_not_bound_to_candidate(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            candidate_path = self.write_candidate(root, match_threshold=0.75)
+            candidate = load_candidate_identity(candidate_path)
+            path = self.write_report(root, "android", candidate_path, match_threshold=0.5)
+
+            with self.assertRaisesRegex(CalibrationReportError, "match threshold"):
                 load_report(path, candidate)
 
     def test_rejects_historical_report_schema(self) -> None:
@@ -300,23 +303,6 @@ class ImageEmbeddingCalibrationComparatorTest(unittest.TestCase):
 
             with self.assertRaisesRegex(CalibrationReportError, "pinned calibration fixture"):
                 load_report(path, candidate)
-
-    def test_rejects_different_configured_thresholds(self) -> None:
-        with tempfile.TemporaryDirectory() as directory:
-            root = Path(directory)
-            candidate_path = self.write_candidate(root)
-            candidate = load_candidate_identity(candidate_path)
-            android = load_report(
-                self.write_report(root, "android", candidate_path, match_threshold=0.5),
-                candidate,
-            )
-            ios = load_report(
-                self.write_report(root, "ios", candidate_path, match_threshold=0.6),
-                candidate,
-            )
-
-            with self.assertRaisesRegex(CalibrationReportError, "different configured match thresholds"):
-                compare_reports(android, ios, candidate)
 
     def test_rejects_non_finite_embedding_value(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
