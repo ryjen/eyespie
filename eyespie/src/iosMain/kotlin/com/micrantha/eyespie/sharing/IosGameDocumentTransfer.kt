@@ -82,7 +82,7 @@ class IosGameDocumentTransfer(
 
             val sourceUrl = NSURL.fileURLWithPath(path.toString())
             val picker = UIDocumentPickerViewController(
-                URL = sourceUrl,
+                uRL = sourceUrl,
                 inMode = UIDocumentPickerMode.UIDocumentPickerModeExportToService,
             )
             picker.delegate = this
@@ -155,10 +155,10 @@ class IosGameDocumentTransfer(
 
     private fun readBounded(url: NSURL): GameDocumentReadResult {
         val accessedSecurityScope = url.startAccessingSecurityScopedResource()
-        return try {
+        try {
             val rawPath = url.path ?: return GameDocumentReadResult.Failed
-            val path = rawPath.toPath()
-            FileSystem.SYSTEM.source(path).buffer().use { source ->
+            val source = FileSystem.SYSTEM.source(rawPath.toPath()).buffer()
+            try {
                 val sink = Buffer()
                 var total = 0L
                 while (true) {
@@ -169,10 +169,12 @@ class IosGameDocumentTransfer(
                         return GameDocumentReadResult.TooLarge
                     }
                 }
-                GameDocumentReadResult.Success(sink.readByteArray())
+                return GameDocumentReadResult.Success(sink.readByteArray())
+            } finally {
+                source.close()
             }
         } catch (_: Exception) {
-            GameDocumentReadResult.Failed
+            return GameDocumentReadResult.Failed
         } finally {
             if (accessedSecurityScope) url.stopAccessingSecurityScopedResource()
         }
