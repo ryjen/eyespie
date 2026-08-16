@@ -148,6 +148,12 @@ kotlin {
                 implementation(libs.sqldelight.sqlite.driver)
             }
         }
+        val androidInstrumentedTest by getting {
+            dependencies {
+                implementation(libs.androidx.test.junit)
+                implementation(libs.junit)
+            }
+        }
     }
 }
 
@@ -175,12 +181,20 @@ android {
         targetSdk = libs.versions.android.targetSdk.get().toInt()
         versionCode = appBuild
         versionName = appVersion
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
+        buildConfigField(
+            "String",
+            "MEDIAPIPE_TASKS_VISION_VERSION",
+            "\"${libs.versions.mediapipe.get()}\"",
+        )
     }
 
     sourceSets["main"].res.srcDirs("src/androidMain/res")
+    sourceSets["androidTest"].assets.srcDir("src/androidInstrumentedTest/assets")
 
     buildFeatures {
         compose = true
+        buildConfig = true
     }
 
     compileOptions {
