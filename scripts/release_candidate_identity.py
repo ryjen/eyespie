@@ -19,6 +19,7 @@ INFO_PLIST = ROOT / "iosApp/iosApp/Info.plist"
 DEBUG_XCCONFIG = ROOT / "iosApp/Configuration/Config.debug.xcconfig"
 RELEASE_XCCONFIG = ROOT / "iosApp/Configuration/Config.release.xcconfig"
 VERSIONS_TOML = ROOT / "gradle/libs.versions.toml"
+CORE_SOURCE = ROOT / "eyespie/src/commonMain/kotlin/com/micrantha/eyespie/core/Core.kt"
 EMBEDDING_SOURCE = ROOT / "eyespie/src/commonMain/kotlin/com/micrantha/eyespie/imaging/ImageEmbedding.kt"
 BUNDLE_SOURCE = ROOT / "eyespie/src/commonMain/kotlin/com/micrantha/eyespie/sharing/GameBundle.kt"
 SQLDELIGHT_DIR = ROOT / "eyespie/src/commonMain/sqldelight/com/micrantha/eyespie/data"
@@ -75,6 +76,18 @@ def require_regex(text: str, pattern: str, description: str) -> re.Match[str]:
 def kotlin_int(text: str, name: str) -> int:
     match = require_regex(text, rf"const val {re.escape(name)}\s*=\s*([0-9]+)", name)
     return int(match.group(1))
+
+
+def kotlin_float(text: str, name: str) -> float:
+    match = require_regex(
+        text,
+        rf"const val {re.escape(name)}(?:\s*:\s*(?:Double|Float))?\s*=\s*(-?[0-9]+(?:\.[0-9]+)?)",
+        name,
+    )
+    value = float(match.group(1))
+    if not -1.0 <= value <= 1.0:
+        raise CandidateIdentityError(f"{name} must be within [-1, 1]")
+    return value
 
 
 def kotlin_string(text: str, name: str) -> str:
@@ -147,6 +160,7 @@ def build_identity(*, allow_dirty: bool) -> dict[str, Any]:
 
     versions = tomllib.loads(read_text(VERSIONS_TOML))["versions"]
     gradle = read_text(BUILD_GRADLE)
+    core = read_text(CORE_SOURCE)
     embedding = read_text(EMBEDDING_SOURCE)
     bundle = read_text(BUNDLE_SOURCE)
 
@@ -197,6 +211,9 @@ def build_identity(*, allow_dirty: bool) -> dict[str, Any]:
         },
         "persistence": {
             "sqldelight_schema_version": current_sqldelight_schema_version(),
+        },
+        "match_policy": {
+            "default_cosine_threshold": kotlin_float(core, "DEFAULT_THRESHOLD"),
         },
         "bundle": {
             "schema_version": kotlin_int(bundle, "GAME_BUNDLE_SCHEMA_VERSION"),
@@ -249,6 +266,7 @@ def main() -> int:
             f"{identity['candidate']} "
             f"db={identity['persistence']['sqldelight_schema_version']} "
             f"bundle={identity['bundle']['schema_version']} "
+            f"threshold={identity['match_policy']['default_cosine_threshold']:.9g} "
             f"model={identity['image_embedding']['model_sha256']}"
         )
         return 0
