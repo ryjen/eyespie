@@ -24,6 +24,7 @@ EMBEDDING_SOURCE = ROOT / "eyespie/src/commonMain/kotlin/com/micrantha/eyespie/i
 BUNDLE_SOURCE = ROOT / "eyespie/src/commonMain/kotlin/com/micrantha/eyespie/sharing/GameBundle.kt"
 SQLDELIGHT_DIR = ROOT / "eyespie/src/commonMain/sqldelight/com/micrantha/eyespie/data"
 
+CANDIDATE_IDENTITY_SCHEMA_VERSION = 2
 SEMVER_RE = re.compile(r"^[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.-]+)?$")
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 
@@ -189,7 +190,7 @@ def build_identity(*, allow_dirty: bool) -> dict[str, Any]:
     android_mediapipe_genai = str(versions["mediapipeGenAI"])
 
     return {
-        "candidate_identity_schema_version": 1,
+        "candidate_identity_schema_version": CANDIDATE_IDENTITY_SCHEMA_VERSION,
         "candidate": f"{version}+{build}@{source_sha[:12]}",
         "repository": "ryjen/eyespie",
         "source": {
@@ -263,6 +264,7 @@ def main() -> int:
     if args.command == "verify":
         print(
             "verified candidate identity: "
+            f"schema={identity['candidate_identity_schema_version']} "
             f"{identity['candidate']} "
             f"db={identity['persistence']['sqldelight_schema_version']} "
             f"bundle={identity['bundle']['schema_version']} "
