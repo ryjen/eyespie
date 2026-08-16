@@ -15,15 +15,13 @@
 	<key>CFBundlePackageType</key>
 	<string>$(PRODUCT_BUNDLE_PACKAGE_TYPE)</string>
 	<key>CFBundleShortVersionString</key>
-	<string>1.0</string>
+	<string>$(APP_VERSION)</string>
 	<key>CFBundleVersion</key>
-	<string>1</string>
+	<string>$(APP_BUILD)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSCameraUsageDescription</key>
 	<string>To scan the real world for things to incorporate into the game.</string>
-	<key>NSLocationWhenInUseUsageDescription</key>
-	<string>To determine location as a clue</string>
 	<key>UIApplicationSceneManifest</key>
 	<dict>
 		<key>UIApplicationSupportsMultipleScenes</key>

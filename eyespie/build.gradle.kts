@@ -7,6 +7,24 @@ plugins {
     alias(libs.plugins.sqldelight)
 }
 
+val versionConfigFile = rootProject.file("iosApp/Configuration/Version.xcconfig")
+fun versionConfigValue(name: String): String =
+    versionConfigFile
+        .readLines()
+        .firstOrNull { line -> line.substringBefore('=').trim() == name }
+        ?.substringAfter('=')
+        ?.trim()
+        ?.takeIf(String::isNotEmpty)
+        ?: error("missing $name in ${versionConfigFile.path}")
+
+val appVersion = versionConfigValue("APP_VERSION")
+require(Regex("[0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?").matches(appVersion)) {
+    "APP_VERSION must be semantic-version shaped"
+}
+val appBuild = versionConfigValue("APP_BUILD").toIntOrNull()
+    ?: error("APP_BUILD must be an integer")
+require(appBuild > 0) { "APP_BUILD must be positive" }
+
 kotlin {
     jvmToolchain(21)
 
@@ -155,8 +173,8 @@ android {
         applicationId = "com.micrantha.eyespie"
         minSdk = libs.versions.android.minSdk.get().toInt()
         targetSdk = libs.versions.android.targetSdk.get().toInt()
-        versionCode = 1
-        versionName = "0.1.0"
+        versionCode = appBuild
+        versionName = appVersion
     }
 
     sourceSets["main"].res.srcDirs("src/androidMain/res")
