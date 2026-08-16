@@ -36,6 +36,7 @@ EXPECTED_ROLES = {
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
 REVISION_RE = re.compile(r"^[0-9a-f]{40}$")
 FILE_NAME_RE = re.compile(r"^[a-z0-9_]+\.jpg$")
+RUNTIME_MANIFEST_NAME = "manifest.json"
 
 
 class FixtureArtifactError(RuntimeError):
@@ -138,9 +139,7 @@ def load_manifest(path: Path = DEFAULT_MANIFEST) -> FixtureManifest:
         fixtures.append(Fixture(fixture_id, role, file_name, digest, source_url))
 
     if tuple(f.fixture_id for f in fixtures) != EXPECTED_IDS:
-        raise FixtureArtifactError(
-            f"fixture ids/order must be {', '.join(EXPECTED_IDS)}"
-        )
+        raise FixtureArtifactError(f"fixture ids/order must be {', '.join(EXPECTED_IDS)}")
 
     return FixtureManifest(source_repository, source_revision, license_spdx, tuple(fixtures))
 
@@ -219,16 +218,49 @@ def stage_fixture(
         temporary.unlink(missing_ok=True)
 
 
+def runtime_manifest_bytes(manifest: FixtureManifest) -> bytes:
+    payload = {
+        "schema_version": 1,
+        "fixtures": [
+            {
+                "id": fixture.fixture_id,
+                "role": fixture.role,
+                "file_name": fixture.file_name,
+                "sha256": fixture.sha256,
+            }
+            for fixture in manifest.fixtures
+        ],
+    }
+    return (json.dumps(payload, sort_keys=True, separators=(",", ":")) + "\n").encode("utf-8")
+
+
+def write_runtime_manifest(manifest: FixtureManifest, directory: Path) -> None:
+    directory.mkdir(parents=True, exist_ok=True)
+    (directory / RUNTIME_MANIFEST_NAME).write_bytes(runtime_manifest_bytes(manifest))
+
+
+def verify_runtime_manifest(manifest: FixtureManifest, directory: Path) -> None:
+    path = directory / RUNTIME_MANIFEST_NAME
+    try:
+        actual = path.read_bytes()
+    except OSError as exc:
+        raise FixtureArtifactError(f"runtime fixture manifest is missing: {path}") from exc
+    if actual != runtime_manifest_bytes(manifest):
+        raise FixtureArtifactError("runtime fixture manifest does not match validated provenance")
+
+
 def stage_target(manifest: FixtureManifest, target: str) -> None:
     directory = target_directory(target)
     for fixture in manifest.fixtures:
         stage_fixture(fixture, directory / fixture.file_name)
+    write_runtime_manifest(manifest, directory)
 
 
 def verify_target(manifest: FixtureManifest, target: str) -> None:
     directory = target_directory(target)
     for fixture in manifest.fixtures:
         verify_file(directory / fixture.file_name, fixture)
+    verify_runtime_manifest(manifest, directory)
 
 
 def main() -> int:
