@@ -8,5 +8,5 @@ Pod::Spec.new do |spec|
   spec.description = "Packages generation-pinned, SHA-256-verified MediaPipe vision fixtures for explicit debug calibration runs."
   spec.ios.deployment_target = "15.0"
   spec.source = { :http => "" }
-  spec.resources = "*.jpg"
+  spec.resources = ["*.jpg", "manifest.json"]
 end
