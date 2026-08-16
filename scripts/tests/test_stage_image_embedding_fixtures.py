@@ -9,8 +9,11 @@ from pathlib import Path
 from scripts.stage_image_embedding_fixtures import (
     FixtureArtifactError,
     load_manifest,
+    runtime_manifest_bytes,
     stage_fixture,
     verify_file,
+    verify_runtime_manifest,
+    write_runtime_manifest,
 )
 
 
@@ -65,6 +68,48 @@ class ImageEmbeddingFixtureStagerTest(unittest.TestCase):
             )
             verify_file(destination, fixture)
             self.assertEqual(payloads[fixture.file_name], destination.read_bytes())
+
+    def test_runtime_manifest_is_bounded_to_collector_inputs(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            payloads = {name: name.encode() for name in (
+                "burger.jpg", "burger_crop.jpg", "burger_rotated.jpg", "cat.jpg"
+            )}
+            manifest = load_manifest(self.write_manifest(root, payloads))
+            payload = json.loads(runtime_manifest_bytes(manifest))
+
+            self.assertEqual(1, payload["schema_version"])
+            self.assertEqual(
+                ["burger", "burger_crop", "burger_rotated", "cat"],
+                [entry["id"] for entry in payload["fixtures"]],
+            )
+            self.assertEqual(
+                {"id", "role", "file_name", "sha256"},
+                set(payload["fixtures"][0]),
+            )
+            encoded = json.dumps(payload)
+            self.assertNotIn("source_repository", encoded)
+            self.assertNotIn("source_revision", encoded)
+            self.assertNotIn("generation", encoded)
+            self.assertNotIn("https://", encoded)
+
+    def test_runtime_manifest_verifies_byte_for_byte(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            payloads = {name: name.encode() for name in (
+                "burger.jpg", "burger_crop.jpg", "burger_rotated.jpg", "cat.jpg"
+            )}
+            manifest = load_manifest(self.write_manifest(root, payloads))
+            write_runtime_manifest(manifest, root)
+            verify_runtime_manifest(manifest, root)
+
+            path = root / "manifest.json"
+            path.write_text(path.read_text(encoding="utf-8") + " ", encoding="utf-8")
+            with self.assertRaisesRegex(
+                FixtureArtifactError,
+                "does not match validated provenance",
+            ):
+                verify_runtime_manifest(manifest, root)
 
     def test_rejects_unpinned_url(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
