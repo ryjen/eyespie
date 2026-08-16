@@ -26,6 +26,15 @@ The application must not require a hosted account, backend configuration, remote
 
 ## Required test context
 
+From the exact clean candidate checkout, render the candidate identity before installing/testing:
+
+```bash
+python3 scripts/release_candidate_identity.py render \
+  --output /tmp/eyespie-candidate.json
+```
+
+Use that manifest as the canonical source for the candidate SHA, application version/build, persistence/bundle compatibility, MediaPipe versions, and image-embedding model identity recorded with the evidence.
+
 Record these before testing:
 
 | Field | Android | iOS |
@@ -50,7 +59,8 @@ Do not record private signing-key material, hidden expected answers, raw embeddi
 Before starting the physical scenario:
 
 - install the **same intended candidate** on both devices;
-- verify the candidate was produced from the recorded source SHA;
+- verify the candidate was produced from the source SHA recorded in `/tmp/eyespie-candidate.json`;
+- verify the installed Android/iOS version and build match that manifest;
 - verify #173/#174 software sharing is present in the build;
 - use ordinary system document/share surfaces only — no app backend transport;
 - confirm each device can launch and establish its device-local cryptographic identity;
@@ -134,14 +144,21 @@ On both physical devices:
 
 ## #91 embedding parity evidence
 
-If collecting #91 calibration reports during the same device session, validate and compare them with the existing repository tool. The comparator consumes the configured release policy; it does not select a new threshold.
+If collecting #91 calibration reports during the same device session, validate and compare them with the repository tool against the exact clean candidate manifest. Report schema v2 is intentionally candidate-bound: stale pre-reboot reports, model identities, application versions/builds, runtime versions, or embedding contracts fail before comparison. The comparator consumes the configured release policy; it does not select a new threshold.
 
 ```bash
-python3 scripts/compare_image_embedding_calibration.py validate <android-report.json>
-python3 scripts/compare_image_embedding_calibration.py validate <ios-report.json>
+python3 scripts/compare_image_embedding_calibration.py validate \
+  <android-report.json> \
+  --candidate-identity /tmp/eyespie-candidate.json
+
+python3 scripts/compare_image_embedding_calibration.py validate \
+  <ios-report.json> \
+  --candidate-identity /tmp/eyespie-candidate.json
+
 python3 scripts/compare_image_embedding_calibration.py compare \
   <android-report.json> \
   <ios-report.json> \
+  --candidate-identity /tmp/eyespie-candidate.json \
   --json-output calibration/results/cross-platform.json \
   --markdown-output calibration/results/cross-platform.md
 ```
