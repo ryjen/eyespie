@@ -1,0 +1,4 @@
+// Canonical closed-alpha application version/build identity.
+// Android Gradle parses this same file; keep values Java-properties compatible.
+APP_VERSION = 0.1.0
+APP_BUILD = 1
