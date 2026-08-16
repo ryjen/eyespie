@@ -1,2 +1,4 @@
 *.jpg
+manifest.json
 !.gitignore
+!EyespieImageEmbeddingCalibrationFixtures.podspec
