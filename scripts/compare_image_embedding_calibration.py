@@ -1,9 +1,9 @@
 #!/usr/bin/env python3
 """Validate and compare physical-device image-embedding calibration reports.
 
-This tool evaluates observed behavior against the match policy recorded by the device builds.
-It never chooses or rewrites that policy: schema, normalization, and threshold changes remain
-separate reviewed product decisions.
+Reports are hostile evidence until validated against both the checked-in fixture provenance manifest
+and an exact clean candidate-identity manifest produced by release_candidate_identity.py. The tool
+evaluates the threshold recorded by the candidate; it never selects or rewrites product policy.
 """
 
 from __future__ import annotations
@@ -15,27 +15,36 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
-DIMENSIONS = 1024
-EXPECTED_MODEL_ID = "mobilenet-v3-small-100-224-embedder"
-EXPECTED_MODEL_SHA256 = "f7b9a563cb803bdcba76e8c7e82abde06f5c7a8e67b5e54e43e23095dfe79a78"
-EXPECTED_FIXTURES = ("burger", "burger_crop", "burger_rotated", "cat")
-EXPECTED_ROLES = {
-    "burger": "reference",
-    "burger_crop": "related",
-    "burger_rotated": "related",
-    "cat": "unrelated",
-}
-EXPECTED_FIXTURE_SHA256 = {
-    "burger": "97c15bbbf3cf3615063b1031c85d669de55839f59262bbe145d15ca75b36ecbf",
-    "burger_crop": "8f58de573f0bf59a49c3d86cfabb9ad4061481f574aa049177e8da3963dddc50",
-    "burger_rotated": "b7bb5e59ef778f3ce6b3e616c511908a53d513b83a56aae58b7453e14b0a4b2a",
-    "cat": "2533197401eebe9410ea4d063f86c43fbd2666f3e8165a38aca155c0d09c21be",
-}
+ROOT = Path(__file__).resolve().parents[1]
+FIXTURE_MANIFEST = ROOT / "calibration/image-embedding-fixtures.json"
+REPORT_SCHEMA_VERSION = 2
+REPEAT_COUNT = 5
 SEMANTIC_FIXTURES = ("burger_crop", "burger_rotated", "cat")
 
 
 class CalibrationReportError(ValueError):
     """Raised when calibration evidence is malformed or incompatible."""
+
+
+@dataclass(frozen=True)
+class FixtureSpec:
+    fixture_id: str
+    role: str
+    sha256: str
+
+
+@dataclass(frozen=True)
+class CandidateIdentity:
+    candidate: str
+    source_commit: str
+    application_version: str
+    application_build: int
+    model_id: str
+    model_sha256: str
+    embedding_schema_version: int
+    dimensions: int
+    android_runtime_version: str
+    ios_runtime_version: str
 
 
 @dataclass(frozen=True)
@@ -52,6 +61,8 @@ class FixtureResult:
 @dataclass(frozen=True)
 class CalibrationReport:
     platform: str
+    application_version: str
+    application_build: int
     device: dict[str, str]
     runtime_name: str
     runtime_version: str
@@ -63,6 +74,28 @@ class CalibrationReport:
     fixtures: dict[str, FixtureResult]
 
 
+def _read_json(path: Path, description: str) -> dict[str, Any]:
+    try:
+        payload = json.loads(path.read_text(encoding="utf-8"))
+    except (OSError, json.JSONDecodeError) as exc:
+        raise CalibrationReportError(f"cannot read {description}: {path}") from exc
+    if not isinstance(payload, dict):
+        raise CalibrationReportError(f"{description} must be a JSON object")
+    return payload
+
+
+def _nonempty_string(value: Any, field: str) -> str:
+    if not isinstance(value, str) or not value.strip():
+        raise CalibrationReportError(f"{field} must be a non-empty string")
+    return value
+
+
+def _positive_int(value: Any, field: str) -> int:
+    if isinstance(value, bool) or not isinstance(value, int) or value <= 0:
+        raise CalibrationReportError(f"{field} must be a positive integer")
+    return value
+
+
 def _finite_number(value: Any, field: str) -> float:
     if isinstance(value, bool) or not isinstance(value, (int, float)):
         raise CalibrationReportError(f"{field} must be numeric")
@@ -72,56 +105,176 @@ def _finite_number(value: Any, field: str) -> float:
     return result
 
 
-def _nonempty_string(value: Any, field: str) -> str:
-    if not isinstance(value, str) or not value.strip():
-        raise CalibrationReportError(f"{field} must be a non-empty string")
-    return value
+def _lower_sha256(value: Any, field: str) -> str:
+    result = _nonempty_string(value, field)
+    if len(result) != 64 or any(ch not in "0123456789abcdef" for ch in result):
+        raise CalibrationReportError(f"{field} must be 64 lowercase hex characters")
+    return result
 
 
-def load_report(path: Path) -> CalibrationReport:
-    try:
-        payload = json.loads(path.read_text(encoding="utf-8"))
-    except (OSError, json.JSONDecodeError) as exc:
-        raise CalibrationReportError(f"cannot read calibration report: {path}") from exc
+def _load_fixture_specs() -> dict[str, FixtureSpec]:
+    payload = _read_json(FIXTURE_MANIFEST, "calibration fixture manifest")
+    if payload.get("schema_version") != 1:
+        raise CalibrationReportError("unsupported calibration fixture manifest schema")
+    raw_fixtures = payload.get("fixtures")
+    if not isinstance(raw_fixtures, list) or not raw_fixtures:
+        raise CalibrationReportError("calibration fixture manifest must contain fixtures")
 
-    if payload.get("report_schema_version") != 1:
-        raise CalibrationReportError("unsupported report_schema_version")
+    fixtures: dict[str, FixtureSpec] = {}
+    for raw in raw_fixtures:
+        if not isinstance(raw, dict):
+            raise CalibrationReportError("calibration fixture manifest entries must be objects")
+        fixture_id = _nonempty_string(raw.get("id"), "fixture-manifest.id")
+        role = _nonempty_string(raw.get("role"), f"fixture-manifest.{fixture_id}.role")
+        sha256 = _lower_sha256(raw.get("sha256"), f"fixture-manifest.{fixture_id}.sha256")
+        if fixture_id in fixtures:
+            raise CalibrationReportError(f"duplicate fixture manifest id: {fixture_id}")
+        fixtures[fixture_id] = FixtureSpec(fixture_id, role, sha256)
+
+    expected_ids = ("burger", "burger_crop", "burger_rotated", "cat")
+    if tuple(fixtures) != expected_ids:
+        raise CalibrationReportError(
+            "calibration fixture manifest ids/order must be " + ", ".join(expected_ids)
+        )
+    return fixtures
+
+
+FIXTURE_SPECS = _load_fixture_specs()
+EXPECTED_FIXTURES = tuple(FIXTURE_SPECS)
+EXPECTED_ROLES = {fixture_id: spec.role for fixture_id, spec in FIXTURE_SPECS.items()}
+EXPECTED_FIXTURE_SHA256 = {
+    fixture_id: spec.sha256 for fixture_id, spec in FIXTURE_SPECS.items()
+}
+
+
+def load_candidate_identity(path: Path) -> CandidateIdentity:
+    payload = _read_json(path, "candidate identity")
+    if payload.get("candidate_identity_schema_version") != 1:
+        raise CalibrationReportError("unsupported candidate_identity_schema_version")
+    if payload.get("repository") != "ryjen/eyespie":
+        raise CalibrationReportError("candidate identity belongs to a different repository")
+
+    source = payload.get("source")
+    application = payload.get("application")
+    embedding = payload.get("image_embedding")
+    mediapipe = payload.get("mediapipe")
+    if not all(isinstance(value, dict) for value in (source, application, embedding, mediapipe)):
+        raise CalibrationReportError(
+            "candidate source/application/image_embedding/mediapipe objects are required"
+        )
+
+    source_commit = _nonempty_string(source.get("commit_sha"), "candidate.source.commit_sha")
+    if len(source_commit) != 40 or any(ch not in "0123456789abcdef" for ch in source_commit):
+        raise CalibrationReportError("candidate.source.commit_sha must be 40 lowercase hex characters")
+    if source.get("dirty") is not False:
+        raise CalibrationReportError("candidate identity must come from a clean working tree")
+
+    application_version = _nonempty_string(
+        application.get("version"), "candidate.application.version"
+    )
+    application_build = _positive_int(
+        application.get("build"), "candidate.application.build"
+    )
+    candidate = _nonempty_string(payload.get("candidate"), "candidate")
+    expected_candidate = f"{application_version}+{application_build}@{source_commit[:12]}"
+    if candidate != expected_candidate:
+        raise CalibrationReportError("candidate identity string does not match source/version/build")
+
+    model_id = _nonempty_string(embedding.get("model_id"), "candidate.image_embedding.model_id")
+    model_sha256 = _lower_sha256(
+        embedding.get("model_sha256"), "candidate.image_embedding.model_sha256"
+    )
+    embedding_schema_version = _positive_int(
+        embedding.get("contract_version"), "candidate.image_embedding.contract_version"
+    )
+    dimensions = _positive_int(
+        embedding.get("dimensions"), "candidate.image_embedding.dimensions"
+    )
+
+    android = mediapipe.get("android")
+    ios = mediapipe.get("ios")
+    if not isinstance(android, dict) or not isinstance(ios, dict):
+        raise CalibrationReportError("candidate MediaPipe Android/iOS identities are required")
+    android_runtime_version = _nonempty_string(
+        android.get("tasks_vision"), "candidate.mediapipe.android.tasks_vision"
+    )
+    ios_runtime_version = _nonempty_string(
+        ios.get("project_artifact_version"), "candidate.mediapipe.ios.project_artifact_version"
+    )
+
+    return CandidateIdentity(
+        candidate=candidate,
+        source_commit=source_commit,
+        application_version=application_version,
+        application_build=application_build,
+        model_id=model_id,
+        model_sha256=model_sha256,
+        embedding_schema_version=embedding_schema_version,
+        dimensions=dimensions,
+        android_runtime_version=android_runtime_version,
+        ios_runtime_version=ios_runtime_version,
+    )
+
+
+def load_report(path: Path, candidate: CandidateIdentity) -> CalibrationReport:
+    payload = _read_json(path, "calibration report")
+    if payload.get("report_schema_version") != REPORT_SCHEMA_VERSION:
+        raise CalibrationReportError(
+            f"unsupported report_schema_version: expected {REPORT_SCHEMA_VERSION}"
+        )
+
     platform = _nonempty_string(payload.get("platform"), "platform")
     if platform not in {"android", "ios"}:
         raise CalibrationReportError(f"unsupported platform: {platform}")
 
+    application = payload.get("application")
     raw_device = payload.get("device")
-    if not isinstance(raw_device, dict) or not raw_device:
-        raise CalibrationReportError("device must be a non-empty object")
-    device = {str(key): _nonempty_string(value, f"device.{key}") for key, value in raw_device.items()}
-
     runtime = payload.get("runtime")
     model = payload.get("model")
     match_policy = payload.get("match_policy")
     embedding = payload.get("embedding_contract")
-    if (
-        not isinstance(runtime, dict)
-        or not isinstance(model, dict)
-        or not isinstance(match_policy, dict)
-        or not isinstance(embedding, dict)
+    if not all(
+        isinstance(value, dict)
+        for value in (application, raw_device, runtime, model, match_policy, embedding)
     ):
         raise CalibrationReportError(
-            "runtime/model/match_policy/embedding_contract objects are required"
+            "application/device/runtime/model/match_policy/embedding_contract objects are required"
         )
+
+    application_version = _nonempty_string(application.get("version"), "application.version")
+    application_build = _positive_int(application.get("build"), "application.build")
+    if (
+        application_version != candidate.application_version
+        or application_build != candidate.application_build
+    ):
+        raise CalibrationReportError("report application identity does not match candidate")
+
+    if not raw_device:
+        raise CalibrationReportError("device must be a non-empty object")
+    device = {
+        str(key): _nonempty_string(value, f"device.{key}")
+        for key, value in raw_device.items()
+    }
 
     runtime_name = _nonempty_string(runtime.get("name"), "runtime.name")
     runtime_version = _nonempty_string(runtime.get("version"), "runtime.version")
-    model_id = _nonempty_string(model.get("id"), "model.id")
-    model_sha256 = _nonempty_string(model.get("sha256"), "model.sha256")
-    if len(model_sha256) != 64 or any(ch not in "0123456789abcdef" for ch in model_sha256):
-        raise CalibrationReportError("model.sha256 must be 64 lowercase hex characters")
-    if model_id != EXPECTED_MODEL_ID:
+    expected_runtime_version = (
+        candidate.android_runtime_version if platform == "android" else candidate.ios_runtime_version
+    )
+    if runtime_version != expected_runtime_version:
         raise CalibrationReportError(
-            f"unexpected model.id: expected {EXPECTED_MODEL_ID}, got {model_id}"
+            f"{platform} runtime version does not match candidate identity"
         )
-    if model_sha256 != EXPECTED_MODEL_SHA256:
+
+    model_id = _nonempty_string(model.get("id"), "model.id")
+    model_sha256 = _lower_sha256(model.get("sha256"), "model.sha256")
+    if model_id != candidate.model_id:
         raise CalibrationReportError(
-            "packaged model SHA-256 does not match the pinned image-embedding model"
+            f"unexpected model.id: expected {candidate.model_id}, got {model_id}"
+        )
+    if model_sha256 != candidate.model_sha256:
+        raise CalibrationReportError(
+            "packaged model SHA-256 does not match the candidate image-embedding model"
         )
 
     match_threshold = _finite_number(
@@ -132,10 +285,14 @@ def load_report(path: Path) -> CalibrationReport:
 
     schema_version = embedding.get("schema_version")
     dimensions = embedding.get("dimensions")
-    if schema_version != 1:
-        raise CalibrationReportError(f"unexpected embedding schema version: {schema_version!r}")
-    if dimensions != DIMENSIONS:
-        raise CalibrationReportError(f"embedding dimensions must be {DIMENSIONS}, was {dimensions!r}")
+    if schema_version != candidate.embedding_schema_version:
+        raise CalibrationReportError(
+            "embedding schema version does not match candidate identity"
+        )
+    if dimensions != candidate.dimensions:
+        raise CalibrationReportError(
+            f"embedding dimensions must be {candidate.dimensions}, was {dimensions!r}"
+        )
 
     raw_fixtures = payload.get("fixtures")
     if not isinstance(raw_fixtures, list):
@@ -146,29 +303,36 @@ def load_report(path: Path) -> CalibrationReport:
             raise CalibrationReportError("fixture entries must be objects")
         fixture_id = _nonempty_string(raw.get("id"), "fixture.id")
         role = _nonempty_string(raw.get("role"), f"fixture.{fixture_id}.role")
-        if fixture_id not in EXPECTED_ROLES or role != EXPECTED_ROLES[fixture_id]:
+        spec = FIXTURE_SPECS.get(fixture_id)
+        if spec is None or role != spec.role:
             raise CalibrationReportError(f"unexpected fixture identity/role: {fixture_id}/{role}")
         if fixture_id in fixtures:
             raise CalibrationReportError(f"duplicate fixture id: {fixture_id}")
 
-        source_sha256 = _nonempty_string(
+        source_sha256 = _lower_sha256(
             raw.get("source_sha256"), f"fixture.{fixture_id}.source_sha256"
         )
-        if source_sha256 != EXPECTED_FIXTURE_SHA256[fixture_id]:
+        if source_sha256 != spec.sha256:
             raise CalibrationReportError(
                 f"fixture {fixture_id} SHA-256 does not match the pinned calibration fixture"
             )
 
         raw_values = raw.get("embedding")
-        if not isinstance(raw_values, list) or len(raw_values) != DIMENSIONS:
+        if not isinstance(raw_values, list) or len(raw_values) != candidate.dimensions:
             raise CalibrationReportError(
-                f"fixture {fixture_id} embedding must contain exactly {DIMENSIONS} values"
+                f"fixture {fixture_id} embedding must contain exactly {candidate.dimensions} values"
             )
-        values = tuple(_finite_number(value, f"fixture.{fixture_id}.embedding") for value in raw_values)
+        values = tuple(
+            _finite_number(value, f"fixture.{fixture_id}.embedding") for value in raw_values
+        )
+        if not any(value != 0.0 for value in values):
+            raise CalibrationReportError(f"fixture {fixture_id} embedding must have non-zero magnitude")
 
         repeat_count = raw.get("repeat_count")
-        if isinstance(repeat_count, bool) or not isinstance(repeat_count, int) or repeat_count < 2:
-            raise CalibrationReportError(f"fixture {fixture_id} repeat_count must be >= 2")
+        if repeat_count != REPEAT_COUNT:
+            raise CalibrationReportError(
+                f"fixture {fixture_id} repeat_count must be exactly {REPEAT_COUNT}"
+            )
         repeat_cosine_min = _finite_number(
             raw.get("repeat_cosine_min"), f"fixture.{fixture_id}.repeat_cosine_min"
         )
@@ -181,13 +345,13 @@ def load_report(path: Path) -> CalibrationReport:
             raise CalibrationReportError(f"fixture {fixture_id} repeat delta must be non-negative")
 
         fixtures[fixture_id] = FixtureResult(
-            fixture_id,
-            role,
-            source_sha256,
-            values,
-            repeat_count,
-            repeat_cosine_min,
-            repeat_max_abs_delta,
+            fixture_id=fixture_id,
+            role=role,
+            source_sha256=source_sha256,
+            embedding=values,
+            repeat_count=repeat_count,
+            repeat_cosine_min=repeat_cosine_min,
+            repeat_max_abs_delta=repeat_max_abs_delta,
         )
 
     if tuple(fixtures) != EXPECTED_FIXTURES:
@@ -196,16 +360,18 @@ def load_report(path: Path) -> CalibrationReport:
         )
 
     return CalibrationReport(
-        platform,
-        device,
-        runtime_name,
-        runtime_version,
-        model_id,
-        model_sha256,
-        match_threshold,
-        schema_version,
-        dimensions,
-        fixtures,
+        platform=platform,
+        application_version=application_version,
+        application_build=application_build,
+        device=device,
+        runtime_name=runtime_name,
+        runtime_version=runtime_version,
+        model_id=model_id,
+        model_sha256=model_sha256,
+        match_threshold=match_threshold,
+        embedding_schema_version=schema_version,
+        dimensions=dimensions,
+        fixtures=fixtures,
     )
 
 
@@ -216,7 +382,7 @@ def cosine_similarity(a: tuple[float, ...], b: tuple[float, ...]) -> float:
     norm_a = math.sqrt(sum(x * x for x in a))
     norm_b = math.sqrt(sum(y * y for y in b))
     if norm_a == 0.0 or norm_b == 0.0:
-        return 0.0
+        raise CalibrationReportError("vectors must have non-zero magnitude")
     return dot / (norm_a * norm_b)
 
 
@@ -247,7 +413,11 @@ def _semantic_metrics(
     return result
 
 
-def compare_reports(android: CalibrationReport, ios: CalibrationReport) -> dict[str, Any]:
+def compare_reports(
+    android: CalibrationReport,
+    ios: CalibrationReport,
+    candidate: CandidateIdentity,
+) -> dict[str, Any]:
     if android.platform != "android" or ios.platform != "ios":
         raise CalibrationReportError("compare requires Android report first and iOS report second")
     if android.model_id != ios.model_id or android.model_sha256 != ios.model_sha256:
@@ -295,7 +465,15 @@ def compare_reports(android: CalibrationReport, ios: CalibrationReport) -> dict[
     }
 
     return {
-        "comparison_schema_version": 1,
+        "comparison_schema_version": 2,
+        "candidate": {
+            "id": candidate.candidate,
+            "source_commit": candidate.source_commit,
+            "application": {
+                "version": candidate.application_version,
+                "build": candidate.application_build,
+            },
+        },
         "model": {"id": android.model_id, "sha256": android.model_sha256},
         "embedding_contract": {
             "schema_version": android.embedding_schema_version,
@@ -304,7 +482,10 @@ def compare_reports(android: CalibrationReport, ios: CalibrationReport) -> dict[
         "match_policy": {
             "cosine_threshold": android.match_threshold,
             "threshold_changed": False,
-            "note": "Observed decisions use the threshold recorded by both builds; calibration does not select a new threshold.",
+            "note": (
+                "Observed decisions use the threshold recorded by both candidate builds; "
+                "calibration does not select a new threshold."
+            ),
         },
         "fixtures": {
             fixture_id: {"sha256": EXPECTED_FIXTURE_SHA256[fixture_id]}
@@ -375,11 +556,13 @@ def render_markdown(comparison: dict[str, Any]) -> str:
     lines = [
         "# Image embedding calibration comparison",
         "",
+        f"- Candidate: `{comparison['candidate']['id']}`",
+        f"- Source commit: `{comparison['candidate']['source_commit']}`",
         f"- Model: `{comparison['model']['id']}`",
         f"- Model SHA-256: `{comparison['model']['sha256']}`",
         f"- Dimensions: {comparison['embedding_contract']['dimensions']}",
         f"- Configured cosine threshold: {comparison['match_policy']['cosine_threshold']:.9g}",
-        "- Fixture provenance: **validated against pinned SHA-256 values**",
+        "- Fixture provenance: **validated against checked-in SHA-256 allowlist**",
         "- Product match threshold changed: **no**",
         f"- Exact same fixtures match across platforms: **{'yes' if comparison['same_fixture_cross_platform_match']['all_match'] else 'no'}**",
         f"- Match decisions consistent across both storage/scan directions: **{'yes' if comparison['match_decision_consistency']['all_consistent'] else 'no'}**",
@@ -470,26 +653,30 @@ def main() -> int:
 
     validate = subparsers.add_parser("validate", help="validate one device report")
     validate.add_argument("report", type=Path)
+    validate.add_argument("--candidate-identity", type=Path, required=True)
 
     compare = subparsers.add_parser("compare", help="compare Android and iOS device reports")
     compare.add_argument("android_report", type=Path)
     compare.add_argument("ios_report", type=Path)
+    compare.add_argument("--candidate-identity", type=Path, required=True)
     compare.add_argument("--json-output", type=Path)
     compare.add_argument("--markdown-output", type=Path)
 
     args = parser.parse_args()
     try:
+        candidate = load_candidate_identity(args.candidate_identity)
         if args.command == "validate":
-            report = load_report(args.report)
+            report = load_report(args.report, candidate)
             print(
                 f"validated {report.platform} calibration report: "
+                f"candidate={candidate.candidate}; "
                 f"{report.runtime_name} {report.runtime_version}; "
                 f"model={report.model_sha256}; threshold={report.match_threshold:.9g}"
             )
         else:
-            android = load_report(args.android_report)
-            ios = load_report(args.ios_report)
-            result = compare_reports(android, ios)
+            android = load_report(args.android_report, candidate)
+            ios = load_report(args.ios_report, candidate)
+            result = compare_reports(android, ios, candidate)
             encoded = json.dumps(result, indent=2, sort_keys=True) + "\n"
             markdown = render_markdown(result)
             if args.json_output:
