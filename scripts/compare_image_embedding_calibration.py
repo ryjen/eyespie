@@ -17,6 +17,7 @@ from typing import Any
 
 ROOT = Path(__file__).resolve().parents[1]
 FIXTURE_MANIFEST = ROOT / "calibration/image-embedding-fixtures.json"
+CANDIDATE_IDENTITY_SCHEMA_VERSION = 2
 REPORT_SCHEMA_VERSION = 2
 REPEAT_COUNT = 5
 SEMANTIC_FIXTURES = ("burger_crop", "burger_rotated", "cat")
@@ -156,8 +157,11 @@ EXPECTED_FIXTURE_SHA256 = {
 
 def load_candidate_identity(path: Path) -> CandidateIdentity:
     payload = _read_json(path, "candidate identity")
-    if payload.get("candidate_identity_schema_version") != 1:
-        raise CalibrationReportError("unsupported candidate_identity_schema_version")
+    if payload.get("candidate_identity_schema_version") != CANDIDATE_IDENTITY_SCHEMA_VERSION:
+        raise CalibrationReportError(
+            "unsupported candidate_identity_schema_version: "
+            f"expected {CANDIDATE_IDENTITY_SCHEMA_VERSION}"
+        )
     if payload.get("repository") != "ryjen/eyespie":
         raise CalibrationReportError("candidate identity belongs to a different repository")
 
