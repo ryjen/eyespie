@@ -7,23 +7,32 @@ plugins {
     alias(libs.plugins.sqldelight)
 }
 
-val versionConfigFile = rootProject.file("iosApp/Configuration/Version.xcconfig")
-fun versionConfigValue(name: String): String =
-    versionConfigFile
+fun xcconfigValue(path: String, name: String): String {
+    val configFile = rootProject.file(path)
+    return configFile
         .readLines()
         .firstOrNull { line -> line.substringBefore('=').trim() == name }
         ?.substringAfter('=')
         ?.trim()
         ?.takeIf(String::isNotEmpty)
-        ?: error("missing $name in ${versionConfigFile.path}")
+        ?: error("missing $name in ${configFile.path}")
+}
 
-val appVersion = versionConfigValue("APP_VERSION")
+val appVersion = xcconfigValue("iosApp/Configuration/Version.xcconfig", "APP_VERSION")
 require(Regex("[0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?").matches(appVersion)) {
     "APP_VERSION must be semantic-version shaped"
 }
-val appBuild = versionConfigValue("APP_BUILD").toIntOrNull()
+val appBuild = xcconfigValue("iosApp/Configuration/Version.xcconfig", "APP_BUILD").toIntOrNull()
     ?: error("APP_BUILD must be an integer")
 require(appBuild > 0) { "APP_BUILD must be positive" }
+
+val iosMediaPipeTasksVersion = xcconfigValue(
+    "iosApp/Configuration/MediaPipe.xcconfig",
+    "IOS_MEDIAPIPE_TASKS_VERSION",
+)
+require(Regex("[0-9]+\\.[0-9]+\\.[0-9]+(?:\\.[0-9]+)?").matches(iosMediaPipeTasksVersion)) {
+    "IOS_MEDIAPIPE_TASKS_VERSION must be numeric-version shaped"
+}
 
 kotlin {
     jvmToolchain(21)
@@ -58,7 +67,7 @@ kotlin {
         }
 
         pod("EyespieMediaPipeTasksCommon") {
-            version = "0.10.26.2"
+            version = iosMediaPipeTasksVersion
             source = path(project.file("../iosApp/MediaPipePodspecs"))
             moduleName = "MediaPipeTasksCommon"
             packageName = "MediaPipeTasksCommon"
@@ -67,7 +76,7 @@ kotlin {
             )
         }
         pod("EyespieMediaPipeTasksGenAIC") {
-            version = "0.10.26.2"
+            version = iosMediaPipeTasksVersion
             source = path(project.file("../iosApp/MediaPipePodspecs"))
             moduleName = "MediaPipeTasksGenAIC"
             packageName = "MediaPipeTasksGenAIC"
@@ -78,7 +87,7 @@ kotlin {
             useInteropBindingFrom("EyespieMediaPipeTasksCommon")
         }
         pod("EyespieMediaPipeTasksVision") {
-            version = "0.10.26.2"
+            version = iosMediaPipeTasksVersion
             source = path(project.file("../iosApp/MediaPipePodspecs"))
             moduleName = "MediaPipeTasksVision"
             packageName = "MediaPipeTasksVision"
@@ -89,7 +98,7 @@ kotlin {
             useInteropBindingFrom("EyespieMediaPipeTasksCommon")
         }
         pod("EyespieMediaPipeTasksGenAI") {
-            version = "0.10.26.2"
+            version = iosMediaPipeTasksVersion
             source = path(project.file("../iosApp/MediaPipePodspecs"))
             moduleName = "MediaPipeTasksGenAI"
             packageName = "MediaPipeTasksGenAI"
