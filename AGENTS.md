@@ -35,11 +35,16 @@ Useful shared abstractions may be brought in deliberately from `hackelia-micrant
 
 ## Build and test
 
+Use the repository-level `mise` tasks as the canonical local and CI entry points:
+
 ```bash
-./gradlew :app:testDebugUnitTest :app:assembleDebug
+mise install
+mise run ci
 ```
 
-Apple/MediaPipe integration is validated by `.github/workflows/ios-mediapipe.yml`.
+Narrow targets are also available as `mise run test` and `mise run build`. These tasks wrap Eyespie's existing Gradle targets; Gradle and the KMP module graph remain the build authority rather than Morifolium.
+
+Apple/MediaPipe integration is validated independently by `.github/workflows/ios-mediapipe.yml`.
 
 ## Changes
 
