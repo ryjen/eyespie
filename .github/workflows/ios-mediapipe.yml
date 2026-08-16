@@ -6,6 +6,7 @@ on:
     paths:
       - "eyespie/**"
       - "iosApp/**"
+      - "docs/release/**"
       - "gradle/**"
       - "settings.gradle.kts"
       - ".github/workflows/ios-mediapipe.yml"
