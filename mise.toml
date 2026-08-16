@@ -1,0 +1,14 @@
+[tools]
+java = "temurin-21"
+
+[tasks.test]
+description = "Run Android offline-core unit tests"
+run = "./gradlew :app:testDebugUnitTest --no-daemon --stacktrace"
+
+[tasks.build]
+description = "Assemble the Android offline-core debug artifact"
+run = "./gradlew :app:assembleDebug --no-daemon --stacktrace"
+
+[tasks.ci]
+description = "Run the canonical Android offline-core validation gate"
+run = "./gradlew :app:testDebugUnitTest :app:assembleDebug --no-daemon --stacktrace"
