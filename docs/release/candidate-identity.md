@@ -28,7 +28,7 @@ python3 scripts/release_candidate_identity.py verify
 
 The canonical Android `mise run ci` gate runs this verification before tests/assembly.
 
-Verification fails closed when version wiring is inconsistent, required compatibility constants cannot be derived, MediaPipe iOS artifacts do not share one version, model identity is malformed, or the working tree is dirty.
+Verification fails closed when version wiring is inconsistent, required compatibility constants cannot be derived, MediaPipe iOS artifacts do not share one version, model/match-policy identity is malformed, or the working tree is dirty.
 
 ## Render evidence metadata
 
@@ -44,10 +44,13 @@ The generated JSON records only bounded provenance metadata:
 - application version/build;
 - Android minimum/target SDK and iOS deployment target;
 - current SQLDelight schema version derived from migrations;
+- current application `MatchEngine.DEFAULT_THRESHOLD` cosine threshold;
 - `.eyespie` schema/canonicalization/signature/match-policy versions;
 - image-embedding contract, dimension, model ID/file/SHA-256;
 - Android MediaPipe Tasks versions;
 - project-specific iOS MediaPipe artifact version.
+
+The match threshold is read directly from the application-owned `MatchEngine` source rather than duplicated in release tooling. Physical calibration reports must record this candidate-bound value; the host comparator rejects a different threshold rather than silently comparing/tuning against it.
 
 It intentionally excludes private keys, signatures/payloads, images, embeddings, clues/answers, file paths, tokens, account data, and environment dumps.
 
@@ -66,4 +69,4 @@ Attach or copy the manifest alongside evidence for:
 - #125 MediaPipe/runtime network observation;
 - #93 signed internal distribution and install/upgrade evidence.
 
-The installed Android/iOS builds must be produced from the manifest's exact commit and use its declared application build number. If code, runtime/model artifacts, database migrations, bundle compatibility constants, or version/build identity change, render a new manifest and repeat the affected evidence.
+The installed Android/iOS builds must be produced from the manifest's exact commit and use its declared application build number. If code, runtime/model artifacts, database migrations, bundle compatibility constants, match policy, or version/build identity change, render a new manifest and repeat the affected evidence.
