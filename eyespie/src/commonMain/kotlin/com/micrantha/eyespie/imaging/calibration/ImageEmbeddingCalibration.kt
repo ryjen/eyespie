@@ -184,7 +184,7 @@ internal fun ImageEmbeddingCalibrationReport.toCalibrationJson(): String = build
     append("  \"embedding_contract\": {\"schema_version\": ")
     append(IMAGE_EMBEDDING_CONTRACT_VERSION)
     append(", \"dimensions\": ")
-    append(IMAGE_EMEDDING_DIMENSIONS_COMPAT)
+    append(IMAGE_EMBEDDING_DIMENSIONS)
     append("},\n")
     append("  \"fixtures\": [\n")
     fixtures.forEachIndexed { fixtureIndex, fixture ->
@@ -212,10 +212,6 @@ internal fun ImageEmbeddingCalibrationReport.toCalibrationJson(): String = build
     append("  ]\n")
     append("}\n")
 }
-
-// Alias kept local to this evidence encoder so the emitted field name cannot drift from the
-// application-owned embedding contract while retaining a readable JSON builder above.
-private const val IMAGE_EMEDDING_DIMENSIONS_COMPAT = IMAGE_EMBEDDING_DIMENSIONS
 
 private fun StringBuilder.appendJsonString(value: String) {
     append('"')
