@@ -206,7 +206,6 @@ def build_identity(*, allow_dirty: bool) -> dict[str, Any]:
                 "GAME_BUNDLE_SIGNATURE_ALGORITHM_P256_ECDSA_SHA256_DER",
             ),
             "match_policy_version": kotlin_int(bundle, "GAME_BUNDLE_MATCH_POLICY_VERSION"),
-            "max_bytes": kotlin_int(bundle, "GAME_BUNDLE_MAX_BYTES"),
         },
         "image_embedding": {
             "contract_version": kotlin_int(embedding, "IMAGE_EMBEDDING_CONTRACT_VERSION"),
