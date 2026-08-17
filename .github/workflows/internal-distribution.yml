@@ -113,13 +113,17 @@ jobs:
         run: |
           set -euo pipefail
           command -v apkanalyzer >/dev/null
+          command -v apksigner >/dev/null
           APK_COUNT="$(find eyespie/build/outputs/apk/release -maxdepth 1 -type f -name '*.apk' -print | wc -l | tr -d ' ')"
           AAB_COUNT="$(find eyespie/build/outputs/bundle/release -maxdepth 1 -type f -name '*.aab' -print | wc -l | tr -d ' ')"
           test "$APK_COUNT" = "1"
           test "$AAB_COUNT" = "1"
           APK="$(find eyespie/build/outputs/apk/release -maxdepth 1 -type f -name '*.apk' -print -quit)"
           AAB="$(find eyespie/build/outputs/bundle/release -maxdepth 1 -type f -name '*.aab' -print -quit)"
-          export PACKAGE_ID VERSION_NAME VERSION_CODE PERMISSIONS_FILE
+          apksigner verify "$APK"
+          SIGNER_SHA256="$(apksigner verify --print-certs "$APK" | sed -n 's/^Signer #1 certificate SHA-256 digest: //p' | head -n 1 | tr '[:upper:]' '[:lower:]')"
+          [[ "$SIGNER_SHA256" =~ ^[0-9a-f]{64}$ ]]
+          export PACKAGE_ID VERSION_NAME VERSION_CODE PERMISSIONS_FILE SIGNER_SHA256
           PACKAGE_ID="$(apkanalyzer manifest application-id "$APK")"
           VERSION_NAME="$(apkanalyzer manifest version-name "$APK")"
           VERSION_CODE="$(apkanalyzer manifest version-code "$APK")"
@@ -133,6 +137,7 @@ jobs:
               "package_id": os.environ["PACKAGE_ID"].strip(),
               "version": os.environ["VERSION_NAME"].strip(),
               "build": int(os.environ["VERSION_CODE"].strip()),
+              "signer_certificate_sha256": os.environ["SIGNER_SHA256"].strip(),
               "permissions": permissions,
           }
           Path(os.environ["RUNNER_TEMP"], "android-metadata.json").write_text(json.dumps(payload), encoding="utf-8")
@@ -307,12 +312,16 @@ jobs:
           APP_COUNT="$(find "$UNPACK/Payload" -maxdepth 1 -type d -name '*.app' -print | wc -l | tr -d ' ')"
           test "$APP_COUNT" = "1"
           APP="$(find "$UNPACK/Payload" -maxdepth 1 -type d -name '*.app' -print -quit)"
+          codesign --verify --deep --strict "$APP"
+          codesign -d --entitlements :- "$APP" > "$RUNNER_TEMP/app-entitlements.plist" 2>/dev/null
           INFO="$APP/Info.plist"
-          export IOS_METADATA_BUNDLE IOS_METADATA_VERSION IOS_METADATA_BUILD IOS_METADATA_MEDIAPIPE
+          export IOS_METADATA_BUNDLE IOS_METADATA_VERSION IOS_METADATA_BUILD IOS_METADATA_MEDIAPIPE IOS_SIGNING_TEAM IOS_APPLICATION_IDENTIFIER
           IOS_METADATA_BUNDLE="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$INFO")"
           IOS_METADATA_VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$INFO")"
           IOS_METADATA_BUILD="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$INFO")"
           IOS_METADATA_MEDIAPIPE="$(/usr/libexec/PlistBuddy -c 'Print :EyespieMediaPipeTasksVersion' "$INFO")"
+          IOS_SIGNING_TEAM="$(/usr/libexec/PlistBuddy -c 'Print :com.apple.developer.team-identifier' "$RUNNER_TEMP/app-entitlements.plist")"
+          IOS_APPLICATION_IDENTIFIER="$(/usr/libexec/PlistBuddy -c 'Print :application-identifier' "$RUNNER_TEMP/app-entitlements.plist")"
           python3 - <<'PY'
           import json, os
           from pathlib import Path
@@ -321,6 +330,8 @@ jobs:
               "version": os.environ["IOS_METADATA_VERSION"],
               "build": os.environ["IOS_METADATA_BUILD"],
               "mediapipe_version": os.environ["IOS_METADATA_MEDIAPIPE"],
+              "signing_team_id": os.environ["IOS_SIGNING_TEAM"],
+              "application_identifier": os.environ["IOS_APPLICATION_IDENTIFIER"],
           }
           Path(os.environ["RUNNER_TEMP"], "ios-metadata.json").write_text(json.dumps(payload), encoding="utf-8")
           PY
@@ -359,7 +370,7 @@ jobs:
         env:
           PROFILE_UUID: ${{ steps.ios-signing.outputs.profile_uuid }}
         run: |
-          rm -f "$RUNNER_TEMP/eyespie-release.p12" "$RUNNER_TEMP/eyespie.mobileprovision" "$RUNNER_TEMP/profile.plist"
+          rm -f "$RUNNER_TEMP/eyespie-release.p12" "$RUNNER_TEMP/eyespie.mobileprovision" "$RUNNER_TEMP/profile.plist" "$RUNNER_TEMP/app-entitlements.plist"
           if [[ -n "${PROFILE_UUID:-}" ]]; then
             rm -f "$HOME/Library/MobileDevice/Provisioning Profiles/$PROFILE_UUID.mobileprovision"
           fi
