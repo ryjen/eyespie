@@ -23,6 +23,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.viewinterop.AndroidView
 import androidx.core.content.ContextCompat
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
 import java.io.File
 import java.util.concurrent.ExecutorService
@@ -69,6 +71,21 @@ actual fun CameraCapture(
         if (!granted) {
             onCameraError(SecurityException("camera permission was denied"))
         }
+    }
+
+    // OS permission state is authoritative. Reconcile it after returning from Settings without
+    // launching another permission request. A revoked grant recomposes out of the active CameraX
+    // session; a newly granted permission recomposes into the preview without a process restart.
+    DisposableEffect(lifecycleOwner, context) {
+        val observer = LifecycleEventObserver { _, event ->
+            if (event == Lifecycle.Event.ON_RESUME) {
+                permissionGranted =
+                    ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) ==
+                        PackageManager.PERMISSION_GRANTED
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
     // Do not trigger a native permission prompt merely because the surface entered composition.
