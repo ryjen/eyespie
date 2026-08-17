@@ -17,6 +17,7 @@ VERSION_CONFIG = ROOT / "iosApp/Configuration/Version.xcconfig"
 MEDIAPIPE_CONFIG = ROOT / "iosApp/Configuration/MediaPipe.xcconfig"
 BUILD_GRADLE = ROOT / "eyespie/build.gradle.kts"
 INFO_PLIST = ROOT / "iosApp/iosApp/Info.plist"
+XCODE_PROJECT = ROOT / "iosApp/iosApp.xcodeproj/project.pbxproj"
 DEBUG_XCCONFIG = ROOT / "iosApp/Configuration/Config.debug.xcconfig"
 RELEASE_XCCONFIG = ROOT / "iosApp/Configuration/Config.release.xcconfig"
 VERSIONS_TOML = ROOT / "gradle/libs.versions.toml"
@@ -26,6 +27,7 @@ BUNDLE_SOURCE = ROOT / "eyespie/src/commonMain/kotlin/com/micrantha/eyespie/shar
 SQLDELIGHT_DIR = ROOT / "eyespie/src/commonMain/sqldelight/com/micrantha/eyespie/data"
 
 CANDIDATE_IDENTITY_SCHEMA_VERSION = 2
+EXPECTED_IOS_BUNDLE_ID = "com.micrantha.eyespie"
 SEMVER_RE = re.compile(r"^[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.-]+)?$")
 NUMERIC_VERSION_RE = re.compile(r"^[0-9]+\.[0-9]+\.[0-9]+(?:\.[0-9]+)?$")
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
@@ -141,6 +143,7 @@ def current_sqldelight_schema_version() -> int:
 def verify_wiring(version: str, build: int, ios_mediapipe: str) -> None:
     gradle = read_text(BUILD_GRADLE)
     info = read_text(INFO_PLIST)
+    xcode_project = read_text(XCODE_PROJECT)
     debug_config = read_text(DEBUG_XCCONFIG)
     release_config = read_text(RELEASE_XCCONFIG)
 
@@ -179,6 +182,20 @@ def verify_wiring(version: str, build: int, ios_mediapipe: str) -> None:
             raise CandidateIdentityError(f"iOS {name} config does not include Version.xcconfig")
         if '#include "MediaPipe.xcconfig"' not in content:
             raise CandidateIdentityError(f"iOS {name} config does not include MediaPipe.xcconfig")
+        if f"BUNDLE_ID={EXPECTED_IOS_BUNDLE_ID}" not in content:
+            raise CandidateIdentityError(
+                f"iOS {name} config must define canonical BUNDLE_ID={EXPECTED_IOS_BUNDLE_ID}"
+            )
+
+    canonical_project_wiring = 'PRODUCT_BUNDLE_IDENTIFIER = "${BUNDLE_ID}";'
+    if xcode_project.count(canonical_project_wiring) != 2:
+        raise CandidateIdentityError(
+            "Xcode Debug/Release project bundle identifiers must inherit canonical BUNDLE_ID"
+        )
+    if '.ios.${TEAM_ID}' in xcode_project:
+        raise CandidateIdentityError(
+            "Xcode project must not concatenate signing team identity into the bundle identifier"
+        )
 
     if version == "1.0" and build == 1:
         raise CandidateIdentityError("legacy iOS-only version identity unexpectedly survived")
