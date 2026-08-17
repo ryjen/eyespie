@@ -1,0 +1,377 @@
+name: Internal distribution
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_sha:
+        description: Exact 40-character Eyespie commit to build and distribute
+        required: true
+        type: string
+      platform:
+        description: Platform to build
+        required: true
+        default: all
+        type: choice
+        options:
+          - all
+          - android
+          - ios
+      publish:
+        description: Upload validated artifact to Play internal/TestFlight
+        required: true
+        default: false
+        type: boolean
+
+permissions:
+  contents: read
+
+env:
+  FASTLANE_OPT_OUT_USAGE: "1"
+  FASTLANE_VERSION: "2.235.0"
+  IOS_BUNDLE_ID: "com.micrantha.eyespie"
+  IOS_TEAM_ID: "FKL5L3E8N8"
+
+concurrency:
+  group: eyespie-internal-distribution-${{ inputs.source_sha }}-${{ inputs.platform }}
+  cancel-in-progress: false
+
+jobs:
+  android:
+    if: inputs.platform == 'all' || inputs.platform == 'android'
+    name: Android signed internal candidate
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    environment: closed-alpha-internal
+    env:
+      SOURCE_SHA: ${{ inputs.source_sha }}
+    steps:
+      - name: Validate requested source SHA
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo "source_sha must be a full lowercase Git SHA" >&2; exit 1; }
+
+      - name: Checkout exact candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.source_sha }}
+          persist-credentials: false
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5.6.0
+        with:
+          java-version: "21"
+          distribution: temurin
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@3f131e8634966bd73d06cc69884922b02e6faf92 # v6
+
+      - name: Bind candidate identity to checked-out source
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          python3 scripts/release_candidate_identity.py verify
+          python3 scripts/release_candidate_identity.py render --output "$RUNNER_TEMP/candidate.json"
+          python3 scripts/internal_release_evidence.py verify-source \
+            --candidate "$RUNNER_TEMP/candidate.json" \
+            --expected-sha "$SOURCE_SHA"
+
+      - name: Install Android signing material
+        shell: bash
+        env:
+          ANDROID_STORE_FILE_B64: ${{ secrets.ANDROID_STORE_FILE_B64 }}
+          ANDROID_STORE_PASSWORD: ${{ secrets.ANDROID_STORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+        run: |
+          set -euo pipefail
+          test -n "$ANDROID_STORE_FILE_B64"
+          test -n "$ANDROID_STORE_PASSWORD"
+          test -n "$ANDROID_KEY_ALIAS"
+          test -n "$ANDROID_KEY_PASSWORD"
+          printf '%s' "$ANDROID_STORE_FILE_B64" | base64 --decode > "$RUNNER_TEMP/eyespie-release.jks"
+          chmod 600 "$RUNNER_TEMP/eyespie-release.jks"
+          mkdir -p "$HOME/.gradle"
+          {
+            printf 'android.injected.signing.store.file=%s\n' "$RUNNER_TEMP/eyespie-release.jks"
+            printf 'android.injected.signing.store.password=%s\n' "$ANDROID_STORE_PASSWORD"
+            printf 'android.injected.signing.key.alias=%s\n' "$ANDROID_KEY_ALIAS"
+            printf 'android.injected.signing.key.password=%s\n' "$ANDROID_KEY_PASSWORD"
+          } >> "$HOME/.gradle/gradle.properties"
+          chmod 600 "$HOME/.gradle/gradle.properties"
+
+      - name: Build signed APK and AAB without mutating version
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./gradlew :app:assembleRelease :app:bundleRelease --no-daemon --stacktrace
+
+      - name: Inspect and validate signed Android artifact
+        id: android-artifact
+        shell: bash
+        run: |
+          set -euo pipefail
+          command -v apkanalyzer >/dev/null
+          command -v apksigner >/dev/null
+          APK_COUNT="$(find eyespie/build/outputs/apk/release -maxdepth 1 -type f -name '*.apk' -print | wc -l | tr -d ' ')"
+          AAB_COUNT="$(find eyespie/build/outputs/bundle/release -maxdepth 1 -type f -name '*.aab' -print | wc -l | tr -d ' ')"
+          test "$APK_COUNT" = "1"
+          test "$AAB_COUNT" = "1"
+          APK="$(find eyespie/build/outputs/apk/release -maxdepth 1 -type f -name '*.apk' -print -quit)"
+          AAB="$(find eyespie/build/outputs/bundle/release -maxdepth 1 -type f -name '*.aab' -print -quit)"
+          apksigner verify "$APK"
+          SIGNER_SHA256="$(apksigner verify --print-certs "$APK" | sed -n 's/^Signer #1 certificate SHA-256 digest: //p' | head -n 1 | tr '[:upper:]' '[:lower:]')"
+          [[ "$SIGNER_SHA256" =~ ^[0-9a-f]{64}$ ]]
+          export PACKAGE_ID VERSION_NAME VERSION_CODE PERMISSIONS_FILE SIGNER_SHA256
+          PACKAGE_ID="$(apkanalyzer manifest application-id "$APK")"
+          VERSION_NAME="$(apkanalyzer manifest version-name "$APK")"
+          VERSION_CODE="$(apkanalyzer manifest version-code "$APK")"
+          PERMISSIONS_FILE="$RUNNER_TEMP/android-permissions.txt"
+          apkanalyzer manifest permissions "$APK" > "$PERMISSIONS_FILE"
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          permissions = [line.strip() for line in Path(os.environ["PERMISSIONS_FILE"]).read_text().splitlines() if line.strip()]
+          payload = {
+              "package_id": os.environ["PACKAGE_ID"].strip(),
+              "version": os.environ["VERSION_NAME"].strip(),
+              "build": int(os.environ["VERSION_CODE"].strip()),
+              "signer_certificate_sha256": os.environ["SIGNER_SHA256"].strip(),
+              "permissions": permissions,
+          }
+          Path(os.environ["RUNNER_TEMP"], "android-metadata.json").write_text(json.dumps(payload), encoding="utf-8")
+          PY
+          python3 scripts/internal_release_evidence.py android \
+            --candidate "$RUNNER_TEMP/candidate.json" \
+            --metadata "$RUNNER_TEMP/android-metadata.json" \
+            --apk "$APK" \
+            --aab "$AAB" \
+            --output "$RUNNER_TEMP/android-release-evidence.json"
+          printf 'aab=%s\n' "$AAB" >> "$GITHUB_OUTPUT"
+          {
+            echo '### Android internal candidate evidence'
+            echo '```json'
+            cat "$RUNNER_TEMP/android-release-evidence.json"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload validated AAB to Play internal
+        if: inputs.publish
+        shell: bash
+        env:
+          AAB: ${{ steps.android-artifact.outputs.aab }}
+          GOOGLE_PLAY_JSON_KEY_B64: ${{ secrets.GOOGLE_PLAY_JSON_KEY_B64 }}
+        run: |
+          set -euo pipefail
+          test -n "$GOOGLE_PLAY_JSON_KEY_B64"
+          printf '%s' "$GOOGLE_PLAY_JSON_KEY_B64" | base64 --decode > "$RUNNER_TEMP/google-play.json"
+          chmod 600 "$RUNNER_TEMP/google-play.json"
+          sudo gem install fastlane -v "$FASTLANE_VERSION" --no-document
+          fastlane android upload_internal aab:"$AAB" json_key:"$RUNNER_TEMP/google-play.json"
+
+      - name: Remove Android signing material
+        if: always()
+        shell: bash
+        run: |
+          rm -f "$RUNNER_TEMP/eyespie-release.jks" "$RUNNER_TEMP/google-play.json"
+          rm -f "$HOME/.gradle/gradle.properties"
+
+  ios:
+    if: inputs.platform == 'all' || inputs.platform == 'ios'
+    name: iOS signed internal candidate
+    runs-on: macos-15
+    timeout-minutes: 60
+    environment: closed-alpha-internal
+    env:
+      SOURCE_SHA: ${{ inputs.source_sha }}
+    steps:
+      - name: Validate requested source SHA
+        shell: bash
+        run: |
+          set -euo pipefail
+          [[ "$SOURCE_SHA" =~ ^[0-9a-f]{40}$ ]] || { echo "source_sha must be a full lowercase Git SHA" >&2; exit 1; }
+
+      - name: Checkout exact candidate
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ inputs.source_sha }}
+          persist-credentials: false
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@03ad4de0992f5dab5e18fcb136590ce7c4a0ac95 # v5.6.0
+        with:
+          java-version: "21"
+          distribution: temurin
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@3f131e8634966bd73d06cc69884922b02e6faf92 # v6
+
+      - name: Set up CocoaPods
+        shell: bash
+        run: sudo gem install cocoapods -v 1.17.0 --no-document
+
+      - name: Bind candidate identity to checked-out source
+        shell: bash
+        run: |
+          set -euo pipefail
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          python3 scripts/release_candidate_identity.py verify
+          python3 scripts/release_candidate_identity.py render --output "$RUNNER_TEMP/candidate.json"
+          python3 scripts/internal_release_evidence.py verify-source \
+            --candidate "$RUNNER_TEMP/candidate.json" \
+            --expected-sha "$SOURCE_SHA"
+
+      - name: Install ephemeral iOS signing material
+        id: ios-signing
+        shell: bash
+        env:
+          IOS_DISTRIBUTION_CERTIFICATE_P12_B64: ${{ secrets.IOS_DISTRIBUTION_CERTIFICATE_P12_B64 }}
+          IOS_DISTRIBUTION_CERTIFICATE_PASSWORD: ${{ secrets.IOS_DISTRIBUTION_CERTIFICATE_PASSWORD }}
+          IOS_PROVISIONING_PROFILE_B64: ${{ secrets.IOS_PROVISIONING_PROFILE_B64 }}
+        run: |
+          set -euo pipefail
+          test -n "$IOS_DISTRIBUTION_CERTIFICATE_P12_B64"
+          test -n "$IOS_DISTRIBUTION_CERTIFICATE_PASSWORD"
+          test -n "$IOS_PROVISIONING_PROFILE_B64"
+          KEYCHAIN="$RUNNER_TEMP/eyespie-release.keychain-db"
+          KEYCHAIN_PASSWORD="$(openssl rand -hex 24)"
+          CERT="$RUNNER_TEMP/eyespie-release.p12"
+          PROFILE="$RUNNER_TEMP/eyespie.mobileprovision"
+          printf '%s' "$IOS_DISTRIBUTION_CERTIFICATE_P12_B64" | base64 --decode > "$CERT"
+          printf '%s' "$IOS_PROVISIONING_PROFILE_B64" | base64 --decode > "$PROFILE"
+          chmod 600 "$CERT" "$PROFILE"
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security set-keychain-settings -lut 21600 "$KEYCHAIN"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security import "$CERT" -k "$KEYCHAIN" -P "$IOS_DISTRIBUTION_CERTIFICATE_PASSWORD" -T /usr/bin/codesign -T /usr/bin/security
+          security set-key-partition-list -S apple-tool:,apple: -s -k "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security list-keychains -d user -s "$KEYCHAIN"
+          security cms -D -i "$PROFILE" > "$RUNNER_TEMP/profile.plist"
+          PROFILE_UUID="$(/usr/libexec/PlistBuddy -c 'Print :UUID' "$RUNNER_TEMP/profile.plist")"
+          PROFILE_NAME="$(/usr/libexec/PlistBuddy -c 'Print :Name' "$RUNNER_TEMP/profile.plist")"
+          PROFILE_APP_ID="$(/usr/libexec/PlistBuddy -c 'Print :Entitlements:application-identifier' "$RUNNER_TEMP/profile.plist")"
+          PROFILE_TEAM="$(/usr/libexec/PlistBuddy -c 'Print :TeamIdentifier:0' "$RUNNER_TEMP/profile.plist")"
+          test "$PROFILE_TEAM" = "$IOS_TEAM_ID"
+          test "$PROFILE_APP_ID" = "$IOS_TEAM_ID.$IOS_BUNDLE_ID"
+          mkdir -p "$HOME/Library/MobileDevice/Provisioning Profiles"
+          cp "$PROFILE" "$HOME/Library/MobileDevice/Provisioning Profiles/$PROFILE_UUID.mobileprovision"
+          printf 'profile_name=%s\n' "$PROFILE_NAME" >> "$GITHUB_OUTPUT"
+          printf 'profile_uuid=%s\n' "$PROFILE_UUID" >> "$GITHUB_OUTPUT"
+
+      - name: Generate Kotlin framework and install pods
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./gradlew :app:podspec :app:generateDummyFramework --no-daemon --stacktrace
+          cd iosApp
+          pod install --repo-update
+
+      - name: Archive and export signed IPA without mutating version
+        id: ios-artifact
+        shell: bash
+        env:
+          PROFILE_NAME: ${{ steps.ios-signing.outputs.profile_name }}
+        run: |
+          set -euo pipefail
+          ARCHIVE="$RUNNER_TEMP/Eyespie.xcarchive"
+          EXPORT="$RUNNER_TEMP/ios-export"
+          xcodebuild \
+            -workspace iosApp/iosApp.xcworkspace \
+            -scheme iosApp \
+            -configuration Release \
+            -destination 'generic/platform=iOS' \
+            -archivePath "$ARCHIVE" \
+            DEVELOPMENT_TEAM="$IOS_TEAM_ID" \
+            PRODUCT_BUNDLE_IDENTIFIER="$IOS_BUNDLE_ID" \
+            CODE_SIGN_STYLE=Manual \
+            PROVISIONING_PROFILE_SPECIFIER="$PROFILE_NAME" \
+            archive
+          cat > "$RUNNER_TEMP/ExportOptions.plist" <<EOF
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0"><dict>
+            <key>method</key><string>app-store-connect</string>
+            <key>signingStyle</key><string>manual</string>
+            <key>teamID</key><string>$IOS_TEAM_ID</string>
+            <key>provisioningProfiles</key><dict>
+              <key>$IOS_BUNDLE_ID</key><string>$PROFILE_NAME</string>
+            </dict>
+          </dict></plist>
+          EOF
+          xcodebuild -exportArchive \
+            -archivePath "$ARCHIVE" \
+            -exportPath "$EXPORT" \
+            -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist"
+          IPA_COUNT="$(find "$EXPORT" -maxdepth 1 -type f -name '*.ipa' -print | wc -l | tr -d ' ')"
+          test "$IPA_COUNT" = "1"
+          IPA="$(find "$EXPORT" -maxdepth 1 -type f -name '*.ipa' -print -quit)"
+          UNPACK="$RUNNER_TEMP/ipa-unpack"
+          mkdir -p "$UNPACK"
+          unzip -q "$IPA" -d "$UNPACK"
+          APP_COUNT="$(find "$UNPACK/Payload" -maxdepth 1 -type d -name '*.app' -print | wc -l | tr -d ' ')"
+          test "$APP_COUNT" = "1"
+          APP="$(find "$UNPACK/Payload" -maxdepth 1 -type d -name '*.app' -print -quit)"
+          codesign --verify --deep --strict "$APP"
+          codesign -d --entitlements :- "$APP" > "$RUNNER_TEMP/app-entitlements.plist" 2>/dev/null
+          INFO="$APP/Info.plist"
+          export IOS_METADATA_BUNDLE IOS_METADATA_VERSION IOS_METADATA_BUILD IOS_METADATA_MEDIAPIPE IOS_SIGNING_TEAM IOS_APPLICATION_IDENTIFIER
+          IOS_METADATA_BUNDLE="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$INFO")"
+          IOS_METADATA_VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$INFO")"
+          IOS_METADATA_BUILD="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleVersion' "$INFO")"
+          IOS_METADATA_MEDIAPIPE="$(/usr/libexec/PlistBuddy -c 'Print :EyespieMediaPipeTasksVersion' "$INFO")"
+          IOS_SIGNING_TEAM="$(/usr/libexec/PlistBuddy -c 'Print :com.apple.developer.team-identifier' "$RUNNER_TEMP/app-entitlements.plist")"
+          IOS_APPLICATION_IDENTIFIER="$(/usr/libexec/PlistBuddy -c 'Print :application-identifier' "$RUNNER_TEMP/app-entitlements.plist")"
+          python3 - <<'PY'
+          import json, os
+          from pathlib import Path
+          payload = {
+              "bundle_id": os.environ["IOS_METADATA_BUNDLE"],
+              "version": os.environ["IOS_METADATA_VERSION"],
+              "build": os.environ["IOS_METADATA_BUILD"],
+              "mediapipe_version": os.environ["IOS_METADATA_MEDIAPIPE"],
+              "signing_team_id": os.environ["IOS_SIGNING_TEAM"],
+              "application_identifier": os.environ["IOS_APPLICATION_IDENTIFIER"],
+          }
+          Path(os.environ["RUNNER_TEMP"], "ios-metadata.json").write_text(json.dumps(payload), encoding="utf-8")
+          PY
+          python3 scripts/internal_release_evidence.py ios \
+            --candidate "$RUNNER_TEMP/candidate.json" \
+            --metadata "$RUNNER_TEMP/ios-metadata.json" \
+            --ipa "$IPA" \
+            --output "$RUNNER_TEMP/ios-release-evidence.json"
+          printf 'ipa=%s\n' "$IPA" >> "$GITHUB_OUTPUT"
+          {
+            echo '### iOS internal candidate evidence'
+            echo '```json'
+            cat "$RUNNER_TEMP/ios-release-evidence.json"
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Upload validated IPA to TestFlight
+        if: inputs.publish
+        shell: bash
+        env:
+          IPA: ${{ steps.ios-artifact.outputs.ipa }}
+          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          APP_STORE_CONNECT_KEY_B64: ${{ secrets.APP_STORE_CONNECT_KEY_B64 }}
+        run: |
+          set -euo pipefail
+          test -n "$APP_STORE_CONNECT_KEY_ID"
+          test -n "$APP_STORE_CONNECT_ISSUER_ID"
+          test -n "$APP_STORE_CONNECT_KEY_B64"
+          sudo gem install fastlane -v "$FASTLANE_VERSION" --no-document
+          fastlane ios upload_internal ipa:"$IPA"
+
+      - name: Remove iOS signing material
+        if: always()
+        shell: bash
+        env:
+          PROFILE_UUID: ${{ steps.ios-signing.outputs.profile_uuid }}
+        run: |
+          rm -f "$RUNNER_TEMP/eyespie-release.p12" "$RUNNER_TEMP/eyespie.mobileprovision" "$RUNNER_TEMP/profile.plist" "$RUNNER_TEMP/app-entitlements.plist"
+          if [[ -n "${PROFILE_UUID:-}" ]]; then
+            rm -f "$HOME/Library/MobileDevice/Provisioning Profiles/$PROFILE_UUID.mobileprovision"
+          fi
+          security delete-keychain "$RUNNER_TEMP/eyespie-release.keychain-db" 2>/dev/null || true
