@@ -40,7 +40,7 @@ import platform.CoreMedia.CMSampleBufferRef
 import platform.CoreVideo.CVPixelBufferRelease
 import platform.CoreVideo.CVPixelBufferRetain
 import platform.CoreVideo.kCVPixelBufferPixelFormatTypeKey
-import platform.CoreVideo.kCVPixelBufferPixelFormatType_420YpCbCr8BiPlanarVideoRange
+import platform.CoreVideo.kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange
 import platform.Foundation.NSError
 import platform.Foundation.NSNotificationCenter
 import platform.ImageIO.kCGImagePropertyOrientationDown
@@ -262,13 +262,13 @@ private class CameraStream(
         val output = AVCaptureVideoDataOutput().apply {
             setSampleBufferDelegate(this@CameraStream, dispatchQueue)
             if (availableVideoCVPixelFormatTypes.contains(
-                    kCVPixelBufferPixelFormatType_420YpCbCr8BiPlanarVideoRange,
+                    kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange,
                 )
             ) {
                 setVideoSettings(
                     mapOf(
                         kCVPixelBufferPixelFormatTypeKey to
-                            kCVPixelBufferPixelFormatType_420YpCbCr8BiPlanarVideoRange,
+                            kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange,
                     ),
                 )
             }
