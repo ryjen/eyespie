@@ -1,0 +1,50 @@
+opt_out_usage
+
+ANDROID_PACKAGE = "com.micrantha.eyespie"
+IOS_BUNDLE_ID = "com.micrantha.eyespie"
+
+platform :android do
+  desc "Upload an already-validated AAB to the Play internal track"
+  lane :upload_internal do |options|
+    aab = File.expand_path(options.fetch(:aab))
+    json_key = File.expand_path(options.fetch(:json_key))
+    UI.user_error!("validated AAB is missing") unless File.file?(aab)
+    UI.user_error!("Google Play service account JSON is missing") unless File.file?(json_key)
+
+    upload_to_play_store(
+      package_name: ANDROID_PACKAGE,
+      aab: aab,
+      json_key: json_key,
+      track: "internal",
+      release_status: "completed",
+      skip_upload_metadata: true,
+      skip_upload_images: true,
+      skip_upload_screenshots: true,
+      skip_upload_changelogs: true,
+    )
+  end
+end
+
+platform :ios do
+  desc "Upload an already-validated IPA to TestFlight internal distribution"
+  lane :upload_internal do |options|
+    ipa = File.expand_path(options.fetch(:ipa))
+    UI.user_error!("validated IPA is missing") unless File.file?(ipa)
+
+    api_key = app_store_connect_api_key(
+      key_id: ENV.fetch("APP_STORE_CONNECT_KEY_ID"),
+      issuer_id: ENV.fetch("APP_STORE_CONNECT_ISSUER_ID"),
+      key_content: ENV.fetch("APP_STORE_CONNECT_KEY_B64"),
+      is_key_content_base64: true,
+      in_house: false,
+    )
+
+    upload_to_testflight(
+      api_key: api_key,
+      ipa: ipa,
+      skip_waiting_for_build_processing: true,
+      distribute_external: false,
+      notify_external_testers: false,
+    )
+  end
+end
