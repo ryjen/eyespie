@@ -44,11 +44,6 @@ jobs:
     environment: closed-alpha-internal
     env:
       SOURCE_SHA: ${{ inputs.source_sha }}
-      ANDROID_STORE_FILE_B64: ${{ secrets.ANDROID_STORE_FILE_B64 }}
-      ANDROID_STORE_PASSWORD: ${{ secrets.ANDROID_STORE_PASSWORD }}
-      ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-      ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
-      GOOGLE_PLAY_JSON_KEY_B64: ${{ secrets.GOOGLE_PLAY_JSON_KEY_B64 }}
     steps:
       - name: Validate requested source SHA
         shell: bash
@@ -84,6 +79,11 @@ jobs:
 
       - name: Install Android signing material
         shell: bash
+        env:
+          ANDROID_STORE_FILE_B64: ${{ secrets.ANDROID_STORE_FILE_B64 }}
+          ANDROID_STORE_PASSWORD: ${{ secrets.ANDROID_STORE_PASSWORD }}
+          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
+          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
         run: |
           set -euo pipefail
           test -n "$ANDROID_STORE_FILE_B64"
@@ -113,12 +113,12 @@ jobs:
         run: |
           set -euo pipefail
           command -v apkanalyzer >/dev/null
-          mapfile -t apks < <(find eyespie/build/outputs/apk/release -maxdepth 1 -type f -name '*.apk' -print)
-          mapfile -t aabs < <(find eyespie/build/outputs/bundle/release -maxdepth 1 -type f -name '*.aab' -print)
-          test "${#apks[@]}" -eq 1
-          test "${#aabs[@]}" -eq 1
-          APK="${apks[0]}"
-          AAB="${aabs[0]}"
+          APK_COUNT="$(find eyespie/build/outputs/apk/release -maxdepth 1 -type f -name '*.apk' -print | wc -l | tr -d ' ')"
+          AAB_COUNT="$(find eyespie/build/outputs/bundle/release -maxdepth 1 -type f -name '*.aab' -print | wc -l | tr -d ' ')"
+          test "$APK_COUNT" = "1"
+          test "$AAB_COUNT" = "1"
+          APK="$(find eyespie/build/outputs/apk/release -maxdepth 1 -type f -name '*.apk' -print -quit)"
+          AAB="$(find eyespie/build/outputs/bundle/release -maxdepth 1 -type f -name '*.aab' -print -quit)"
           export PACKAGE_ID VERSION_NAME VERSION_CODE PERMISSIONS_FILE
           PACKAGE_ID="$(apkanalyzer manifest application-id "$APK")"
           VERSION_NAME="$(apkanalyzer manifest version-name "$APK")"
@@ -156,6 +156,7 @@ jobs:
         shell: bash
         env:
           AAB: ${{ steps.android-artifact.outputs.aab }}
+          GOOGLE_PLAY_JSON_KEY_B64: ${{ secrets.GOOGLE_PLAY_JSON_KEY_B64 }}
         run: |
           set -euo pipefail
           test -n "$GOOGLE_PLAY_JSON_KEY_B64"
@@ -179,12 +180,6 @@ jobs:
     environment: closed-alpha-internal
     env:
       SOURCE_SHA: ${{ inputs.source_sha }}
-      IOS_DISTRIBUTION_CERTIFICATE_P12_B64: ${{ secrets.IOS_DISTRIBUTION_CERTIFICATE_P12_B64 }}
-      IOS_DISTRIBUTION_CERTIFICATE_PASSWORD: ${{ secrets.IOS_DISTRIBUTION_CERTIFICATE_PASSWORD }}
-      IOS_PROVISIONING_PROFILE_B64: ${{ secrets.IOS_PROVISIONING_PROFILE_B64 }}
-      APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
-      APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
-      APP_STORE_CONNECT_KEY_B64: ${{ secrets.APP_STORE_CONNECT_KEY_B64 }}
     steps:
       - name: Validate requested source SHA
         shell: bash
@@ -225,6 +220,10 @@ jobs:
       - name: Install ephemeral iOS signing material
         id: ios-signing
         shell: bash
+        env:
+          IOS_DISTRIBUTION_CERTIFICATE_P12_B64: ${{ secrets.IOS_DISTRIBUTION_CERTIFICATE_P12_B64 }}
+          IOS_DISTRIBUTION_CERTIFICATE_PASSWORD: ${{ secrets.IOS_DISTRIBUTION_CERTIFICATE_PASSWORD }}
+          IOS_PROVISIONING_PROFILE_B64: ${{ secrets.IOS_PROVISIONING_PROFILE_B64 }}
         run: |
           set -euo pipefail
           test -n "$IOS_DISTRIBUTION_CERTIFICATE_P12_B64"
@@ -299,15 +298,16 @@ jobs:
             -archivePath "$ARCHIVE" \
             -exportPath "$EXPORT" \
             -exportOptionsPlist "$RUNNER_TEMP/ExportOptions.plist"
-          mapfile -t ipas < <(find "$EXPORT" -maxdepth 1 -type f -name '*.ipa' -print)
-          test "${#ipas[@]}" -eq 1
-          IPA="${ipas[0]}"
+          IPA_COUNT="$(find "$EXPORT" -maxdepth 1 -type f -name '*.ipa' -print | wc -l | tr -d ' ')"
+          test "$IPA_COUNT" = "1"
+          IPA="$(find "$EXPORT" -maxdepth 1 -type f -name '*.ipa' -print -quit)"
           UNPACK="$RUNNER_TEMP/ipa-unpack"
           mkdir -p "$UNPACK"
           unzip -q "$IPA" -d "$UNPACK"
-          mapfile -t apps < <(find "$UNPACK/Payload" -maxdepth 1 -type d -name '*.app' -print)
-          test "${#apps[@]}" -eq 1
-          INFO="${apps[0]}/Info.plist"
+          APP_COUNT="$(find "$UNPACK/Payload" -maxdepth 1 -type d -name '*.app' -print | wc -l | tr -d ' ')"
+          test "$APP_COUNT" = "1"
+          APP="$(find "$UNPACK/Payload" -maxdepth 1 -type d -name '*.app' -print -quit)"
+          INFO="$APP/Info.plist"
           export IOS_METADATA_BUNDLE IOS_METADATA_VERSION IOS_METADATA_BUILD IOS_METADATA_MEDIAPIPE
           IOS_METADATA_BUNDLE="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleIdentifier' "$INFO")"
           IOS_METADATA_VERSION="$(/usr/libexec/PlistBuddy -c 'Print :CFBundleShortVersionString' "$INFO")"
@@ -342,6 +342,9 @@ jobs:
         shell: bash
         env:
           IPA: ${{ steps.ios-artifact.outputs.ipa }}
+          APP_STORE_CONNECT_KEY_ID: ${{ secrets.APP_STORE_CONNECT_KEY_ID }}
+          APP_STORE_CONNECT_ISSUER_ID: ${{ secrets.APP_STORE_CONNECT_ISSUER_ID }}
+          APP_STORE_CONNECT_KEY_B64: ${{ secrets.APP_STORE_CONNECT_KEY_B64 }}
         run: |
           set -euo pipefail
           test -n "$APP_STORE_CONNECT_KEY_ID"
