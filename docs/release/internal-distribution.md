@@ -33,13 +33,14 @@ Publishing additionally requires:
 
 - `GOOGLE_PLAY_JSON_KEY_B64` — base64 of a least-privilege Google Play service-account JSON key.
 
-The job builds both release APK and AAB with Gradle signing injection. It inspects the final APK using Android SDK `apkanalyzer` and fails closed unless:
+The job builds both release APK and AAB with Gradle signing injection. It verifies the final APK signature, records the signer certificate SHA-256, and inspects the package using Android SDK tooling. It fails closed unless:
 
 - package ID is `com.micrantha.eyespie`;
 - version name/build code equal the candidate manifest;
+- the signer certificate digest is a valid SHA-256 identity;
 - `android.permission.INTERNET` is absent.
 
-The bounded evidence summary records only candidate/source identity, package/version/build, permission names, APK/AAB SHA-256 values, and the `play-internal` channel. `publish=true` uploads the already-validated AAB to the Play internal track through the pinned Fastlane version.
+The bounded evidence summary records only candidate/source identity, package/version/build, signer-certificate SHA-256, permission names, APK/AAB SHA-256 values, and the `play-internal` channel. `publish=true` uploads the already-validated AAB to the Play internal track through the pinned Fastlane version.
 
 ## iOS
 
@@ -57,9 +58,14 @@ Publishing additionally requires App Store Connect API-key material:
 
 The job imports signing material into an ephemeral runner keychain, validates the profile team/application identifier, installs CocoaPods through the same pinned model-staging path used by normal iOS builds, archives a Release build, and exports one IPA.
 
-The archive command explicitly pins the store bundle ID `com.micrantha.eyespie`; the exported IPA is then inspected and fails closed unless bundle ID, marketing version, build number, and `EyespieMediaPipeTasksVersion` match the candidate manifest. The bounded summary records only those values plus the IPA SHA-256 and `testflight-internal` channel.
+The archive command explicitly pins the store bundle ID `com.micrantha.eyespie`. The exported app signature is verified and its signed entitlements are inspected. Validation fails closed unless:
 
-`publish=true` uploads the already-validated IPA to TestFlight using App Store Connect API-key authentication. It does not enable external distribution or notify external testers.
+- bundle ID, marketing version, and build number match the candidate;
+- `EyespieMediaPipeTasksVersion` matches the candidate;
+- signed team identifier is `FKL5L3E8N8`;
+- signed application identifier is `FKL5L3E8N8.com.micrantha.eyespie`.
+
+The bounded summary records those safe signing identifiers plus the IPA SHA-256 and `testflight-internal` channel. `publish=true` uploads the already-validated IPA to TestFlight using App Store Connect API-key authentication. It does not enable external distribution or notify external testers.
 
 ## Fastlane scope
 
@@ -74,6 +80,8 @@ Safe job-summary evidence is limited to:
 - exact source SHA/candidate ID;
 - app version/build;
 - final package/bundle identity;
+- Android signer certificate SHA-256;
+- iOS team/application-identifier entitlements;
 - Android permission names;
 - project MediaPipe artifact version on iOS;
 - final artifact SHA-256 values;
