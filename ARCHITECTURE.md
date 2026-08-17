@@ -2,151 +2,174 @@
 
 ## Decision
 
-Eyespie is **backendless-first**. The game engine, authored game data, clue data, image embeddings, matching, and play progress live on the device. A hosted backend is an optional adapter, not part of the core architecture.
+Eyespie is **backendless-first and local-authoritative**. Core game creation, playable game data, clue authority, image embeddings, matching, cryptographic player identity, and progress live on the device. A hosted backend is an optional future adapter rather than foundational game authority.
 
 The previous cloud-authoritative implementation remains recoverable from `archive/pre-backendless-reboot-2026-08-15` at `50091a631d971c520e48884cfbd15cf15dd7251b`.
 
-## Product architecture
+## Current product architecture
 
 ```text
-                    Eyespie KMP
-                        |
-        +---------------+---------------+
-        |               |               |
-   local identity   local game data   device ML
-        |               |               |
- secure storage     SQLDelight/files   MediaPipe
-        |               |               |
-        +---------------+---------------+
-                        |
-                   Game engine
-                        |
-             +----------+----------+
-             |                     |
-       portable bundle       optional transport
-                                   |
-                         +---------+---------+
-                         |                   |
-                    local/peer          cloud adapter
+platform-backed P-256 identity
+        |
+        +-------------------+
+        |                   |
+        v                   v
+SQLDelight local       authored bundle signing
+Game/Thing/progress         |
+        |                   v
+        |            canonical .eyespie v1
+        |                   |
+        v                   v
+bounded camera ---> MediaPipe ImageEmbedder
+        |                   |
+        +---------> validated 1024-float embedding
+                            |
+manual clue authority -----+
+                            |
+                            v
+                       LocalGameLoop
+                            |
+                       MatchEngine
+                            |
+                    persisted progress
+                            |
+             scoped system document transfer
+                   Android / iOS
 ```
 
-The first reboot slice deliberately contains only the smallest portable domain and UI skeleton. Persistence, cryptographic identity, bundle signing, and peer transport are added as explicit vertical slices rather than inherited from the retired backend model.
+Core alpha play does not require Supabase, hosted authentication, remote persistence, server-side matching, GraphQL/PostgREST/realtime, or an application-controlled network connection.
 
-## Core domain
+## Authority and trust boundaries
 
-Core models contain no provider-specific IDs or SDK types.
+### Local identity
 
-Initial contracts:
+The default player identity is device-local and cryptographic:
 
-- `PlayerIdentityRepository` — stable local player identity.
-- `GameRepository` — local-authoritative game persistence.
-- `MatchEngine` — deterministic cosine matching of target and guess embeddings.
-- `GameTransport` — optional multiplayer transport capability.
-- `CloudSyncAdapter` — optional remote backup/synchronization capability.
+1. generate/retain a P-256 signing key through platform security facilities;
+2. expose only the canonical public key to common code;
+3. derive stable `PlayerId` from that canonical public key;
+4. sign locally authored portable bundles without exporting private key material.
 
-Planned contracts:
+`PlayerId` proves continuity of a local signing identity. It does not prove real-world human identity, attestation, or account ownership.
 
-- `ThingRepository`
-- `GameBundleCodec`
-- `ClueGenerator`
-- `SecureIdentityStore`
+### Local persistence
+
+SQLDelight is authoritative for local Game, Thing, clue-authority, and progress state. Repository APIs expose local semantics directly rather than network-first/cache-fallback behavior.
+
+The SQLDelight embedding blob is a local storage representation. It is deliberately distinct from the portable `.eyespie` wire representation.
+
+### Capture and embeddings
+
+Platform code owns camera/native lifecycle:
+
+- Android: CameraX;
+- iOS: AVFoundation;
+- common code receives bounded application-owned capture data rather than platform camera objects;
+- MediaPipe ImageEmbedder produces the reviewed logical 1024-float embedding contract;
+- malformed, wrong-dimension, or non-finite embeddings fail closed.
+
+Physical-device parity, repeated-inference stability, and resource behavior remain release evidence under #91/#190.
+
+### Clue authority
+
+Manual clue authoring is sufficient for the closed alpha and requires no generative model or remote provider. Creator-only expected-answer authority is structurally excluded from playable/shared projections.
+
+Optional semantic/GenAI providers are post-alpha/evidence-driven and may not become an implicit requirement for basic play while #90 remains open.
 
 ## Matching
 
-Matching is local by default:
+Matching is local:
 
 ```text
-camera image
-    |
-MediaPipe image embedding
-    |
-    +-------------------+
-                        |
-                target embedding
-                        |
-                cosine similarity
-                        |
-                 match / no match
+camera capture
+    -> MediaPipe ImageEmbedder
+    -> validated embedding
+    -> cosine similarity
+    -> explicit Thing match policy/threshold
+    -> MatchEngine
+    -> match / non-match
 ```
 
-No database vector search is required for target-specific gameplay.
+No database vector search or hosted match RPC is required for target-specific gameplay.
 
-Portable/offline games may distribute the target embedding. This means a sufficiently motivated owner of a guesser device can inspect it. That is an explicit product tradeoff, not a security boundary.
+## Portable `.eyespie` v1
 
-For stronger anti-cheat multiplayer, a host-authoritative transport may keep target embeddings on the host and accept only guess embeddings from peers.
+The implemented portable format is one bounded canonical file, not an archive. It includes only the data required for offline play, including creator public identity, bounded game/Thing metadata, playable clue data, target embedding, explicit model/match compatibility identity, and signature metadata.
 
-## Identity
+It deliberately excludes creator-only expected answers, private keys, raw target images, exact location, private filesystem paths, account/backend tokens, raw model prompts/output, and executable/archive content.
 
-The default player identity will be device-local and cryptographic:
+Import treats bytes as hostile until bounds, schema, identity, model/policy compatibility, domain validity, and P-256 signature verification succeed. Persistence occurs only after validation; repeated import is deterministic/idempotent or returns an explicit conflict.
 
-1. Generate a keypair on first launch.
-2. Store private key material using platform secure storage.
-3. Derive a stable `PlayerId` from the public key.
-4. Sign authored game bundles and authority-relevant peer events.
-5. Allow a display name without creating a hosted account.
+Signatures provide integrity and creator-key continuity. They do **not** provide confidentiality, DRM, verified human identity, or strong anti-cheat against a player who controls the device.
 
-A future cloud account may link/recover a local identity, but the core domain must not require one.
+See [`docs/architecture/eyespie-bundle-v1.md`](docs/architecture/eyespie-bundle-v1.md).
 
-## Persistence
+## Platform sharing
 
-Local persistence is authoritative. The planned implementation uses SQLDelight for structured game/progress data and device files for larger local artifacts. Repository APIs should expose local semantics directly rather than a network-first/cache-fallback model.
+Android and iOS expose `.eyespie` import/export through scoped system document APIs. Platform URLs, URIs, file handles, security-scoped resources, and picker state remain in platform code and never become common game authority. Reads are bounded before common parsing and no broad storage/media permission is required.
 
-## Portable game format
+The final release claim of Android ↔ iOS interoperability is gated by physical #92 evidence rather than simulator/fixture success alone.
 
-A future versioned `.eyespie` bundle contains the minimum data required to play offline:
+## Release evidence boundary
 
-```text
-manifest/version
-creator public identity
-rules/game metadata
-things
-  clue authority
-  target embedding
-  matching threshold/version
-optional assets
-signature
-```
+Automated CI establishes implementation and integration prerequisites:
 
-Raw target photos do not need to be distributed for matching.
+- candidate-identity verification;
+- common/Python/Android tests;
+- Android app and instrumentation-test APK builds;
+- project-specific MediaPipe CocoaPods resolution;
+- Kotlin/Native simulator compilation;
+- real unsigned Xcode simulator application build;
+- workflow-security checks.
 
-## Optional capabilities
+The closed-alpha release still requires manual/physical evidence:
 
-Cloud is allowed only when it provides a product capability that cannot be satisfied locally:
+- #91 / #190 — Android+iPhone embedding reports and cross-platform comparison;
+- #125 — physical network/telemetry observation against the exact candidate;
+- #92 — complete two-device create/share/import/guess flow in both directions;
+- #93 — protected signed Play Internal/TestFlight distribution plus install/upgrade/relaunch/recovery proof;
+- #18 — final security/privacy sign-off based on observed behavior;
+- #94 — final documentation/store/privacy claim reconciliation.
+
+Committed procedures are under [`docs/release/`](docs/release/).
+
+## Related repositories
+
+### `ryjen/mediapipe`
+
+Owns the project-specific Apple MediaPipe distribution/provenance boundary used by Eyespie. Its remaining GenAI, binary-size, performance, and upstream-convergence work must not implicitly block the current Vision/ImageEmbedder alpha unless physical evidence identifies a concrete defect.
+
+### `hackelia-micrantha/bluebell`
+
+The canonical public Apache-2.0 reusable KMP SDK/framework source. Eyespie no longer vendors/restores the previous broad Bluebell runtime graph. Reuse individual abstractions only when a concrete application-owned need justifies the dependency.
+
+There is currently no required `bluebell-community` repository in the Eyespie alpha dependency graph.
+
+## Optional future capabilities
+
+Optional adapters may later provide capabilities that genuinely need remote or peer authority, such as:
 
 - encrypted backup and cross-device sync;
 - public game discovery;
-- remote multiplayer/session relay;
+- remote/host-authoritative multiplayer;
 - identity recovery/linking;
-- opt-in telemetry.
+- explicitly governed diagnostics/analytics;
+- semantic/GenAI runtime alternatives;
+- AR/spatial gameplay.
 
-A cloud implementation must sit behind an interface and the app must remain functional when it is absent.
+Those capabilities must preserve provider-neutral boundaries and introduce their own authorization, privacy, retention, compatibility, and recovery analysis. They are not implied by the backendless alpha core.
 
-## Platform and ML preservation
+## Delivery state
 
-The reboot preserves qualified infrastructure that remains valuable:
+Completed alpha implementation slices:
 
-- Kotlin Multiplatform and Compose;
-- Android/iOS app shells;
-- `ryjen/mediapipe` Apple artifacts and pod graph;
-- Android MediaPipe Tasks dependencies;
-- model packaging/provenance assets;
-- cross-platform calibration assets.
+1. backend-free KMP core and deterministic matching;
+2. SQLDelight local-authoritative persistence;
+3. platform-backed cryptographic identity;
+4. Android/iOS capture and MediaPipe embeddings;
+5. manual clue authority and complete local create/play/match flow;
+6. canonical signed `.eyespie` v1 import/export;
+7. scoped Android/iOS document transfer;
+8. candidate identity, physical evidence collectors, protected internal-distribution tooling, and release runbooks.
 
-The old feature/data/backend code is intentionally not carried into the new application source tree.
-
-## Shared framework policy
-
-`hackelia-micrantha/bluebell` and `bluebell-community` remain sources of reusable platform/architecture capabilities. Reintroduce individual abstractions only when the reboot has a concrete need; the core must not depend on a broad framework merely for historical compatibility.
-
-## Delivery sequence
-
-1. Minimal backend-free KMP app + deterministic match engine.
-2. SQLDelight local game/Thing/progress persistence.
-3. Secure local cryptographic identity.
-4. Restore MediaPipe capture/embedding generation behind narrow interfaces.
-5. Complete offline create -> clue -> guess -> match vertical slice.
-6. Versioned signed `.eyespie` import/export.
-7. Optional local/peer host transport.
-8. Evaluate optional cloud adapters only from demonstrated product needs.
-
-Each step must keep Android and iOS buildable without backend configuration.
+Current work is **qualification, not feature expansion**. Physical/release evidence should complete before dependency/runtime experiments, Bluebell extraction, hosted transport, AR, Mission/commerce/analytics, or other post-alpha implementation displaces the release path.
