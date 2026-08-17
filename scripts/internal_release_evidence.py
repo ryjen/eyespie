@@ -2,7 +2,7 @@
 """Validate bounded closed-alpha internal-distribution artifact evidence.
 
 This tool never signs or uploads artifacts. It binds already-built artifacts to the exact
-candidate manifest and rejects package/version/runtime drift before a protected upload step.
+candidate manifest and rejects package/version/runtime/signing drift before a protected upload step.
 """
 
 from __future__ import annotations
@@ -20,6 +20,7 @@ ROOT = Path(__file__).resolve().parents[1]
 EXPECTED_REPOSITORY = "ryjen/eyespie"
 EXPECTED_ANDROID_PACKAGE = "com.micrantha.eyespie"
 EXPECTED_IOS_BUNDLE_ID = "com.micrantha.eyespie"
+EXPECTED_IOS_TEAM_ID = "FKL5L3E8N8"
 CANDIDATE_SCHEMA_VERSION = 2
 SHA_RE = re.compile(r"^[0-9a-f]{40}$")
 SHA256_RE = re.compile(r"^[0-9a-f]{64}$")
@@ -127,6 +128,9 @@ def validate_android(candidate_path: Path, metadata_path: Path, apk: Path, aab: 
         raise ReleaseEvidenceError("Android version does not match candidate identity")
     if metadata.get("build") != candidate["application"]["build"]:
         raise ReleaseEvidenceError("Android version code does not match candidate identity")
+    signer_sha256 = metadata.get("signer_certificate_sha256")
+    if not isinstance(signer_sha256, str) or not SHA256_RE.fullmatch(signer_sha256):
+        raise ReleaseEvidenceError("Android signer certificate SHA-256 is missing or malformed")
     permissions = metadata.get("permissions")
     if not isinstance(permissions, list) or not all(isinstance(value, str) for value in permissions):
         raise ReleaseEvidenceError("Android permissions must be a string list")
@@ -139,6 +143,7 @@ def validate_android(candidate_path: Path, metadata_path: Path, apk: Path, aab: 
     evidence.update(
         {
             "package_id": EXPECTED_ANDROID_PACKAGE,
+            "signing": {"certificate_sha256": signer_sha256},
             "permissions": sorted(set(permissions)),
             "artifacts": {
                 "apk": {"sha256": _sha256(apk)},
@@ -163,12 +168,21 @@ def validate_ios(candidate_path: Path, metadata_path: Path, ipa: Path) -> dict[s
     ios_runtime = candidate.get("mediapipe", {}).get("ios", {})
     if metadata.get("mediapipe_version") != ios_runtime.get("project_artifact_version"):
         raise ReleaseEvidenceError("iOS MediaPipe artifact identity does not match candidate identity")
+    if metadata.get("signing_team_id") != EXPECTED_IOS_TEAM_ID:
+        raise ReleaseEvidenceError("iOS signed app team identifier does not match the closed-alpha team")
+    expected_application_identifier = f"{EXPECTED_IOS_TEAM_ID}.{EXPECTED_IOS_BUNDLE_ID}"
+    if metadata.get("application_identifier") != expected_application_identifier:
+        raise ReleaseEvidenceError("iOS signed app application identifier does not match the closed-alpha application")
 
     evidence = _base_evidence(candidate, "ios")
     evidence.update(
         {
             "bundle_id": EXPECTED_IOS_BUNDLE_ID,
             "mediapipe_version": metadata["mediapipe_version"],
+            "signing": {
+                "team_id": EXPECTED_IOS_TEAM_ID,
+                "application_identifier": expected_application_identifier,
+            },
             "artifacts": {"ipa": {"sha256": _sha256(ipa)}},
             "channel": "testflight-internal",
         }
