@@ -40,14 +40,16 @@ import platform.CoreMedia.CMSampleBufferRef
 import platform.CoreVideo.CVPixelBufferRelease
 import platform.CoreVideo.CVPixelBufferRetain
 import platform.CoreVideo.kCVPixelBufferPixelFormatTypeKey
-import platform.CoreVideo.kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange
+import platform.CoreVideo.kCVPixelBufferPixelFormatType_420YpCbCr8BiPlanarVideoRange
 import platform.Foundation.NSError
+import platform.Foundation.NSNotificationCenter
 import platform.ImageIO.kCGImagePropertyOrientationDown
 import platform.ImageIO.kCGImagePropertyOrientationLeft
 import platform.ImageIO.kCGImagePropertyOrientationRight
 import platform.ImageIO.kCGImagePropertyOrientationUp
 import platform.QuartzCore.CATransaction
 import platform.QuartzCore.kCATransactionDisableActions
+import platform.UIKit.UIApplicationDidBecomeActiveNotification
 import platform.UIKit.UIView
 import platform.darwin.NSObject
 import platform.darwin.dispatch_async
@@ -64,6 +66,20 @@ actual fun CameraCapture(
     val controller: ImageCapture = remember { IosCameraCaptureController() }
     val compositionScope = rememberCoroutineScope()
     var authorized by remember { mutableStateOf(currentCameraAuthorization()) }
+
+    // Reconcile OS-authoritative camera state after returning from Settings. This notification is
+    // observation-only: it must never trigger a permission request merely because the app became
+    // active. A revoked grant tears down the stream by recomposition; a new grant starts it again.
+    DisposableEffect(Unit) {
+        val observer = NSNotificationCenter.defaultCenter.addObserverForName(
+            UIApplicationDidBecomeActiveNotification,
+            null,
+            null,
+        ) {
+            authorized = currentCameraAuthorization()
+        }
+        onDispose { NSNotificationCenter.defaultCenter.removeObserver(observer) }
+    }
 
     val device = remember(authorized) {
         if (authorized == true) AVCaptureDevice.defaultDeviceWithMediaType(AVMediaTypeVideo) else null
@@ -246,13 +262,13 @@ private class CameraStream(
         val output = AVCaptureVideoDataOutput().apply {
             setSampleBufferDelegate(this@CameraStream, dispatchQueue)
             if (availableVideoCVPixelFormatTypes.contains(
-                    kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange,
+                    kCVPixelBufferPixelFormatType_420YpCbCr8BiPlanarVideoRange,
                 )
             ) {
                 setVideoSettings(
                     mapOf(
                         kCVPixelBufferPixelFormatTypeKey to
-                            kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange,
+                            kCVPixelBufferPixelFormatType_420YpCbCr8BiPlanarVideoRange,
                     ),
                 )
             }
