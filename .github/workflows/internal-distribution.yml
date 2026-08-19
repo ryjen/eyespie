@@ -28,6 +28,9 @@ permissions:
 env:
   FASTLANE_OPT_OUT_USAGE: "1"
   FASTLANE_VERSION: "2.235.0"
+  SOPS_VERSION: "3.13.3"
+  MOBILE_SIGNING_REPO: "git@github.com:ryjen/mobile-signing.git"
+  ANDROID_SIGNING_BRANCH: "android/com.micrantha.eyespie"
   IOS_BUNDLE_ID: "com.micrantha.eyespie"
   IOS_TEAM_ID: "FKL5L3E8N8"
 
@@ -66,6 +69,13 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@3f131e8634966bd73d06cc69884922b02e6faf92 # v6
 
+      - name: Set up mise for pinned SOPS
+        uses: jdx/mise-action@7e36c90d9ab29c415a2384db3006f3ec8a8cc654
+        with:
+          version: 2026.7.13
+          install: false
+          cache: true
+
       - name: Bind candidate identity to checked-out source
         shell: bash
         run: |
@@ -77,29 +87,70 @@ jobs:
             --candidate "$RUNNER_TEMP/candidate.json" \
             --expected-sha "$SOURCE_SHA"
 
-      - name: Install Android signing material
+      - name: Install Android signing material from SOPS
         shell: bash
         env:
-          ANDROID_STORE_FILE_B64: ${{ secrets.ANDROID_STORE_FILE_B64 }}
-          ANDROID_STORE_PASSWORD: ${{ secrets.ANDROID_STORE_PASSWORD }}
-          ANDROID_KEY_ALIAS: ${{ secrets.ANDROID_KEY_ALIAS }}
-          ANDROID_KEY_PASSWORD: ${{ secrets.ANDROID_KEY_PASSWORD }}
+          ANDROID_SOPS_AGE_KEY: ${{ secrets.ANDROID_SOPS_AGE_KEY }}
+          MATCH_GIT_PRIVATE_KEY_B64: ${{ secrets.MATCH_GIT_PRIVATE_KEY_B64 }}
         run: |
           set -euo pipefail
-          test -n "$ANDROID_STORE_FILE_B64"
+          umask 077
+          test -n "$ANDROID_SOPS_AGE_KEY"
+          test -n "$MATCH_GIT_PRIVATE_KEY_B64"
+
+          SIGNING_KEY="$RUNNER_TEMP/mobile-signing-deploy-key"
+          KNOWN_HOSTS="$RUNNER_TEMP/github-known-hosts"
+          SIGNING_DIR="$RUNNER_TEMP/mobile-signing-android"
+
+          printf '%s' "$MATCH_GIT_PRIVATE_KEY_B64" | base64 --decode > "$SIGNING_KEY"
+          chmod 600 "$SIGNING_KEY"
+          cat > "$KNOWN_HOSTS" <<'EOF'
+          github.com ssh-ed25519 AAAAC3NzaC1lZDI1NTE5AAAAIOMqqnkVzrm0SdG6UOoqKLsabgH5C9okWi0dh2l9GKJl
+          EOF
+          chmod 600 "$KNOWN_HOSTS"
+
+          GIT_SSH_COMMAND="ssh -i $SIGNING_KEY -o IdentitiesOnly=yes -o StrictHostKeyChecking=yes -o UserKnownHostsFile=$KNOWN_HOSTS" \
+            git clone --quiet --depth 1 --single-branch \
+              --branch "$ANDROID_SIGNING_BRANCH" \
+              "$MOBILE_SIGNING_REPO" \
+              "$SIGNING_DIR"
+
+          test -f "$SIGNING_DIR/upload-keystore.sops.json"
+          test -f "$SIGNING_DIR/signing.sops.yaml"
+          SIGNING_REPO_SHA="$(git -C "$SIGNING_DIR" rev-parse HEAD)"
+          [[ "$SIGNING_REPO_SHA" =~ ^[0-9a-f]{40}$ ]]
+
+          export SOPS_AGE_KEY="$ANDROID_SOPS_AGE_KEY"
+          SOPS=(mise x "sops@$SOPS_VERSION" -- sops)
+          "${SOPS[@]}" decrypt \
+            --input-type json \
+            --output-type binary \
+            "$SIGNING_DIR/upload-keystore.sops.json" \
+            > "$RUNNER_TEMP/eyespie-release.jks"
+          chmod 600 "$RUNNER_TEMP/eyespie-release.jks"
+
+          ANDROID_STORE_PASSWORD="$("${SOPS[@]}" decrypt --extract '["store_password"]' "$SIGNING_DIR/signing.sops.yaml")"
+          ANDROID_KEY_ALIAS="$("${SOPS[@]}" decrypt --extract '["key_alias"]' "$SIGNING_DIR/signing.sops.yaml")"
+          ANDROID_KEY_PASSWORD="$("${SOPS[@]}" decrypt --extract '["key_password"]' "$SIGNING_DIR/signing.sops.yaml")"
           test -n "$ANDROID_STORE_PASSWORD"
           test -n "$ANDROID_KEY_ALIAS"
           test -n "$ANDROID_KEY_PASSWORD"
-          printf '%s' "$ANDROID_STORE_FILE_B64" | base64 --decode > "$RUNNER_TEMP/eyespie-release.jks"
-          chmod 600 "$RUNNER_TEMP/eyespie-release.jks"
+
           mkdir -p "$HOME/.gradle"
           {
             printf 'android.injected.signing.store.file=%s\n' "$RUNNER_TEMP/eyespie-release.jks"
             printf 'android.injected.signing.store.password=%s\n' "$ANDROID_STORE_PASSWORD"
             printf 'android.injected.signing.key.alias=%s\n' "$ANDROID_KEY_ALIAS"
             printf 'android.injected.signing.key.password=%s\n' "$ANDROID_KEY_PASSWORD"
-          } >> "$HOME/.gradle/gradle.properties"
+          } > "$HOME/.gradle/gradle.properties"
           chmod 600 "$HOME/.gradle/gradle.properties"
+
+          {
+            echo '### Android signing provenance'
+            printf -- '- mobile-signing branch: `%s`\n' "$ANDROID_SIGNING_BRANCH"
+            printf -- '- mobile-signing commit: `%s`\n' "$SIGNING_REPO_SHA"
+            printf -- '- SOPS version: `%s`\n' "$SOPS_VERSION"
+          } >> "$GITHUB_STEP_SUMMARY"
 
       - name: Build signed APK and AAB without mutating version
         shell: bash
@@ -174,7 +225,11 @@ jobs:
         if: always()
         shell: bash
         run: |
-          rm -f "$RUNNER_TEMP/eyespie-release.jks" "$RUNNER_TEMP/google-play.json"
+          rm -f "$RUNNER_TEMP/eyespie-release.jks" \
+            "$RUNNER_TEMP/google-play.json" \
+            "$RUNNER_TEMP/mobile-signing-deploy-key" \
+            "$RUNNER_TEMP/github-known-hosts"
+          rm -rf "$RUNNER_TEMP/mobile-signing-android"
           rm -f "$HOME/.gradle/gradle.properties"
 
   ios:

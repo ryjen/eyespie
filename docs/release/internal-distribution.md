@@ -22,18 +22,27 @@ Distribution never edits `iosApp/Configuration/Version.xcconfig`. A version/buil
 
 ## Android
 
-Protected signing secrets:
+Android upload signing material is stored in the private shared repository `ryjen/mobile-signing` on branch `android/com.micrantha.eyespie`.
 
-- `ANDROID_STORE_FILE_B64` — base64 of the release/upload keystore;
-- `ANDROID_STORE_PASSWORD`;
-- `ANDROID_KEY_ALIAS`;
-- `ANDROID_KEY_PASSWORD`.
+That branch contains only SOPS-encrypted material:
+
+- `upload-keystore.sops.json` — the Eyespie Android upload keystore encrypted as SOPS binary JSON;
+- `signing.sops.yaml` — encrypted `store_password`, `key_alias`, and `key_password`.
+
+Protected CI signing secrets:
+
+- `ANDROID_SOPS_AGE_KEY` — the Eyespie-specific age private identity used to decrypt only Eyespie Android signing material;
+- `MATCH_GIT_PRIVATE_KEY_B64` — base64 of the same read-only SSH deploy private key used to read `ryjen/mobile-signing`.
+
+The Android job pins SOPS `3.13.3`, checks out only the Eyespie Android signing branch with the read-only deploy key, verifies GitHub using the published Ed25519 host key, decrypts signing material only under `$RUNNER_TEMP`, injects signing configuration into a temporary Gradle properties file, and removes the decrypted keystore, repository checkout, deploy key, known-hosts file, and Gradle signing properties in `always()` cleanup.
+
+The job records the `mobile-signing` branch and commit SHA plus the SOPS version in the job summary. It does not print or persist decrypted signing values.
+
+Use Google Play App Signing for Play-distributed builds. The key stored here is the upload key; the Play app-signing key remains managed by Google Play. Keep a separately protected recovery copy of the age identity and upload keystore authority outside GitHub Actions.
 
 Publishing additionally requires:
 
 - `GOOGLE_PLAY_JSON_KEY_B64` — base64 of a least-privilege Google Play service-account JSON key.
-
-The canonical Android keystore must be backed up outside GitHub Actions. Do not commit a raw `.jks` / `.keystore` file to `ryjen/mobile-signing`; that repository is currently the Fastlane Match store for Apple signing material only.
 
 The job builds both release APK and AAB with Gradle signing injection. It verifies the final APK signature, records the signer certificate SHA-256, and inspects the package using Android SDK tooling. It fails closed unless:
 
@@ -113,13 +122,14 @@ Safe job-summary evidence is limited to:
 - app version/build;
 - final package/bundle identity;
 - Android signer certificate SHA-256;
+- Android `mobile-signing` branch/commit and pinned SOPS version;
 - iOS team/application-identifier entitlements;
 - Android permission names;
 - project MediaPipe artifact version on iOS;
 - final artifact SHA-256 values;
 - intended internal channel.
 
-Never add keystore/certificate/profile contents, Match passphrases/private deploy keys, API keys, passwords, Apple/Google private account payloads, private filesystem paths, user images, embeddings, clues/answers, `.eyespie` payloads, or environment dumps to release evidence.
+Never add keystore/certificate/profile contents, age private identities, Match passphrases/private deploy keys, API keys, passwords, Apple/Google private account payloads, private filesystem paths, user images, embeddings, clues/answers, `.eyespie` payloads, or environment dumps to release evidence.
 
 Signing material is written only under runner-temporary/private locations. GitHub Actions logs and artifacts are not a credential transport.
 
@@ -142,6 +152,6 @@ Repeat affected signed-build and physical evidence when any of these change:
 - signing identity/provisioning profile or package/bundle identifier;
 - image-embedding model/runtime identity;
 - `.eyespie` compatibility or persistence schema;
-- release workflow/Fastlane version;
+- release workflow/Fastlane/SOPS version;
 - requested Android permissions;
 - any code that changes startup, inference, storage, sharing, or network behavior.
