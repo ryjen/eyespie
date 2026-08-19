@@ -43,7 +43,7 @@ platform :ios do
       readonly: true,
     )
 
-    mapping = Actions.lane_context[SharedValues::MATCH_PROVISIONING_PROFILE_MAPPING] || {}
+    mapping = lane_context[SharedValues::MATCH_PROVISIONING_PROFILE_MAPPING] || {}
     profile_name = mapping[IOS_BUNDLE_ID]
     UI.user_error!("Fastlane Match did not provide a provisioning profile for #{IOS_BUNDLE_ID}") if profile_name.to_s.empty?
 
