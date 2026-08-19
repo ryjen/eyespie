@@ -2,6 +2,9 @@ opt_out_usage
 
 ANDROID_PACKAGE = "com.micrantha.eyespie"
 IOS_BUNDLE_ID = "com.micrantha.eyespie"
+IOS_TEAM_ID = "FKL5L3E8N8"
+MATCH_REPOSITORY = "git@github.com:ryjen/mobile-signing.git"
+MATCH_BRANCH = IOS_TEAM_ID
 
 platform :android do
   desc "Upload an already-validated AAB to the Play internal track"
@@ -26,6 +29,27 @@ platform :android do
 end
 
 platform :ios do
+  desc "Install the shared Apple Distribution identity from Fastlane Match for CI"
+  lane :sync_signing_ci do |options|
+    profile_name_output = File.expand_path(options.fetch(:profile_name_output))
+
+    setup_ci
+    match(
+      type: "appstore",
+      app_identifier: IOS_BUNDLE_ID,
+      team_id: IOS_TEAM_ID,
+      git_url: MATCH_REPOSITORY,
+      git_branch: MATCH_BRANCH,
+      readonly: true,
+    )
+
+    mapping = Actions.lane_context[SharedValues::MATCH_PROVISIONING_PROFILE_MAPPING] || {}
+    profile_name = mapping[IOS_BUNDLE_ID]
+    UI.user_error!("Fastlane Match did not provide a provisioning profile for #{IOS_BUNDLE_ID}") if profile_name.to_s.empty?
+
+    File.write(profile_name_output, profile_name)
+  end
+
   desc "Upload an already-validated IPA to TestFlight internal distribution"
   lane :upload_internal do |options|
     ipa = File.expand_path(options.fetch(:ipa))
