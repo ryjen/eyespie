@@ -1,0 +1,6 @@
+git_url("git@github.com:ryjen/mobile-signing.git")
+git_branch("FKL5L3E8N8")
+storage_mode("git")
+
+app_identifier(["com.micrantha.eyespie"])
+team_id("FKL5L3E8N8")
