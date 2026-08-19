@@ -24,7 +24,7 @@ Distribution never edits `iosApp/Configuration/Version.xcconfig`. A version/buil
 
 Protected signing secrets:
 
-- `ANDROID_STORE_FILE_B64` — base64 of the release keystore;
+- `ANDROID_STORE_FILE_B64` — base64 of the release/upload keystore;
 - `ANDROID_STORE_PASSWORD`;
 - `ANDROID_KEY_ALIAS`;
 - `ANDROID_KEY_PASSWORD`.
@@ -32,6 +32,8 @@ Protected signing secrets:
 Publishing additionally requires:
 
 - `GOOGLE_PLAY_JSON_KEY_B64` — base64 of a least-privilege Google Play service-account JSON key.
+
+The canonical Android keystore must be backed up outside GitHub Actions. Do not commit a raw `.jks` / `.keystore` file to `ryjen/mobile-signing`; that repository is currently the Fastlane Match store for Apple signing material only.
 
 The job builds both release APK and AAB with Gradle signing injection. It verifies the final APK signature, records the signer certificate SHA-256, and inspects the package using Android SDK tooling. It fails closed unless:
 
@@ -44,11 +46,35 @@ The bounded evidence summary records only candidate/source identity, package/ver
 
 ## iOS
 
-Protected signing secrets:
+iOS signing identities are managed with Fastlane Match in the private shared repository `ryjen/mobile-signing`.
 
-- `IOS_DISTRIBUTION_CERTIFICATE_P12_B64` — base64 Apple Distribution certificate/private-key PKCS#12;
-- `IOS_DISTRIBUTION_CERTIFICATE_PASSWORD`;
-- `IOS_PROVISIONING_PROFILE_B64` — base64 App Store provisioning profile for `com.micrantha.eyespie` / team `FKL5L3E8N8`.
+Repository layout:
+
+- `main` — signing policy/documentation only;
+- `FKL5L3E8N8` — encrypted Match material for Apple Developer team `FKL5L3E8N8`;
+- future Apple Developer teams use their own branch.
+
+Eyespie config is in `fastlane/Matchfile`. The bundle identifier remains `com.micrantha.eyespie` and the Apple Developer team remains `FKL5L3E8N8`.
+
+Protected CI signing secrets:
+
+- `MATCH_PASSWORD` — Fastlane Match encryption passphrase;
+- `MATCH_GIT_PRIVATE_KEY_B64` — base64 of a read-only SSH deploy private key whose public key is installed on `ryjen/mobile-signing`.
+
+The Match encryption passphrase and deploy private key are never committed to either repository. CI decodes the deploy key only into `$RUNNER_TEMP`, runs `match` in read-only mode, and removes the deploy key afterward. Fastlane `setup_ci` provides the temporary signing keychain.
+
+### Bootstrap Match material
+
+The first certificate/profile population must be done from an authorized Mac, not by CI. From a clean Eyespie checkout with Fastlane installed:
+
+```sh
+export MATCH_PASSWORD='<from password manager>'
+fastlane match appstore --app_identifier com.micrantha.eyespie --team_id FKL5L3E8N8
+```
+
+Use normal authenticated GitHub access on that Mac so Match can write encrypted signing material to branch `FKL5L3E8N8`. Fastlane may require Apple Developer authentication when it must create or repair the Apple Distribution certificate/profile. Do not run the CI lane to bootstrap credentials: `ios sync_signing_ci` is intentionally read-only.
+
+After bootstrap, create a dedicated SSH deploy key for CI and install only the **public** key on `ryjen/mobile-signing` with write access disabled. Base64 the private key locally and store that value as `MATCH_GIT_PRIVATE_KEY_B64` in the Eyespie `closed-alpha-internal` environment.
 
 Publishing additionally requires App Store Connect API-key material:
 
@@ -56,9 +82,9 @@ Publishing additionally requires App Store Connect API-key material:
 - `APP_STORE_CONNECT_ISSUER_ID`;
 - `APP_STORE_CONNECT_KEY_B64` — base64 `.p8` key content.
 
-The job imports signing material into an ephemeral runner keychain, validates the profile team/application identifier, installs CocoaPods through the same pinned model-staging path used by normal iOS builds, archives a Release build, and exports one IPA.
+The job installs the Apple Distribution identity/profile from Match, installs CocoaPods through the same pinned model-staging path used by normal iOS builds, archives a Release build, and exports one IPA.
 
-The archive command explicitly pins the store bundle ID `com.micrantha.eyespie`. The exported app signature is verified and its signed entitlements are inspected. Validation fails closed unless:
+The archive command explicitly pins the store bundle ID `com.micrantha.eyespie` and uses the profile supplied by Match. The exported app signature is verified and its signed entitlements are inspected. Validation fails closed unless:
 
 - bundle ID, marketing version, and build number match the candidate;
 - `EyespieMediaPipeTasksVersion` matches the candidate;
@@ -69,7 +95,13 @@ The bounded summary records those safe signing identifiers plus the IPA SHA-256 
 
 ## Fastlane scope
 
-Fastlane is deliberately upload-only. The workflow pins Fastlane `2.235.0`; no versioning plugins, `match`, semantic-version mutation, backend configuration, app login credentials, git tagging, metadata submission, or production-track promotion are restored.
+Fastlane is used for:
+
+- read-only Apple certificate/profile synchronization through Match on CI;
+- upload of an already-validated AAB to Play Internal;
+- upload of an already-validated IPA to TestFlight.
+
+The workflow pins Fastlane `2.235.0`. Match uses a separate private encrypted repository and does not alter candidate source/version metadata. No semantic-version mutation, backend configuration, app login credentials, git tagging, metadata submission, or production-track promotion is restored.
 
 Fastlane usage telemetry is explicitly disabled for these jobs.
 
@@ -87,9 +119,9 @@ Safe job-summary evidence is limited to:
 - final artifact SHA-256 values;
 - intended internal channel.
 
-Never add keystore/certificate/profile contents, API keys, passwords, Apple/Google private account payloads, private filesystem paths, user images, embeddings, clues/answers, `.eyespie` payloads, or environment dumps to release evidence.
+Never add keystore/certificate/profile contents, Match passphrases/private deploy keys, API keys, passwords, Apple/Google private account payloads, private filesystem paths, user images, embeddings, clues/answers, `.eyespie` payloads, or environment dumps to release evidence.
 
-Signing material is written only under runner-temporary/private locations and removed in `always()` cleanup steps. GitHub Actions logs and artifacts are not a credential transport.
+Signing material is written only under runner-temporary/private locations. GitHub Actions logs and artifacts are not a credential transport.
 
 ## Running
 
