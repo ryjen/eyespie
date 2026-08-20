@@ -146,7 +146,6 @@ kotlin {
             implementation(libs.mediapipe.tasks.vision)
             implementation(libs.mediapipe.tasks.genai)
             implementation(libs.sqldelight.android.driver)
-            implementation("com.google.android.play:asset-delivery:2.3.0")
         }
         iosMain.dependencies {
             implementation(libs.sqldelight.native.driver)
