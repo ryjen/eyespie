@@ -176,8 +176,9 @@ jobs:
           APK="$(find eyespie/build/outputs/apk/release -maxdepth 1 -type f -name '*.apk' -print -quit)"
           AAB="$(find eyespie/build/outputs/bundle/release -maxdepth 1 -type f -name '*.aab' -print -quit)"
           "$APKSIGNER" verify "$APK"
-          SIGNER_SHA256="$("$APKSIGNER" verify --print-certs "$APK" | sed -n 's/^Signer #1 certificate SHA-256 digest: //p' | head -n 1 | tr '[:upper:]' '[:lower:]')"
-          [[ "$SIGNER_SHA256" =~ ^[0-9a-f]{64}$ ]] || { echo "signed APK did not expose one SHA-256 signer certificate digest" >&2; exit 1; }
+          CERT_INFO="$("$APKSIGNER" verify --print-certs "$APK")"
+          SIGNER_SHA256="$(printf '%s\n' "$CERT_INFO" | awk '/^Signer .* certificate SHA-256 digest:/ { sub(/^.*digest:[[:space:]]*/, ""); print; exit }' | tr -d '[:space:]:' | tr '[:upper:]' '[:lower:]')"
+          [[ "$SIGNER_SHA256" =~ ^[0-9a-f]{64}$ ]] || { echo "signed APK did not expose one parseable SHA-256 signer certificate digest" >&2; exit 1; }
           export PACKAGE_ID VERSION_NAME VERSION_CODE PERMISSIONS_FILE SIGNER_SHA256
           PACKAGE_ID="$("$APKANALYZER" manifest application-id "$APK")"
           VERSION_NAME="$("$APKANALYZER" manifest version-name "$APK")"
