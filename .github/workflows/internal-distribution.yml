@@ -176,9 +176,14 @@ jobs:
           APK="$(find eyespie/build/outputs/apk/release -maxdepth 1 -type f -name '*.apk' -print -quit)"
           AAB="$(find eyespie/build/outputs/bundle/release -maxdepth 1 -type f -name '*.aab' -print -quit)"
           "$APKSIGNER" verify "$APK"
-          CERT_INFO="$("$APKSIGNER" verify --print-certs "$APK")"
-          SIGNER_SHA256="$(printf '%s\n' "$CERT_INFO" | awk '/^Signer .* certificate SHA-256 digest:/ { sub(/^.*digest:[[:space:]]*/, ""); print; exit }' | tr -d '[:space:]:' | tr '[:upper:]' '[:lower:]')"
-          [[ "$SIGNER_SHA256" =~ ^[0-9a-f]{64}$ ]] || { echo "signed APK did not expose one parseable SHA-256 signer certificate digest" >&2; exit 1; }
+          CERT_PEM="$RUNNER_TEMP/android-signer-cert.pem"
+          "$APKSIGNER" verify --print-certs-pem "$APK" \
+            | awk '/-----BEGIN CERTIFICATE-----/ { capture=1 } capture { print } /-----END CERTIFICATE-----/ { exit }' \
+            > "$CERT_PEM"
+          grep -q '^-----BEGIN CERTIFICATE-----$' "$CERT_PEM"
+          grep -q '^-----END CERTIFICATE-----$' "$CERT_PEM"
+          SIGNER_SHA256="$(openssl x509 -in "$CERT_PEM" -outform DER | openssl dgst -sha256 -binary | xxd -p -c 256 | tr -d '\n' | tr '[:upper:]' '[:lower:]')"
+          [[ "$SIGNER_SHA256" =~ ^[0-9a-f]{64}$ ]] || { echo "signed APK certificate did not hash to one SHA-256 digest" >&2; exit 1; }
           export PACKAGE_ID VERSION_NAME VERSION_CODE PERMISSIONS_FILE SIGNER_SHA256
           PACKAGE_ID="$("$APKANALYZER" manifest application-id "$APK")"
           VERSION_NAME="$("$APKANALYZER" manifest version-name "$APK")"
@@ -233,7 +238,8 @@ jobs:
           rm -f "$RUNNER_TEMP/eyespie-release.jks" \
             "$RUNNER_TEMP/google-play.json" \
             "$RUNNER_TEMP/mobile-signing-deploy-key" \
-            "$RUNNER_TEMP/github-known-hosts"
+            "$RUNNER_TEMP/github-known-hosts" \
+            "$RUNNER_TEMP/android-signer-cert.pem"
           rm -rf "$RUNNER_TEMP/mobile-signing-android"
           rm -f "$HOME/.gradle/gradle.properties"
 
