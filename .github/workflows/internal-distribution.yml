@@ -32,7 +32,7 @@ env:
   MOBILE_SIGNING_REPO: "git@github.com:ryjen/mobile-signing.git"
   ANDROID_SIGNING_BRANCH: "android/com.micrantha.eyespie"
   IOS_BUNDLE_ID: "com.micrantha.eyespie"
-  IOS_TEAM_ID: "FKL5L3E8N8"
+  IOS_TEAM_ID: FKL5L3E8N8
 
 concurrency:
   group: eyespie-internal-distribution-${{ inputs.source_sha }}-${{ inputs.platform }}
@@ -45,6 +45,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 45
     environment: closed-alpha-internal
+    permissions:
+      contents: write
     env:
       SOURCE_SHA: ${{ inputs.source_sha }}
     steps:
@@ -209,13 +211,25 @@ jobs:
             --apk "$APK" \
             --aab "$AAB" \
             --output "$RUNNER_TEMP/android-release-evidence.json"
+          printf 'apk=%s\n' "$APK" >> "$GITHUB_OUTPUT"
           printf 'aab=%s\n' "$AAB" >> "$GITHUB_OUTPUT"
+          printf 'evidence=%s\n' "$RUNNER_TEMP/android-release-evidence.json" >> "$GITHUB_OUTPUT"
           {
             echo '### Android internal candidate evidence'
             echo '```json'
             cat "$RUNNER_TEMP/android-release-evidence.json"
             echo '```'
           } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Retain validated Android candidate outside Actions artifact storage
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          APK: ${{ steps.android-artifact.outputs.apk }}
+          AAB: ${{ steps.android-artifact.outputs.aab }}
+          EVIDENCE: ${{ steps.android-artifact.outputs.evidence }}
+          CANDIDATE: ${{ runner.temp }}/candidate.json
+        run: bash scripts/retain_internal_candidate.sh
 
       - name: Upload validated AAB to Play internal
         if: inputs.publish
@@ -239,8 +253,12 @@ jobs:
             "$RUNNER_TEMP/google-play.json" \
             "$RUNNER_TEMP/mobile-signing-deploy-key" \
             "$RUNNER_TEMP/github-known-hosts" \
-            "$RUNNER_TEMP/android-signer-cert.pem"
-          rm -rf "$RUNNER_TEMP/mobile-signing-android"
+            "$RUNNER_TEMP/android-signer-cert.pem" \
+            "$RUNNER_TEMP/android-release-evidence.json" \
+            "$RUNNER_TEMP/android-metadata.json" \
+            "$RUNNER_TEMP/candidate.json"
+          rm -rf "$RUNNER_TEMP/mobile-signing-android" \
+            "$RUNNER_TEMP"/closed-alpha-android-*
           rm -f "$HOME/.gradle/gradle.properties"
 
   ios:

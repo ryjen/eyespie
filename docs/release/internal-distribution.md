@@ -53,6 +53,14 @@ The job builds both release APK and AAB with Gradle signing injection. It verifi
 
 The bounded evidence summary records only candidate/source identity, package/version/build, signer-certificate SHA-256, permission names, APK/AAB SHA-256 values, and the `play-internal` channel. `publish=true` uploads the already-validated AAB to the Play internal track through the pinned Fastlane version.
 
+After validation succeeds, the Android job also retains the **exact validated APK and AAB** for physical qualification without using GitHub Actions artifact storage. It creates or refreshes a SHA-bound draft GitHub Release with tag:
+
+```text
+closed-alpha/android/<40-character-source-sha>
+```
+
+The draft contains the APK, AAB, `candidate.json`, bounded `release-evidence.json`, and `SHA256SUMS`. The retention step refuses to overwrite a non-draft release. The tag/release is qualification plumbing only: it is not a semantic version tag, public product release, Play publication, or production promotion. See `docs/release/candidate-retention.md` for the storage boundary and the optional R2/Dubnium-local alternatives.
+
 ## iOS
 
 iOS signing identities are managed with Fastlane Match in the private shared repository `ryjen/mobile-signing`.
@@ -110,7 +118,7 @@ Fastlane is used for:
 - upload of an already-validated AAB to Play Internal;
 - upload of an already-validated IPA to TestFlight.
 
-The workflow pins Fastlane `2.235.0`. Match uses a separate private encrypted repository and does not alter candidate source/version metadata. No semantic-version mutation, backend configuration, app login credentials, git tagging, metadata submission, or production-track promotion is restored.
+The workflow pins Fastlane `2.235.0`. Match uses a separate private encrypted repository and does not alter candidate source/version metadata. Fastlane performs no semantic-version mutation, backend configuration, app login configuration, metadata submission, or production-track promotion. The separate Android candidate-retention step does create a `closed-alpha/android/<source-sha>` draft-release tag solely to retain the exact qualified binary outside Actions artifact storage.
 
 Fastlane usage telemetry is explicitly disabled for these jobs.
 
@@ -129,7 +137,7 @@ Safe job-summary evidence is limited to:
 - final artifact SHA-256 values;
 - intended internal channel.
 
-Never add keystore/certificate/profile contents, age private identities, Match passphrases/private deploy keys, API keys, passwords, Apple/Google private account payloads, private filesystem paths, user images, embeddings, clues/answers, `.eyespie` payloads, or environment dumps to release evidence.
+Never add keystore/certificate/profile contents, age private identities, Match passphrases/private deploy keys, API keys, passwords, Apple/Google private account payloads, private filesystem paths, user images, embeddings, clues/answers, `.eyespie` payloads, or environment dumps to release evidence or retained candidate releases.
 
 Signing material is written only under runner-temporary/private locations. GitHub Actions logs and artifacts are not a credential transport.
 
@@ -142,7 +150,7 @@ From the GitHub Actions **Internal distribution** workflow, choose:
 - `publish=false` to build/validate signed candidates without store upload;
 - `publish=true` to upload only after validation succeeds.
 
-For #91/#92/#125, record the workflow run and bounded evidence summary with the physical-device session. The installed build must have the same version/build and originate from the same candidate SHA. Physical behavior/network observations remain separate evidence.
+For Android, a successful protected run records the SHA-bound draft Release in the job summary. For physical #91/#92/#125 qualification, install the retained APK rather than rebuilding it locally when possible, and record the workflow run plus bounded evidence with the physical-device session. The installed build must have the same version/build and originate from the same candidate SHA. Physical behavior/network observations remain separate evidence.
 
 ## Re-verification triggers
 
