@@ -163,23 +163,27 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          command -v apkanalyzer >/dev/null
-          command -v apksigner >/dev/null
+          test -n "${ANDROID_HOME:-}" || { echo "ANDROID_HOME is not configured on the runner" >&2; exit 1; }
+          APKANALYZER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name apkanalyzer -perm -u+x -print 2>/dev/null | sort -V | tail -n 1)"
+          APKSIGNER="$(find "$ANDROID_HOME/build-tools" -maxdepth 2 -type f -name apksigner -perm -u+x -print 2>/dev/null | sort -V | tail -n 1)"
+          test -n "$APKANALYZER" || { echo "apkanalyzer was not found under ANDROID_HOME/cmdline-tools" >&2; exit 1; }
+          test -n "$APKSIGNER" || { echo "apksigner was not found under ANDROID_HOME/build-tools" >&2; exit 1; }
+
           APK_COUNT="$(find eyespie/build/outputs/apk/release -maxdepth 1 -type f -name '*.apk' -print | wc -l | tr -d ' ')"
           AAB_COUNT="$(find eyespie/build/outputs/bundle/release -maxdepth 1 -type f -name '*.aab' -print | wc -l | tr -d ' ')"
-          test "$APK_COUNT" = "1"
-          test "$AAB_COUNT" = "1"
+          test "$APK_COUNT" = "1" || { echo "expected exactly one release APK; found $APK_COUNT" >&2; exit 1; }
+          test "$AAB_COUNT" = "1" || { echo "expected exactly one release AAB; found $AAB_COUNT" >&2; exit 1; }
           APK="$(find eyespie/build/outputs/apk/release -maxdepth 1 -type f -name '*.apk' -print -quit)"
           AAB="$(find eyespie/build/outputs/bundle/release -maxdepth 1 -type f -name '*.aab' -print -quit)"
-          apksigner verify "$APK"
-          SIGNER_SHA256="$(apksigner verify --print-certs "$APK" | sed -n 's/^Signer #1 certificate SHA-256 digest: //p' | head -n 1 | tr '[:upper:]' '[:lower:]')"
-          [[ "$SIGNER_SHA256" =~ ^[0-9a-f]{64}$ ]]
+          "$APKSIGNER" verify "$APK"
+          SIGNER_SHA256="$("$APKSIGNER" verify --print-certs "$APK" | sed -n 's/^Signer #1 certificate SHA-256 digest: //p' | head -n 1 | tr '[:upper:]' '[:lower:]')"
+          [[ "$SIGNER_SHA256" =~ ^[0-9a-f]{64}$ ]] || { echo "signed APK did not expose one SHA-256 signer certificate digest" >&2; exit 1; }
           export PACKAGE_ID VERSION_NAME VERSION_CODE PERMISSIONS_FILE SIGNER_SHA256
-          PACKAGE_ID="$(apkanalyzer manifest application-id "$APK")"
-          VERSION_NAME="$(apkanalyzer manifest version-name "$APK")"
-          VERSION_CODE="$(apkanalyzer manifest version-code "$APK")"
+          PACKAGE_ID="$("$APKANALYZER" manifest application-id "$APK")"
+          VERSION_NAME="$("$APKANALYZER" manifest version-name "$APK")"
+          VERSION_CODE="$("$APKANALYZER" manifest version-code "$APK")"
           PERMISSIONS_FILE="$RUNNER_TEMP/android-permissions.txt"
-          apkanalyzer manifest permissions "$APK" > "$PERMISSIONS_FILE"
+          "$APKANALYZER" manifest permissions "$APK" > "$PERMISSIONS_FILE"
           python3 - <<'PY'
           import json, os
           from pathlib import Path
