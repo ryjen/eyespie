@@ -15,4 +15,13 @@ run = """
 python3 scripts/release_candidate_identity.py verify
 python3 -m unittest discover -s scripts/tests -p 'test_*.py'
 ./gradlew :app:testDebugUnitTest :app:assembleDebug :app:assembleDebugAndroidTest --no-daemon --stacktrace
+APKANALYZER="$(find "$ANDROID_HOME/cmdline-tools" -type f -name apkanalyzer -perm -u+x -print 2>/dev/null | sort -V | tail -n 1)"
+test -n "$APKANALYZER" || { echo "apkanalyzer was not found under ANDROID_HOME/cmdline-tools" >&2; exit 1; }
+APK_COUNT="$(find eyespie/build/outputs/apk/debug -maxdepth 1 -type f -name '*.apk' -print | wc -l | tr -d ' ')"
+test "$APK_COUNT" = "1" || { echo "expected exactly one debug APK; found $APK_COUNT" >&2; exit 1; }
+APK="$(find eyespie/build/outputs/apk/debug -maxdepth 1 -type f -name '*.apk' -print -quit)"
+if "$APKANALYZER" manifest permissions "$APK" | grep -Fxq 'android.permission.INTERNET'; then
+  echo "Android offline-core artifact unexpectedly requests INTERNET" >&2
+  exit 1
+fi
 """
