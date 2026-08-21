@@ -12,7 +12,11 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
+import kotlinx.coroutines.CompletableDeferred
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.test.StandardTestDispatcher
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 
@@ -47,6 +51,35 @@ class CreateGameFeatureTest {
         assertEquals(1, port.creates)
         assertEquals(CreateGameState(), interactor.state.value)
     }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun cancelling_route_scope_prevents_stale_completion_output() = runTest {
+        val result = CompletableDeferred<LocalGameResult<CreatedGame>>()
+        val port = object : CreateGamePort {
+            override suspend fun create(
+                name: String,
+                clueText: String,
+                expectedAnswer: String,
+                targetImage: CapturedImage,
+            ): LocalGameResult<CreatedGame> = result.await()
+        }
+        val routeJob = Job()
+        val routeScope = CoroutineScope(StandardTestDispatcher(testScheduler) + routeJob)
+        val outputs = mutableListOf<CreateGameOutput>()
+        val interactor = CreateGameFactory(port, outputs::add).create(routeScope)
+        interactor.dispatch(CreateGameIntent.NameChanged("Trip"))
+        interactor.dispatch(CreateGameIntent.ClueChanged("Find it"))
+        interactor.dispatch(CreateGameIntent.ExpectedAnswerChanged("it"))
+        interactor.dispatch(CreateGameIntent.TargetCaptured(testImage()))
+        advanceUntilIdle()
+
+        routeJob.cancel()
+        result.complete(LocalGameResult.Success(createdGame()))
+        advanceUntilIdle()
+
+        assertTrue(outputs.isEmpty())
+    }
 }
 
 private class FakeCreatePort : CreateGamePort {
@@ -59,10 +92,18 @@ private class FakeCreatePort : CreateGamePort {
         targetImage: CapturedImage,
     ): LocalGameResult<CreatedGame> {
         creates += 1
-        val clue = when (val authored = ClueAuthority.manual(clueText, expectedAnswer)) {
-            is ClueAuthoringResult.Accepted -> authored.authority.playable()
-            is ClueAuthoringResult.Rejected -> error("fixture clue rejected")
-        }
-        return LocalGameResult.Success(CreatedGame(testGameId, testThingId, name, clue))
+        return LocalGameResult.Success(createdGame(name, clueText, expectedAnswer))
     }
+}
+
+private fun createdGame(
+    name: String = "Trip",
+    clueText: String = "Find it",
+    expectedAnswer: String = "it",
+): CreatedGame {
+    val clue = when (val authored = ClueAuthority.manual(clueText, expectedAnswer)) {
+        is ClueAuthoringResult.Accepted -> authored.authority.playable()
+        is ClueAuthoringResult.Rejected -> error("fixture clue rejected")
+    }
+    return CreatedGame(testGameId, testThingId, name, clue)
 }
