@@ -1,156 +1,205 @@
 # MVI Presentation Architecture
 
-Eyespie uses the same unidirectional presentation model established in Achillea, adapted to Kotlin Multiplatform and Compose.
+Eyespie uses the feature-level MVI interactor model established in Achillea, adapted to Kotlin Multiplatform and Compose. The pre-backendless Eyespie branch provides historical precedent for feature-owned state machines and ScreenModel-style orchestration; the current backendless/local-authoritative runtime remains the implementation boundary below presentation.
 
-## Decision
-
-For interactive features, the canonical presentation contract is:
+## Core contract
 
 ```text
-View --dispatch(Intent)--> Interactor --reduce--> immutable State
-                            |
-                            +--induce--> use cases / domain / platform boundary
-                                           |
-                                           +--dispatch(result Intent)--> State
+Intent -> Interactor -> Reducer -> immutable State
+          |
+          +-> induced work through feature-owned ports
+          |
+          +-> semantic feature Output
 ```
 
-- **State** is immutable feature presentation state.
-- **Intent** is a typed user or system event.
-- **Reducer** is pure and synchronous: `(State, Intent) -> State`.
-- **Interactor** owns dispatch. It reduces first, then induces asynchronous work, IO, or navigation.
-- **Use cases/domain services** perform application/domain operations behind injected interfaces.
-- **Compose views** render passed state and dispatch intents. They do not call repositories, persistence, or `LocalGameLoop` directly.
-- **StateFlow** is the KMP state container used by interactors.
+- `State` is immutable, lightweight presentation state.
+- `Intent` is a typed user/system event entering the feature.
+- `Reducer` is pure and synchronous: `(State, Intent) -> State`.
+- `Interactor` always reduces first, then induces asynchronous work or emits a semantic output.
+- `Port` is an interface owned by the consuming feature and implemented by the app/runtime adapter.
+- `Output` is a semantic feature event; it never contains an app route.
+- `StateFlow` is the common KMP state container.
 
-This is the Kotlin/Compose equivalent of Achillea ADR-0003's `State + Intent + Reducer + Interactor` model.
-
-The boundary is **feature-level**, not one global application store. Feature interactors own Home, Onboarding, Create Game, Play Game, and future feature state independently.
-
-## App layer: navigation and dependency injection
-
-`features/app` is the application composition boundary.
-
-`AppGraph` is the single composition root for presentation dependencies. It owns:
-
-- construction of feature interactors;
-- injection of `AppGameUseCases` and coroutine scope;
-- cross-feature callbacks such as snapshot adoption and home failure reporting;
-- creation of route-specific Play interactors from the current authoritative Home snapshot.
-
-`AppNavigator` owns application route state as `StateFlow<AppScreen>`. Feature interactors receive navigation as an injected capability; Compose does not mutate route state directly.
-
-`App.kt` constructs one `AppGraph` from `EyespieRuntime`, observes graph state, and renders the selected route. Rendering helpers live separately from the composition root.
+## Dependency direction
 
 ```text
-EyespieRuntime
-     |
-     v
-  AppGraph -----------------> AppNavigator / AppScreen
-     |
-     +-- HomeInteractor
-     +-- OnboardingInteractor
-     +-- CreateGameInteractor
-     +-- PlayGameInteractor(route)
-     |
-     +-- AppGameUseCases --> LocalGameLoop
+app -> feature contracts + feature factories/routes
+feature -> domain/core + feature-owned port
+runtime adapter -> feature-owned ports
+
+feature -X-> features.app
+feature -X-> another feature
 ```
 
-No second DI container or service locator is introduced. Tests may replace injected interfaces directly by constructing `AppGraph` with fakes.
+The app may know all features. Features do not know application navigation, application DI, or other features.
 
-## Historical Eyespie precedent
+## Route / Screen invariant
 
-The pre-backendless branch at `archive/pre-backendless-reboot-2026-08-15` already organized presentation logic by feature and used reducers/state machines in addition to `UiState`, actions, `StateFlow`, ScreenModels, and use cases.
-
-The old onboarding feature is a particularly useful precedent: `OnboardingState` was feature-scoped and `OnboardingReducer` guarded asynchronous capability results with `requestInFlight` and previous-state checks so stale completions could not overwrite newer state. The new architecture preserves that state-machine discipline while deliberately not restoring the old GenAI download, cloud, Kodein, or Voyager assumptions.
-
-The rebooted onboarding feature is a concrete local-first MVI slice for Welcome, Create, and Play guidance only. It does not perform account creation, model download, remote capability provisioning, or permission requests. Because the rebooted core does not yet persist first-run completion, onboarding is explicitly reachable from Home as **How to play** rather than pretending to be a durable show-once startup flow.
-
-## Current feature topology
+Every interactive feature has a higher-order route and a pure screen.
 
 ```text
-AppGraph / AppNavigator
-    |
-    +-- HomeInteractor --------> HomeState
-    |       +-- load/adopt local snapshot
-    |
-    +-- OnboardingInteractor --> OnboardingState
-    |       +-- local product-guidance state machine
-    |
-    +-- CreateGameInteractor --> CreateGameState
-    |       +-- create local game
-    |       +-- refresh/adopt snapshot
-    |
-    +-- PlayGameInteractor ----> PlayGameState
-            +-- local guess/match
-            +-- refresh/adopt snapshot
+AppRoute
+   |
+   v
+FeatureRoute
+   |-- creates route-scoped interactor through FeatureFactory
+   |-- owns route CoroutineScope lifetime
+   |-- collects StateFlow
+   v
+FeatureScreen(state, dispatch)
 ```
 
-Home/Onboarding/Create/Play do not share one mutable feature state object.
+A feature screen receives exactly two parameters:
 
-## Boundaries
+```kotlin
+@Composable
+fun CreateGameScreen(
+    state: CreateGameState,
+    dispatch: (CreateGameIntent) -> Unit,
+)
+```
 
-The MVI layer does not become game authority. Existing backendless boundaries remain authoritative:
+Screens do not receive or resolve navigators, repositories, ports, factories, coroutine scopes, app graphs, or domain/application services. Platform UI surfaces such as camera preview/capture may live inside a screen but may only return bounded values by dispatching intents.
+
+The route is responsible for interactor initialization and state binding. Route-owned coroutine scopes are cancelled when the route leaves composition, releasing feature work and retained state.
+
+## Feature file layout
+
+Prefer one concern per file:
+
+```text
+features/<feature>/
+├── <Feature>State.kt
+├── <Feature>Intent.kt
+├── <Feature>Output.kt
+├── <Feature>Port.kt
+├── <Feature>Reducer.kt
+├── <Feature>Interactor.kt
+├── <Feature>Factory.kt
+├── <Feature>Route.kt
+└── <Feature>Screen.kt
+```
+
+Feature-specific presentation failure types may be separate files as needed.
+
+## App layer
+
+`features/app` owns application composition and route translation, split by responsibility:
+
+```text
+features/app/
+├── AppRoute.kt
+├── AppNavigator.kt
+├── StateFlowAppNavigator.kt
+├── AppCoordinator.kt
+├── AppGraph.kt
+├── AppGraphFactory.kt
+└── RuntimeAdapters.kt
+```
+
+- `AppRoute` defines implemented application destinations.
+- `AppNavigator` owns application route state only.
+- `AppCoordinator` translates feature outputs into app routes.
+- `AppGraph` contains already-composed factories/navigation, not process-lifetime feature interactors.
+- `AppGraphFactory` is the composition root.
+- `RuntimeAdapters` implement feature-owned ports over `EyespieRuntime`/`LocalGameLoop`.
+
+No service locator or DI/navigation framework is required for this topology.
+
+## Routing and product mockups
+
+The product route-map direction comes from `docs/design/eyespie-app-mockups/` and #220. The board covers onboarding, game list/detail, create/clue authoring, signed share/export, import, play/camera, progress, and profile/settings.
+
+Only implemented destinations belong in `AppRoute`; do not add dead placeholder screens merely to mirror the board. Future destinations must follow the same feature-output -> `AppCoordinator` -> `AppRoute` direction.
+
+Keep routing coarse-grained. Transient variants such as import preview/success/conflict/invalid should normally remain one feature's state unless they require distinct back-stack/lifecycle semantics.
+
+The mockups are UX direction, not authority/security overrides. Their documented corrections for document import, non-mutating conflicts, and signed-bundle privacy/provenance remain binding.
+
+## Performance and memory
+
+Presentation architecture is also a lifetime/allocation boundary.
+
+### Object lifetime
+
+Application lifetime:
+
+- navigator;
+- coordinator;
+- runtime adapter(s);
+- feature factories.
+
+Route lifetime:
+
+- feature interactor;
+- feature `StateFlow`;
+- route coroutine jobs;
+- transient capture/operation closures.
+
+Do not eagerly retain every feature interactor for process lifetime.
+
+### Heavy values
+
+Camera frames, decoded images, `CapturedImage`, embeddings, model/session handles, and other large/native values must not be retained in long-lived presentation state.
+
+A capture may enter as an intent and be held only by the induced operation while it is running. Reducers store lightweight flags/results instead.
+
+### Presentation state sizing
+
+State contains exactly what the screen needs. Prefer IDs and small presentation models over carrying domain aggregates or duplicate whole-app snapshots.
+
+Current implementation follows this by:
+
+- mapping Home's runtime snapshot into `HomeContent`;
+- initializing Play from `GameId`/`ThingId` and loading a small `PlayGameContent`;
+- using `GuessOutcome.progress` directly after a guess rather than reloading/adopting the entire Home snapshot;
+- returning Home to an independent refresh on route entry after Create/Play.
+
+Whole-snapshot reloads remain acceptable at the runtime boundary for alpha, but should not become cross-feature presentation synchronization. If data volume grows, prefer narrow queries/events rather than rebuilding duplicate presentation graphs after every operation.
+
+## Backendless authority boundary
+
+MVI does not become game authority:
 
 - SQLDelight owns persisted local game/progress state.
-- `LocalGameLoop` owns game orchestration and matching operations.
-- platform implementations own camera/native lifecycle and return bounded `CapturedImage` values.
-- MediaPipe remains behind the image-embedding boundary.
+- `LocalGameLoop` owns game orchestration and matching.
+- MediaPipe remains behind embedding boundaries.
+- platform implementations own camera/native lifecycle.
 - cryptographic identity remains platform-backed.
 
-Presentation interactors consume those capabilities; they do not duplicate them.
+Runtime adapters translate those capabilities into feature-owned ports; features do not duplicate authority.
 
-## Rules
+## Test triangle
 
-1. Each interactive feature defines its own immutable `State`, sealed/typed `Intent`, pure `Reducer`, and `Interactor`.
-2. Do not grow one global application reducer/interactor containing unrelated feature state.
-3. `features/app` owns navigation and presentation DI/composition.
-4. Compose must not construct feature interactors individually or mutate route state directly.
-5. Reducers contain no coroutine, IO, clock, random, repository, camera, model, navigation, or persistence calls.
-6. Dispatch reduces state before induced work starts.
-7. Async work and navigation are induced by the feature interactor through injected capabilities/callback boundaries.
-8. Results return through typed intents and are reduced like user intents.
-9. Views receive state plus a dispatch function and remain render-only apart from platform UI surfaces such as camera preview/capture.
-10. Async completion must remain observable. A successful primary operation followed by a failed refresh must preserve the primary result and surface the refresh failure rather than silently retaining stale state.
-11. Stale async results must be rejected or correlated when a feature can issue overlapping operations.
-12. New presentation state-management or DI patterns require an explicit architecture decision rather than growing alongside MVI.
+Every interactive feature has three test sides:
 
-## Feature test triangle
+1. **Reducer** — deterministic `State + Intent -> State` transitions.
+2. **Interactor through feature factory** — behavior/effects using fake feature-owned ports; tests do not recreate production constructor wiring manually.
+3. **Screen** — render/interaction coverage against the pure two-parameter screen; user interaction emits the expected intent and rendered output derives only from state.
 
-Every interactive feature maintains the same three-sided unit-test contract:
+App tests are separate:
 
-```text
-              Feature
-             /       \
-        Reducer       App wiring
-          |              |
- pure State+Intent   DI + navigation
-          \              /
-            Interactor
-          behavior/effects
-```
+- `AppCoordinator` output -> route translation;
+- navigator behavior;
+- `AppGraphFactory` composition from replaceable ports;
+- production runtime-adapter wiring where useful.
 
-### 1. Reducer
+Feature unit tests do not depend on the global `AppGraph`.
 
-Test deterministic `State + Intent -> State` transitions directly. These tests have no DI, coroutines, navigation, or runtime dependencies.
+## Architecture enforcement
 
-### 2. Interactor through DI
+The following are architectural failures:
 
-Interactor tests resolve the production feature instance from `AppGraph` using fake injected capabilities. Tests must not manually recreate production constructor wiring. This catches broken dependency composition while retaining unit-test speed and determinism.
+- a feature source importing `features.app`;
+- a feature importing another feature;
+- a pure screen with parameters other than `state` and `dispatch`;
+- a screen resolving DI/navigation/services;
+- a feature interactor depending on `AppRoute`/`AppNavigator`;
+- heavy/native capture/model values stored in long-lived state;
+- route-scoped work launched into an application-lifetime scope.
 
-### 3. App wiring/navigation
-
-Verify routing and cross-feature propagation through `AppGraph`/`AppNavigator`: Home -> Create, Home -> Onboarding, Play -> Home, snapshot adoption, retained-state reset, and route-specific Play construction.
-
-This triangle applies to **Home, Onboarding, Create Game, Play Game, and every future interactive feature**.
-
-Additional testing rules:
-
-- use controlled coroutine test scopes for induced work;
-- explicitly test partial-success cases such as successful guess + failed snapshot refresh;
-- test stale-result protection wherever operations may overlap;
-- domain/persistence keep their existing unit/integration coverage;
-- view/UI tests, when added, assert emitted intents and rendered state rather than bypassing MVI to assert domain side effects.
+These rules should be enforced with lightweight static checks in addition to code review.
 
 ## Non-goals
 
-This decision does not restore the old feature graph, Kodein graph, Voyager graph, Supabase dependencies, remote repositories, GenAI onboarding requirements, or vendored Bluebell runtime. Reusable Bluebell/community abstractions may be adopted separately only when they fit the current backendless architecture.
+This architecture does not restore the old Kodein/Voyager/Supabase feature graph, add Koin/Hilt/Decompose, or change SQLDelight/MediaPipe/identity authority. Framework adoption requires a demonstrated complexity need and a separate architecture decision.
