@@ -13,6 +13,7 @@ import com.micrantha.eyespie.imaging.CapturedImage
 
 sealed interface AppScreen {
     data object Home : AppScreen
+    data object Onboarding : AppScreen
     data object Create : AppScreen
     data class Play(val gameId: GameId, val thingId: ThingId) : AppScreen
 }
