@@ -44,7 +44,7 @@ object OnboardingReducer : Reducer<OnboardingState, OnboardingIntent> {
             },
         )
         OnboardingIntent.Done,
-        OnboardingIntent.Back -> state
+        OnboardingIntent.Back -> OnboardingState()
     }
 }
 
