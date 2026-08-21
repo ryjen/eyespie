@@ -21,7 +21,7 @@ import com.micrantha.eyespie.features.play.PlayGameContent
 import com.micrantha.eyespie.features.play.PlayGameIntent
 import com.micrantha.eyespie.features.play.PlayGameScreen
 import com.micrantha.eyespie.features.play.PlayGameState
-import kotlin.test.assertEquals
+import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
