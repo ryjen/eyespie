@@ -63,6 +63,7 @@ fun App(runtime: EyespieRuntime) {
             scope = scope,
             navigate = { screen = it },
             adoptSnapshot = { homeInteractor.dispatch(HomeIntent.AdoptSnapshot(it)) },
+            reportHomeFailure = { homeInteractor.dispatch(HomeIntent.OperationFailed(it)) },
         )
     }
     val createState by createInteractor.state.collectAsState()
