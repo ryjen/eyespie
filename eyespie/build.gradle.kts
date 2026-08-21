@@ -160,9 +160,14 @@ kotlin {
             dependencies {
                 implementation(libs.androidx.test.junit)
                 implementation(libs.junit)
+                implementation(libs.androidx.ui.test.junit4)
             }
         }
     }
+}
+
+dependencies {
+    debugImplementation(libs.androidx.ui.test.manifest)
 }
 
 sqldelight {
