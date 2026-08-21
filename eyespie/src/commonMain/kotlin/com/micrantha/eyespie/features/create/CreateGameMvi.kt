@@ -57,6 +57,7 @@ class CreateGameInteractor(
     private val scope: CoroutineScope,
     private val navigate: (AppScreen) -> Unit,
     private val adoptSnapshot: (LocalGameSnapshot) -> Unit,
+    private val reportHomeFailure: (LocalGameFailure) -> Unit,
     initialState: CreateGameState = CreateGameState(),
 ) : Interactor<CreateGameState, CreateGameIntent> {
     private val mutableState = MutableStateFlow(initialState)
@@ -81,9 +82,11 @@ class CreateGameInteractor(
                             dispatch(CreateGameIntent.Created)
                             navigate(AppScreen.Home)
                         }
-                        is LocalGameResult.Failure -> dispatch(
-                            CreateGameIntent.OperationFailed(snapshot.failure),
-                        )
+                        is LocalGameResult.Failure -> {
+                            dispatch(CreateGameIntent.Created)
+                            reportHomeFailure(snapshot.failure)
+                            navigate(AppScreen.Home)
+                        }
                     }
                     is LocalGameResult.Failure -> dispatch(CreateGameIntent.OperationFailed(result.failure))
                 }
