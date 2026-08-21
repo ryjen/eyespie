@@ -1,5 +1,6 @@
 package com.micrantha.eyespie.features.app
 
+import com.micrantha.eyespie.game.LocalGameSnapshot
 import com.micrantha.eyespie.mvi.Reducer
 
 object AppReducer : Reducer<AppState, AppIntent> {
@@ -9,16 +10,22 @@ object AppReducer : Reducer<AppState, AppIntent> {
             screen = AppScreen.Home,
             failure = null,
             busy = false,
+            playGame = null,
+            playThing = null,
             latestOutcome = null,
         )
         AppIntent.NavigateCreate -> state.copy(
             screen = AppScreen.Create,
             failure = null,
             busy = false,
+            playGame = null,
+            playThing = null,
             latestOutcome = null,
         )
-        is AppIntent.NavigatePlay -> state.copy(
+        is AppIntent.NavigatePlay -> state.selectPlayTarget(
             screen = AppScreen.Play(intent.gameId, intent.thingId),
+            snapshot = state.snapshot,
+        ).copy(
             failure = null,
             busy = false,
             latestOutcome = null,
@@ -38,8 +45,7 @@ object AppReducer : Reducer<AppState, AppIntent> {
         is AppIntent.CreateTargetCaptured -> state.copy(busy = true, failure = null)
         is AppIntent.GuessCaptured -> state.copy(busy = true, failure = null)
 
-        is AppIntent.SnapshotLoaded -> state.copy(
-            snapshot = intent.snapshot,
+        is AppIntent.SnapshotLoaded -> state.withSnapshot(intent.snapshot).copy(
             loading = false,
             failure = null,
         )
@@ -55,14 +61,37 @@ object AppReducer : Reducer<AppState, AppIntent> {
             busy = false,
             failure = null,
             createForm = CreateGameFormState(),
+            playGame = null,
+            playThing = null,
             latestOutcome = null,
         )
-        is AppIntent.GuessCompleted -> state.copy(
-            snapshot = intent.snapshot ?: state.snapshot,
-            loading = false,
-            busy = false,
-            failure = null,
-            latestOutcome = intent.outcome,
-        )
+        is AppIntent.GuessCompleted -> {
+            val refreshed = intent.snapshot?.let(state::withSnapshot) ?: state
+            refreshed.copy(
+                loading = false,
+                busy = false,
+                failure = null,
+                latestOutcome = intent.outcome,
+            )
+        }
     }
+}
+
+private fun AppState.withSnapshot(snapshot: LocalGameSnapshot): AppState = when (val current = screen) {
+    is AppScreen.Play -> selectPlayTarget(current, snapshot)
+    else -> copy(snapshot = snapshot)
+}
+
+private fun AppState.selectPlayTarget(
+    screen: AppScreen.Play,
+    snapshot: LocalGameSnapshot?,
+): AppState {
+    val game = snapshot?.games?.firstOrNull { it.id == screen.gameId }
+    val thing = game?.things?.firstOrNull { it.id == screen.thingId }
+    return copy(
+        snapshot = snapshot,
+        screen = screen,
+        playGame = game,
+        playThing = thing,
+    )
 }
