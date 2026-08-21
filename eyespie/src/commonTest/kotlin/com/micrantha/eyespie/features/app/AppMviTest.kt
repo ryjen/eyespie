@@ -1,5 +1,6 @@
 package com.micrantha.eyespie.features.app
 
+import com.micrantha.eyespie.clue.ClueAuthority
 import com.micrantha.eyespie.core.GameId
 import com.micrantha.eyespie.core.MatchResult
 import com.micrantha.eyespie.core.PlayerId
@@ -25,7 +26,6 @@ import com.micrantha.eyespie.game.LocalGameSnapshot
 import com.micrantha.eyespie.game.LocalGameSummary
 import com.micrantha.eyespie.game.PlayableThingSummary
 import com.micrantha.eyespie.imaging.CapturedImage
-import com.micrantha.eyespie.clue.ClueAuthority
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -47,12 +47,34 @@ class AppMviTest {
     }
 
     @Test
+    fun create_back_resets_retained_feature_state() {
+        val edited = CreateGameState(name = "Trip", clue = "Find it", expectedAnswer = "it")
+        assertEquals(CreateGameState(), CreateGameReducer.reduce(edited, CreateGameIntent.Back))
+    }
+
+    @Test
     fun home_reducer_adopts_external_snapshot_without_side_effects() {
         val snapshot = snapshot()
         val next = HomeReducer.reduce(HomeState(), HomeIntent.AdoptSnapshot(snapshot))
 
         assertEquals(snapshot, next.snapshot)
         assertFalse(next.loading)
+    }
+
+    @Test
+    fun home_reducer_rejects_refresh_completion_older_than_adopted_snapshot() {
+        val stale = snapshot("Stale")
+        val adopted = snapshot("Current")
+        val refreshing = HomeReducer.reduce(HomeState(snapshot = stale), HomeIntent.Refresh)
+        val generation = refreshing.refreshGeneration
+        val current = HomeReducer.reduce(refreshing, HomeIntent.AdoptSnapshot(adopted))
+        val completedLate = HomeReducer.reduce(
+            current,
+            HomeIntent.SnapshotLoaded(generation, stale),
+        )
+
+        assertEquals(adopted, completedLate.snapshot)
+        assertEquals(current.refreshGeneration, completedLate.refreshGeneration)
     }
 
     @Test
@@ -97,8 +119,8 @@ class AppMviTest {
         assertEquals(1, useCases.loadCount)
     }
 
-    private fun snapshot() = LocalGameSnapshot(
-        identity = PlayerIdentity(PlayerId("player-1"), "Agent"),
+    private fun snapshot(displayName: String = "Agent") = LocalGameSnapshot(
+        identity = PlayerIdentity(PlayerId("player-1"), displayName),
         games = emptyList(),
     )
 
