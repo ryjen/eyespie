@@ -1,14 +1,31 @@
 package com.micrantha.eyespie.features.app
 
 import com.micrantha.eyespie.core.GameId
+import com.micrantha.eyespie.core.MatchResult
 import com.micrantha.eyespie.core.PlayerId
 import com.micrantha.eyespie.core.PlayerIdentity
 import com.micrantha.eyespie.core.ThingId
+import com.micrantha.eyespie.core.ThingProgress
+import com.micrantha.eyespie.features.create.CreateGameIntent
+import com.micrantha.eyespie.features.create.CreateGameReducer
+import com.micrantha.eyespie.features.create.CreateGameState
+import com.micrantha.eyespie.features.home.HomeIntent
+import com.micrantha.eyespie.features.home.HomeInteractor
+import com.micrantha.eyespie.features.home.HomeReducer
+import com.micrantha.eyespie.features.home.HomeState
+import com.micrantha.eyespie.features.play.PlayGameIntent
+import com.micrantha.eyespie.features.play.PlayGameReducer
+import com.micrantha.eyespie.features.play.PlayGameState
 import com.micrantha.eyespie.game.CreatedGame
 import com.micrantha.eyespie.game.GuessOutcome
+import com.micrantha.eyespie.game.LocalGameFailure
+import com.micrantha.eyespie.game.LocalGameFailureCode
 import com.micrantha.eyespie.game.LocalGameResult
 import com.micrantha.eyespie.game.LocalGameSnapshot
+import com.micrantha.eyespie.game.LocalGameSummary
+import com.micrantha.eyespie.game.PlayableThingSummary
 import com.micrantha.eyespie.imaging.CapturedImage
+import com.micrantha.eyespie.clue.ClueAuthority
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -19,44 +36,58 @@ import kotlinx.coroutines.test.runTest
 
 class AppMviTest {
     @Test
-    fun reducer_keeps_form_state_immutable_and_typed() {
-        val initial = AppState()
-        val named = AppReducer.reduce(initial, AppIntent.CreateNameChanged("Trip"))
-        val clued = AppReducer.reduce(named, AppIntent.CreateClueChanged("Find the red door"))
+    fun create_reducer_keeps_form_state_immutable() {
+        val initial = CreateGameState()
+        val named = CreateGameReducer.reduce(initial, CreateGameIntent.NameChanged("Trip"))
+        val clued = CreateGameReducer.reduce(named, CreateGameIntent.ClueChanged("Find the red door"))
 
-        assertEquals("", initial.createForm.name)
-        assertEquals("Trip", named.createForm.name)
-        assertEquals("Find the red door", clued.createForm.clue)
+        assertEquals("", initial.name)
+        assertEquals("Trip", named.name)
+        assertEquals("Find the red door", clued.clue)
     }
 
     @Test
-    fun reducer_derives_selected_play_target_from_snapshot() {
+    fun home_reducer_adopts_external_snapshot_without_side_effects() {
+        val snapshot = snapshot()
+        val next = HomeReducer.reduce(HomeState(), HomeIntent.AdoptSnapshot(snapshot))
+
+        assertEquals(snapshot, next.snapshot)
+        assertFalse(next.loading)
+    }
+
+    @Test
+    fun play_reducer_preserves_successful_guess_when_refresh_fails() {
         val gameId = GameId("game-1")
         val thingId = ThingId("thing-1")
-        val snapshot = LocalGameSnapshot(
-            identity = PlayerIdentity(PlayerId("player-1"), "Agent"),
-            games = emptyList(),
+        val thing = playableThing(gameId, thingId)
+        val game = LocalGameSummary(gameId, "Trip", listOf(thing))
+        val outcome = GuessOutcome(
+            gameId = gameId,
+            thingId = thingId,
+            clue = thing.clue,
+            match = MatchResult(similarity = 0.9, matched = true),
+            progress = thing.progress!!,
         )
-        val state = AppState(snapshot = snapshot, loading = false)
+        val failure = LocalGameFailure(LocalGameFailureCode.PERSISTENCE_FAILED)
 
-        val next = AppReducer.reduce(state, AppIntent.NavigatePlay(gameId, thingId))
+        val next = PlayGameReducer.reduce(
+            PlayGameState(game = game, thing = thing, busy = true),
+            PlayGameIntent.GuessCompletedWithRefreshFailure(outcome, failure),
+        )
 
-        assertIs<AppScreen.Play>(next.screen)
-        assertEquals(null, next.playGame)
-        assertEquals(null, next.playThing)
+        assertEquals(outcome, next.latestOutcome)
+        assertFalse(next.busy)
+        assertIs<AppFailure.Game>(next.failure)
     }
 
     @OptIn(ExperimentalCoroutinesApi::class)
     @Test
-    fun interactor_reduces_before_inducing_refresh() = runTest {
-        val snapshot = LocalGameSnapshot(
-            identity = PlayerIdentity(PlayerId("player-1"), "Agent"),
-            games = emptyList(),
-        )
+    fun home_interactor_reduces_before_inducing_refresh() = runTest {
+        val snapshot = snapshot()
         val useCases = FakeAppGameUseCases(snapshot)
-        val interactor = AppInteractor(useCases, backgroundScope)
+        val interactor = HomeInteractor(useCases, backgroundScope, navigate = {})
 
-        interactor.dispatch(AppIntent.Refresh)
+        interactor.dispatch(HomeIntent.Refresh)
         assertEquals(true, interactor.state.value.loading)
 
         advanceUntilIdle()
@@ -64,6 +95,31 @@ class AppMviTest {
         assertFalse(interactor.state.value.loading)
         assertEquals(snapshot, interactor.state.value.snapshot)
         assertEquals(1, useCases.loadCount)
+    }
+
+    private fun snapshot() = LocalGameSnapshot(
+        identity = PlayerIdentity(PlayerId("player-1"), "Agent"),
+        games = emptyList(),
+    )
+
+    private fun playableThing(gameId: GameId, thingId: ThingId): PlayableThingSummary {
+        val playerId = PlayerId("player-1")
+        return PlayableThingSummary(
+            id = thingId,
+            clue = ClueAuthority.manual("Find it", "it").let { authored ->
+                when (authored) {
+                    is com.micrantha.eyespie.clue.ClueAuthoringResult.Accepted -> authored.authority.playable()
+                    is com.micrantha.eyespie.clue.ClueAuthoringResult.Rejected -> error("fixture clue rejected")
+                }
+            },
+            progress = ThingProgress(
+                gameId = gameId,
+                thingId = thingId,
+                playerId = playerId,
+                matched = true,
+                bestSimilarity = 0.9,
+            ),
+        )
     }
 }
 
