@@ -4,7 +4,7 @@ This directory is the canonical home for Eyespie UX and product-design material.
 
 ## Current design direction
 
-- [`eyespie-app-mockups/`](eyespie-app-mockups/) — current whole-app local-mode UX mockups and implementation constraints for #220.
+- [`eyespie-app-mockups/`](eyespie-app-mockups/) — current whole-app local-mode UX mockups and implementation constraints for #220. These supersede the former top-level `design/mockups.png` board.
 
 ## Historical concepts
 
@@ -18,7 +18,8 @@ Historical files:
 - [`legacy/features.md`](legacy/features.md)
 - [`legacy/workflow.md`](legacy/workflow.md)
 - [`legacy/enhancements.md`](legacy/enhancements.md)
-- [`legacy/mockups.png`](legacy/mockups.png)
+
+The old `design/mockups.png` is intentionally not retained because it has been superseded by the current whole-app mockups.
 
 ## Documentation boundary
 
