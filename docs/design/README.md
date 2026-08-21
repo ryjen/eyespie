@@ -6,18 +6,16 @@ This directory is the canonical home for Eyespie UX and product-design material.
 
 - [`eyespie-app-mockups/`](eyespie-app-mockups/) — current whole-app local-mode UX mockups and implementation constraints for #220. These supersede the former top-level `design/mockups.png` board.
 
-## Historical concepts
+## Design notes
 
-The former top-level `design/` directory pre-dates the backendless/local-authoritative reboot and is retained under [`legacy/`](legacy/) for product-history reference only.
+The following documents were moved from the former top-level `design/` directory into this canonical location:
 
-Those documents include account/login, challenge feeds, leaderboards, sync, geo-fencing, seasonal rewards, and other concepts that are **not current alpha architecture or implementation commitments**. Do not use them to override the current architecture, issues, ADRs, or the mockup implementation notes.
+- [`overview.md`](overview.md)
+- [`features.md`](features.md)
+- [`workflow.md`](workflow.md)
+- [`enhancements.md`](enhancements.md)
 
-Historical files:
-
-- [`legacy/overview.md`](legacy/overview.md)
-- [`legacy/features.md`](legacy/features.md)
-- [`legacy/workflow.md`](legacy/workflow.md)
-- [`legacy/enhancements.md`](legacy/enhancements.md)
+Some of their concepts pre-date the backendless/local-authoritative reboot and include account/login, challenge feeds, leaderboards, sync, geo-fencing, seasonal rewards, and other ideas that are **not current alpha architecture or implementation commitments**. Treat them as product/design exploration unless reaffirmed by current architecture, issues, ADRs, or implementation notes.
 
 The old `design/mockups.png` is intentionally not retained because it has been superseded by the current whole-app mockups.
 
