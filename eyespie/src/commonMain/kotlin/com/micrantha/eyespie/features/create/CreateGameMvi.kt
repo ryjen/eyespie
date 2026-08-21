@@ -43,7 +43,7 @@ object CreateGameReducer : Reducer<CreateGameState, CreateGameIntent> {
         is CreateGameIntent.TargetCaptured -> state.copy(busy = true, failure = null)
         CreateGameIntent.CameraFailed -> state.copy(failure = AppFailure.CameraUnavailable)
         CreateGameIntent.DismissFailure -> state.copy(failure = null)
-        CreateGameIntent.Back -> state
+        CreateGameIntent.Back,
         CreateGameIntent.Created -> CreateGameState()
         is CreateGameIntent.OperationFailed -> state.copy(
             busy = false,
