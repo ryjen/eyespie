@@ -39,6 +39,10 @@ import com.micrantha.eyespie.features.create.CreateGameState
 import com.micrantha.eyespie.features.home.HomeIntent
 import com.micrantha.eyespie.features.home.HomeInteractor
 import com.micrantha.eyespie.features.home.HomeState
+import com.micrantha.eyespie.features.onboarding.OnboardingIntent
+import com.micrantha.eyespie.features.onboarding.OnboardingInteractor
+import com.micrantha.eyespie.features.onboarding.OnboardingPage
+import com.micrantha.eyespie.features.onboarding.OnboardingState
 import com.micrantha.eyespie.features.play.PlayGameIntent
 import com.micrantha.eyespie.features.play.PlayGameInteractor
 import com.micrantha.eyespie.features.play.PlayGameState
@@ -56,6 +60,11 @@ fun App(runtime: EyespieRuntime) {
         HomeInteractor(useCases, scope, navigate = { screen = it })
     }
     val homeState by homeInteractor.state.collectAsState()
+
+    val onboardingInteractor = remember {
+        OnboardingInteractor(navigate = { screen = it })
+    }
+    val onboardingState by onboardingInteractor.state.collectAsState()
 
     val createInteractor = remember(useCases, scope, homeInteractor) {
         CreateGameInteractor(
@@ -84,6 +93,10 @@ fun App(runtime: EyespieRuntime) {
                 Column(modifier = Modifier.fillMaxWidth().weight(1f)) {
                     when (val current = screen) {
                         AppScreen.Home -> HomeView(homeState, homeInteractor::dispatch)
+                        AppScreen.Onboarding -> OnboardingView(
+                            onboardingState,
+                            onboardingInteractor::dispatch,
+                        )
                         AppScreen.Create -> CreateGameView(createState, createInteractor::dispatch)
                         is AppScreen.Play -> {
                             val game = homeState.snapshot?.games?.firstOrNull { it.id == current.gameId }
@@ -157,6 +170,7 @@ private fun HomeView(state: HomeState, dispatch: (HomeIntent) -> Unit) {
 
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Button(onClick = { dispatch(HomeIntent.CreateSelected) }) { Text("Create game") }
+            OutlinedButton(onClick = { dispatch(HomeIntent.OnboardingSelected) }) { Text("How to play") }
             OutlinedButton(onClick = { dispatch(HomeIntent.Refresh) }) { Text("Refresh") }
         }
 
@@ -187,6 +201,44 @@ private fun HomeView(state: HomeState, dispatch: (HomeIntent) -> Unit) {
                 ) { Text("Play") }
                 Spacer(Modifier.height(8.dp))
             }
+        }
+    }
+}
+
+@Composable
+private fun OnboardingView(
+    state: OnboardingState,
+    dispatch: (OnboardingIntent) -> Unit,
+) {
+    Column(
+        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        when (state.page) {
+            OnboardingPage.Welcome -> {
+                Text("Welcome, agent", style = MaterialTheme.typography.titleLarge)
+                Text("Eyespie is an offline travel-spy game. One player creates a visual target and clue; another tries to find and match it with the camera.")
+            }
+            OnboardingPage.Create -> {
+                Text("Create a mission", style = MaterialTheme.typography.titleLarge)
+                Text("Choose a game name, write a clue and creator-only expected answer, then capture the target. The image is converted to a local embedding rather than stored as game authority.")
+            }
+            OnboardingPage.Play -> {
+                Text("Find the target", style = MaterialTheme.typography.titleLarge)
+                Text("Open a local game, follow the clue, and capture a guess. Matching runs locally against the target embedding and progress stays on this device.")
+            }
+        }
+
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            if (state.page != OnboardingPage.Welcome) {
+                OutlinedButton(onClick = { dispatch(OnboardingIntent.Previous) }) { Text("Previous") }
+            }
+            if (state.page != OnboardingPage.Play) {
+                Button(onClick = { dispatch(OnboardingIntent.Next) }) { Text("Next") }
+            } else {
+                Button(onClick = { dispatch(OnboardingIntent.Done) }) { Text("Done") }
+            }
+            OutlinedButton(onClick = { dispatch(OnboardingIntent.Back) }) { Text("Back") }
         }
     }
 }
