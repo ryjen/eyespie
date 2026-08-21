@@ -104,12 +104,16 @@ class AppInteractor(
                             guessImage = intent.image,
                         )
                     ) {
-                        is LocalGameResult.Success -> {
-                            val refreshed = when (val snapshot = useCases.loadSnapshot()) {
-                                is LocalGameResult.Success -> snapshot.value
-                                is LocalGameResult.Failure -> null
-                            }
-                            dispatch(AppIntent.GuessCompleted(result.value, refreshed))
+                        is LocalGameResult.Success -> when (val snapshot = useCases.loadSnapshot()) {
+                            is LocalGameResult.Success -> dispatch(
+                                AppIntent.GuessCompleted(result.value, snapshot.value),
+                            )
+                            is LocalGameResult.Failure -> dispatch(
+                                AppIntent.GuessCompletedWithRefreshFailure(
+                                    outcome = result.value,
+                                    failure = snapshot.failure,
+                                ),
+                            )
                         }
                         is LocalGameResult.Failure -> dispatch(AppIntent.OperationFailed(result.failure))
                     }
