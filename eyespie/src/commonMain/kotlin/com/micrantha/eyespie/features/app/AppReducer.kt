@@ -65,15 +65,18 @@ object AppReducer : Reducer<AppState, AppIntent> {
             playThing = null,
             latestOutcome = null,
         )
-        is AppIntent.GuessCompleted -> {
-            val refreshed = intent.snapshot?.let(state::withSnapshot) ?: state
-            refreshed.copy(
-                loading = false,
-                busy = false,
-                failure = null,
-                latestOutcome = intent.outcome,
-            )
-        }
+        is AppIntent.GuessCompleted -> state.withSnapshot(intent.snapshot).copy(
+            loading = false,
+            busy = false,
+            failure = null,
+            latestOutcome = intent.outcome,
+        )
+        is AppIntent.GuessCompletedWithRefreshFailure -> state.copy(
+            loading = false,
+            busy = false,
+            failure = AppFailure.Game(intent.failure),
+            latestOutcome = intent.outcome,
+        )
     }
 }
 
