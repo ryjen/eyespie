@@ -17,14 +17,14 @@ View --dispatch(Intent)--> Interactor --reduce--> immutable State
 - **State** is immutable feature presentation state.
 - **Intent** is a typed user or system event.
 - **Reducer** is pure and synchronous: `(State, Intent) -> State`.
-- **Interactor** owns dispatch. It reduces first, then induces asynchronous work or IO.
+- **Interactor** owns dispatch. It reduces first, then induces asynchronous work, IO, or navigation.
 - **Use cases/domain services** perform application/domain operations behind injected interfaces.
 - **Compose views** render passed state and dispatch intents. They do not call repositories, persistence, or `LocalGameLoop` directly.
 - **StateFlow** is the KMP state container used by interactors.
 
 This is the Kotlin/Compose equivalent of Achillea ADR-0003's `State + Intent + Reducer + Interactor` model.
 
-The boundary is **feature-level**, not one global application store. The app shell owns composition/routing; feature interactors own Home, Create Game, Play Game, Onboarding, and future feature state independently.
+The boundary is **feature-level**, not one global application store. The app shell owns composition/routing; feature interactors own Home, Onboarding, Create Game, Play Game, and future feature state independently.
 
 ## Historical Eyespie precedent
 
@@ -32,29 +32,33 @@ The pre-backendless branch at `archive/pre-backendless-reboot-2026-08-15` alread
 
 The old onboarding feature is a particularly useful precedent: `OnboardingState` was feature-scoped and `OnboardingReducer` guarded asynchronous capability results with `requestInFlight` and previous-state checks so stale completions could not overwrite newer state. The new architecture preserves that state-machine discipline while deliberately not restoring the old GenAI download, cloud, Kodein, or Voyager assumptions.
 
-A future local-first onboarding flow should therefore be its own `OnboardingState` / `OnboardingIntent` / `OnboardingReducer` / `OnboardingInteractor` feature. It should model only current first-run concerns (for example contextual permissions or local capability readiness) and must not make remote accounts or model downloads prerequisites for core play.
+The rebooted onboarding feature is now a concrete local-first MVI slice for product guidance. It models Welcome, Create, and Play pages only. It does not perform account creation, model download, remote capability provisioning, or permission requests. Because the rebooted core does not yet persist first-run completion, onboarding is explicitly reachable from Home as **How to play** rather than pretending to be a durable show-once startup flow. A future local preference may select it as the initial route without changing the feature contract.
 
 ## Current feature topology
 
 ```text
 App shell / route composition
     |
-    +-- HomeInteractor ------> HomeState
+    +-- HomeInteractor --------> HomeState
     |       |
     |       +-- load/adopt local snapshot
     |
-    +-- CreateGameInteractor -> CreateGameState
+    +-- OnboardingInteractor --> OnboardingState
+    |       |
+    |       +-- local product-guidance state machine
+    |
+    +-- CreateGameInteractor --> CreateGameState
     |       |
     |       +-- create local game
     |       +-- refresh/adopt snapshot
     |
-    +-- PlayGameInteractor --> PlayGameState
+    +-- PlayGameInteractor ----> PlayGameState
             |
             +-- local guess/match
             +-- refresh/adopt snapshot
 ```
 
-Home/Create/Play share only narrow application use-case contracts. They do not share one mutable feature state object.
+Home/Onboarding/Create/Play do not share one mutable feature state object.
 
 ## Boundaries
 
@@ -85,7 +89,7 @@ Presentation interactors consume those capabilities; they do not duplicate them.
 ## Testing
 
 - reducers: deterministic transition tests;
-- interactors: reduce-before-induce and side-effect/result transition tests with fake injected use cases;
+- interactors: prove reduce-before-induce with an initial state that makes the synchronous transition observable and a controlled coroutine scope;
 - explicitly test partial-success cases such as successful guess + failed snapshot refresh;
 - test stale-result protection wherever operations may overlap;
 - domain/persistence: continue existing unit/integration coverage;
