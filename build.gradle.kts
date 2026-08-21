@@ -16,6 +16,64 @@ plugins {
     alias(libs.plugins.cyclonedx)
 }
 
+val verifyFeatureBoundaries by tasks.registering {
+    group = "verification"
+    description = "Enforce clean feature dependencies and the two-parameter screen contract."
+
+    val featuresRoot = rootProject.file(
+        "eyespie/src/commonMain/kotlin/com/micrantha/eyespie/features",
+    )
+    inputs.dir(featuresRoot)
+
+    doLast {
+        val violations = mutableListOf<String>()
+        val featureDirs = featuresRoot.listFiles { file -> file.isDirectory }?.toList().orEmpty()
+        val featureNames = featureDirs.map { it.name }.toSet()
+
+        featureDirs.filter { it.name != "app" }.forEach { featureDir ->
+            featureDir.walkTopDown().filter { it.isFile && it.extension == "kt" }.forEach { source ->
+                source.readLines().filter { it.startsWith("import com.micrantha.eyespie.features.") }
+                    .forEach { importLine ->
+                        val importedFeature = importLine
+                            .removePrefix("import com.micrantha.eyespie.features.")
+                            .substringBefore('.')
+                        if (importedFeature in featureNames && importedFeature != featureDir.name) {
+                            violations += "${source.relativeTo(rootProject.projectDir)} imports feature '$importedFeature'"
+                        }
+                    }
+            }
+
+            featureDir.listFiles { file -> file.isFile && file.name.endsWith("Screen.kt") }
+                ?.forEach { screenFile ->
+                    val source = screenFile.readText()
+                    val signature = Regex(
+                        "fun\\s+\\w+Screen\\s*\\((.*?)\\)\\s*\\{",
+                        setOf(RegexOption.DOT_MATCHES_ALL),
+                    ).find(source)?.groupValues?.get(1)
+                    if (signature == null) {
+                        violations += "${screenFile.relativeTo(rootProject.projectDir)} has no parseable Screen signature"
+                    } else {
+                        val parameters = signature.lines()
+                            .map(String::trim)
+                            .filter { it.isNotBlank() }
+                            .map { it.removeSuffix(",") }
+                        if (
+                            parameters.size != 2 ||
+                            !parameters[0].startsWith("state:") ||
+                            !parameters[1].startsWith("dispatch:")
+                        ) {
+                            violations += "${screenFile.relativeTo(rootProject.projectDir)} must accept exactly state + dispatch"
+                        }
+                    }
+                }
+        }
+
+        check(violations.isEmpty()) {
+            "Feature architecture violations:\n${violations.joinToString("\n") { "- $it" }}"
+        }
+    }
+}
+
 allprojects {
     tasks.cyclonedxDirectBom {
         enabled = project.path == ":app"
@@ -49,6 +107,10 @@ project(":app") {
         includeBuildSystem = true
         jsonOutput.set(rootProject.layout.buildDirectory.file("reports/sbom/eyespie-gradle.cdx.json"))
         xmlOutput.unsetConvention()
+    }
+
+    tasks.matching { it.name == "preBuild" }.configureEach {
+        dependsOn(rootProject.tasks.named("verifyFeatureBoundaries"))
     }
 
     plugins.withId("com.android.application") {
