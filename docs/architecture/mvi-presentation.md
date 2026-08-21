@@ -22,7 +22,39 @@ View --dispatch(Intent)--> Interactor --reduce--> immutable State
 - **Compose views** render passed state and dispatch intents. They do not call repositories, persistence, or `LocalGameLoop` directly.
 - **StateFlow** is the KMP state container used by interactors.
 
-This is the Kotlin/Compose equivalent of Achillea ADR-0003's `State + Intent + Reducer + Interactor` model. The pre-backendless Eyespie branch also used the same underlying unidirectional model through `UiState`, actions, `StateFlow`, and ScreenModels; this decision recovers that useful presentation boundary without restoring the retired cloud architecture.
+This is the Kotlin/Compose equivalent of Achillea ADR-0003's `State + Intent + Reducer + Interactor` model.
+
+The boundary is **feature-level**, not one global application store. The app shell owns composition/routing; feature interactors own Home, Create Game, Play Game, Onboarding, and future feature state independently.
+
+## Historical Eyespie precedent
+
+The pre-backendless branch at `archive/pre-backendless-reboot-2026-08-15` already organized presentation logic by feature and used reducers/state machines in addition to `UiState`, actions, `StateFlow`, ScreenModels, and use cases.
+
+The old onboarding feature is a particularly useful precedent: `OnboardingState` was feature-scoped and `OnboardingReducer` guarded asynchronous capability results with `requestInFlight` and previous-state checks so stale completions could not overwrite newer state. The new architecture preserves that state-machine discipline while deliberately not restoring the old GenAI download, cloud, Kodein, or Voyager assumptions.
+
+A future local-first onboarding flow should therefore be its own `OnboardingState` / `OnboardingIntent` / `OnboardingReducer` / `OnboardingInteractor` feature. It should model only current first-run concerns (for example contextual permissions or local capability readiness) and must not make remote accounts or model downloads prerequisites for core play.
+
+## Current feature topology
+
+```text
+App shell / route composition
+    |
+    +-- HomeInteractor ------> HomeState
+    |       |
+    |       +-- load/adopt local snapshot
+    |
+    +-- CreateGameInteractor -> CreateGameState
+    |       |
+    |       +-- create local game
+    |       +-- refresh/adopt snapshot
+    |
+    +-- PlayGameInteractor --> PlayGameState
+            |
+            +-- local guess/match
+            +-- refresh/adopt snapshot
+```
+
+Home/Create/Play share only narrow application use-case contracts. They do not share one mutable feature state object.
 
 ## Boundaries
 
@@ -34,27 +66,31 @@ The MVI layer does not become game authority. Existing backendless boundaries re
 - MediaPipe remains behind the image-embedding boundary.
 - cryptographic identity remains platform-backed.
 
-The presentation interactor consumes those capabilities; it does not duplicate them.
+Presentation interactors consume those capabilities; they do not duplicate them.
 
 ## Rules
 
-1. A feature defines immutable `State` and sealed/typed `Intent` values.
-2. Reducers contain no coroutine, IO, clock, random, repository, camera, model, or persistence calls.
-3. Dispatch reduces state before induced work starts.
-4. Async work is induced by the interactor through injected use cases/services.
-5. Results return through typed intents and are reduced like user intents.
-6. Views receive state plus a dispatch function and remain render-only apart from platform UI surfaces such as camera preview/capture.
-7. Platform UI callbacks may wrap native results into bounded common values and dispatch them; business operations still occur behind the interactor.
-8. Derived presentation selections needed by a view belong in reduced state or injected derivation/use-case logic, not ad-hoc repository traversal in the view.
-9. New presentation state-management patterns require an explicit architecture decision rather than growing alongside MVI.
+1. Each interactive feature defines its own immutable `State`, sealed/typed `Intent`, pure `Reducer`, and `Interactor`.
+2. Do not grow one global application reducer/interactor containing unrelated feature state.
+3. Reducers contain no coroutine, IO, clock, random, repository, camera, model, navigation, or persistence calls.
+4. Dispatch reduces state before induced work starts.
+5. Async work and navigation are induced by the feature interactor through injected capabilities/callback boundaries.
+6. Results return through typed intents and are reduced like user intents.
+7. Views receive state plus a dispatch function and remain render-only apart from platform UI surfaces such as camera preview/capture.
+8. Platform UI callbacks may wrap native results into bounded common values and dispatch them; business operations still occur behind the interactor.
+9. Async completion must remain observable. A successful primary operation followed by a failed refresh must preserve the primary result and surface the refresh failure rather than silently retaining stale state.
+10. Stale async results must be rejected or correlated when a feature can issue overlapping operations; the old onboarding `requestInFlight` pattern is a valid precedent.
+11. New presentation state-management patterns require an explicit architecture decision rather than growing alongside MVI.
 
 ## Testing
 
 - reducers: deterministic transition tests;
 - interactors: reduce-before-induce and side-effect/result transition tests with fake injected use cases;
+- explicitly test partial-success cases such as successful guess + failed snapshot refresh;
+- test stale-result protection wherever operations may overlap;
 - domain/persistence: continue existing unit/integration coverage;
 - views: interaction tests should assert emitted intents rather than domain side effects.
 
 ## Non-goals
 
-This decision does not restore the old feature graph, Kodein graph, Voyager graph, Supabase dependencies, remote repositories, or vendored Bluebell runtime. Reusable Bluebell abstractions may be adopted separately only when they fit the current backendless architecture.
+This decision does not restore the old feature graph, Kodein graph, Voyager graph, Supabase dependencies, remote repositories, GenAI onboarding requirements, or vendored Bluebell runtime. Reusable Bluebell/community abstractions may be adopted separately only when they fit the current backendless architecture.
