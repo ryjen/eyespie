@@ -22,64 +22,92 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.micrantha.eyespie.features.app.AppFailure
-import com.micrantha.eyespie.features.app.AppIntent
-import com.micrantha.eyespie.features.app.AppInteractor
 import com.micrantha.eyespie.features.app.AppScreen
-import com.micrantha.eyespie.features.app.AppState
+import com.micrantha.eyespie.features.app.RuntimeAppGameUseCases
 import com.micrantha.eyespie.features.app.clueFailureMessage
+import com.micrantha.eyespie.features.create.CreateGameIntent
+import com.micrantha.eyespie.features.create.CreateGameInteractor
+import com.micrantha.eyespie.features.create.CreateGameState
+import com.micrantha.eyespie.features.home.HomeIntent
+import com.micrantha.eyespie.features.home.HomeInteractor
+import com.micrantha.eyespie.features.home.HomeState
+import com.micrantha.eyespie.features.play.PlayGameIntent
+import com.micrantha.eyespie.features.play.PlayGameInteractor
+import com.micrantha.eyespie.features.play.PlayGameState
 import com.micrantha.eyespie.game.EyespieRuntime
 import com.micrantha.eyespie.game.LocalGameFailureCode
-import com.micrantha.eyespie.game.LocalGameSnapshot
-import com.micrantha.eyespie.game.LocalGameSummary
-import com.micrantha.eyespie.game.PlayableThingSummary
 import com.micrantha.eyespie.imaging.CameraCapture
 
 @Composable
 fun App(runtime: EyespieRuntime) {
     val scope = rememberCoroutineScope()
-    val interactor = remember(runtime, scope) { AppInteractor(runtime, scope) }
-    val state by interactor.state.collectAsState()
+    val useCases = remember(runtime) { RuntimeAppGameUseCases(runtime) }
+    var screen by remember { mutableStateOf<AppScreen>(AppScreen.Home) }
 
-    LaunchedEffect(interactor) {
-        interactor.dispatch(AppIntent.Refresh)
+    val homeInteractor = remember(useCases, scope) {
+        HomeInteractor(useCases, scope, navigate = { screen = it })
+    }
+    val homeState by homeInteractor.state.collectAsState()
+
+    val createInteractor = remember(useCases, scope, homeInteractor) {
+        CreateGameInteractor(
+            useCases = useCases,
+            scope = scope,
+            navigate = { screen = it },
+            adoptSnapshot = { homeInteractor.dispatch(HomeIntent.AdoptSnapshot(it)) },
+        )
+    }
+    val createState by createInteractor.state.collectAsState()
+
+    LaunchedEffect(homeInteractor) {
+        homeInteractor.dispatch(HomeIntent.Refresh)
     }
 
     MaterialTheme {
         Surface(modifier = Modifier.fillMaxSize()) {
-            AppView(state = state, dispatch = interactor::dispatch)
-        }
-    }
-}
+            Column(
+                modifier = Modifier.fillMaxSize().padding(20.dp),
+                verticalArrangement = Arrangement.spacedBy(12.dp),
+            ) {
+                Text("Eyespie", style = MaterialTheme.typography.headlineLarge)
+                Text("Offline travel-spy game", style = MaterialTheme.typography.titleMedium)
 
-@Composable
-private fun AppView(
-    state: AppState,
-    dispatch: (AppIntent) -> Unit,
-) {
-    Column(
-        modifier = Modifier.fillMaxSize().padding(20.dp),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
-    ) {
-        Text("Eyespie", style = MaterialTheme.typography.headlineLarge)
-        Text("Offline travel-spy game", style = MaterialTheme.typography.titleMedium)
-
-        state.failure?.let { FailureBanner(it, dispatch) }
-
-        Column(modifier = Modifier.fillMaxWidth().weight(1f)) {
-            when {
-                state.loading && state.snapshot == null -> {
-                    Spacer(Modifier.height(24.dp))
-                    CircularProgressIndicator()
+                Column(modifier = Modifier.fillMaxWidth().weight(1f)) {
+                    when (val current = screen) {
+                        AppScreen.Home -> HomeView(homeState, homeInteractor::dispatch)
+                        AppScreen.Create -> CreateGameView(createState, createInteractor::dispatch)
+                        is AppScreen.Play -> {
+                            val game = homeState.snapshot?.games?.firstOrNull { it.id == current.gameId }
+                            val thing = game?.things?.firstOrNull { it.id == current.thingId }
+                            if (game == null || thing == null) {
+                                Text("This local game is no longer available.")
+                                Button(onClick = { screen = AppScreen.Home }) { Text("Back") }
+                            } else {
+                                val playInteractor = remember(current, useCases, scope, homeInteractor) {
+                                    PlayGameInteractor(
+                                        useCases = useCases,
+                                        scope = scope,
+                                        navigate = { screen = it },
+                                        adoptSnapshot = {
+                                            homeInteractor.dispatch(HomeIntent.AdoptSnapshot(it))
+                                        },
+                                        initialState = PlayGameState(game = game, thing = thing),
+                                    )
+                                }
+                                val playState by playInteractor.state.collectAsState()
+                                PlayGameView(playState, playInteractor::dispatch)
+                            }
+                        }
+                    }
                 }
-                state.screen == AppScreen.Home -> HomeView(state.snapshot, dispatch)
-                state.screen == AppScreen.Create -> CreateGameView(state, dispatch)
-                state.screen is AppScreen.Play -> PlayGameView(state, dispatch)
             }
         }
     }
@@ -107,31 +135,35 @@ fun AppUnavailable() {
 }
 
 @Composable
-private fun HomeView(
-    snapshot: LocalGameSnapshot?,
-    dispatch: (AppIntent) -> Unit,
-) {
+private fun HomeView(state: HomeState, dispatch: (HomeIntent) -> Unit) {
     Column(
         modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        snapshot?.let {
+        state.failure?.let {
+            FailureBanner(it) { dispatch(HomeIntent.DismissFailure) }
+        }
+        if (state.loading && state.snapshot == null) {
+            Spacer(Modifier.height(24.dp))
+            CircularProgressIndicator()
+            return@Column
+        }
+
+        state.snapshot?.let {
             Text("Local agent: ${it.identity.displayName}", style = MaterialTheme.typography.titleSmall)
             Text("Identity ${it.identity.id.value.takeLast(12)}", style = MaterialTheme.typography.bodySmall)
         }
 
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Button(onClick = { dispatch(AppIntent.NavigateCreate) }) { Text("Create game") }
-            OutlinedButton(onClick = { dispatch(AppIntent.Refresh) }) { Text("Refresh") }
+            Button(onClick = { dispatch(HomeIntent.CreateSelected) }) { Text("Create game") }
+            OutlinedButton(onClick = { dispatch(HomeIntent.Refresh) }) { Text("Refresh") }
         }
 
         HorizontalDivider()
         Text("Local games", style = MaterialTheme.typography.titleLarge)
 
-        val games = snapshot?.games.orEmpty()
-        if (games.isEmpty()) {
-            Text("No games yet. Create a target and clue entirely on this device.")
-        }
+        val games = state.snapshot?.games.orEmpty()
+        if (games.isEmpty()) Text("No games yet. Create a target and clue entirely on this device.")
         games.forEach { game ->
             Text(game.name, style = MaterialTheme.typography.titleMedium)
             if (game.things.isEmpty()) Text("No playable targets in this game.")
@@ -147,9 +179,11 @@ private fun HomeView(
                         style = MaterialTheme.typography.bodySmall,
                     )
                 }
-                OutlinedButton(onClick = { dispatch(AppIntent.NavigatePlay(game.id, thing.id)) }) {
-                    Text("Play")
-                }
+                OutlinedButton(
+                    onClick = {
+                        dispatch(HomeIntent.PlaySelected(AppScreen.Play(game.id, thing.id)))
+                    },
+                ) { Text("Play") }
                 Spacer(Modifier.height(8.dp))
             }
         }
@@ -158,35 +192,37 @@ private fun HomeView(
 
 @Composable
 private fun CreateGameView(
-    state: AppState,
-    dispatch: (AppIntent) -> Unit,
+    state: CreateGameState,
+    dispatch: (CreateGameIntent) -> Unit,
 ) {
-    val form = state.createForm
     Column(
         modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
+        state.failure?.let {
+            FailureBanner(it) { dispatch(CreateGameIntent.DismissFailure) }
+        }
         Text("Create local game", style = MaterialTheme.typography.titleLarge)
         Text("The target image is used to derive an embedding; it is not saved as game authority.")
 
         OutlinedTextField(
-            value = form.name,
-            onValueChange = { dispatch(AppIntent.CreateNameChanged(it)) },
+            value = state.name,
+            onValueChange = { dispatch(CreateGameIntent.NameChanged(it)) },
             modifier = Modifier.fillMaxWidth(),
             label = { Text("Game name") },
             enabled = !state.busy,
             singleLine = true,
         )
         OutlinedTextField(
-            value = form.clue,
-            onValueChange = { dispatch(AppIntent.CreateClueChanged(it)) },
+            value = state.clue,
+            onValueChange = { dispatch(CreateGameIntent.ClueChanged(it)) },
             modifier = Modifier.fillMaxWidth(),
             label = { Text("Clue") },
             enabled = !state.busy,
         )
         OutlinedTextField(
-            value = form.expectedAnswer,
-            onValueChange = { dispatch(AppIntent.CreateExpectedAnswerChanged(it)) },
+            value = state.expectedAnswer,
+            onValueChange = { dispatch(CreateGameIntent.ExpectedAnswerChanged(it)) },
             modifier = Modifier.fillMaxWidth(),
             label = { Text("Expected answer (creator-only)") },
             enabled = !state.busy,
@@ -195,23 +231,21 @@ private fun CreateGameView(
 
         CameraCapture(
             modifier = Modifier.fillMaxWidth().height(280.dp),
-            onCameraError = { dispatch(AppIntent.CameraFailed) },
-            onCaptured = { dispatch(AppIntent.CreateTargetCaptured(it)) },
+            onCameraError = { dispatch(CreateGameIntent.CameraFailed) },
+            onCaptured = { dispatch(CreateGameIntent.TargetCaptured(it)) },
             captureButton = { capture ->
                 Button(
                     onClick = capture,
                     enabled = !state.busy &&
-                        form.name.isNotBlank() &&
-                        form.clue.isNotBlank() &&
-                        form.expectedAnswer.isNotBlank(),
-                ) {
-                    Text(if (state.busy) "Creating…" else "Capture target & create")
-                }
+                        state.name.isNotBlank() &&
+                        state.clue.isNotBlank() &&
+                        state.expectedAnswer.isNotBlank(),
+                ) { Text(if (state.busy) "Creating…" else "Capture target & create") }
             },
         )
 
         OutlinedButton(
-            onClick = { dispatch(AppIntent.NavigateHome) },
+            onClick = { dispatch(CreateGameIntent.Back) },
             enabled = !state.busy,
         ) { Text("Back") }
     }
@@ -219,26 +253,21 @@ private fun CreateGameView(
 
 @Composable
 private fun PlayGameView(
-    state: AppState,
-    dispatch: (AppIntent) -> Unit,
+    state: PlayGameState,
+    dispatch: (PlayGameIntent) -> Unit,
 ) {
-    val game: LocalGameSummary? = state.playGame
-    val thing: PlayableThingSummary? = state.playThing
-    if (game == null || thing == null) {
-        Text("This local game is no longer available.")
-        Button(onClick = { dispatch(AppIntent.NavigateHome) }) { Text("Back") }
-        return
-    }
-
     Column(
         modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        Text(game.name, style = MaterialTheme.typography.titleLarge)
+        state.failure?.let {
+            FailureBanner(it) { dispatch(PlayGameIntent.DismissFailure) }
+        }
+        Text(state.game.name, style = MaterialTheme.typography.titleLarge)
         Text("Clue", style = MaterialTheme.typography.titleSmall)
-        Text(thing.clue.clueText, style = MaterialTheme.typography.headlineSmall)
+        Text(state.thing.clue.clueText, style = MaterialTheme.typography.headlineSmall)
 
-        val progress = state.latestOutcome?.progress ?: thing.progress
+        val progress = state.latestOutcome?.progress ?: state.thing.progress
         progress?.let {
             Text(
                 if (it.matched) {
@@ -262,8 +291,8 @@ private fun PlayGameView(
 
         CameraCapture(
             modifier = Modifier.fillMaxWidth().height(300.dp),
-            onCameraError = { dispatch(AppIntent.CameraFailed) },
-            onCaptured = { dispatch(AppIntent.GuessCaptured(it)) },
+            onCameraError = { dispatch(PlayGameIntent.CameraFailed) },
+            onCaptured = { dispatch(PlayGameIntent.GuessCaptured(it)) },
             captureButton = { capture ->
                 Button(onClick = capture, enabled = !state.busy) {
                     Text(if (state.busy) "Matching…" else "Capture guess")
@@ -272,17 +301,14 @@ private fun PlayGameView(
         )
 
         OutlinedButton(
-            onClick = { dispatch(AppIntent.NavigateHome) },
+            onClick = { dispatch(PlayGameIntent.Back) },
             enabled = !state.busy,
         ) { Text("Back") }
     }
 }
 
 @Composable
-private fun FailureBanner(
-    failure: AppFailure,
-    dispatch: (AppIntent) -> Unit,
-) {
+private fun FailureBanner(failure: AppFailure, onDismiss: () -> Unit) {
     Surface(tonalElevation = 3.dp, modifier = Modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(12.dp),
@@ -294,7 +320,7 @@ private fun FailureBanner(
                 modifier = Modifier.weight(1f),
                 style = MaterialTheme.typography.bodyMedium,
             )
-            OutlinedButton(onClick = { dispatch(AppIntent.DismissFailure) }) { Text("Dismiss") }
+            OutlinedButton(onClick = onDismiss) { Text("Dismiss") }
         }
     }
 }
