@@ -56,7 +56,11 @@ sealed interface AppIntent {
     data class SnapshotLoaded(val snapshot: LocalGameSnapshot) : AppIntent
     data class OperationFailed(val failure: LocalGameFailure) : AppIntent
     data class GameCreated(val snapshot: LocalGameSnapshot) : AppIntent
-    data class GuessCompleted(val outcome: GuessOutcome, val snapshot: LocalGameSnapshot?) : AppIntent
+    data class GuessCompleted(val outcome: GuessOutcome, val snapshot: LocalGameSnapshot) : AppIntent
+    data class GuessCompletedWithRefreshFailure(
+        val outcome: GuessOutcome,
+        val failure: LocalGameFailure,
+    ) : AppIntent
 }
 
 internal fun clueFailureMessage(error: ClueValidationError?): String = when (error) {
