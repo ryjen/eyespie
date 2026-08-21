@@ -179,6 +179,27 @@ java {
     }
 }
 
+val androidImageEmbedderFile = project.file(
+    "src/androidMain/assets/mobilenet_v3_small_100_224_embedder.tflite",
+)
+val stageAndroidImageEmbedderModel by tasks.registering(Exec::class) {
+    workingDir(rootProject.projectDir)
+    commandLine(
+        "python3",
+        "scripts/stage_image_embedder_model.py",
+        "stage",
+        "--target",
+        "android",
+    )
+    inputs.file(rootProject.file("models/image-embedder.json"))
+    inputs.file(rootProject.file("scripts/stage_image_embedder_model.py"))
+    outputs.file(androidImageEmbedderFile)
+}
+
+tasks.matching { it.name == "preBuild" }.configureEach {
+    dependsOn(stageAndroidImageEmbedderModel)
+}
+
 android {
     namespace = "com.micrantha.eyespie"
     compileSdk = libs.versions.android.compileSdk.get().toInt()
@@ -198,6 +219,7 @@ android {
     }
 
     sourceSets["main"].res.srcDirs("src/androidMain/res")
+    sourceSets["main"].assets.srcDirs("src/androidMain/assets")
     sourceSets["androidTest"].assets.srcDir("src/androidInstrumentedTest/assets")
 
     buildFeatures {
