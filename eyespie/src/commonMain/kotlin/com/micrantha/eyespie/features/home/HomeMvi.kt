@@ -24,6 +24,7 @@ data class HomeState(
 sealed interface HomeIntent {
     data object Refresh : HomeIntent
     data object DismissFailure : HomeIntent
+    data object OnboardingSelected : HomeIntent
     data object CreateSelected : HomeIntent
     data class PlaySelected(val screen: AppScreen.Play) : HomeIntent
     data class SnapshotLoaded(
@@ -44,6 +45,7 @@ object HomeReducer : Reducer<HomeState, HomeIntent> {
             refreshGeneration = state.refreshGeneration + 1,
         )
         HomeIntent.DismissFailure -> state.copy(failure = null)
+        HomeIntent.OnboardingSelected,
         HomeIntent.CreateSelected,
         is HomeIntent.PlaySelected -> state
         is HomeIntent.SnapshotLoaded -> if (intent.generation == state.refreshGeneration) {
@@ -101,6 +103,7 @@ class HomeInteractor(
                     }
                 }
             }
+            HomeIntent.OnboardingSelected -> navigate(AppScreen.Onboarding)
             HomeIntent.CreateSelected -> navigate(AppScreen.Create)
             is HomeIntent.PlaySelected -> navigate(intent.screen)
             else -> Unit
