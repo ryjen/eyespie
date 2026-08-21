@@ -19,7 +19,7 @@ fun xcconfigValue(path: String, name: String): String {
 }
 
 val appVersion = xcconfigValue("iosApp/Configuration/Version.xcconfig", "APP_VERSION")
-require(Regex("[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.-]+)?").matches(appVersion)) {
+require(Regex("[0-9]+[.][0-9]+[.][0-9]+(?:-[0-9A-Za-z.-]+)?").matches(appVersion)) {
     "APP_VERSION must be semantic-version shaped"
 }
 val appBuild = xcconfigValue("iosApp/Configuration/Version.xcconfig", "APP_BUILD").toIntOrNull()
@@ -30,7 +30,7 @@ val iosMediaPipeTasksVersion = xcconfigValue(
     "iosApp/Configuration/MediaPipe.xcconfig",
     "IOS_MEDIAPIPE_TASKS_VERSION",
 )
-require(Regex("[0-9]+\.[0-9]+\.[0-9]+(?:\.[0-9]+)?").matches(iosMediaPipeTasksVersion)) {
+require(Regex("[0-9]+[.][0-9]+[.][0-9]+(?:[.][0-9]+)?").matches(iosMediaPipeTasksVersion)) {
     "IOS_MEDIAPIPE_TASKS_VERSION must be numeric-version shaped"
 }
 
