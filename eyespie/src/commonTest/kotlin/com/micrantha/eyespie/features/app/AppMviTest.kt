@@ -14,6 +14,10 @@ import com.micrantha.eyespie.features.home.HomeIntent
 import com.micrantha.eyespie.features.home.HomeInteractor
 import com.micrantha.eyespie.features.home.HomeReducer
 import com.micrantha.eyespie.features.home.HomeState
+import com.micrantha.eyespie.features.onboarding.OnboardingIntent
+import com.micrantha.eyespie.features.onboarding.OnboardingPage
+import com.micrantha.eyespie.features.onboarding.OnboardingReducer
+import com.micrantha.eyespie.features.onboarding.OnboardingState
 import com.micrantha.eyespie.features.play.PlayGameIntent
 import com.micrantha.eyespie.features.play.PlayGameReducer
 import com.micrantha.eyespie.features.play.PlayGameState
@@ -30,6 +34,7 @@ import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertIs
+import kotlin.test.assertTrue
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
@@ -50,6 +55,19 @@ class AppMviTest {
     fun create_back_resets_retained_feature_state() {
         val edited = CreateGameState(name = "Trip", clue = "Find it", expectedAnswer = "it")
         assertEquals(CreateGameState(), CreateGameReducer.reduce(edited, CreateGameIntent.Back))
+    }
+
+    @Test
+    fun onboarding_reducer_moves_between_local_first_pages() {
+        val welcome = OnboardingState()
+        val create = OnboardingReducer.reduce(welcome, OnboardingIntent.Next)
+        val play = OnboardingReducer.reduce(create, OnboardingIntent.Next)
+        val back = OnboardingReducer.reduce(play, OnboardingIntent.Previous)
+
+        assertEquals(OnboardingPage.Welcome, welcome.page)
+        assertEquals(OnboardingPage.Create, create.page)
+        assertEquals(OnboardingPage.Play, play.page)
+        assertEquals(OnboardingPage.Create, back.page)
     }
 
     @Test
@@ -107,10 +125,16 @@ class AppMviTest {
     fun home_interactor_reduces_before_inducing_refresh() = runTest {
         val snapshot = snapshot()
         val useCases = FakeAppGameUseCases(snapshot)
-        val interactor = HomeInteractor(useCases, backgroundScope, navigate = {})
+        val interactor = HomeInteractor(
+            useCases = useCases,
+            scope = this,
+            navigate = {},
+            initialState = HomeState(loading = false),
+        )
 
         interactor.dispatch(HomeIntent.Refresh)
-        assertEquals(true, interactor.state.value.loading)
+        assertTrue(interactor.state.value.loading)
+        assertEquals(1L, interactor.state.value.refreshGeneration)
 
         advanceUntilIdle()
 
