@@ -54,7 +54,7 @@ val verifyFeatureBoundaries by tasks.registering {
                         violations += "${screenFile.relativeTo(rootProject.projectDir)} has no parseable Screen signature"
                     } else {
                         val parameters = signature.lines()
-                            .map(String::trim)
+                            .map { it.trim() }
                             .filter { it.isNotBlank() }
                             .map { it.removeSuffix(",") }
                         if (
