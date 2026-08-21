@@ -6,6 +6,8 @@ import com.micrantha.eyespie.core.ThingId
 import com.micrantha.eyespie.game.GuessOutcome
 import com.micrantha.eyespie.game.LocalGameFailure
 import com.micrantha.eyespie.game.LocalGameSnapshot
+import com.micrantha.eyespie.game.LocalGameSummary
+import com.micrantha.eyespie.game.PlayableThingSummary
 import com.micrantha.eyespie.imaging.CapturedImage
 
 sealed interface AppScreen {
@@ -32,6 +34,8 @@ data class AppState(
     val busy: Boolean = false,
     val failure: AppFailure? = null,
     val createForm: CreateGameFormState = CreateGameFormState(),
+    val playGame: LocalGameSummary? = null,
+    val playThing: PlayableThingSummary? = null,
     val latestOutcome: GuessOutcome? = null,
 )
 
