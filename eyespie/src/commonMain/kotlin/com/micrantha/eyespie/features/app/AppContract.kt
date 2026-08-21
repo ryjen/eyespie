@@ -3,11 +3,12 @@ package com.micrantha.eyespie.features.app
 import com.micrantha.eyespie.clue.ClueValidationError
 import com.micrantha.eyespie.core.GameId
 import com.micrantha.eyespie.core.ThingId
+import com.micrantha.eyespie.game.CreatedGame
+import com.micrantha.eyespie.game.EyespieRuntime
 import com.micrantha.eyespie.game.GuessOutcome
 import com.micrantha.eyespie.game.LocalGameFailure
+import com.micrantha.eyespie.game.LocalGameResult
 import com.micrantha.eyespie.game.LocalGameSnapshot
-import com.micrantha.eyespie.game.LocalGameSummary
-import com.micrantha.eyespie.game.PlayableThingSummary
 import com.micrantha.eyespie.imaging.CapturedImage
 
 sealed interface AppScreen {
@@ -21,46 +22,38 @@ sealed interface AppFailure {
     data object CameraUnavailable : AppFailure
 }
 
-data class CreateGameFormState(
-    val name: String = "",
-    val clue: String = "",
-    val expectedAnswer: String = "",
-)
+interface AppGameUseCases {
+    suspend fun loadSnapshot(): LocalGameResult<LocalGameSnapshot>
+    suspend fun createGame(
+        name: String,
+        clueText: String,
+        expectedAnswer: String,
+        targetImage: CapturedImage,
+    ): LocalGameResult<CreatedGame>
+    suspend fun guess(
+        gameId: GameId,
+        thingId: ThingId,
+        guessImage: CapturedImage,
+    ): LocalGameResult<GuessOutcome>
+}
 
-data class AppState(
-    val snapshot: LocalGameSnapshot? = null,
-    val screen: AppScreen = AppScreen.Home,
-    val loading: Boolean = true,
-    val busy: Boolean = false,
-    val failure: AppFailure? = null,
-    val createForm: CreateGameFormState = CreateGameFormState(),
-    val playGame: LocalGameSummary? = null,
-    val playThing: PlayableThingSummary? = null,
-    val latestOutcome: GuessOutcome? = null,
-)
+internal class RuntimeAppGameUseCases(runtime: EyespieRuntime) : AppGameUseCases {
+    private val gameLoop = runtime.gameLoop
 
-sealed interface AppIntent {
-    data object Refresh : AppIntent
-    data object NavigateHome : AppIntent
-    data object NavigateCreate : AppIntent
-    data class NavigatePlay(val gameId: GameId, val thingId: ThingId) : AppIntent
-    data object DismissFailure : AppIntent
-    data object CameraFailed : AppIntent
+    override suspend fun loadSnapshot() = gameLoop.loadSnapshot()
 
-    data class CreateNameChanged(val value: String) : AppIntent
-    data class CreateClueChanged(val value: String) : AppIntent
-    data class CreateExpectedAnswerChanged(val value: String) : AppIntent
-    data class CreateTargetCaptured(val image: CapturedImage) : AppIntent
-    data class GuessCaptured(val image: CapturedImage) : AppIntent
+    override suspend fun createGame(
+        name: String,
+        clueText: String,
+        expectedAnswer: String,
+        targetImage: CapturedImage,
+    ) = gameLoop.createGame(name, clueText, expectedAnswer, targetImage)
 
-    data class SnapshotLoaded(val snapshot: LocalGameSnapshot) : AppIntent
-    data class OperationFailed(val failure: LocalGameFailure) : AppIntent
-    data class GameCreated(val snapshot: LocalGameSnapshot) : AppIntent
-    data class GuessCompleted(val outcome: GuessOutcome, val snapshot: LocalGameSnapshot) : AppIntent
-    data class GuessCompletedWithRefreshFailure(
-        val outcome: GuessOutcome,
-        val failure: LocalGameFailure,
-    ) : AppIntent
+    override suspend fun guess(
+        gameId: GameId,
+        thingId: ThingId,
+        guessImage: CapturedImage,
+    ) = gameLoop.guess(gameId, thingId, guessImage)
 }
 
 internal fun clueFailureMessage(error: ClueValidationError?): String = when (error) {
