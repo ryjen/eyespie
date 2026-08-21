@@ -31,11 +31,10 @@ sealed interface HomeIntent {
         val snapshot: LocalGameSnapshot,
     ) : HomeIntent
     data class OperationFailed(
-        val generation: Long,
         val failure: LocalGameFailure,
+        val generation: Long? = null,
     ) : HomeIntent
     data class AdoptSnapshot(val snapshot: LocalGameSnapshot) : HomeIntent
-    data class AdoptFailure(val failure: LocalGameFailure) : HomeIntent
 }
 
 object HomeReducer : Reducer<HomeState, HomeIntent> {
@@ -56,23 +55,22 @@ object HomeReducer : Reducer<HomeState, HomeIntent> {
         } else {
             state
         }
-        is HomeIntent.OperationFailed -> if (intent.generation == state.refreshGeneration) {
-            state.copy(
+        is HomeIntent.OperationFailed -> when {
+            intent.generation == null -> state.copy(
+                loading = false,
+                failure = AppFailure.Game(intent.failure),
+                refreshGeneration = state.refreshGeneration + 1,
+            )
+            intent.generation == state.refreshGeneration -> state.copy(
                 loading = false,
                 failure = AppFailure.Game(intent.failure),
             )
-        } else {
-            state
+            else -> state
         }
         is HomeIntent.AdoptSnapshot -> state.copy(
             snapshot = intent.snapshot,
             loading = false,
             failure = null,
-            refreshGeneration = state.refreshGeneration + 1,
-        )
-        is HomeIntent.AdoptFailure -> state.copy(
-            loading = false,
-            failure = AppFailure.Game(intent.failure),
             refreshGeneration = state.refreshGeneration + 1,
         )
     }
@@ -98,7 +96,7 @@ class HomeInteractor(
                             HomeIntent.SnapshotLoaded(generation, result.value),
                         )
                         is LocalGameResult.Failure -> dispatch(
-                            HomeIntent.OperationFailed(generation, result.failure),
+                            HomeIntent.OperationFailed(result.failure, generation),
                         )
                     }
                 }
