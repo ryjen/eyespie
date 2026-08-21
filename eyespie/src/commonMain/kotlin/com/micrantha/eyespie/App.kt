@@ -20,6 +20,7 @@ import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -27,61 +28,61 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.text.input.TextFieldValue
 import androidx.compose.ui.unit.dp
-import com.micrantha.eyespie.clue.ClueValidationError
-import com.micrantha.eyespie.core.GameId
-import com.micrantha.eyespie.core.ThingId
-import com.micrantha.eyespie.game.CreatedGame
+import com.micrantha.eyespie.features.app.AppFailure
+import com.micrantha.eyespie.features.app.AppScreen
+import com.micrantha.eyespie.features.app.RuntimeAppGameUseCases
+import com.micrantha.eyespie.features.app.clueFailureMessage
+import com.micrantha.eyespie.features.create.CreateGameIntent
+import com.micrantha.eyespie.features.create.CreateGameInteractor
+import com.micrantha.eyespie.features.create.CreateGameState
+import com.micrantha.eyespie.features.home.HomeIntent
+import com.micrantha.eyespie.features.home.HomeInteractor
+import com.micrantha.eyespie.features.home.HomeState
+import com.micrantha.eyespie.features.onboarding.OnboardingIntent
+import com.micrantha.eyespie.features.onboarding.OnboardingInteractor
+import com.micrantha.eyespie.features.onboarding.OnboardingPage
+import com.micrantha.eyespie.features.onboarding.OnboardingState
+import com.micrantha.eyespie.features.play.PlayGameIntent
+import com.micrantha.eyespie.features.play.PlayGameInteractor
+import com.micrantha.eyespie.features.play.PlayGameState
 import com.micrantha.eyespie.game.EyespieRuntime
-import com.micrantha.eyespie.game.GuessOutcome
-import com.micrantha.eyespie.game.LocalGameFailure
 import com.micrantha.eyespie.game.LocalGameFailureCode
-import com.micrantha.eyespie.game.LocalGameResult
-import com.micrantha.eyespie.game.LocalGameSnapshot
-import com.micrantha.eyespie.game.LocalGameSummary
-import com.micrantha.eyespie.game.PlayableThingSummary
 import com.micrantha.eyespie.imaging.CameraCapture
-import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.launch
-
-private sealed interface AppScreen {
-    data object Home : AppScreen
-    data object Create : AppScreen
-    data class Play(val gameId: GameId, val thingId: ThingId) : AppScreen
-}
-
-private sealed interface UiFailure {
-    data class Game(val failure: LocalGameFailure) : UiFailure
-    data object CameraUnavailable : UiFailure
-}
 
 @Composable
 fun App(runtime: EyespieRuntime) {
+    val scope = rememberCoroutineScope()
+    val useCases = remember(runtime) { RuntimeAppGameUseCases(runtime) }
+    var screen by remember { mutableStateOf<AppScreen>(AppScreen.Home) }
+
+    val homeInteractor = remember(useCases, scope) {
+        HomeInteractor(useCases, scope, navigate = { screen = it })
+    }
+    val homeState by homeInteractor.state.collectAsState()
+
+    val onboardingInteractor = remember {
+        OnboardingInteractor(navigate = { screen = it })
+    }
+    val onboardingState by onboardingInteractor.state.collectAsState()
+
+    val createInteractor = remember(useCases, scope, homeInteractor) {
+        CreateGameInteractor(
+            useCases = useCases,
+            scope = scope,
+            navigate = { screen = it },
+            adoptSnapshot = { homeInteractor.dispatch(HomeIntent.AdoptSnapshot(it)) },
+            reportHomeFailure = { homeInteractor.dispatch(HomeIntent.OperationFailed(it)) },
+        )
+    }
+    val createState by createInteractor.state.collectAsState()
+
+    LaunchedEffect(homeInteractor) {
+        homeInteractor.dispatch(HomeIntent.Refresh)
+    }
+
     MaterialTheme {
         Surface(modifier = Modifier.fillMaxSize()) {
-            val scope = rememberCoroutineScope()
-            var snapshot by remember(runtime) { mutableStateOf<LocalGameSnapshot?>(null) }
-            var loading by remember(runtime) { mutableStateOf(true) }
-            var failure by remember(runtime) { mutableStateOf<UiFailure?>(null) }
-            var screen by remember(runtime) { mutableStateOf<AppScreen>(AppScreen.Home) }
-
-            suspend fun refreshSnapshot() {
-                loading = true
-                when (val result = runtime.gameLoop.loadSnapshot()) {
-                    is LocalGameResult.Success -> {
-                        snapshot = result.value
-                        failure = null
-                    }
-                    is LocalGameResult.Failure -> failure = UiFailure.Game(result.failure)
-                }
-                loading = false
-            }
-
-            LaunchedEffect(runtime) {
-                refreshSnapshot()
-            }
-
             Column(
                 modifier = Modifier.fillMaxSize().padding(20.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
@@ -89,71 +90,34 @@ fun App(runtime: EyespieRuntime) {
                 Text("Eyespie", style = MaterialTheme.typography.headlineLarge)
                 Text("Offline travel-spy game", style = MaterialTheme.typography.titleMedium)
 
-                failure?.let {
-                    FailureBanner(
-                        failure = it,
-                        onDismiss = { failure = null },
-                    )
-                }
-
                 Column(modifier = Modifier.fillMaxWidth().weight(1f)) {
-                    when {
-                        loading && snapshot == null -> {
-                            Spacer(Modifier.height(24.dp))
-                            CircularProgressIndicator()
-                        }
-
-                        screen == AppScreen.Home -> HomeScreen(
-                            snapshot = snapshot,
-                            onCreate = {
-                                failure = null
-                                screen = AppScreen.Create
-                            },
-                            onPlay = { gameId, thingId ->
-                                failure = null
-                                screen = AppScreen.Play(gameId, thingId)
-                            },
-                            onRefresh = {
-                                scope.launch { refreshSnapshot() }
-                            },
+                    when (val current = screen) {
+                        AppScreen.Home -> HomeView(homeState, homeInteractor::dispatch)
+                        AppScreen.Onboarding -> OnboardingView(
+                            onboardingState,
+                            onboardingInteractor::dispatch,
                         )
-
-                        screen == AppScreen.Create -> CreateGameScreen(
-                            runtime = runtime,
-                            onBack = {
-                                failure = null
-                                screen = AppScreen.Home
-                            },
-                            onCreated = { _: CreatedGame ->
-                                scope.launch {
-                                    refreshSnapshot()
-                                    screen = AppScreen.Home
-                                }
-                            },
-                            onFailure = { failure = it },
-                        )
-
-                        screen is AppScreen.Play -> {
-                            val selected = screen as AppScreen.Play
-                            val game = snapshot?.games?.firstOrNull { it.id == selected.gameId }
-                            val thing = game?.things?.firstOrNull { it.id == selected.thingId }
+                        AppScreen.Create -> CreateGameView(createState, createInteractor::dispatch)
+                        is AppScreen.Play -> {
+                            val game = homeState.snapshot?.games?.firstOrNull { it.id == current.gameId }
+                            val thing = game?.things?.firstOrNull { it.id == current.thingId }
                             if (game == null || thing == null) {
                                 Text("This local game is no longer available.")
                                 Button(onClick = { screen = AppScreen.Home }) { Text("Back") }
                             } else {
-                                PlayGameScreen(
-                                    runtime = runtime,
-                                    game = game,
-                                    thing = thing,
-                                    onBack = {
-                                        failure = null
-                                        screen = AppScreen.Home
-                                    },
-                                    onGuessed = { _: GuessOutcome ->
-                                        scope.launch { refreshSnapshot() }
-                                    },
-                                    onFailure = { failure = it },
-                                )
+                                val playInteractor = remember(current, useCases, scope, homeInteractor) {
+                                    PlayGameInteractor(
+                                        useCases = useCases,
+                                        scope = scope,
+                                        navigate = { screen = it },
+                                        adoptSnapshot = {
+                                            homeInteractor.dispatch(HomeIntent.AdoptSnapshot(it))
+                                        },
+                                        initialState = PlayGameState(game = game, thing = thing),
+                                    )
+                                }
+                                val playState by playInteractor.state.collectAsState()
+                                PlayGameView(playState, playInteractor::dispatch)
                             }
                         }
                     }
@@ -185,44 +149,39 @@ fun AppUnavailable() {
 }
 
 @Composable
-private fun HomeScreen(
-    snapshot: LocalGameSnapshot?,
-    onCreate: () -> Unit,
-    onPlay: (GameId, ThingId) -> Unit,
-    onRefresh: () -> Unit,
-) {
+private fun HomeView(state: HomeState, dispatch: (HomeIntent) -> Unit) {
     Column(
         modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        snapshot?.let {
-            Text(
-                "Local agent: ${it.identity.displayName}",
-                style = MaterialTheme.typography.titleSmall,
-            )
-            Text(
-                "Identity ${it.identity.id.value.takeLast(12)}",
-                style = MaterialTheme.typography.bodySmall,
-            )
+        state.failure?.let {
+            FailureBanner(it) { dispatch(HomeIntent.DismissFailure) }
+        }
+        if (state.loading && state.snapshot == null) {
+            Spacer(Modifier.height(24.dp))
+            CircularProgressIndicator()
+            return@Column
+        }
+
+        state.snapshot?.let {
+            Text("Local agent: ${it.identity.displayName}", style = MaterialTheme.typography.titleSmall)
+            Text("Identity ${it.identity.id.value.takeLast(12)}", style = MaterialTheme.typography.bodySmall)
         }
 
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Button(onClick = onCreate) { Text("Create game") }
-            OutlinedButton(onClick = onRefresh) { Text("Refresh") }
+            Button(onClick = { dispatch(HomeIntent.CreateSelected) }) { Text("Create game") }
+            OutlinedButton(onClick = { dispatch(HomeIntent.OnboardingSelected) }) { Text("How to play") }
+            OutlinedButton(onClick = { dispatch(HomeIntent.Refresh) }) { Text("Refresh") }
         }
 
         HorizontalDivider()
         Text("Local games", style = MaterialTheme.typography.titleLarge)
 
-        val games = snapshot?.games.orEmpty()
-        if (games.isEmpty()) {
-            Text("No games yet. Create a target and clue entirely on this device.")
-        }
+        val games = state.snapshot?.games.orEmpty()
+        if (games.isEmpty()) Text("No games yet. Create a target and clue entirely on this device.")
         games.forEach { game ->
             Text(game.name, style = MaterialTheme.typography.titleMedium)
-            if (game.things.isEmpty()) {
-                Text("No playable targets in this game.")
-            }
+            if (game.things.isEmpty()) Text("No playable targets in this game.")
             game.things.forEach { thing ->
                 Text(thing.clue.clueText, style = MaterialTheme.typography.bodyLarge)
                 thing.progress?.let { progress ->
@@ -235,9 +194,11 @@ private fun HomeScreen(
                         style = MaterialTheme.typography.bodySmall,
                     )
                 }
-                OutlinedButton(onClick = { onPlay(game.id, thing.id) }) {
-                    Text("Play")
-                }
+                OutlinedButton(
+                    onClick = {
+                        dispatch(HomeIntent.PlaySelected(AppScreen.Play(game.id, thing.id)))
+                    },
+                ) { Text("Play") }
                 Spacer(Modifier.height(8.dp))
             }
         }
@@ -245,112 +206,121 @@ private fun HomeScreen(
 }
 
 @Composable
-private fun CreateGameScreen(
-    runtime: EyespieRuntime,
-    onBack: () -> Unit,
-    onCreated: (CreatedGame) -> Unit,
-    onFailure: (UiFailure) -> Unit,
+private fun OnboardingView(
+    state: OnboardingState,
+    dispatch: (OnboardingIntent) -> Unit,
 ) {
-    val scope = rememberCoroutineScope()
-    var name by remember { mutableStateOf(TextFieldValue("")) }
-    var clue by remember { mutableStateOf(TextFieldValue("")) }
-    var answer by remember { mutableStateOf(TextFieldValue("")) }
-    var busy by remember { mutableStateOf(false) }
+    Column(
+        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
+        verticalArrangement = Arrangement.spacedBy(12.dp),
+    ) {
+        when (state.page) {
+            OnboardingPage.Welcome -> {
+                Text("Welcome, agent", style = MaterialTheme.typography.titleLarge)
+                Text("Eyespie is an offline travel-spy game. One player creates a visual target and clue; another tries to find and match it with the camera.")
+            }
+            OnboardingPage.Create -> {
+                Text("Create a mission", style = MaterialTheme.typography.titleLarge)
+                Text("Choose a game name, write a clue and creator-only expected answer, then capture the target. The image is converted to a local embedding rather than stored as game authority.")
+            }
+            OnboardingPage.Play -> {
+                Text("Find the target", style = MaterialTheme.typography.titleLarge)
+                Text("Open a local game, follow the clue, and capture a guess. Matching runs locally against the target embedding and progress stays on this device.")
+            }
+        }
 
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+            if (state.page != OnboardingPage.Welcome) {
+                OutlinedButton(onClick = { dispatch(OnboardingIntent.Previous) }) { Text("Previous") }
+            }
+            if (state.page != OnboardingPage.Play) {
+                Button(onClick = { dispatch(OnboardingIntent.Next) }) { Text("Next") }
+            } else {
+                Button(onClick = { dispatch(OnboardingIntent.Done) }) { Text("Done") }
+            }
+            OutlinedButton(onClick = { dispatch(OnboardingIntent.Back) }) { Text("Back") }
+        }
+    }
+}
+
+@Composable
+private fun CreateGameView(
+    state: CreateGameState,
+    dispatch: (CreateGameIntent) -> Unit,
+) {
     Column(
         modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
+        state.failure?.let {
+            FailureBanner(it) { dispatch(CreateGameIntent.DismissFailure) }
+        }
         Text("Create local game", style = MaterialTheme.typography.titleLarge)
         Text("The target image is used to derive an embedding; it is not saved as game authority.")
 
         OutlinedTextField(
-            value = name,
-            onValueChange = { name = it },
+            value = state.name,
+            onValueChange = { dispatch(CreateGameIntent.NameChanged(it)) },
             modifier = Modifier.fillMaxWidth(),
             label = { Text("Game name") },
-            enabled = !busy,
+            enabled = !state.busy,
             singleLine = true,
         )
         OutlinedTextField(
-            value = clue,
-            onValueChange = { clue = it },
+            value = state.clue,
+            onValueChange = { dispatch(CreateGameIntent.ClueChanged(it)) },
             modifier = Modifier.fillMaxWidth(),
             label = { Text("Clue") },
-            enabled = !busy,
+            enabled = !state.busy,
         )
         OutlinedTextField(
-            value = answer,
-            onValueChange = { answer = it },
+            value = state.expectedAnswer,
+            onValueChange = { dispatch(CreateGameIntent.ExpectedAnswerChanged(it)) },
             modifier = Modifier.fillMaxWidth(),
             label = { Text("Expected answer (creator-only)") },
-            enabled = !busy,
+            enabled = !state.busy,
             singleLine = true,
         )
 
         CameraCapture(
             modifier = Modifier.fillMaxWidth().height(280.dp),
-            onCameraError = { onFailure(UiFailure.CameraUnavailable) },
-            onCaptured = { targetImage ->
-                if (!busy) {
-                    scope.launch {
-                        busy = true
-                        try {
-                            when (
-                                val result = runtime.gameLoop.createGame(
-                                    name = name.text,
-                                    clueText = clue.text,
-                                    expectedAnswer = answer.text,
-                                    targetImage = targetImage,
-                                )
-                            ) {
-                                is LocalGameResult.Success -> onCreated(result.value)
-                                is LocalGameResult.Failure -> onFailure(UiFailure.Game(result.failure))
-                            }
-                        } catch (cancelled: CancellationException) {
-                            throw cancelled
-                        } finally {
-                            busy = false
-                        }
-                    }
-                }
-            },
+            onCameraError = { dispatch(CreateGameIntent.CameraFailed) },
+            onCaptured = { dispatch(CreateGameIntent.TargetCaptured(it)) },
             captureButton = { capture ->
                 Button(
                     onClick = capture,
-                    enabled = !busy && name.text.isNotBlank() && clue.text.isNotBlank() && answer.text.isNotBlank(),
-                ) {
-                    Text(if (busy) "Creating…" else "Capture target & create")
-                }
+                    enabled = !state.busy &&
+                        state.name.isNotBlank() &&
+                        state.clue.isNotBlank() &&
+                        state.expectedAnswer.isNotBlank(),
+                ) { Text(if (state.busy) "Creating…" else "Capture target & create") }
             },
         )
 
-        OutlinedButton(onClick = onBack, enabled = !busy) { Text("Back") }
+        OutlinedButton(
+            onClick = { dispatch(CreateGameIntent.Back) },
+            enabled = !state.busy,
+        ) { Text("Back") }
     }
 }
 
 @Composable
-private fun PlayGameScreen(
-    runtime: EyespieRuntime,
-    game: LocalGameSummary,
-    thing: PlayableThingSummary,
-    onBack: () -> Unit,
-    onGuessed: (GuessOutcome) -> Unit,
-    onFailure: (UiFailure) -> Unit,
+private fun PlayGameView(
+    state: PlayGameState,
+    dispatch: (PlayGameIntent) -> Unit,
 ) {
-    val scope = rememberCoroutineScope()
-    var busy by remember(game.id, thing.id) { mutableStateOf(false) }
-    var latestOutcome by remember(game.id, thing.id) { mutableStateOf<GuessOutcome?>(null) }
-
     Column(
         modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        Text(game.name, style = MaterialTheme.typography.titleLarge)
+        state.failure?.let {
+            FailureBanner(it) { dispatch(PlayGameIntent.DismissFailure) }
+        }
+        Text(state.game.name, style = MaterialTheme.typography.titleLarge)
         Text("Clue", style = MaterialTheme.typography.titleSmall)
-        Text(thing.clue.clueText, style = MaterialTheme.typography.headlineSmall)
+        Text(state.thing.clue.clueText, style = MaterialTheme.typography.headlineSmall)
 
-        val progress = latestOutcome?.progress ?: thing.progress
+        val progress = state.latestOutcome?.progress ?: state.thing.progress
         progress?.let {
             Text(
                 if (it.matched) {
@@ -361,7 +331,7 @@ private fun PlayGameScreen(
             )
         }
 
-        latestOutcome?.let {
+        state.latestOutcome?.let {
             Text(
                 if (it.match.matched) {
                     "Match · similarity ${formatSimilarity(it.match.similarity)}"
@@ -374,53 +344,25 @@ private fun PlayGameScreen(
 
         CameraCapture(
             modifier = Modifier.fillMaxWidth().height(300.dp),
-            onCameraError = { onFailure(UiFailure.CameraUnavailable) },
-            onCaptured = { guessImage ->
-                if (!busy) {
-                    scope.launch {
-                        busy = true
-                        try {
-                            when (
-                                val result = runtime.gameLoop.guess(
-                                    gameId = game.id,
-                                    thingId = thing.id,
-                                    guessImage = guessImage,
-                                )
-                            ) {
-                                is LocalGameResult.Success -> {
-                                    latestOutcome = result.value
-                                    onGuessed(result.value)
-                                }
-                                is LocalGameResult.Failure -> onFailure(UiFailure.Game(result.failure))
-                            }
-                        } catch (cancelled: CancellationException) {
-                            throw cancelled
-                        } finally {
-                            busy = false
-                        }
-                    }
-                }
-            },
+            onCameraError = { dispatch(PlayGameIntent.CameraFailed) },
+            onCaptured = { dispatch(PlayGameIntent.GuessCaptured(it)) },
             captureButton = { capture ->
-                Button(onClick = capture, enabled = !busy) {
-                    Text(if (busy) "Matching…" else "Capture guess")
+                Button(onClick = capture, enabled = !state.busy) {
+                    Text(if (state.busy) "Matching…" else "Capture guess")
                 }
             },
         )
 
-        OutlinedButton(onClick = onBack, enabled = !busy) { Text("Back") }
+        OutlinedButton(
+            onClick = { dispatch(PlayGameIntent.Back) },
+            enabled = !state.busy,
+        ) { Text("Back") }
     }
 }
 
 @Composable
-private fun FailureBanner(
-    failure: UiFailure,
-    onDismiss: () -> Unit,
-) {
-    Surface(
-        tonalElevation = 3.dp,
-        modifier = Modifier.fillMaxWidth(),
-    ) {
+private fun FailureBanner(failure: AppFailure, onDismiss: () -> Unit) {
+    Surface(tonalElevation = 3.dp, modifier = Modifier.fillMaxWidth()) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(12.dp),
             horizontalArrangement = Arrangement.SpaceBetween,
@@ -436,9 +378,9 @@ private fun FailureBanner(
     }
 }
 
-private fun failureMessage(failure: UiFailure): String = when (failure) {
-    UiFailure.CameraUnavailable -> "Camera access is unavailable. Check permission/settings and try again."
-    is UiFailure.Game -> when (failure.failure.code) {
+private fun failureMessage(failure: AppFailure): String = when (failure) {
+    AppFailure.CameraUnavailable -> "Camera access is unavailable. Check permission/settings and try again."
+    is AppFailure.Game -> when (failure.failure.code) {
         LocalGameFailureCode.OPERATION_IN_PROGRESS -> "Another local capture or match operation is already running."
         LocalGameFailureCode.INVALID_GAME_NAME -> "Enter a non-empty game name up to 80 characters."
         LocalGameFailureCode.INVALID_CLUE -> clueFailureMessage(failure.failure.clueValidationError)
@@ -450,14 +392,6 @@ private fun failureMessage(failure: UiFailure): String = when (failure) {
         LocalGameFailureCode.MATCH_POLICY_INVALID -> "The saved match policy is incompatible with this build."
         LocalGameFailureCode.PERSISTENCE_FAILED -> "Local game state could not be saved or loaded."
     }
-}
-
-private fun clueFailureMessage(error: ClueValidationError?): String = when (error) {
-    ClueValidationError.BLANK_CLUE -> "Enter a clue before capturing the target."
-    ClueValidationError.CLUE_TOO_LONG -> "The clue is too long."
-    ClueValidationError.BLANK_EXPECTED_ANSWER -> "Enter the creator-only expected answer."
-    ClueValidationError.EXPECTED_ANSWER_TOO_LONG -> "The expected answer is too long."
-    null -> "The clue authority is invalid."
 }
 
 private fun formatSimilarity(value: Double?): String {
