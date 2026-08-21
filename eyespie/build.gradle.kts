@@ -19,7 +19,7 @@ fun xcconfigValue(path: String, name: String): String {
 }
 
 val appVersion = xcconfigValue("iosApp/Configuration/Version.xcconfig", "APP_VERSION")
-require(Regex("[0-9]+\\.[0-9]+\\.[0-9]+(?:-[0-9A-Za-z.-]+)?").matches(appVersion)) {
+require(Regex("[0-9]+\.[0-9]+\.[0-9]+(?:-[0-9A-Za-z.-]+)?").matches(appVersion)) {
     "APP_VERSION must be semantic-version shaped"
 }
 val appBuild = xcconfigValue("iosApp/Configuration/Version.xcconfig", "APP_BUILD").toIntOrNull()
@@ -30,7 +30,7 @@ val iosMediaPipeTasksVersion = xcconfigValue(
     "iosApp/Configuration/MediaPipe.xcconfig",
     "IOS_MEDIAPIPE_TASKS_VERSION",
 )
-require(Regex("[0-9]+\\.[0-9]+\\.[0-9]+(?:\\.[0-9]+)?").matches(iosMediaPipeTasksVersion)) {
+require(Regex("[0-9]+\.[0-9]+\.[0-9]+(?:\.[0-9]+)?").matches(iosMediaPipeTasksVersion)) {
     "IOS_MEDIAPIPE_TASKS_VERSION must be numeric-version shaped"
 }
 
@@ -183,6 +183,8 @@ val androidImageEmbedderFile = project.file(
     "src/androidMain/assets/mobilenet_v3_small_100_224_embedder.tflite",
 )
 val stageAndroidImageEmbedderModel by tasks.registering(Exec::class) {
+    group = "eyespie setup"
+    description = "Stage and verify the pinned Android image-embedder model for runtime packaging."
     workingDir(rootProject.projectDir)
     commandLine(
         "python3",
@@ -196,8 +198,15 @@ val stageAndroidImageEmbedderModel by tasks.registering(Exec::class) {
     outputs.file(androidImageEmbedderFile)
 }
 
-tasks.matching { it.name == "preBuild" }.configureEach {
-    dependsOn(stageAndroidImageEmbedderModel)
+// Keep ordinary compile/test/assemble tasks network-independent. The protected
+// signed release path already supplies injected signing properties, so only
+// that distribution boundary automatically stages the pinned runtime asset.
+// Local runtime builds can opt in explicitly with :app:stageAndroidImageEmbedderModel.
+val signedAndroidRelease = providers.gradleProperty("android.injected.signing.store.file")
+tasks.matching { it.name == "preReleaseBuild" }.configureEach {
+    if (signedAndroidRelease.isPresent) {
+        dependsOn(stageAndroidImageEmbedderModel)
+    }
 }
 
 android {
