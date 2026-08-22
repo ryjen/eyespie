@@ -17,6 +17,7 @@ class AppGraphFactoryTest {
         val onboardingPreferences = TestOnboardingPreferences()
         val graph = AppGraphFactory.fromPorts(
             homePort = AppTestPorts,
+            utilityPort = AppTestPorts,
             createGamePort = AppTestPorts,
             clueAuthoringPort = AppTestPorts,
             playGamePort = AppTestPorts,
