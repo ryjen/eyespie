@@ -14,6 +14,7 @@ import com.micrantha.eyespie.features.home.HomePort
 import com.micrantha.eyespie.features.home.HomeThing
 import com.micrantha.eyespie.features.play.PlayGameContent
 import com.micrantha.eyespie.features.play.PlayGamePort
+import com.micrantha.eyespie.game.CreatedClue
 import com.micrantha.eyespie.game.CreatedGame
 import com.micrantha.eyespie.game.EyespieRuntime
 import com.micrantha.eyespie.game.GuessOutcome
@@ -91,6 +92,13 @@ internal class LocalGameAdapter(
         expectedAnswer: String,
         targetImage: CapturedImage,
     ): LocalGameResult<CreatedGame> = gameLoop.createGame(name, clueText, expectedAnswer, targetImage)
+
+    override suspend fun addClue(
+        gameId: GameId,
+        clueText: String,
+        expectedAnswer: String,
+        targetImage: CapturedImage,
+    ): LocalGameResult<CreatedClue> = gameLoop.addClue(gameId, clueText, expectedAnswer, targetImage)
 
     override suspend fun load(gameId: GameId): LocalGameResult<GameDetailContent> =
         when (val result = load()) {
