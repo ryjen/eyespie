@@ -1,5 +1,6 @@
 package com.micrantha.eyespie
 
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -40,10 +41,13 @@ fun App(
     }
 
     MaterialTheme {
-        Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+        Surface(modifier = Modifier.fillMaxSize()) {
             val completed = onboardingCompleted
             if (completed == null) {
-                Column(modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp, vertical = 16.dp)) {
+                Column(
+                    modifier = Modifier.fillMaxSize().padding(20.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
                     Text("Eyespie", style = MaterialTheme.typography.headlineLarge)
                     Text("Loading local game…", style = MaterialTheme.typography.titleMedium)
                     CircularProgressIndicator()
@@ -60,7 +64,13 @@ fun App(
                 }
                 val route by graph.navigator.route.collectAsState()
 
-                Column(modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp, vertical = 16.dp)) {
+                Column(
+                    modifier = Modifier.fillMaxSize().padding(20.dp),
+                    verticalArrangement = Arrangement.spacedBy(12.dp),
+                ) {
+                    Text("Eyespie", style = MaterialTheme.typography.headlineLarge)
+                    Text("Offline travel-spy game", style = MaterialTheme.typography.titleMedium)
+
                     Column(modifier = Modifier.fillMaxWidth().weight(1f)) {
                         when (val current = route) {
                             AppRoute.Home -> HomeRoute(graph.homeFactory)
