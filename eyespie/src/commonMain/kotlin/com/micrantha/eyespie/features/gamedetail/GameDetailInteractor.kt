@@ -40,6 +40,9 @@ class GameDetailInteractor(
                     dispatch(GameDetailIntent.ShareFinished(port.share(gameId, gameName)))
                 }
             }
+            GameDetailIntent.AddClueSelected -> if (previousState.content?.localCreator == true) {
+                output(GameDetailOutput.AuthorClueRequested(gameId))
+            }
             GameDetailIntent.Back -> output(GameDetailOutput.Closed)
             is GameDetailIntent.PlaySelected -> output(GameDetailOutput.PlayRequested(gameId, intent.thingId))
             else -> Unit
