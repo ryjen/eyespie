@@ -13,10 +13,15 @@ run = "./gradlew :app:assembleDebug --no-daemon --stacktrace"
 description = "Run feature screen instrumentation against a connected Android device or emulator"
 run = "./gradlew :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.package=com.micrantha.eyespie.features --no-daemon --stacktrace"
 
+[tasks.android-runtime-verify]
+description = "Verify the staged Android runtime model offline against the pinned manifest"
+run = "./gradlew :app:verifyAndroidRuntime --no-daemon --stacktrace"
+
 [tasks.android-runtime]
-description = "Provision the pinned Android image embedder, then build and install a runnable debug app"
+description = "Provision, verify, then build and install a runnable Android debug app"
 run = """
 ./gradlew :app:stageAndroidImageEmbedderModel --no-daemon --stacktrace
+./gradlew :app:verifyAndroidRuntime --no-daemon --stacktrace
 ./gradlew :app:installDebug --no-daemon --stacktrace
 """
 
