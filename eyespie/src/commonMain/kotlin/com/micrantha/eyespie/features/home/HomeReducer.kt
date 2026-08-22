@@ -20,6 +20,7 @@ object HomeReducer : Reducer<HomeState, HomeIntent> {
             importResult = if (intent.result == HomeImportResult.Cancelled) null else intent.result,
         )
         HomeIntent.OnboardingSelected,
+        HomeIntent.UtilitySelected,
         HomeIntent.CreateSelected,
         is HomeIntent.GameSelected -> state
         is HomeIntent.ContentLoaded -> if (intent.generation == state.refreshGeneration) {

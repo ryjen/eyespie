@@ -109,9 +109,9 @@ fun HomeScreen(
 
         OutlinedButton(
             modifier = Modifier.fillMaxWidth(),
-            onClick = { dispatch(HomeIntent.OnboardingSelected) },
+            onClick = { dispatch(HomeIntent.UtilitySelected) },
         ) {
-            Text("How Eyespie works")
+            Text("Profile, settings & help")
         }
 
         Spacer(Modifier.height(4.dp))

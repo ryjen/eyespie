@@ -15,6 +15,8 @@ import com.micrantha.eyespie.features.home.HomePort
 import com.micrantha.eyespie.features.home.HomeThing
 import com.micrantha.eyespie.features.play.PlayGameContent
 import com.micrantha.eyespie.features.play.PlayGamePort
+import com.micrantha.eyespie.features.utility.UtilityContent
+import com.micrantha.eyespie.features.utility.UtilityPort
 import com.micrantha.eyespie.game.AuthoredThing
 import com.micrantha.eyespie.game.CreatedGame
 import com.micrantha.eyespie.game.EyespieRuntime
@@ -35,7 +37,7 @@ import kotlin.coroutines.cancellation.CancellationException
 internal class LocalGameAdapter(
     runtime: EyespieRuntime,
     private val documentTransfer: GameDocumentTransfer? = null,
-) : HomePort, CreateGamePort, ClueAuthoringPort, GameDetailPort, PlayGamePort {
+) : HomePort, UtilityPort, CreateGamePort, ClueAuthoringPort, GameDetailPort, PlayGamePort {
     private val gameLoop = runtime.gameLoop
     private val bundleService = runtime.bundleService
 
@@ -63,6 +65,17 @@ internal class LocalGameAdapter(
         )
         is LocalGameResult.Failure -> result
     }
+
+    override suspend fun loadUtility(): LocalGameResult<UtilityContent> =
+        when (val result = gameLoop.loadSnapshot()) {
+            is LocalGameResult.Success -> LocalGameResult.Success(
+                UtilityContent(
+                    identityDisplayName = result.value.identity.displayName,
+                    identityIdSuffix = result.value.identity.id.value.takeLast(12),
+                ),
+            )
+            is LocalGameResult.Failure -> result
+        }
 
     override suspend fun importGame(): HomeImportResult {
         val transfer = documentTransfer ?: return HomeImportResult.Unavailable

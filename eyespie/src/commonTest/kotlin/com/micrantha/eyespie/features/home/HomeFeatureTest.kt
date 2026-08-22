@@ -90,11 +90,16 @@ class HomeFeatureTest {
         val interactor = HomeFactory(FakeHomePort(HomeContent("Agent", "id", emptyList())), outputs::add)
             .create(this)
 
+        interactor.dispatch(HomeIntent.UtilitySelected)
         interactor.dispatch(HomeIntent.CreateSelected)
         interactor.dispatch(HomeIntent.GameSelected(testGameId))
 
         assertEquals(
-            listOf(HomeOutput.CreateRequested, HomeOutput.GameRequested(testGameId)),
+            listOf(
+                HomeOutput.UtilityRequested,
+                HomeOutput.CreateRequested,
+                HomeOutput.GameRequested(testGameId),
+            ),
             outputs,
         )
     }

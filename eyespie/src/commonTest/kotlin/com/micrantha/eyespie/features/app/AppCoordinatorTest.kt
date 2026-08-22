@@ -5,6 +5,7 @@ import com.micrantha.eyespie.features.gamedetail.GameDetailOutput
 import com.micrantha.eyespie.features.home.HomeOutput
 import com.micrantha.eyespie.features.onboarding.OnboardingOutput
 import com.micrantha.eyespie.features.play.PlayGameOutput
+import com.micrantha.eyespie.features.utility.UtilityOutput
 import com.micrantha.eyespie.testsupport.testGameId
 import com.micrantha.eyespie.testsupport.testThingId
 import kotlin.test.Test
@@ -18,6 +19,12 @@ class AppCoordinatorTest {
 
         coordinator.onHomeOutput(HomeOutput.CreateRequested)
         assertEquals(AppRoute.Create, navigator.route.value)
+
+        coordinator.onHomeOutput(HomeOutput.UtilityRequested)
+        assertEquals(AppRoute.Utility, navigator.route.value)
+
+        coordinator.onUtilityOutput(UtilityOutput.OnboardingRequested)
+        assertEquals(AppRoute.Onboarding, navigator.route.value)
 
         coordinator.onHomeOutput(HomeOutput.GameRequested(testGameId))
         assertEquals(AppRoute.GameDetail(testGameId), navigator.route.value)
@@ -35,6 +42,10 @@ class AppCoordinatorTest {
         val coordinator = AppCoordinator(navigator)
 
         coordinator.onCreateGameOutput(CreateGameOutput.Cancelled)
+        assertEquals(AppRoute.Home, navigator.route.value)
+
+        navigator.navigate(AppRoute.Utility)
+        coordinator.onUtilityOutput(UtilityOutput.Closed)
         assertEquals(AppRoute.Home, navigator.route.value)
 
         navigator.navigate(AppRoute.Onboarding)

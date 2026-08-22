@@ -6,6 +6,7 @@ import com.micrantha.eyespie.features.gamedetail.GameDetailOutput
 import com.micrantha.eyespie.features.home.HomeOutput
 import com.micrantha.eyespie.features.onboarding.OnboardingOutput
 import com.micrantha.eyespie.features.play.PlayGameOutput
+import com.micrantha.eyespie.features.utility.UtilityOutput
 
 class AppCoordinator(
     private val navigator: AppNavigator,
@@ -14,6 +15,7 @@ class AppCoordinator(
         navigator.navigate(
             when (output) {
                 HomeOutput.OnboardingRequested -> AppRoute.Onboarding
+                HomeOutput.UtilityRequested -> AppRoute.Utility
                 HomeOutput.CreateRequested -> AppRoute.Create
                 is HomeOutput.GameRequested -> AppRoute.GameDetail(output.gameId)
             },
@@ -24,6 +26,13 @@ class AppCoordinator(
         when (output) {
             OnboardingOutput.Completed,
             OnboardingOutput.Dismissed -> navigator.navigate(AppRoute.Home)
+        }
+    }
+
+    fun onUtilityOutput(output: UtilityOutput) {
+        when (output) {
+            UtilityOutput.Closed -> navigator.navigate(AppRoute.Home)
+            UtilityOutput.OnboardingRequested -> navigator.navigate(AppRoute.Onboarding)
         }
     }
 

@@ -10,6 +10,7 @@ import com.micrantha.eyespie.core.ThingId
 sealed interface AppRoute {
     data object Home : AppRoute
     data object Onboarding : AppRoute
+    data object Utility : AppRoute
     data object Create : AppRoute
     data class GameDetail(val gameId: GameId) : AppRoute
     data class ClueAuthoring(val gameId: GameId) : AppRoute
