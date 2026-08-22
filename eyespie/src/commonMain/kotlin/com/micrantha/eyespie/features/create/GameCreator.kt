@@ -4,7 +4,7 @@ import com.micrantha.eyespie.game.CreatedGame
 import com.micrantha.eyespie.game.LocalGameResult
 import com.micrantha.eyespie.imaging.CapturedImage
 
-interface CreateGamePort {
+interface GameCreator {
     suspend fun create(
         name: String,
         clueText: String,

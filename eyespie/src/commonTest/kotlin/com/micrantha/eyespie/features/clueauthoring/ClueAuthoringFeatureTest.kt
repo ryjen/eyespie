@@ -38,10 +38,10 @@ class ClueAuthoringFeatureTest {
 
     @OptIn(ExperimentalCoroutinesApi::class)
     @Test
-    fun capture_uses_current_fields_and_completes_after_port_success() = runTest {
-        val port = RecordingClueAuthoringPort(LocalGameResult.Success(authoredThing()))
+    fun capture_uses_current_fields_and_completes_after_author_success() = runTest {
+        val author = RecordingClueAuthor(LocalGameResult.Success(authoredThing()))
         val outputs = mutableListOf<ClueAuthoringOutput>()
-        val interactor = ClueAuthoringInteractor(port, this, gameId, outputs::add)
+        val interactor = ClueAuthoringInteractor(author, this, gameId, outputs::add)
 
         interactor.dispatch(ClueAuthoringIntent.ClueChanged("Find stripes"))
         interactor.dispatch(ClueAuthoringIntent.ExpectedAnswerChanged("crosswalk"))
@@ -52,9 +52,9 @@ class ClueAuthoringFeatureTest {
 
         advanceUntilIdle()
 
-        assertEquals(gameId, port.gameId)
-        assertEquals("Find stripes", port.clueText)
-        assertEquals("crosswalk", port.expectedAnswer)
+        assertEquals(gameId, author.gameId)
+        assertEquals("Find stripes", author.clueText)
+        assertEquals("crosswalk", author.expectedAnswer)
         assertEquals(
             listOf<ClueAuthoringOutput>(ClueAuthoringOutput.Completed(gameId)),
             outputs,
@@ -64,11 +64,11 @@ class ClueAuthoringFeatureTest {
 
     @OptIn(ExperimentalCoroutinesApi::class)
     @Test
-    fun port_failure_remains_on_editor_and_is_retryable() = runTest {
+    fun author_failure_remains_on_editor_and_is_retryable() = runTest {
         val failure = LocalGameFailure(LocalGameFailureCode.NOT_LOCAL_CREATOR)
-        val port = RecordingClueAuthoringPort(LocalGameResult.Failure(failure))
+        val author = RecordingClueAuthor(LocalGameResult.Failure(failure))
         val outputs = mutableListOf<ClueAuthoringOutput>()
-        val interactor = ClueAuthoringInteractor(port, this, gameId, outputs::add)
+        val interactor = ClueAuthoringInteractor(author, this, gameId, outputs::add)
 
         interactor.dispatch(ClueAuthoringIntent.ClueChanged("Find stripes"))
         interactor.dispatch(ClueAuthoringIntent.ExpectedAnswerChanged("crosswalk"))
@@ -86,7 +86,7 @@ class ClueAuthoringFeatureTest {
     fun back_emits_semantic_close_for_current_game() = runTest {
         val outputs = mutableListOf<ClueAuthoringOutput>()
         val interactor = ClueAuthoringInteractor(
-            RecordingClueAuthoringPort(LocalGameResult.Success(authoredThing())),
+            RecordingClueAuthor(LocalGameResult.Success(authoredThing())),
             this,
             gameId,
             outputs::add,
@@ -111,9 +111,9 @@ class ClueAuthoringFeatureTest {
     }
 }
 
-private class RecordingClueAuthoringPort(
+private class RecordingClueAuthor(
     private val result: LocalGameResult<AuthoredThing>,
-) : ClueAuthoringPort {
+) : ClueAuthor {
     var gameId: GameId? = null
         private set
     var clueText: String? = null

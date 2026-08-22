@@ -1,11 +1,8 @@
 package com.micrantha.eyespie.features.onboarding
 
-import com.micrantha.eyespie.mvi.Interactor
+import com.micrantha.eyespie.mvi.BaseInteractor
 import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 class OnboardingInteractor(
@@ -13,13 +10,12 @@ class OnboardingInteractor(
     private val scope: CoroutineScope,
     private val output: (OnboardingOutput) -> Unit,
     initialState: OnboardingState = OnboardingState(),
-) : Interactor<OnboardingState, OnboardingIntent> {
-    private val mutableState = MutableStateFlow(initialState)
-    override val state: StateFlow<OnboardingState> = mutableState.asStateFlow()
-
-    override fun dispatch(intent: OnboardingIntent) {
-        val previousState = mutableState.value
-        mutableState.value = OnboardingReducer.reduce(previousState, intent)
+) : BaseInteractor<OnboardingState, OnboardingIntent>(initialState, OnboardingReducer) {
+    override fun afterReduce(
+        intent: OnboardingIntent,
+        previousState: OnboardingState,
+        stateAfterReduce: OnboardingState,
+    ) {
         when (intent) {
             OnboardingIntent.Done -> if (!previousState.completing) {
                 persistCompletionThen(OnboardingOutput.Completed)

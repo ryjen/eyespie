@@ -5,7 +5,8 @@ import com.micrantha.eyespie.core.ThingId
 import kotlinx.coroutines.CoroutineScope
 
 class PlayGameFactory(
-    private val port: PlayGamePort,
+    private val loader: PlayGameLoader,
+    private val guessSubmitter: GuessSubmitter,
     private val output: (PlayGameOutput) -> Unit,
 ) {
     fun create(
@@ -13,7 +14,8 @@ class PlayGameFactory(
         gameId: GameId,
         thingId: ThingId,
     ): PlayGameInteractor = PlayGameInteractor(
-        port = port,
+        loader = loader,
+        guessSubmitter = guessSubmitter,
         scope = scope,
         output = output,
         initialState = PlayGameState(gameId = gameId, thingId = thingId),

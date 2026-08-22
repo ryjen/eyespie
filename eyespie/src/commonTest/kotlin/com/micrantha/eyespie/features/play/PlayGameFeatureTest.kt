@@ -120,8 +120,7 @@ class PlayGameFeatureTest {
     @OptIn(ExperimentalCoroutinesApi::class)
     @Test
     fun factory_loads_guesses_and_advances_only_after_match() = runTest {
-        val nextThing = ThingId("thing-2")
-        val port = FakePlayPort(
+        val capabilities = FakePlayCapabilities(
             content = PlayGameContent(
                 gameName = "Trip",
                 clueText = "Find it",
@@ -130,16 +129,17 @@ class PlayGameFeatureTest {
                 clueNumber = 1,
                 clueCount = 2,
                 matchedClueCount = 0,
-                nextThingId = nextThing,
+                nextThingId = ThingId("thing-2"),
             ),
         )
         val outputs = mutableListOf<PlayGameOutput>()
-        val interactor = PlayGameFactory(port, outputs::add).create(this, testGameId, testThingId)
+        val interactor = PlayGameFactory(capabilities, capabilities, outputs::add)
+            .create(this, testGameId, testThingId)
 
         interactor.dispatch(PlayGameIntent.Load)
         assertTrue(interactor.state.value.loading)
         advanceUntilIdle()
-        assertEquals(port.content, interactor.state.value.content)
+        assertEquals(capabilities.content, interactor.state.value.content)
 
         interactor.dispatch(PlayGameIntent.NextClueSelected)
         assertTrue(outputs.isEmpty())
@@ -147,18 +147,21 @@ class PlayGameFeatureTest {
         interactor.dispatch(PlayGameIntent.GuessCaptured(testImage()))
         assertTrue(interactor.state.value.busy)
         advanceUntilIdle()
-        assertEquals(port.outcome, interactor.state.value.latestOutcome)
-        assertEquals(1, port.loads)
-        assertEquals(1, port.guesses)
+        assertEquals(capabilities.outcome, interactor.state.value.latestOutcome)
+        assertEquals(1, capabilities.loads)
+        assertEquals(1, capabilities.guesses)
 
         interactor.dispatch(PlayGameIntent.NextClueSelected)
-        assertEquals(listOf<PlayGameOutput>(PlayGameOutput.Advance(testGameId, nextThing)), outputs)
+        assertEquals(
+            listOf<PlayGameOutput>(PlayGameOutput.Advance(testGameId, ThingId("thing-2"))),
+            outputs,
+        )
     }
 
     @OptIn(ExperimentalCoroutinesApi::class)
     @Test
     fun terminal_match_stays_on_completion_until_back() = runTest {
-        val port = FakePlayPort(
+        val capabilities = FakePlayCapabilities(
             content = PlayGameContent(
                 gameName = "Trip",
                 clueText = "Last clue",
@@ -171,7 +174,8 @@ class PlayGameFeatureTest {
             ),
         )
         val outputs = mutableListOf<PlayGameOutput>()
-        val interactor = PlayGameFactory(port, outputs::add).create(this, testGameId, testThingId)
+        val interactor = PlayGameFactory(capabilities, capabilities, outputs::add)
+            .create(this, testGameId, testThingId)
 
         interactor.dispatch(PlayGameIntent.Load)
         advanceUntilIdle()
@@ -203,7 +207,12 @@ class PlayGameFeatureTest {
 
         val staleFailure = PlayGameReducer.reduce(
             succeeded,
-            PlayGameIntent.OperationFailed(0L, com.micrantha.eyespie.game.LocalGameFailure(com.micrantha.eyespie.game.LocalGameFailureCode.GUESS_EMBEDDING_FAILED)),
+            PlayGameIntent.OperationFailed(
+                0L,
+                com.micrantha.eyespie.game.LocalGameFailure(
+                    com.micrantha.eyespie.game.LocalGameFailureCode.GUESS_EMBEDDING_FAILED,
+                ),
+            ),
         )
 
         assertEquals(succeeded, staleFailure)
@@ -212,10 +221,10 @@ class PlayGameFeatureTest {
     }
 }
 
-private class FakePlayPort(
+private class FakePlayCapabilities(
     val content: PlayGameContent = PlayGameContent("Trip", "Find it", matched = false, bestSimilarity = 0.2),
     val outcome: GuessOutcome = testGuessOutcome(),
-) : PlayGamePort {
+) : PlayGameLoader, GuessSubmitter {
     var loads = 0
     var guesses = 0
 

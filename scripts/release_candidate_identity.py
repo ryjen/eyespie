@@ -117,7 +117,7 @@ def kotlin_float(text: str, name: str) -> float:
 
 
 def kotlin_string(text: str, name: str) -> str:
-    match = require_regex(text, rf'const val {re.escape(name)}\s*=\s*"([^"]+)"', name)
+    match = require_regex(text, rf'const val {re.escape(name)}\s*=\s*"([^\"]+)"', name)
     return match.group(1)
 
 
@@ -225,7 +225,7 @@ def build_identity(*, allow_dirty: bool) -> dict[str, Any]:
 
     ios_deployment = require_regex(
         gradle,
-        r'ios\.deploymentTarget\s*=\s*"([^"]+)"',
+        r'ios\.deploymentTarget\s*=\s*"([^\"]+)"',
         "iOS deployment target",
     ).group(1)
 
