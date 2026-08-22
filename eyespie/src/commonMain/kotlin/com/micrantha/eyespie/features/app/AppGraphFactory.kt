@@ -7,6 +7,7 @@ import com.micrantha.eyespie.features.gamedetail.GameDetailPort
 import com.micrantha.eyespie.features.home.HomeFactory
 import com.micrantha.eyespie.features.home.HomePort
 import com.micrantha.eyespie.features.onboarding.OnboardingFactory
+import com.micrantha.eyespie.features.onboarding.OnboardingPreferenceStore
 import com.micrantha.eyespie.features.play.PlayGameFactory
 import com.micrantha.eyespie.features.play.PlayGamePort
 import com.micrantha.eyespie.game.EyespieRuntime
@@ -23,6 +24,7 @@ object AppGraphFactory {
             homePort = adapter,
             createGamePort = adapter,
             playGamePort = adapter,
+            onboardingPreferences = runtime.onboardingPreferences,
             navigator = navigator,
             gameDetailPort = adapter,
         )
@@ -32,6 +34,7 @@ object AppGraphFactory {
         homePort: HomePort,
         createGamePort: CreateGamePort,
         playGamePort: PlayGamePort,
+        onboardingPreferences: OnboardingPreferenceStore,
         navigator: AppNavigator = StateFlowAppNavigator(),
         gameDetailPort: GameDetailPort = HomeBackedGameDetailPort(homePort),
     ): AppGraph {
@@ -39,7 +42,10 @@ object AppGraphFactory {
         return AppGraph(
             navigator = navigator,
             homeFactory = HomeFactory(homePort, coordinator::onHomeOutput),
-            onboardingFactory = OnboardingFactory(coordinator::onOnboardingOutput),
+            onboardingFactory = OnboardingFactory(
+                onboardingPreferences,
+                coordinator::onOnboardingOutput,
+            ),
             createGameFactory = CreateGameFactory(createGamePort, coordinator::onCreateGameOutput),
             gameDetailFactory = GameDetailFactory(
                 gameDetailPort,
