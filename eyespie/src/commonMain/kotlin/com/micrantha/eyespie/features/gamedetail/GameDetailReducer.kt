@@ -31,6 +31,7 @@ object GameDetailReducer : Reducer<GameDetailState, GameDetailIntent> {
             state
         }
         GameDetailIntent.Back,
+        GameDetailIntent.AddClueSelected,
         is GameDetailIntent.PlaySelected -> state
     }
 }
