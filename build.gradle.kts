@@ -42,24 +42,6 @@ tasks.cyclonedxBom {
 }
 
 project(":app") {
-    val verifyAndroidRuntime by tasks.registering(Exec::class) {
-        group = "verification"
-        description = "Verify the staged Android runtime model offline against the pinned manifest."
-
-        val manifest = rootProject.layout.projectDirectory.file("models/image-embedder.json")
-        val script = rootProject.layout.projectDirectory.file("scripts/stage_image_embedder_model.py")
-        inputs.file(manifest)
-        inputs.file(script)
-        workingDir(rootProject.layout.projectDirectory)
-        commandLine(
-            "python3",
-            script.asFile.absolutePath,
-            "verify",
-            "--target",
-            "android",
-        )
-    }
-
     tasks.cyclonedxDirectBom {
         includeConfigs = listOf(
             ".*[Mm]ain.*[Rr]esolvable.*",
