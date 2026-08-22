@@ -15,7 +15,7 @@ fun CreateGameRoute(
     val scope = rememberCoroutineScope()
     val initialState = remember(gameId) {
         CreateGameState(
-            mode = gameId?.let(CreateGameMode::AddClue) ?: CreateGameMode.NewGame,
+            mode = gameId?.let { CreateGameMode.AddClue(it) } ?: CreateGameMode.NewGame,
         )
     }
     val interactor = remember(factory, scope, gameId) { factory.create(scope, initialState) }
