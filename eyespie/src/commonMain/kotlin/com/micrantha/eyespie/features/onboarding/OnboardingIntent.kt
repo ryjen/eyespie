@@ -6,4 +6,5 @@ sealed interface OnboardingIntent {
     data object Skip : OnboardingIntent
     data object Done : OnboardingIntent
     data object Back : OnboardingIntent
+    data object CompletionFailed : OnboardingIntent
 }
