@@ -203,14 +203,28 @@ val stageAndroidImageEmbedderModel by tasks.registering(Exec::class) {
     outputs.file(androidImageEmbedderFile)
 }
 
-// Keep ordinary compile/test/assemble tasks network-independent. The protected
-// signed release path already supplies injected signing properties, so only
-// that distribution boundary automatically stages the pinned runtime asset.
-// Local runtime builds can opt in explicitly with :app:stageAndroidImageEmbedderModel.
+val verifyAndroidRuntime by tasks.registering(Exec::class) {
+    group = "verification"
+    description = "Verify the staged Android runtime model offline against the pinned manifest."
+    workingDir(rootProject.projectDir)
+    commandLine(
+        "python3",
+        "scripts/stage_image_embedder_model.py",
+        "verify",
+        "--target",
+        "android",
+    )
+    inputs.file(rootProject.file("models/image-embedder.json"))
+    inputs.file(rootProject.file("scripts/stage_image_embedder_model.py"))
+}
+
+// Keep ordinary compile/test/assemble tasks network-independent. A signed release
+// must consume an artifact that was staged explicitly by the release preparation
+// workflow and then verified without download/repair at the build boundary.
 val signedAndroidRelease = providers.gradleProperty("android.injected.signing.store.file")
 tasks.matching { it.name == "preReleaseBuild" }.configureEach {
     if (signedAndroidRelease.isPresent) {
-        dependsOn(stageAndroidImageEmbedderModel)
+        dependsOn(verifyAndroidRuntime)
     }
 }
 

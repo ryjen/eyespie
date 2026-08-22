@@ -13,20 +13,41 @@ project(":app").projectDir = file("eyespie")
 
 Use `:app:` in Gradle task paths. `:eyespie:` is not a Gradle project.
 
+## Runtime lifecycle
+
+Treat provisioning as three distinct operations:
+
+1. **Stage** — may use network access. Downloads the generation-pinned artifact when needed and accepts it only after manifest, byte-size, and SHA-256 validation.
+2. **Verify** — strictly offline. Re-reads the staged artifact and proves it still matches the pinned manifest without downloading or repairing anything.
+3. **Install/run** — consumes the already-staged artifact. It is not evidence of provenance unless verification has succeeded first.
+
+The explicit commands are:
+
+```bash
+./gradlew :app:stageAndroidImageEmbedderModel
+./gradlew :app:verifyAndroidRuntime
+./gradlew :app:installDebug
+```
+
+The verifier calls the existing `scripts/stage_image_embedder_model.py verify --target android` path. It fails closed if the staged model is absent, truncated, stale/same-size-tampered, or digest-mismatched.
+
 ## Recommended local workflow
 
-Use the repository-level mise task:
+Use the repository-level mise task when provisioning a development device:
 
 ```bash
 mise run android-runtime
 ```
 
-This performs two explicit steps:
+This performs stage → offline verify → install in separate Gradle invocations so provisioning completes before verification and installation begin.
 
-1. `:app:stageAndroidImageEmbedderModel` downloads (when necessary), validates, and stages the generation-pinned image-embedder model using `models/image-embedder.json` and `scripts/stage_image_embedder_model.py`.
-2. `:app:installDebug` builds and installs the debug application after the model has been staged.
+To prove readiness without allowing provisioning or downloads, use:
 
-The staging and install steps are separate Gradle invocations so that model provisioning is complete before the Android build begins.
+```bash
+mise run android-runtime-verify
+```
+
+That command is appropriate after staging and before physical-device evidence collection. It is deliberately useful with network access disabled: a missing or invalid artifact fails instead of being repaired implicitly.
 
 To provision only the model:
 
@@ -42,25 +63,40 @@ These commands do **not** provision the model and must remain network-independen
 mise run build
 mise run ci
 ./gradlew :app:assembleDebug
+./gradlew :app:verifyAndroidRuntime
+mise run android-runtime-verify
 ```
 
-They validate the backendless/local-authoritative core and build graph without silently reaching the network. A debug APK produced through the offline build path is not, by itself, proof that all optional externally staged runtime assets are present.
+The ordinary build/CI commands validate the backendless/local-authoritative core and build graph without silently reaching the network. A debug APK produced through that offline build path is not, by itself, proof that all externally staged runtime assets are present.
+
+`verifyAndroidRuntime` is different: it explicitly checks runtime readiness, but it never stages, downloads, or mutates the model artifact.
 
 ## Failure diagnosis
 
-If the installed application shows `The local game runtime could not be initialized`, inspect Logcat for the `Eyespie` tag. Runtime construction failures are logged with their exception and stack trace before the fail-closed `AppUnavailable` UI is rendered.
-
-The most common provisioning check is:
+If the installed application shows `The local game runtime could not be initialized`, first run:
 
 ```bash
-mise run android-runtime
+mise run android-runtime-verify
 ```
 
-If the model is already correctly staged, the staging script verifies/reuses the pinned artifact rather than changing the application trust boundary.
+Typical failures are intentionally specific:
+
+- **missing artifact** — stage the model, then verify again;
+- **byte-size mismatch** — treat the staged file as truncated/stale and re-stage from the pinned source;
+- **SHA-256 mismatch** — do not run the candidate; re-stage and re-verify;
+- **manifest/provenance failure** — fix the checked-in contract rather than bypassing validation.
+
+After readiness verifies, inspect Logcat for the `Eyespie` tag if runtime initialization still fails. Runtime construction failures are logged with their exception and stack trace before the fail-closed `AppUnavailable` UI is rendered.
+
+## Physical/release preparation
+
+For Android candidate-bound evidence, render candidate identity from the clean source commit first, stage the ignored runtime artifact, then execute `mise run android-runtime-verify` before installing or collecting physical evidence. Record the successful verification together with the device/session evidence required by the relevant release issue.
+
+A successful host-side verification proves the staged bytes match the pinned contract. #239 still requires on-device evidence that a verified staged artifact allows `createAndroidEyespieRuntime()` to initialize past the model-loading boundary; host verification is not a substitute for that physical observation.
 
 ## Shared automation boundary
 
-The current staging implementation is Eyespie-specific. A reusable Bluebell/community abstraction may eventually own the generic contract for externally provisioned runtime artifacts:
+The current staging/verification implementation is Eyespie-specific. A reusable Bluebell/community abstraction may eventually own the generic contract for externally provisioned runtime artifacts:
 
 - declarative artifact manifest;
 - pinned source and expected size/hash;
