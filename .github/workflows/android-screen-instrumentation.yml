@@ -61,7 +61,7 @@ jobs:
             -noaudio
             -no-boot-anim
             -no-metrics
-            -camera-back none
+            -camera-back emulated
             -camera-front none
           script: bash scripts/run_android_screen_instrumentation.sh
 
