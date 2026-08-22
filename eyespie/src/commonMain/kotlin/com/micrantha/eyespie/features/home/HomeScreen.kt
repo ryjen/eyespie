@@ -24,7 +24,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.micrantha.eyespie.generated.resources.*
 import com.micrantha.eyespie.presentation.localGameFailureMessage
+import org.jetbrains.compose.resources.stringResource
 
 @Composable
 fun HomeScreen(
@@ -296,14 +298,15 @@ private fun MessageCard(
     }
 }
 
+@Composable
 private fun homeImportMessage(result: HomeImportResult): String = when (result) {
-    HomeImportResult.Imported -> "Game imported."
-    HomeImportResult.AlreadyPresent -> "Game already present."
-    HomeImportResult.Conflict -> "A different local game already uses this game ID. Your existing game was not changed."
-    HomeImportResult.InvalidFile -> "The selected file is not a supported Eyespie game."
-    HomeImportResult.TooLarge -> "The selected Eyespie file is too large."
-    HomeImportResult.Busy -> "Another document operation is already running."
-    HomeImportResult.Failed -> "The selected game could not be verified or imported."
-    HomeImportResult.Unavailable -> "Game import is unavailable on this platform."
+    HomeImportResult.Imported -> stringResource(Res.string.feedback_game_imported)
+    HomeImportResult.AlreadyPresent -> stringResource(Res.string.feedback_game_already_present)
+    HomeImportResult.Conflict -> stringResource(Res.string.failure_import_conflict)
+    HomeImportResult.InvalidFile -> stringResource(Res.string.failure_import_invalid_file)
+    HomeImportResult.TooLarge -> stringResource(Res.string.failure_import_too_large)
+    HomeImportResult.Busy -> stringResource(Res.string.failure_document_busy)
+    HomeImportResult.Failed -> stringResource(Res.string.failure_import_failed)
+    HomeImportResult.Unavailable -> stringResource(Res.string.failure_import_unavailable)
     HomeImportResult.Cancelled -> ""
 }
