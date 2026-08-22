@@ -1,6 +1,7 @@
 package com.micrantha.eyespie.features.onboarding
 
 import com.micrantha.eyespie.mvi.Interactor
+import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
@@ -35,8 +36,11 @@ class OnboardingInteractor(
         scope.launch {
             try {
                 preferences.markCompleted()
-            } finally {
                 output(result)
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                dispatch(OnboardingIntent.CompletionFailed)
             }
         }
     }
