@@ -51,30 +51,21 @@ fun HomeScreen(
         HorizontalDivider()
         Text("Local games", style = MaterialTheme.typography.titleLarge)
         val games = state.content?.games.orEmpty()
-        if (games.isEmpty()) Text("No games yet. Create a target and clue entirely on this device.")
+        if (games.isEmpty()) {
+            Text("No games yet. Create a target and clue entirely on this device.")
+        }
         games.forEach { game ->
             Text(game.name, style = MaterialTheme.typography.titleMedium)
-            if (game.things.isEmpty()) Text("No playable targets in this game.")
-            game.things.forEach { thing ->
-                Text(thing.clueText, style = MaterialTheme.typography.bodyLarge)
-                if (thing.bestSimilarity != null) {
-                    Text(
-                        if (thing.matched) "Matched · best ${formatSimilarity(thing.bestSimilarity)}"
-                        else "Best ${formatSimilarity(thing.bestSimilarity)}",
-                        style = MaterialTheme.typography.bodySmall,
-                    )
-                }
-                OutlinedButton(
-                    onClick = { dispatch(HomeIntent.PlaySelected(game.id, thing.id)) },
-                ) { Text("Play") }
-                Spacer(Modifier.height(8.dp))
+            val matched = game.things.count { it.matched }
+            Text(
+                if (game.things.isEmpty()) "No playable clues yet"
+                else "$matched of ${game.things.size} clues found",
+                style = MaterialTheme.typography.bodyMedium,
+            )
+            OutlinedButton(onClick = { dispatch(HomeIntent.GameSelected(game.id)) }) {
+                Text("Open game")
             }
+            Spacer(Modifier.height(8.dp))
         }
     }
-}
-
-private fun formatSimilarity(value: Double?): String {
-    if (value == null) return "—"
-    val percentageTenths = (value * 1000.0).toInt()
-    return "${percentageTenths / 10.0}%"
 }
