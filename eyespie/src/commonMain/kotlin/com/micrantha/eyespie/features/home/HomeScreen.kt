@@ -34,6 +34,12 @@ fun HomeScreen(
                 OutlinedButton(onClick = { dispatch(HomeIntent.DismissFailure) }) { Text("Dismiss") }
             }
         }
+        state.importResult?.let { result ->
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(homeImportMessage(result), modifier = Modifier.weight(1f))
+                OutlinedButton(onClick = { dispatch(HomeIntent.DismissImportResult) }) { Text("Dismiss") }
+            }
+        }
         if (state.loading && state.content == null) {
             Spacer(Modifier.height(24.dp))
             CircularProgressIndicator()
@@ -45,6 +51,12 @@ fun HomeScreen(
         }
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             Button(onClick = { dispatch(HomeIntent.CreateSelected) }) { Text("Create game") }
+            OutlinedButton(
+                enabled = !state.importInProgress,
+                onClick = { dispatch(HomeIntent.ImportSelected) },
+            ) {
+                Text(if (state.importInProgress) "Importing…" else "Import game (.eyespie)")
+            }
             OutlinedButton(onClick = { dispatch(HomeIntent.OnboardingSelected) }) { Text("How to play") }
             OutlinedButton(onClick = { dispatch(HomeIntent.Refresh) }) { Text("Refresh") }
         }
@@ -68,4 +80,16 @@ fun HomeScreen(
             Spacer(Modifier.height(8.dp))
         }
     }
+}
+
+private fun homeImportMessage(result: HomeImportResult): String = when (result) {
+    HomeImportResult.Imported -> "Game imported."
+    HomeImportResult.AlreadyPresent -> "Game already present."
+    HomeImportResult.Conflict -> "A different local game already uses this game ID."
+    HomeImportResult.InvalidFile -> "The selected file is not a supported Eyespie game."
+    HomeImportResult.TooLarge -> "The selected Eyespie file is too large."
+    HomeImportResult.Busy -> "Another document operation is already running."
+    HomeImportResult.Failed -> "The selected game could not be verified or imported."
+    HomeImportResult.Unavailable -> "Game import is unavailable on this platform."
+    HomeImportResult.Cancelled -> ""
 }
