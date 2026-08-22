@@ -1,21 +1,28 @@
 package com.micrantha.eyespie.features.gamedetail
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.micrantha.eyespie.presentation.localGameFailureMessage
 
@@ -26,66 +33,159 @@ fun GameDetailScreen(
 ) {
     Column(
         modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
-        verticalArrangement = Arrangement.spacedBy(12.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        OutlinedButton(onClick = { dispatch(GameDetailIntent.Back) }) { Text("Back to games") }
+        OutlinedButton(onClick = { dispatch(GameDetailIntent.Back) }) { Text("Back to field desk") }
 
         state.failure?.let { failure ->
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(localGameFailureMessage(failure), modifier = Modifier.weight(1f))
-                OutlinedButton(onClick = { dispatch(GameDetailIntent.DismissFailure) }) { Text("Dismiss") }
-            }
+            MessageCard(
+                message = localGameFailureMessage(failure),
+                onDismiss = { dispatch(GameDetailIntent.DismissFailure) },
+            )
         }
         state.shareResult?.let { result ->
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(gameDetailShareMessage(result), modifier = Modifier.weight(1f))
-                OutlinedButton(onClick = { dispatch(GameDetailIntent.DismissShareResult) }) { Text("Dismiss") }
+            gameDetailShareMessage(result).takeIf { it.isNotBlank() }?.let { message ->
+                MessageCard(
+                    message = message,
+                    onDismiss = { dispatch(GameDetailIntent.DismissShareResult) },
+                )
             }
         }
 
         if (state.loading && state.content == null) {
-            Spacer(Modifier.height(24.dp))
-            CircularProgressIndicator()
+            Box(
+                modifier = Modifier.fillMaxWidth().padding(vertical = 48.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                CircularProgressIndicator()
+            }
             return@Column
         }
 
         val content = state.content ?: return@Column
-        Text(content.name, style = MaterialTheme.typography.headlineMedium)
-
         val found = content.things.count { it.matched }
-        Text(
-            if (content.things.isEmpty()) "No clues yet"
-            else "$found of ${content.things.size} clues found",
-            style = MaterialTheme.typography.titleMedium,
-        )
+        val total = content.things.size
+
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(
+                if (content.localCreator) "YOUR FIELD CASE" else "SHARED FIELD CASE",
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.primary,
+                fontWeight = FontWeight.Bold,
+            )
+            Text(content.name, style = MaterialTheme.typography.headlineLarge)
+            Text(
+                if (total == 0) "No playable clues yet" else "$found of $total clues found",
+                style = MaterialTheme.typography.bodyLarge,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+
         if (content.localCreator) {
-            OutlinedButton(
-                enabled = !state.shareInProgress,
-                onClick = { dispatch(GameDetailIntent.ShareSelected) },
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
             ) {
-                Text(if (state.shareInProgress) "Sharing…" else "Share game")
+                Column(
+                    modifier = Modifier.fillMaxWidth().padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
+                    Text("Share this game", style = MaterialTheme.typography.titleLarge)
+                    Text(
+                        "Export a signed .eyespie game file and hand it off with the platform share flow.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Button(
+                        modifier = Modifier.fillMaxWidth(),
+                        enabled = !state.shareInProgress,
+                        onClick = { dispatch(GameDetailIntent.ShareSelected) },
+                    ) {
+                        Text(if (state.shareInProgress) "Preparing…" else "Share game")
+                    }
+                }
             }
         }
+
         HorizontalDivider()
 
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text("Clues", style = MaterialTheme.typography.headlineSmall)
+            Text(
+                if (content.localCreator) "Review your case or continue testing clues." else "Work through the case one clue at a time.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+
         if (content.things.isEmpty()) {
-            Text("This game does not have a playable clue yet.")
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+            ) {
+                Text(
+                    if (content.localCreator) "This case does not have a playable clue yet." else "This shared case has no playable clues.",
+                    modifier = Modifier.fillMaxWidth().padding(20.dp),
+                )
+            }
         }
 
         content.things.forEachIndexed { index, thing ->
-            Text("Clue ${index + 1}", style = MaterialTheme.typography.labelLarge)
-            Text(thing.clueText, style = MaterialTheme.typography.bodyLarge)
-            Text(
-                if (thing.matched) "Found" else "Searching",
-                style = MaterialTheme.typography.bodyMedium,
-            )
-            thing.bestSimilarity?.let { similarity ->
-                Text("Best match ${formatSimilarity(similarity)}", style = MaterialTheme.typography.bodySmall)
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+            ) {
+                Column(
+                    modifier = Modifier.fillMaxWidth().padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Row(
+                        modifier = Modifier.fillMaxWidth(),
+                        horizontalArrangement = Arrangement.SpaceBetween,
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        Text("Clue ${index + 1}", style = MaterialTheme.typography.labelLarge)
+                        Text(
+                            if (thing.matched) "Found" else "In progress",
+                            style = MaterialTheme.typography.labelMedium,
+                            color = if (thing.matched) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Text(thing.clueText, style = MaterialTheme.typography.titleMedium)
+                    thing.bestSimilarity?.let { similarity ->
+                        Text(
+                            "Best match ${formatSimilarity(similarity)}",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    Button(
+                        modifier = Modifier.fillMaxWidth(),
+                        onClick = { dispatch(GameDetailIntent.PlaySelected(thing.id)) },
+                    ) {
+                        Text(if (thing.matched) "Review clue" else "Start clue")
+                    }
+                }
             }
-            Button(onClick = { dispatch(GameDetailIntent.PlaySelected(thing.id)) }) {
-                Text(if (thing.matched) "View clue" else "Play clue")
-            }
-            Spacer(Modifier.height(8.dp))
+        }
+
+        Spacer(Modifier.height(4.dp))
+    }
+}
+
+@Composable
+private fun MessageCard(
+    message: String,
+    onDismiss: () -> Unit,
+) {
+    Card(modifier = Modifier.fillMaxWidth()) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(12.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Text(message, modifier = Modifier.weight(1f))
+            OutlinedButton(onClick = onDismiss) { Text("Dismiss") }
         }
     }
 }
