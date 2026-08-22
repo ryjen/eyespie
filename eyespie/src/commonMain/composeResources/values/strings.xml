@@ -1,0 +1,34 @@
+<resources>
+    <string name="failure_operation_in_progress">Another local capture or match operation is already running.</string>
+    <string name="failure_invalid_game_name">Enter a non-empty game name up to 80 characters.</string>
+    <string name="failure_blank_clue">Enter a clue before capturing the target.</string>
+    <string name="failure_clue_too_long">The clue is too long.</string>
+    <string name="failure_blank_expected_answer">Enter the creator-only expected answer.</string>
+    <string name="failure_expected_answer_too_long">The expected answer is too long.</string>
+    <string name="failure_invalid_clue_authority">The clue authority is invalid.</string>
+    <string name="failure_identity_unavailable">The device-local player identity is unavailable.</string>
+    <string name="failure_not_local_creator">Only the local creator of this game can add clues.</string>
+    <string name="failure_target_embedding_failed">The target image could not be embedded on this device.</string>
+    <string name="failure_guess_embedding_failed">The guess image could not be embedded on this device.</string>
+    <string name="failure_game_not_found">The selected local game no longer exists.</string>
+    <string name="failure_thing_not_found">The selected target no longer exists.</string>
+    <string name="failure_match_policy_invalid">The saved match policy is incompatible with this build.</string>
+    <string name="failure_persistence_failed">Local game state could not be saved or loaded.</string>
+    <string name="failure_camera_unavailable">No usable camera is available on this device.</string>
+    <string name="failure_camera_permission_target">Camera permission is turned off. Enable it in system settings to capture this target.</string>
+    <string name="failure_camera_permission_clue_target">Camera permission is turned off. Enable it in system settings to capture this clue target.</string>
+    <string name="failure_camera_permission_guess">Camera permission is turned off. Enable it in system settings to capture a guess.</string>
+    <string name="failure_import_conflict">A different local game already uses this game ID. Your existing game was not changed.</string>
+    <string name="failure_import_invalid_file">The selected file is not a supported Eyespie game.</string>
+    <string name="failure_import_too_large">The selected Eyespie file is too large.</string>
+    <string name="failure_document_busy">Another document operation is already running.</string>
+    <string name="failure_import_failed">The selected game could not be verified or imported.</string>
+    <string name="failure_import_unavailable">Game import is unavailable on this platform.</string>
+    <string name="feedback_game_imported">Game imported.</string>
+    <string name="feedback_game_already_present">Game already present.</string>
+    <string name="feedback_game_shared">Game shared.</string>
+    <string name="failure_share_not_local_creator">Only games authored by this local identity can be shared.</string>
+    <string name="failure_share_too_large">The Eyespie game is too large to share.</string>
+    <string name="failure_share_failed">This local game could not be shared.</string>
+    <string name="failure_share_unavailable">Game sharing is unavailable on this platform.</string>
+</resources>
