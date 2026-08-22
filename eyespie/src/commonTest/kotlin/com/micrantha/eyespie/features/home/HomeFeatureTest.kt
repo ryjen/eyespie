@@ -129,6 +129,30 @@ class HomeFeatureTest {
 
     @OptIn(ExperimentalCoroutinesApi::class)
     @Test
+    fun disposal_clears_pending_import_candidate() = runTest {
+        val expected = HomeContent("Agent", "player-1", emptyList())
+        val preview = HomeImportPreview("Road Trip", 1, "creator-1234", "game-5678")
+        val port = FakeHomePort(
+            content = expected,
+            preparation = HomeImportPreparationResult.Ready(preview),
+        )
+        val interactor = HomeFactory(port, {}).create(
+            scope = this,
+            initialState = HomeState(content = expected, loading = false),
+        )
+
+        interactor.dispatch(HomeIntent.ImportSelected)
+        advanceUntilIdle()
+        interactor.dispose()
+
+        assertEquals(preview, interactor.state.value.importPreview)
+        assertEquals(1, port.cancels)
+        assertEquals(0, port.confirms)
+        assertEquals(0, port.loads)
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
     fun cancelled_document_selection_is_silent_and_does_not_refresh() = runTest {
         val expected = HomeContent("Agent", "player-1", emptyList())
         val port = FakeHomePort(
