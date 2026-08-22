@@ -25,6 +25,7 @@ import com.micrantha.eyespie.features.gamedetail.GameDetailRoute
 import com.micrantha.eyespie.features.home.HomeRoute
 import com.micrantha.eyespie.features.onboarding.OnboardingRoute
 import com.micrantha.eyespie.features.play.PlayGameRoute
+import com.micrantha.eyespie.features.utility.UtilityRoute
 import com.micrantha.eyespie.game.EyespieRuntime
 import com.micrantha.eyespie.sharing.GameDocumentTransfer
 
@@ -76,6 +77,7 @@ fun App(
                         when (val current = route) {
                             AppRoute.Home -> HomeRoute(graph.homeFactory)
                             AppRoute.Onboarding -> OnboardingRoute(graph.onboardingFactory)
+                            AppRoute.Utility -> UtilityRoute(graph.utilityFactory)
                             AppRoute.Create -> CreateGameRoute(graph.createGameFactory)
                             is AppRoute.GameDetail -> GameDetailRoute(
                                 factory = graph.gameDetailFactory,
