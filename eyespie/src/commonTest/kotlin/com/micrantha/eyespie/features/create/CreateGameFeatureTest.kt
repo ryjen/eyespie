@@ -47,7 +47,7 @@ class CreateGameFeatureTest {
         advanceUntilIdle()
 
         assertFalse(interactor.state.value.busy)
-        assertEquals(listOf(CreateGameOutput.Created), outputs)
+        assertEquals(listOf<CreateGameOutput>(CreateGameOutput.Created), outputs)
         assertEquals(1, port.creates)
         assertEquals(CreateGameState(), interactor.state.value)
     }
