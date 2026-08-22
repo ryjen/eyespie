@@ -18,7 +18,8 @@ class CreateGameInteractor(
     override val state: StateFlow<CreateGameState> = mutableState.asStateFlow()
 
     override fun dispatch(intent: CreateGameIntent) {
-        mutableState.value = CreateGameReducer.reduce(mutableState.value, intent)
+        val previousState = mutableState.value
+        mutableState.value = CreateGameReducer.reduce(previousState, intent)
         val stateAfterReduce = mutableState.value
         when (intent) {
             is CreateGameIntent.TargetCaptured -> scope.launch {
@@ -54,7 +55,7 @@ class CreateGameInteractor(
                 }
             }
             CreateGameIntent.Back -> {
-                val returnGameId = (stateAfterReduce.mode as? CreateGameMode.AddClue)?.gameId
+                val returnGameId = (previousState.mode as? CreateGameMode.AddClue)?.gameId
                 output(CreateGameOutput.Cancelled(returnGameId))
             }
             else -> Unit
