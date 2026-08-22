@@ -55,7 +55,10 @@ class ClueAuthoringFeatureTest {
         assertEquals(gameId, port.gameId)
         assertEquals("Find stripes", port.clueText)
         assertEquals("crosswalk", port.expectedAnswer)
-        assertEquals(listOf(ClueAuthoringOutput.Completed(gameId)), outputs)
+        assertEquals(
+            listOf<ClueAuthoringOutput>(ClueAuthoringOutput.Completed(gameId)),
+            outputs,
+        )
         assertEquals(ClueAuthoringState(), interactor.state.value)
     }
 
@@ -91,7 +94,10 @@ class ClueAuthoringFeatureTest {
 
         interactor.dispatch(ClueAuthoringIntent.Back)
 
-        assertEquals(listOf(ClueAuthoringOutput.Closed(gameId)), outputs)
+        assertEquals(
+            listOf<ClueAuthoringOutput>(ClueAuthoringOutput.Closed(gameId)),
+            outputs,
+        )
     }
 
     private fun image(): CapturedImage = CapturedImage.fromEncoded(byteArrayOf(1))
