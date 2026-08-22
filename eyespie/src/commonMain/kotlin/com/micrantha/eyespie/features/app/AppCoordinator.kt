@@ -42,7 +42,7 @@ class AppCoordinator(
 
     fun onPlayGameOutput(output: PlayGameOutput) {
         when (output) {
-            PlayGameOutput.Closed -> navigator.navigate(AppRoute.Home)
+            is PlayGameOutput.Closed -> navigator.navigate(AppRoute.GameDetail(output.gameId))
         }
     }
 }
