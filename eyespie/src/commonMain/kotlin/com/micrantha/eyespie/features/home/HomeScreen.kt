@@ -57,6 +57,8 @@ fun HomeScreen(
             ) {
                 Text(if (state.importInProgress) "Importing…" else "Import game (.eyespie)")
             }
+        }
+        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             OutlinedButton(onClick = { dispatch(HomeIntent.OnboardingSelected) }) { Text("How to play") }
             OutlinedButton(onClick = { dispatch(HomeIntent.Refresh) }) { Text("Refresh") }
         }
