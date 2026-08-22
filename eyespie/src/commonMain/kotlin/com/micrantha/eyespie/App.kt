@@ -32,7 +32,7 @@ fun App(
     runtime: EyespieRuntime,
     documentTransfer: GameDocumentTransfer? = null,
 ) {
-    val onboardingCompleted by produceState<Boolean?>(initialValue = null, runtime) {
+    val onboardingCompleted by produceState<Boolean?>(null, runtime) {
         value = try {
             runtime.onboardingPreferences.isCompleted()
         } catch (_: Exception) {
