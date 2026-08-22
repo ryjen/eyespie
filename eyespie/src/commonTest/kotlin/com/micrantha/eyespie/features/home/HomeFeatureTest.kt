@@ -48,9 +48,14 @@ class HomeFeatureTest {
 
     @OptIn(ExperimentalCoroutinesApi::class)
     @Test
-    fun imported_game_refreshes_library_and_records_result() = runTest {
+    fun selected_game_is_previewed_without_import_or_library_refresh() = runTest {
         val expected = HomeContent("Agent", "player-1", emptyList())
-        val port = FakeHomePort(expected, HomeImportResult.Imported)
+        val preview = HomeImportPreview("Road Trip", 3, "creator-1234", "game-5678")
+        val port = FakeHomePort(
+            content = expected,
+            preparation = HomeImportPreparationResult.Ready(preview),
+            confirmResult = HomeImportResult.Imported,
+        )
         val interactor = HomeFactory(port, {}).create(
             scope = this,
             initialState = HomeState(content = expected, loading = false),
@@ -61,16 +66,75 @@ class HomeFeatureTest {
         advanceUntilIdle()
 
         assertFalse(interactor.state.value.importInProgress)
+        assertEquals(preview, interactor.state.value.importPreview)
+        assertNull(interactor.state.value.importResult)
+        assertEquals(1, port.prepares)
+        assertEquals(0, port.confirms)
+        assertEquals(0, port.loads)
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun confirmed_import_refreshes_library_and_records_result() = runTest {
+        val expected = HomeContent("Agent", "player-1", emptyList())
+        val preview = HomeImportPreview("Road Trip", 1, "creator-1234", "game-5678")
+        val port = FakeHomePort(
+            content = expected,
+            preparation = HomeImportPreparationResult.Ready(preview),
+            confirmResult = HomeImportResult.Imported,
+        )
+        val interactor = HomeFactory(port, {}).create(
+            scope = this,
+            initialState = HomeState(content = expected, loading = false),
+        )
+
+        interactor.dispatch(HomeIntent.ImportSelected)
+        advanceUntilIdle()
+        interactor.dispatch(HomeIntent.ImportConfirmed)
+        assertTrue(interactor.state.value.importInProgress)
+        advanceUntilIdle()
+
+        assertFalse(interactor.state.value.importInProgress)
+        assertNull(interactor.state.value.importPreview)
         assertEquals(HomeImportResult.Imported, interactor.state.value.importResult)
-        assertEquals(1, port.imports)
+        assertEquals(1, port.prepares)
+        assertEquals(1, port.confirms)
         assertEquals(1, port.loads)
     }
 
     @OptIn(ExperimentalCoroutinesApi::class)
     @Test
-    fun cancelled_import_is_silent_and_does_not_refresh() = runTest {
+    fun cancelled_preview_clears_pending_import_without_refresh() = runTest {
         val expected = HomeContent("Agent", "player-1", emptyList())
-        val port = FakeHomePort(expected, HomeImportResult.Cancelled)
+        val preview = HomeImportPreview("Road Trip", 1, "creator-1234", "game-5678")
+        val port = FakeHomePort(
+            content = expected,
+            preparation = HomeImportPreparationResult.Ready(preview),
+        )
+        val interactor = HomeFactory(port, {}).create(
+            scope = this,
+            initialState = HomeState(content = expected, loading = false),
+        )
+
+        interactor.dispatch(HomeIntent.ImportSelected)
+        advanceUntilIdle()
+        interactor.dispatch(HomeIntent.ImportPreviewCancelled)
+
+        assertNull(interactor.state.value.importPreview)
+        assertNull(interactor.state.value.importResult)
+        assertEquals(1, port.cancels)
+        assertEquals(0, port.confirms)
+        assertEquals(0, port.loads)
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun cancelled_document_selection_is_silent_and_does_not_refresh() = runTest {
+        val expected = HomeContent("Agent", "player-1", emptyList())
+        val port = FakeHomePort(
+            content = expected,
+            preparation = HomeImportPreparationResult.Terminal(HomeImportResult.Cancelled),
+        )
         val interactor = HomeFactory(port, {}).create(
             scope = this,
             initialState = HomeState(content = expected, loading = false),
@@ -79,8 +143,10 @@ class HomeFeatureTest {
         interactor.dispatch(HomeIntent.ImportSelected)
         advanceUntilIdle()
 
+        assertNull(interactor.state.value.importPreview)
         assertNull(interactor.state.value.importResult)
-        assertEquals(1, port.imports)
+        assertEquals(1, port.prepares)
+        assertEquals(0, port.confirms)
         assertEquals(0, port.loads)
     }
 
@@ -107,18 +173,31 @@ class HomeFeatureTest {
 
 private class FakeHomePort(
     private val content: HomeContent,
-    private val importResult: HomeImportResult = HomeImportResult.Unavailable,
+    private val preparation: HomeImportPreparationResult =
+        HomeImportPreparationResult.Terminal(HomeImportResult.Unavailable),
+    private val confirmResult: HomeImportResult = HomeImportResult.Unavailable,
 ) : HomePort {
     var loads = 0
-    var imports = 0
+    var prepares = 0
+    var confirms = 0
+    var cancels = 0
 
     override suspend fun load(): LocalGameResult<HomeContent> {
         loads += 1
         return LocalGameResult.Success(content)
     }
 
-    override suspend fun importGame(): HomeImportResult {
-        imports += 1
-        return importResult
+    override suspend fun prepareImport(): HomeImportPreparationResult {
+        prepares += 1
+        return preparation
+    }
+
+    override suspend fun confirmImport(): HomeImportResult {
+        confirms += 1
+        return confirmResult
+    }
+
+    override fun cancelImport() {
+        cancels += 1
     }
 }
