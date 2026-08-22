@@ -34,36 +34,44 @@ object PlayGameReducer : Reducer<PlayGameState, PlayGameIntent> {
             feedback = null,
             guessGeneration = state.guessGeneration + 1,
         )
-        is PlayGameIntent.GuessCompleted -> if (intent.generation == state.guessGeneration) {
-            val content = state.content ?: return state.copy(busy = false)
-            val progress = intent.outcome.progress
-            val feedback = if (intent.outcome.match.matched) {
-                val foundCount = if (content.matched) content.foundCount else minOf(content.totalCount, content.foundCount + 1)
-                PlayFeedback.Matched(
-                    similarity = intent.outcome.match.similarity,
-                    bestSimilarity = progress.bestSimilarity ?: intent.outcome.match.similarity,
-                    foundCount = foundCount,
-                    totalCount = content.totalCount,
-                    nextThingId = content.nextThingId,
-                )
+        is PlayGameIntent.GuessCompleted -> if (intent.generation != state.guessGeneration) {
+            state
+        } else {
+            val content = state.content
+            if (content == null) {
+                state.copy(busy = false)
             } else {
-                PlayFeedback.Mismatch(
-                    similarity = intent.outcome.match.similarity,
-                    bestSimilarity = progress.bestSimilarity ?: intent.outcome.match.similarity,
+                val progress = intent.outcome.progress
+                val feedback = if (intent.outcome.match.matched) {
+                    val foundCount = if (content.matched) {
+                        content.foundCount
+                    } else {
+                        minOf(content.totalCount, content.foundCount + 1)
+                    }
+                    PlayFeedback.Matched(
+                        similarity = intent.outcome.match.similarity,
+                        bestSimilarity = progress.bestSimilarity ?: intent.outcome.match.similarity,
+                        foundCount = foundCount,
+                        totalCount = content.totalCount,
+                        nextThingId = content.nextThingId,
+                    )
+                } else {
+                    PlayFeedback.Mismatch(
+                        similarity = intent.outcome.match.similarity,
+                        bestSimilarity = progress.bestSimilarity ?: intent.outcome.match.similarity,
+                    )
+                }
+                state.copy(
+                    busy = false,
+                    failure = null,
+                    feedback = feedback,
+                    content = content.copy(
+                        matched = progress.matched,
+                        bestSimilarity = progress.bestSimilarity,
+                        foundCount = if (feedback is PlayFeedback.Matched) feedback.foundCount else content.foundCount,
+                    ),
                 )
             }
-            state.copy(
-                busy = false,
-                failure = null,
-                feedback = feedback,
-                content = content.copy(
-                    matched = progress.matched,
-                    bestSimilarity = progress.bestSimilarity,
-                    foundCount = if (feedback is PlayFeedback.Matched) feedback.foundCount else content.foundCount,
-                ),
-            )
-        } else {
-            state
         }
         is PlayGameIntent.OperationFailed -> if (intent.generation == state.guessGeneration) {
             state.copy(
