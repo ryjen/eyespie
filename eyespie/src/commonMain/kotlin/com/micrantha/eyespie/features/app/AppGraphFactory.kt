@@ -12,6 +12,8 @@ import com.micrantha.eyespie.features.onboarding.OnboardingFactory
 import com.micrantha.eyespie.features.onboarding.OnboardingPreferenceStore
 import com.micrantha.eyespie.features.play.PlayGameFactory
 import com.micrantha.eyespie.features.play.PlayGamePort
+import com.micrantha.eyespie.features.utility.UtilityFactory
+import com.micrantha.eyespie.features.utility.UtilityPort
 import com.micrantha.eyespie.game.EyespieRuntime
 import com.micrantha.eyespie.sharing.GameDocumentTransfer
 
@@ -24,6 +26,7 @@ object AppGraphFactory {
         val adapter = LocalGameAdapter(runtime, documentTransfer)
         return fromPorts(
             homePort = adapter,
+            utilityPort = adapter,
             createGamePort = adapter,
             clueAuthoringPort = adapter,
             playGamePort = adapter,
@@ -35,6 +38,7 @@ object AppGraphFactory {
 
     fun fromPorts(
         homePort: HomePort,
+        utilityPort: UtilityPort,
         createGamePort: CreateGamePort,
         clueAuthoringPort: ClueAuthoringPort,
         playGamePort: PlayGamePort,
@@ -50,6 +54,7 @@ object AppGraphFactory {
                 onboardingPreferences,
                 coordinator::onOnboardingOutput,
             ),
+            utilityFactory = UtilityFactory(utilityPort, coordinator::onUtilityOutput),
             createGameFactory = CreateGameFactory(createGamePort, coordinator::onCreateGameOutput),
             gameDetailFactory = GameDetailFactory(
                 gameDetailPort,
