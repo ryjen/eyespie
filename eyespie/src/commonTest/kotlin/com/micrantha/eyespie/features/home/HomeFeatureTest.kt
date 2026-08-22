@@ -5,6 +5,7 @@ import com.micrantha.eyespie.testsupport.testGameId
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlinx.coroutines.ExperimentalCoroutinesApi
 import kotlinx.coroutines.test.advanceUntilIdle
@@ -45,6 +46,44 @@ class HomeFeatureTest {
         assertEquals(1, port.loads)
     }
 
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun imported_game_refreshes_library_and_records_result() = runTest {
+        val expected = HomeContent("Agent", "player-1", emptyList())
+        val port = FakeHomePort(expected, HomeImportResult.Imported)
+        val interactor = HomeFactory(port, {}).create(
+            scope = this,
+            initialState = HomeState(content = expected, loading = false),
+        )
+
+        interactor.dispatch(HomeIntent.ImportSelected)
+        assertTrue(interactor.state.value.importInProgress)
+        advanceUntilIdle()
+
+        assertFalse(interactor.state.value.importInProgress)
+        assertEquals(HomeImportResult.Imported, interactor.state.value.importResult)
+        assertEquals(1, port.imports)
+        assertEquals(1, port.loads)
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun cancelled_import_is_silent_and_does_not_refresh() = runTest {
+        val expected = HomeContent("Agent", "player-1", emptyList())
+        val port = FakeHomePort(expected, HomeImportResult.Cancelled)
+        val interactor = HomeFactory(port, {}).create(
+            scope = this,
+            initialState = HomeState(content = expected, loading = false),
+        )
+
+        interactor.dispatch(HomeIntent.ImportSelected)
+        advanceUntilIdle()
+
+        assertNull(interactor.state.value.importResult)
+        assertEquals(1, port.imports)
+        assertEquals(0, port.loads)
+    }
+
     @Test
     fun factory_wires_semantic_outputs_without_app_routes() = runTest {
         val outputs = mutableListOf<HomeOutput>()
@@ -63,10 +102,18 @@ class HomeFeatureTest {
 
 private class FakeHomePort(
     private val content: HomeContent,
+    private val importResult: HomeImportResult = HomeImportResult.Unavailable,
 ) : HomePort {
     var loads = 0
+    var imports = 0
+
     override suspend fun load(): LocalGameResult<HomeContent> {
         loads += 1
         return LocalGameResult.Success(content)
+    }
+
+    override suspend fun importGame(): HomeImportResult {
+        imports += 1
+        return importResult
     }
 }
