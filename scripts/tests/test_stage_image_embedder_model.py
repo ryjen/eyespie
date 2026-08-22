@@ -93,6 +93,27 @@ class ImageEmbedderModelStagerTest(unittest.TestCase):
             with self.assertRaisesRegex(ModelArtifactError, "byte-size mismatch"):
                 stage_model(manifest, root / "out" / EXPECTED_FILE_NAME, source_file=source)
 
+    def test_offline_verify_rejects_missing_artifact(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            payload = b"reviewed model bytes"
+            manifest = load_manifest(self.write_manifest(root, payload))
+
+            with self.assertRaisesRegex(ModelArtifactError, "model artifact is missing"):
+                verify_file(root / "missing" / EXPECTED_FILE_NAME, manifest)
+
+    def test_offline_verify_rejects_same_size_stale_artifact(self) -> None:
+        with tempfile.TemporaryDirectory() as directory:
+            root = Path(directory)
+            payload = b"reviewed model bytes"
+            stale = root / EXPECTED_FILE_NAME
+            stale.write_bytes(b"tampered model bytes")
+            self.assertEqual(len(payload), stale.stat().st_size)
+            manifest = load_manifest(self.write_manifest(root, payload))
+
+            with self.assertRaisesRegex(ModelArtifactError, "SHA-256 mismatch"):
+                verify_file(stale, manifest)
+
     def test_rejects_unpinned_source_url(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
