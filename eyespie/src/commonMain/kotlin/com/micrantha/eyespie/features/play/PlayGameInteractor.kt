@@ -6,7 +6,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
 class PlayGameInteractor(
-    private val port: PlayGamePort,
+    private val loader: PlayGameLoader,
+    private val guessSubmitter: GuessSubmitter,
     private val scope: CoroutineScope,
     private val output: (PlayGameOutput) -> Unit,
     initialState: PlayGameState,
@@ -18,7 +19,7 @@ class PlayGameInteractor(
     ) {
         when (intent) {
             PlayGameIntent.Load -> scope.launch {
-                when (val result = port.load(stateAfterReduce.gameId, stateAfterReduce.thingId)) {
+                when (val result = loader.load(stateAfterReduce.gameId, stateAfterReduce.thingId)) {
                     is LocalGameResult.Success -> dispatch(PlayGameIntent.ContentLoaded(result.value))
                     is LocalGameResult.Failure -> dispatch(PlayGameIntent.LoadFailed(result.failure))
                 }
@@ -27,7 +28,7 @@ class PlayGameInteractor(
                 val generation = stateAfterReduce.guessGeneration
                 scope.launch {
                     when (
-                        val result = port.guess(
+                        val result = guessSubmitter.guess(
                             gameId = stateAfterReduce.gameId,
                             thingId = stateAfterReduce.thingId,
                             guessImage = intent.image,
