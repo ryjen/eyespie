@@ -39,7 +39,7 @@ class PlayGameInteractor(
                     is LocalGameResult.Failure -> dispatch(PlayGameIntent.OperationFailed(result.failure))
                 }
             }
-            PlayGameIntent.Back -> output(PlayGameOutput.Closed)
+            PlayGameIntent.Back -> output(PlayGameOutput.Closed(stateAfterReduce.gameId))
             else -> Unit
         }
     }
