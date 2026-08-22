@@ -21,7 +21,14 @@ object OnboardingReducer : Reducer<OnboardingState, OnboardingIntent> {
             },
         )
         OnboardingIntent.Skip,
-        OnboardingIntent.Done -> if (state.completing) state else state.copy(completing = true)
+        OnboardingIntent.Done -> if (state.completing) state else state.copy(
+            completing = true,
+            completionFailed = false,
+        )
+        OnboardingIntent.CompletionFailed -> state.copy(
+            completing = false,
+            completionFailed = true,
+        )
         OnboardingIntent.Back -> OnboardingState()
     }
 }
