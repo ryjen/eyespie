@@ -1,13 +1,11 @@
 package com.micrantha.eyespie
 
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
-import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.collectAsState
 import androidx.compose.runtime.getValue
@@ -35,14 +33,8 @@ fun App(
     val route by graph.navigator.route.collectAsState()
 
     MaterialTheme {
-        Surface(modifier = Modifier.fillMaxSize()) {
-            Column(
-                modifier = Modifier.fillMaxSize().padding(20.dp),
-                verticalArrangement = Arrangement.spacedBy(12.dp),
-            ) {
-                Text("Eyespie", style = MaterialTheme.typography.headlineLarge)
-                Text("Offline travel-spy game", style = MaterialTheme.typography.titleMedium)
-
+        Surface(modifier = Modifier.fillMaxSize(), color = MaterialTheme.colorScheme.background) {
+            Column(modifier = Modifier.fillMaxSize().padding(horizontal = 20.dp, vertical = 16.dp)) {
                 Column(modifier = Modifier.fillMaxWidth().weight(1f)) {
                     when (val current = route) {
                         AppRoute.Home -> HomeRoute(graph.homeFactory)
