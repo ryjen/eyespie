@@ -2,6 +2,8 @@ package com.micrantha.eyespie.features.create
 
 import com.micrantha.eyespie.clue.ClueAuthoringResult
 import com.micrantha.eyespie.clue.ClueAuthority
+import com.micrantha.eyespie.core.GameId
+import com.micrantha.eyespie.game.CreatedClue
 import com.micrantha.eyespie.game.CreatedGame
 import com.micrantha.eyespie.game.LocalGameResult
 import com.micrantha.eyespie.imaging.CapturedImage
@@ -54,6 +56,24 @@ class CreateGameFeatureTest {
 
     @OptIn(ExperimentalCoroutinesApi::class)
     @Test
+    fun add_clue_mode_uses_existing_game_and_returns_to_detail() = runTest {
+        val port = FakeCreatePort()
+        val outputs = mutableListOf<CreateGameOutput>()
+        val initial = CreateGameState(mode = CreateGameMode.AddClue(testGameId))
+        val interactor = CreateGameFactory(port, outputs::add).create(this, initial)
+        interactor.dispatch(CreateGameIntent.ClueChanged("Find the red door"))
+        interactor.dispatch(CreateGameIntent.ExpectedAnswerChanged("red door"))
+
+        interactor.dispatch(CreateGameIntent.TargetCaptured(testImage()))
+        advanceUntilIdle()
+
+        assertEquals(0, port.creates)
+        assertEquals(1, port.cluesAdded)
+        assertEquals(listOf<CreateGameOutput>(CreateGameOutput.ClueAdded(testGameId)), outputs)
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
     fun cancelling_route_scope_prevents_stale_completion_output() = runTest {
         val result = CompletableDeferred<LocalGameResult<CreatedGame>>()
         val port = object : CreateGamePort {
@@ -63,6 +83,13 @@ class CreateGameFeatureTest {
                 expectedAnswer: String,
                 targetImage: CapturedImage,
             ): LocalGameResult<CreatedGame> = result.await()
+
+            override suspend fun addClue(
+                gameId: GameId,
+                clueText: String,
+                expectedAnswer: String,
+                targetImage: CapturedImage,
+            ): LocalGameResult<CreatedClue> = error("not used")
         }
         val routeJob = Job()
         val routeScope = CoroutineScope(StandardTestDispatcher(testScheduler) + routeJob)
@@ -84,6 +111,7 @@ class CreateGameFeatureTest {
 
 private class FakeCreatePort : CreateGamePort {
     var creates = 0
+    var cluesAdded = 0
 
     override suspend fun create(
         name: String,
@@ -94,6 +122,16 @@ private class FakeCreatePort : CreateGamePort {
         creates += 1
         return LocalGameResult.Success(createdGame(name, clueText, expectedAnswer))
     }
+
+    override suspend fun addClue(
+        gameId: GameId,
+        clueText: String,
+        expectedAnswer: String,
+        targetImage: CapturedImage,
+    ): LocalGameResult<CreatedClue> {
+        cluesAdded += 1
+        return LocalGameResult.Success(createdClue(gameId, clueText, expectedAnswer))
+    }
 }
 
 private fun createdGame(
@@ -101,9 +139,22 @@ private fun createdGame(
     clueText: String = "Find it",
     expectedAnswer: String = "it",
 ): CreatedGame {
-    val clue = when (val authored = ClueAuthority.manual(clueText, expectedAnswer)) {
+    val clue = playableClue(clueText, expectedAnswer)
+    return CreatedGame(testGameId, testThingId, name, clue)
+}
+
+private fun createdClue(
+    gameId: GameId = testGameId,
+    clueText: String = "Find it",
+    expectedAnswer: String = "it",
+): CreatedClue = CreatedClue(
+    gameId = gameId,
+    thingId = testThingId,
+    clue = playableClue(clueText, expectedAnswer),
+)
+
+private fun playableClue(clueText: String, expectedAnswer: String) =
+    when (val authored = ClueAuthority.manual(clueText, expectedAnswer)) {
         is ClueAuthoringResult.Accepted -> authored.authority.playable()
         is ClueAuthoringResult.Rejected -> error("fixture clue rejected")
     }
-    return CreatedGame(testGameId, testThingId, name, clue)
-}
