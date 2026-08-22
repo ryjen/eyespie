@@ -1,0 +1,70 @@
+#!/usr/bin/env python3
+from __future__ import annotations
+
+import re
+from pathlib import Path
+
+ROOT = Path(__file__).resolve().parents[1]
+FEATURES_ROOT = ROOT / "eyespie/src/commonMain/kotlin/com/micrantha/eyespie/features"
+FEATURE_IMPORT = "import com.micrantha.eyespie.features."
+SCREEN_SIGNATURE = re.compile(r"fun\s+\w+Screen\s*\((.*?)\)\s*\{", re.DOTALL)
+
+
+def verify() -> list[str]:
+    violations: list[str] = []
+    feature_dirs = [path for path in FEATURES_ROOT.iterdir() if path.is_dir()]
+    feature_names = {path.name for path in feature_dirs}
+
+    for feature_dir in feature_dirs:
+        if feature_dir.name == "app":
+            continue
+
+        for source in feature_dir.rglob("*.kt"):
+            for line in source.read_text(encoding="utf-8").splitlines():
+                if not line.startswith(FEATURE_IMPORT):
+                    continue
+                imported_feature = line.removeprefix(FEATURE_IMPORT).split(".", 1)[0]
+                if imported_feature in feature_names and imported_feature != feature_dir.name:
+                    violations.append(
+                        f"{source.relative_to(ROOT)} imports feature '{imported_feature}'"
+                    )
+
+        for screen_file in feature_dir.glob("*Screen.kt"):
+            source = screen_file.read_text(encoding="utf-8")
+            match = SCREEN_SIGNATURE.search(source)
+            if match is None:
+                violations.append(
+                    f"{screen_file.relative_to(ROOT)} has no parseable Screen signature"
+                )
+                continue
+
+            parameters = [
+                line.strip().removesuffix(",")
+                for line in match.group(1).splitlines()
+                if line.strip()
+            ]
+            if (
+                len(parameters) != 2
+                or not parameters[0].startswith("state:")
+                or not parameters[1].startswith("dispatch:")
+            ):
+                violations.append(
+                    f"{screen_file.relative_to(ROOT)} must accept exactly state + dispatch"
+                )
+
+    return violations
+
+
+def main() -> int:
+    violations = verify()
+    if violations:
+        print("Feature architecture violations:")
+        for violation in violations:
+            print(f"- {violation}")
+        return 1
+    print("Feature architecture boundaries verified")
+    return 0
+
+
+if __name__ == "__main__":
+    raise SystemExit(main())
