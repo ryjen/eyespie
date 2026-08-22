@@ -1,11 +1,8 @@
 package com.micrantha.eyespie.features.home
 
 import com.micrantha.eyespie.game.LocalGameResult
-import com.micrantha.eyespie.mvi.Interactor
+import com.micrantha.eyespie.mvi.BaseInteractor
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 class HomeInteractor(
@@ -13,16 +10,15 @@ class HomeInteractor(
     private val scope: CoroutineScope,
     private val output: (HomeOutput) -> Unit,
     initialState: HomeState = HomeState(),
-) : Interactor<HomeState, HomeIntent> {
-    private val mutableState = MutableStateFlow(initialState)
-    override val state: StateFlow<HomeState> = mutableState.asStateFlow()
-
-    override fun dispatch(intent: HomeIntent) {
-        val previousState = mutableState.value
-        mutableState.value = HomeReducer.reduce(previousState, intent)
+) : BaseInteractor<HomeState, HomeIntent>(initialState, HomeReducer) {
+    override fun afterReduce(
+        intent: HomeIntent,
+        previousState: HomeState,
+        stateAfterReduce: HomeState,
+    ) {
         when (intent) {
             HomeIntent.Refresh -> {
-                val generation = mutableState.value.refreshGeneration
+                val generation = stateAfterReduce.refreshGeneration
                 scope.launch {
                     when (val result = port.load()) {
                         is LocalGameResult.Success -> dispatch(HomeIntent.ContentLoaded(generation, result.value))
