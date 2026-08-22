@@ -45,6 +45,29 @@ class PlayGameFeatureTest {
     }
 
     @Test
+    fun persisted_match_remains_authoritative_when_current_similarity_misses() {
+        val initial = PlayGameState(
+            gameId = testGameId,
+            thingId = testThingId,
+            content = PlayGameContent("Trip", "Find it", matched = false, bestSimilarity = 0.2),
+            loading = false,
+        )
+        val captured = PlayGameReducer.reduce(initial, PlayGameIntent.GuessCaptured(testImage()))
+        val stickyMatch = testGuessOutcome(similarity = 0.4, matched = false).copy(
+            progress = testGuessOutcome(similarity = 0.91, matched = true).progress,
+        )
+
+        val completed = PlayGameReducer.reduce(
+            captured,
+            PlayGameIntent.GuessCompleted(captured.guessGeneration, stickyMatch),
+        )
+
+        assertEquals(stickyMatch, completed.latestOutcome)
+        assertTrue(completed.matched)
+        assertFalse(completed.busy)
+    }
+
+    @Test
     fun matched_clue_cannot_start_another_guess() {
         val initial = PlayGameState(
             gameId = testGameId,
