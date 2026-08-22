@@ -4,6 +4,7 @@ import com.micrantha.eyespie.App
 import com.micrantha.eyespie.AppUnavailable
 import com.micrantha.eyespie.game.createIosEyespieRuntime
 import com.micrantha.eyespie.sharing.IosGameDocumentTransfer
+import platform.Foundation.NSLog
 import platform.UIKit.UIViewController
 
 fun MainViewController(): UIViewController {
@@ -12,7 +13,8 @@ fun MainViewController(): UIViewController {
         val runtime = remember {
             try {
                 createIosEyespieRuntime()
-            } catch (_: Exception) {
+            } catch (exception: Exception) {
+                NSLog("Eyespie runtime initialization failed: ${exception.stackTraceToString()}")
                 null
             }
         }

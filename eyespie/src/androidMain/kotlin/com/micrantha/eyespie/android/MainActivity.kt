@@ -1,6 +1,7 @@
 package com.micrantha.eyespie.android
 
 import android.os.Bundle
+import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
@@ -18,7 +19,8 @@ class MainActivity : ComponentActivity() {
             val runtime = remember {
                 try {
                     createAndroidEyespieRuntime(this)
-                } catch (_: Exception) {
+                } catch (exception: Exception) {
+                    Log.e(TAG, "Eyespie runtime initialization failed", exception)
                     null
                 }
             }
@@ -29,5 +31,9 @@ class MainActivity : ComponentActivity() {
                 App(runtime, documentTransfer)
             }
         }
+    }
+
+    private companion object {
+        const val TAG = "Eyespie"
     }
 }
