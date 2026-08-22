@@ -177,6 +177,8 @@ Every interactive feature has three test sides:
 2. **Interactor through feature factory** — behavior/effects using fake feature-owned ports; tests do not recreate production constructor wiring manually.
 3. **Screen** — render/interaction coverage against the pure two-parameter screen; user interaction emits the expected intent and rendered output derives only from state.
 
+Reducer/interactor coverage runs in common/JVM tests. Pure Compose screen interaction coverage runs as Android instrumentation against a GitHub-hosted, camera-disabled emulator in `.github/workflows/android-screen-instrumentation.yml`; this executes presentation behavior without depending on Dubnium, physical camera hardware, or MediaPipe calibration. Physical-device MediaPipe calibration remains a separate evidence boundary and is intentionally excluded from the hosted screen suite.
+
 App tests are separate:
 
 - `AppCoordinator` output -> route translation;
