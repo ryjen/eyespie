@@ -2,6 +2,11 @@ package com.micrantha.eyespie.features.onboarding
 
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
+import kotlin.test.assertTrue
+import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.test.advanceUntilIdle
+import kotlinx.coroutines.test.runTest
 
 class OnboardingFeatureTest {
     @Test
@@ -32,27 +37,62 @@ class OnboardingFeatureTest {
         )
     }
 
+    @OptIn(ExperimentalCoroutinesApi::class)
     @Test
-    fun factory_wires_semantic_completion_output() {
+    fun done_persists_before_emitting_completion() = runTest {
+        val preferences = FakeOnboardingPreferences()
         val outputs = mutableListOf<OnboardingOutput>()
-        val interactor = OnboardingFactory(outputs::add).create()
+        val interactor = OnboardingFactory(preferences, outputs::add).create(this)
 
-        interactor.dispatch(OnboardingIntent.Next)
         interactor.dispatch(OnboardingIntent.Done)
+        assertTrue(interactor.state.value.completing)
+        assertTrue(outputs.isEmpty())
 
+        advanceUntilIdle()
+
+        assertTrue(preferences.completed)
         assertEquals(listOf<OnboardingOutput>(OnboardingOutput.Completed), outputs)
-        assertEquals(OnboardingState(), interactor.state.value)
     }
 
+    @OptIn(ExperimentalCoroutinesApi::class)
     @Test
-    fun skip_is_a_semantic_dismissal() {
+    fun skip_persists_before_semantic_dismissal() = runTest {
+        val preferences = FakeOnboardingPreferences()
         val outputs = mutableListOf<OnboardingOutput>()
-        val interactor = OnboardingFactory(outputs::add).create()
+        val interactor = OnboardingFactory(preferences, outputs::add).create(this)
 
-        interactor.dispatch(OnboardingIntent.Next)
         interactor.dispatch(OnboardingIntent.Skip)
+        advanceUntilIdle()
 
+        assertTrue(preferences.completed)
         assertEquals(listOf<OnboardingOutput>(OnboardingOutput.Dismissed), outputs)
-        assertEquals(OnboardingState(), interactor.state.value)
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun persistence_failure_stays_on_onboarding_and_allows_retry() = runTest {
+        val preferences = FakeOnboardingPreferences(failWrites = true)
+        val outputs = mutableListOf<OnboardingOutput>()
+        val interactor = OnboardingFactory(preferences, outputs::add).create(this)
+
+        interactor.dispatch(OnboardingIntent.Done)
+        advanceUntilIdle()
+
+        assertFalse(interactor.state.value.completing)
+        assertTrue(interactor.state.value.completionFailed)
+        assertTrue(outputs.isEmpty())
+    }
+}
+
+private class FakeOnboardingPreferences(
+    private val failWrites: Boolean = false,
+) : OnboardingPreferenceStore {
+    var completed = false
+
+    override suspend fun isCompleted(): Boolean = completed
+
+    override suspend fun markCompleted() {
+        if (failWrites) error("write failed")
+        completed = true
     }
 }

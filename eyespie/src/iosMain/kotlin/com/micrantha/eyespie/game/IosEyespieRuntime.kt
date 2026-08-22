@@ -7,6 +7,7 @@ import com.micrantha.eyespie.identity.PlatformSigningIdentity
 import com.micrantha.eyespie.imaging.MediaPipeImageEmbeddingGenerator
 import com.micrantha.eyespie.persistence.IosEyespieDatabaseFactory
 import com.micrantha.eyespie.persistence.SqlGameRepository
+import com.micrantha.eyespie.persistence.SqlOnboardingPreferenceStore
 import com.micrantha.eyespie.persistence.SqlThingProgressRepository
 import com.micrantha.eyespie.sharing.GameBundleService
 import platform.Foundation.NSUUID
@@ -30,6 +31,7 @@ fun createIosEyespieRuntime(): EyespieRuntime {
             signingIdentity = signingIdentity,
             gameRepository = gameRepository,
         ),
+        onboardingPreferences = SqlOnboardingPreferenceStore(database),
     )
 }
 

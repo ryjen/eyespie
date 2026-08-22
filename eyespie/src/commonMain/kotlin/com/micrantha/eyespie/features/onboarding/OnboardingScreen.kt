@@ -47,15 +47,34 @@ fun OnboardingScreen(
             }
         }
 
+        if (state.completionFailed) {
+            Text(
+                "Eyespie couldn't save that onboarding choice. Try again.",
+                style = MaterialTheme.typography.bodyMedium,
+            )
+        }
+
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
             if (state.page != OnboardingPage.Local) {
-                OutlinedButton(onClick = { dispatch(OnboardingIntent.Previous) }) { Text("Back") }
+                OutlinedButton(
+                    enabled = !state.completing,
+                    onClick = { dispatch(OnboardingIntent.Previous) },
+                ) { Text("Back") }
             }
-            OutlinedButton(onClick = { dispatch(OnboardingIntent.Skip) }) { Text("Skip") }
+            OutlinedButton(
+                enabled = !state.completing,
+                onClick = { dispatch(OnboardingIntent.Skip) },
+            ) { Text(if (state.completing) "Saving…" else "Skip") }
             if (state.page != OnboardingPage.Join) {
-                Button(onClick = { dispatch(OnboardingIntent.Next) }) { Text("Next") }
+                Button(
+                    enabled = !state.completing,
+                    onClick = { dispatch(OnboardingIntent.Next) },
+                ) { Text("Next") }
             } else {
-                Button(onClick = { dispatch(OnboardingIntent.Done) }) { Text("Start playing") }
+                Button(
+                    enabled = !state.completing,
+                    onClick = { dispatch(OnboardingIntent.Done) },
+                ) { Text(if (state.completing) "Saving…" else "Start playing") }
             }
         }
     }

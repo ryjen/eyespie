@@ -33,6 +33,11 @@ CREATE TABLE ThingProgressEntity (
     FOREIGN KEY (thing_id) REFERENCES ThingEntity(id) ON DELETE CASCADE
 );
 
+CREATE TABLE AppPreferenceEntity (
+    preference_key TEXT NOT NULL PRIMARY KEY,
+    preference_value TEXT NOT NULL
+);
+
 insertGame:
 INSERT OR IGNORE INTO GameEntity(id, name, creator_id)
 VALUES (?, ?, ?);
@@ -111,3 +116,11 @@ selectProgressByGameAndPlayer:
 SELECT * FROM ThingProgressEntity
 WHERE game_id = ? AND player_id = ?
 ORDER BY thing_id;
+
+selectPreference:
+SELECT preference_value FROM AppPreferenceEntity
+WHERE preference_key = ?;
+
+upsertPreference:
+INSERT OR REPLACE INTO AppPreferenceEntity(preference_key, preference_value)
+VALUES (?, ?);

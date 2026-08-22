@@ -4,7 +4,7 @@ import com.micrantha.eyespie.mvi.Reducer
 
 object OnboardingReducer : Reducer<OnboardingState, OnboardingIntent> {
     override fun reduce(state: OnboardingState, intent: OnboardingIntent): OnboardingState = when (intent) {
-        OnboardingIntent.Next -> state.copy(
+        OnboardingIntent.Next -> if (state.completing) state else state.copy(
             page = when (state.page) {
                 OnboardingPage.Local -> OnboardingPage.Create
                 OnboardingPage.Create -> OnboardingPage.Share
@@ -12,7 +12,7 @@ object OnboardingReducer : Reducer<OnboardingState, OnboardingIntent> {
                 OnboardingPage.Join -> OnboardingPage.Join
             },
         )
-        OnboardingIntent.Previous -> state.copy(
+        OnboardingIntent.Previous -> if (state.completing) state else state.copy(
             page = when (state.page) {
                 OnboardingPage.Local -> OnboardingPage.Local
                 OnboardingPage.Create -> OnboardingPage.Local
@@ -21,7 +21,14 @@ object OnboardingReducer : Reducer<OnboardingState, OnboardingIntent> {
             },
         )
         OnboardingIntent.Skip,
-        OnboardingIntent.Done,
+        OnboardingIntent.Done -> if (state.completing) state else state.copy(
+            completing = true,
+            completionFailed = false,
+        )
+        OnboardingIntent.CompletionFailed -> state.copy(
+            completing = false,
+            completionFailed = true,
+        )
         OnboardingIntent.Back -> OnboardingState()
     }
 }

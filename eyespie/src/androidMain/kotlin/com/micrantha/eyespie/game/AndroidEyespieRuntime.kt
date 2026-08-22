@@ -9,6 +9,7 @@ import com.micrantha.eyespie.imaging.MediaPipeImageEmbeddingGenerator
 import com.micrantha.eyespie.imaging.loadAndroidImageEmbeddingModel
 import com.micrantha.eyespie.persistence.AndroidEyespieDatabaseFactory
 import com.micrantha.eyespie.persistence.SqlGameRepository
+import com.micrantha.eyespie.persistence.SqlOnboardingPreferenceStore
 import com.micrantha.eyespie.persistence.SqlThingProgressRepository
 import com.micrantha.eyespie.sharing.GameBundleService
 import java.util.UUID
@@ -37,6 +38,7 @@ fun createAndroidEyespieRuntime(context: Context): EyespieRuntime {
             signingIdentity = signingIdentity,
             gameRepository = gameRepository,
         ),
+        onboardingPreferences = SqlOnboardingPreferenceStore(database),
     )
 }
 

@@ -10,9 +10,28 @@ import com.micrantha.eyespie.core.ThingId
 import com.micrantha.eyespie.core.ThingProgress
 import com.micrantha.eyespie.core.ThingProgressRepository
 import com.micrantha.eyespie.data.EyesPieDatabase
+import com.micrantha.eyespie.features.onboarding.OnboardingPreferenceStore
 
 interface EyespieDatabaseFactory {
     fun create(): EyesPieDatabase
+}
+
+class SqlOnboardingPreferenceStore(
+    database: EyesPieDatabase,
+) : OnboardingPreferenceStore {
+    private val queries = database.eyesPieQueries
+
+    override suspend fun isCompleted(): Boolean =
+        queries.selectPreference(ONBOARDING_COMPLETED_KEY).executeAsOneOrNull() == TRUE_VALUE
+
+    override suspend fun markCompleted() {
+        queries.upsertPreference(ONBOARDING_COMPLETED_KEY, TRUE_VALUE)
+    }
+
+    private companion object {
+        const val ONBOARDING_COMPLETED_KEY = "onboarding.completed"
+        const val TRUE_VALUE = "true"
+    }
 }
 
 class SqlGameRepository(
