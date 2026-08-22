@@ -32,6 +32,9 @@ class GameDetailInteractor(
                     }
                 }
             }
+            GameDetailIntent.AddClueSelected -> if (previousState.content?.localCreator == true) {
+                output(GameDetailOutput.AddClueRequested(gameId))
+            }
             GameDetailIntent.ShareSelected -> if (
                 !previousState.shareInProgress && previousState.content?.localCreator == true
             ) {
