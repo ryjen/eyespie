@@ -4,7 +4,8 @@ import com.micrantha.eyespie.core.GameId
 import kotlinx.coroutines.CoroutineScope
 
 class GameDetailFactory(
-    private val port: GameDetailPort,
+    private val loader: GameDetailLoader,
+    private val sharer: GameSharer,
     private val output: (GameDetailOutput) -> Unit,
 ) {
     fun create(
@@ -12,7 +13,8 @@ class GameDetailFactory(
         gameId: GameId,
         initialState: GameDetailState = GameDetailState(),
     ): GameDetailInteractor = GameDetailInteractor(
-        port = port,
+        loader = loader,
+        sharer = sharer,
         scope = scope,
         gameId = gameId,
         output = output,
