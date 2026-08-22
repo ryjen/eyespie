@@ -10,6 +10,39 @@ FEATURE_IMPORT = "import com.micrantha.eyespie.features."
 SCREEN_SIGNATURE = re.compile(r"fun\s+\w+Screen\s*\((.*?)\)\s*\{", re.DOTALL)
 
 
+def split_top_level_parameters(signature: str) -> list[str]:
+    parameters: list[str] = []
+    current: list[str] = []
+    paren = angle = bracket = 0
+
+    for char in signature:
+        if char == "(" :
+            paren += 1
+        elif char == ")":
+            paren -= 1
+        elif char == "<":
+            angle += 1
+        elif char == ">":
+            angle -= 1
+        elif char == "[":
+            bracket += 1
+        elif char == "]":
+            bracket -= 1
+
+        if char == "," and paren == 0 and angle == 0 and bracket == 0:
+            parameter = "".join(current).strip()
+            if parameter:
+                parameters.append(parameter)
+            current = []
+        else:
+            current.append(char)
+
+    parameter = "".join(current).strip()
+    if parameter:
+        parameters.append(parameter)
+    return parameters
+
+
 def verify() -> list[str]:
     violations: list[str] = []
     feature_dirs = [path for path in FEATURES_ROOT.iterdir() if path.is_dir()]
@@ -38,11 +71,7 @@ def verify() -> list[str]:
                 )
                 continue
 
-            parameters = [
-                line.strip().removesuffix(",")
-                for line in match.group(1).splitlines()
-                if line.strip()
-            ]
+            parameters = split_top_level_parameters(match.group(1))
             if (
                 len(parameters) != 2
                 or not parameters[0].startswith("state:")
