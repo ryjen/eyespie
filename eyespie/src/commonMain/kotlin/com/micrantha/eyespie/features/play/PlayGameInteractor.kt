@@ -1,11 +1,8 @@
 package com.micrantha.eyespie.features.play
 
 import com.micrantha.eyespie.game.LocalGameResult
-import com.micrantha.eyespie.mvi.Interactor
+import com.micrantha.eyespie.mvi.BaseInteractor
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 class PlayGameInteractor(
@@ -13,14 +10,12 @@ class PlayGameInteractor(
     private val scope: CoroutineScope,
     private val output: (PlayGameOutput) -> Unit,
     initialState: PlayGameState,
-) : Interactor<PlayGameState, PlayGameIntent> {
-    private val mutableState = MutableStateFlow(initialState)
-    override val state: StateFlow<PlayGameState> = mutableState.asStateFlow()
-
-    override fun dispatch(intent: PlayGameIntent) {
-        val previousState = mutableState.value
-        mutableState.value = PlayGameReducer.reduce(previousState, intent)
-        val stateAfterReduce = mutableState.value
+) : BaseInteractor<PlayGameState, PlayGameIntent>(initialState, PlayGameReducer) {
+    override fun afterReduce(
+        intent: PlayGameIntent,
+        previousState: PlayGameState,
+        stateAfterReduce: PlayGameState,
+    ) {
         when (intent) {
             PlayGameIntent.Load -> scope.launch {
                 when (val result = port.load(stateAfterReduce.gameId, stateAfterReduce.thingId)) {
