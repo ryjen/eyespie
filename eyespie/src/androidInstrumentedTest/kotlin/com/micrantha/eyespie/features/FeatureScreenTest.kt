@@ -19,6 +19,7 @@ import com.micrantha.eyespie.features.gamedetail.GameDetailIntent
 import com.micrantha.eyespie.features.gamedetail.GameDetailScreen
 import com.micrantha.eyespie.features.gamedetail.GameDetailState
 import com.micrantha.eyespie.features.home.HomeContent
+import com.micrantha.eyespie.features.home.HomeImportPreview
 import com.micrantha.eyespie.features.home.HomeIntent
 import com.micrantha.eyespie.features.home.HomeScreen
 import com.micrantha.eyespie.features.home.HomeState
@@ -61,6 +62,58 @@ class FeatureScreenTest {
         compose.onNodeWithText("Create game").performClick()
 
         assertEquals(listOf(HomeIntent.CreateSelected), intents)
+    }
+
+    @Test
+    fun home_import_preview_dispatches_confirm_intent() {
+        val intents = mutableListOf<HomeIntent>()
+        compose.setContent {
+            MaterialTheme {
+                HomeScreen(
+                    state = HomeState(
+                        content = HomeContent("Agent", "player-1", emptyList()),
+                        loading = false,
+                        importPreview = HomeImportPreview(
+                            gameName = "Road Trip",
+                            clueCount = 3,
+                            creatorIdSuffix = "creator12345",
+                            gameIdSuffix = "game12345678",
+                        ),
+                    ),
+                    dispatch = intents::add,
+                )
+            }
+        }
+
+        compose.onNodeWithText("Add game").performScrollTo().performClick()
+
+        assertEquals(listOf(HomeIntent.ImportConfirmed), intents)
+    }
+
+    @Test
+    fun home_import_preview_dispatches_cancel_intent() {
+        val intents = mutableListOf<HomeIntent>()
+        compose.setContent {
+            MaterialTheme {
+                HomeScreen(
+                    state = HomeState(
+                        content = HomeContent("Agent", "player-1", emptyList()),
+                        loading = false,
+                        importPreview = HomeImportPreview(
+                            gameName = "Road Trip",
+                            clueCount = 1,
+                            creatorIdSuffix = "creator12345",
+                            gameIdSuffix = "game12345678",
+                        ),
+                    ),
+                    dispatch = intents::add,
+                )
+            }
+        }
+
+        compose.onNodeWithText("Cancel").performScrollTo().performClick()
+
+        assertEquals(listOf(HomeIntent.ImportPreviewCancelled), intents)
     }
 
     @Test
