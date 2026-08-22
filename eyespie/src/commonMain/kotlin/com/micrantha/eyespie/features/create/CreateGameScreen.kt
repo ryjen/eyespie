@@ -28,6 +28,8 @@ fun CreateGameScreen(
     state: CreateGameState,
     dispatch: (CreateGameIntent) -> Unit,
 ) {
+    val addingClue = state.mode is CreateGameMode.AddClue
+
     Column(
         modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(16.dp),
@@ -36,19 +38,23 @@ fun CreateGameScreen(
             onClick = { dispatch(CreateGameIntent.Back) },
             enabled = !state.busy,
         ) {
-            Text("Back to field desk")
+            Text(if (addingClue) "Back to game" else "Back to field desk")
         }
 
         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text(
-                "NEW FIELD CASE",
+                if (addingClue) "NEW CLUE" else "NEW FIELD CASE",
                 style = MaterialTheme.typography.labelLarge,
                 color = MaterialTheme.colorScheme.primary,
                 fontWeight = FontWeight.Bold,
             )
-            Text("Create a game", style = MaterialTheme.typography.headlineLarge)
+            Text(if (addingClue) "Add a clue" else "Create a game", style = MaterialTheme.typography.headlineLarge)
             Text(
-                "Set the clue, choose the answer, then capture the real-world target.",
+                if (addingClue) {
+                    "Author the clue and creator-only answer, then capture the real-world target."
+                } else {
+                    "Set the clue, choose the answer, then capture the real-world target."
+                },
                 style = MaterialTheme.typography.bodyLarge,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -80,15 +86,17 @@ fun CreateGameScreen(
                 modifier = Modifier.fillMaxWidth().padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(12.dp),
             ) {
-                Text("Case briefing", style = MaterialTheme.typography.titleLarge)
-                OutlinedTextField(
-                    value = state.name,
-                    onValueChange = { dispatch(CreateGameIntent.NameChanged(it)) },
-                    modifier = Modifier.fillMaxWidth(),
-                    label = { Text("Game name") },
-                    enabled = !state.busy,
-                    singleLine = true,
-                )
+                Text(if (addingClue) "Clue briefing" else "Case briefing", style = MaterialTheme.typography.titleLarge)
+                if (!addingClue) {
+                    OutlinedTextField(
+                        value = state.name,
+                        onValueChange = { dispatch(CreateGameIntent.NameChanged(it)) },
+                        modifier = Modifier.fillMaxWidth(),
+                        label = { Text("Game name") },
+                        enabled = !state.busy,
+                        singleLine = true,
+                    )
+                }
                 OutlinedTextField(
                     value = state.clue,
                     onValueChange = { dispatch(CreateGameIntent.ClueChanged(it)) },
@@ -128,12 +136,21 @@ fun CreateGameScreen(
                     onCameraError = { dispatch(CreateGameIntent.CameraFailed) },
                     onCaptured = { dispatch(CreateGameIntent.TargetCaptured(it)) },
                     captureButton = { capture ->
+                        val ready = state.clue.isNotBlank() &&
+                            state.expectedAnswer.isNotBlank() &&
+                            (addingClue || state.name.isNotBlank())
                         Button(
                             modifier = Modifier.fillMaxWidth(),
                             onClick = capture,
-                            enabled = !state.busy && state.name.isNotBlank() && state.clue.isNotBlank() && state.expectedAnswer.isNotBlank(),
+                            enabled = !state.busy && ready,
                         ) {
-                            Text(if (state.busy) "Creating…" else "Capture target & create game")
+                            Text(
+                                when {
+                                    state.busy -> "Saving…"
+                                    addingClue -> "Capture target & add clue"
+                                    else -> "Capture target & create game"
+                                },
+                            )
                         }
                     },
                 )
