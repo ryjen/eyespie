@@ -23,31 +23,40 @@ fun OnboardingScreen(
         modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
+        Text(
+            "${state.page.ordinal + 1} of ${OnboardingPage.entries.size}",
+            style = MaterialTheme.typography.labelLarge,
+        )
+
         when (state.page) {
-            OnboardingPage.Welcome -> {
-                Text("Welcome, agent", style = MaterialTheme.typography.titleLarge)
-                Text("Eyespie works locally without an account or hosted backend. Games and progress stay on this device.")
+            OnboardingPage.Local -> {
+                Text("Play locally", style = MaterialTheme.typography.titleLarge)
+                Text("Eyespie works without an account or hosted backend. Games and progress are stored on this device.")
             }
             OnboardingPage.Create -> {
-                Text("Create a mission", style = MaterialTheme.typography.titleLarge)
-                Text("Create a clue and target locally. Matching uses a local image representation instead of uploading the original target image.")
+                Text("Create a game", style = MaterialTheme.typography.titleLarge)
+                Text("Capture a target and write a clue locally. Matching uses an on-device image representation instead of uploading the original target image.")
             }
-            OnboardingPage.Play -> {
-                Text("Find the target", style = MaterialTheme.typography.titleLarge)
-                Text("Follow the clue, capture a guess, and match locally. Signed .eyespie sharing and import remain separate portable-game flows.")
+            OnboardingPage.Share -> {
+                Text("Share a game", style = MaterialTheme.typography.titleLarge)
+                Text("Export a game as a signed .eyespie file, then share that file with the normal tools on your device. The signature verifies integrity and creator-key continuity; it does not make the bundle secret.")
+            }
+            OnboardingPage.Join -> {
+                Text("Join a game", style = MaterialTheme.typography.titleLarge)
+                Text("Open a .eyespie file shared by another player. Eyespie validates the bundle before adding the playable game to local storage.")
             }
         }
 
         Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            if (state.page != OnboardingPage.Welcome) {
-                OutlinedButton(onClick = { dispatch(OnboardingIntent.Previous) }) { Text("Previous") }
+            if (state.page != OnboardingPage.Local) {
+                OutlinedButton(onClick = { dispatch(OnboardingIntent.Previous) }) { Text("Back") }
             }
-            if (state.page != OnboardingPage.Play) {
+            OutlinedButton(onClick = { dispatch(OnboardingIntent.Skip) }) { Text("Skip") }
+            if (state.page != OnboardingPage.Join) {
                 Button(onClick = { dispatch(OnboardingIntent.Next) }) { Text("Next") }
             } else {
-                Button(onClick = { dispatch(OnboardingIntent.Done) }) { Text("Done") }
+                Button(onClick = { dispatch(OnboardingIntent.Done) }) { Text("Start playing") }
             }
-            OutlinedButton(onClick = { dispatch(OnboardingIntent.Back) }) { Text("Back") }
         }
     }
 }
