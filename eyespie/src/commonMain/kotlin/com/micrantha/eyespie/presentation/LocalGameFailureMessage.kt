@@ -19,6 +19,7 @@ fun localGameFailureMessage(failure: LocalGameFailure): String = when (failure.c
     LocalGameFailureCode.GUESS_EMBEDDING_FAILED -> "The guess image could not be embedded on this device."
     LocalGameFailureCode.GAME_NOT_FOUND -> "The selected local game no longer exists."
     LocalGameFailureCode.THING_NOT_FOUND -> "The selected target no longer exists."
+    LocalGameFailureCode.NOT_LOCAL_CREATOR -> "Only the local creator can add or change clues for this game."
     LocalGameFailureCode.MATCH_POLICY_INVALID -> "The saved match policy is incompatible with this build."
     LocalGameFailureCode.PERSISTENCE_FAILED -> "Local game state could not be saved or loaded."
 }
