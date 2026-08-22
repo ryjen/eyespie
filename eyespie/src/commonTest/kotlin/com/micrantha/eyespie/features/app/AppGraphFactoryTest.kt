@@ -12,15 +12,19 @@ import kotlinx.coroutines.test.runTest
 class AppGraphFactoryTest {
     @OptIn(ExperimentalCoroutinesApi::class)
     @Test
-    fun from_ports_binds_feature_factories_to_one_coordinator() = runTest {
+    fun from_capabilities_binds_feature_factories_to_one_coordinator() = runTest {
         val navigator = StateFlowAppNavigator()
         val onboardingPreferences = TestOnboardingPreferences()
-        val graph = AppGraphFactory.fromPorts(
-            homePort = AppTestPorts,
-            utilityPort = AppTestPorts,
-            createGamePort = AppTestPorts,
-            clueAuthoringPort = AppTestPorts,
-            playGamePort = AppTestPorts,
+        val graph = AppGraphFactory.fromCapabilities(
+            homeLoader = AppTestCapabilities,
+            gameImportPreparer = AppTestCapabilities,
+            gameImportConfirmer = AppTestCapabilities,
+            gameImportCanceller = AppTestCapabilities,
+            utilityLoader = AppTestCapabilities,
+            gameCreator = AppTestCapabilities,
+            clueAuthor = AppTestCapabilities,
+            playGameLoader = AppTestCapabilities,
+            guessSubmitter = AppTestCapabilities,
             onboardingPreferences = onboardingPreferences,
             navigator = navigator,
         )
