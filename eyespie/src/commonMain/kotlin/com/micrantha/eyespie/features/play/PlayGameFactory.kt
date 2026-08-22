@@ -2,10 +2,11 @@ package com.micrantha.eyespie.features.play
 
 import com.micrantha.eyespie.core.GameId
 import com.micrantha.eyespie.core.ThingId
+import com.micrantha.eyespie.game.GameSnapshotLoader
 import kotlinx.coroutines.CoroutineScope
 
 class PlayGameFactory(
-    private val loader: PlayGameLoader,
+    private val snapshotLoader: GameSnapshotLoader,
     private val guessSubmitter: GuessSubmitter,
     private val output: (PlayGameOutput) -> Unit,
 ) {
@@ -14,7 +15,7 @@ class PlayGameFactory(
         gameId: GameId,
         thingId: ThingId,
     ): PlayGameInteractor = PlayGameInteractor(
-        loader = loader,
+        snapshotLoader = snapshotLoader,
         guessSubmitter = guessSubmitter,
         scope = scope,
         output = output,
