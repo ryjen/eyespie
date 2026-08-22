@@ -107,7 +107,7 @@ class FeatureScreenTest {
             }
         }
 
-        compose.onNodeWithText("Back").performClick()
+        compose.onNodeWithText("Back to game").performClick()
 
         assertEquals(listOf(PlayGameIntent.Back), intents)
     }
