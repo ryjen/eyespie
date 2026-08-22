@@ -1,0 +1,92 @@
+name: Android screen instrumentation
+
+on:
+  pull_request:
+    branches: [main]
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: eyespie-screen-instrumentation-${{ github.event.pull_request.number || github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  feature-screens:
+    name: hosted-android-feature-screens
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Install tools with mise
+        uses: jdx/mise-action@7e36c90d9ab29c415a2384db3006f3ec8a8cc654
+        with:
+          version: 2026.7.13
+          install: true
+          cache: true
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@3f131e8634966bd73d06cc69884922b02e6faf92 # v6
+
+      - name: Enable KVM acceleration
+        shell: bash
+        run: |
+          set -euo pipefail
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' \
+            | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+
+      - name: Run feature screen instrumentation
+        uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
+        with:
+          api-level: 35
+          target: google_apis
+          arch: x86_64
+          profile: pixel_5
+          disable-animations: true
+          emulator-options: >-
+            -no-snapshot-load
+            -no-snapshot-save
+            -no-window
+            -gpu swiftshader_indirect
+            -noaudio
+            -no-boot-anim
+            -camera-back none
+            -camera-front none
+          script: |
+            set -uo pipefail
+            ARTIFACT_DIR="build/ci/android-screen-instrumentation"
+            mkdir -p "$ARTIFACT_DIR"
+
+            adb wait-for-device
+            adb devices -l | tee "$ARTIFACT_DIR/adb-devices.txt"
+            adb shell getprop sys.boot_completed | tee "$ARTIFACT_DIR/sys-boot-completed.txt"
+            adb shell getprop | sort > "$ARTIFACT_DIR/emulator-getprop.txt"
+
+            set +e
+            mise run screen-test
+            status=$?
+            set -e
+
+            adb logcat -d > "$ARTIFACT_DIR/logcat.txt" 2>&1 || true
+            exit "$status"
+
+      - name: Upload screen-test diagnostics
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: android-screen-instrumentation-${{ github.run_id }}
+          if-no-files-found: warn
+          retention-days: 7
+          path: |
+            build/ci/android-screen-instrumentation/
+            eyespie/build/reports/androidTests/connected/
+            eyespie/build/outputs/androidTest-results/connected/
