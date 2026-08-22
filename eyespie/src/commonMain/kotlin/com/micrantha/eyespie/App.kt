@@ -17,6 +17,7 @@ import androidx.compose.ui.unit.dp
 import com.micrantha.eyespie.features.app.AppGraphFactory
 import com.micrantha.eyespie.features.app.AppRoute
 import com.micrantha.eyespie.features.create.CreateGameRoute
+import com.micrantha.eyespie.features.gamedetail.GameDetailRoute
 import com.micrantha.eyespie.features.home.HomeRoute
 import com.micrantha.eyespie.features.onboarding.OnboardingRoute
 import com.micrantha.eyespie.features.play.PlayGameRoute
@@ -41,6 +42,10 @@ fun App(runtime: EyespieRuntime) {
                         AppRoute.Home -> HomeRoute(graph.homeFactory)
                         AppRoute.Onboarding -> OnboardingRoute(graph.onboardingFactory)
                         AppRoute.Create -> CreateGameRoute(graph.createGameFactory)
+                        is AppRoute.GameDetail -> GameDetailRoute(
+                            factory = graph.gameDetailFactory,
+                            gameId = current.gameId,
+                        )
                         is AppRoute.Play -> PlayGameRoute(
                             factory = graph.playGameFactory,
                             gameId = current.gameId,
