@@ -11,7 +11,7 @@ object HomeReducer : Reducer<HomeState, HomeIntent> {
         HomeIntent.DismissFailure -> state.copy(failure = null)
         HomeIntent.OnboardingSelected,
         HomeIntent.CreateSelected,
-        is HomeIntent.PlaySelected -> state
+        is HomeIntent.GameSelected -> state
         is HomeIntent.ContentLoaded -> if (intent.generation == state.refreshGeneration) {
             state.copy(content = intent.content, loading = false, failure = null)
         } else {
