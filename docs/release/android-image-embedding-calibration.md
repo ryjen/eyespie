@@ -6,7 +6,7 @@ The collector uses the same Android `MediaPipeImageEmbeddingGenerator` and packa
 
 ## 1. Start from the exact candidate
 
-Use a clean checkout of the exact commit that will be installed/tested. Render candidate identity **before** staging generated fixture assets:
+Use a clean checkout of the exact commit that will be installed/tested. Render candidate identity **before** staging generated fixture/runtime assets:
 
 ```sh
 python3 scripts/release_candidate_identity.py render \
@@ -15,7 +15,20 @@ python3 scripts/release_candidate_identity.py render \
 
 The manifest must be candidate-identity schema v2 and records the source SHA, app version/build, MediaPipe version, active model identity/digest, embedding contract, and production match threshold.
 
-## 2. Stage controlled fixtures
+## 2. Stage and verify the Android runtime model
+
+Provisioning may use network access, but readiness verification must not:
+
+```sh
+./gradlew :app:stageAndroidImageEmbedderModel --no-daemon --stacktrace
+mise run android-runtime-verify
+```
+
+For the verification step, network access may be disabled. `android-runtime-verify` must succeed without downloading or repairing anything; a missing, truncated, stale, or SHA-mismatched staged artifact invalidates the candidate preparation and must be re-staged before proceeding.
+
+Record the successful verification in the #91/#239 evidence notes. Host verification proves the staged bytes match the pinned manifest; it does not replace the required on-device observation that runtime initialization reaches the production model-loading path.
+
+## 3. Stage controlled fixtures
 
 ```sh
 python3 scripts/stage_image_embedding_fixtures.py stage --target android
@@ -28,7 +41,7 @@ The stager validates the checked-in provenance manifest, generation-pinned HTTPS
 
 A bounded runtime `manifest.json` containing only fixture ID/role/filename/SHA-256 is generated beside the images. The collector re-hashes every image on-device before inference.
 
-## 3. Connect a representative physical Android device
+## 4. Connect a representative physical Android device
 
 Confirm the intended device is the target before running Gradle:
 
@@ -38,7 +51,7 @@ adb devices -l
 
 Record the device model and Android version in the #91 evidence notes. The report itself records `Build.MANUFACTURER`, model/device/hardware identifiers, Android release, and SDK level.
 
-## 4. Run the physical collector
+## 5. Run the physical collector
 
 ```sh
 ./gradlew :app:connectedDebugAndroidTest \
@@ -59,7 +72,7 @@ The test:
 
 No camera, gallery, broad storage permission, backend, account, or network connection is required for inference once the APK/test fixture payloads are installed.
 
-## 5. Export the app-private report explicitly
+## 6. Export the app-private report explicitly
 
 For the debug package:
 
@@ -71,7 +84,7 @@ adb shell run-as com.micrantha.eyespie.debug \
 
 Do not replace this with broad external-storage output. The report stays app-private until the tester explicitly exports it.
 
-## 6. Validate against the exact candidate
+## 7. Validate against the exact candidate
 
 ```sh
 python3 scripts/compare_image_embedding_calibration.py validate \
@@ -91,5 +104,6 @@ Do not attach a report as #91 physical evidence unless:
 
 - it came from the intended representative physical device;
 - `/tmp/eyespie-candidate.json` came from the same exact clean source commit used to build/install the test;
+- `mise run android-runtime-verify` succeeded for the staged runtime model before device evidence collection;
 - the host validator accepts it;
 - device/session notes identify the physical test context without exposing private paths, keys, clues/answers, bundle contents, or unrelated user data.
