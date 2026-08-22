@@ -12,5 +12,6 @@ sealed interface AppRoute {
     data object Onboarding : AppRoute
     data object Create : AppRoute
     data class GameDetail(val gameId: GameId) : AppRoute
+    data class ClueAuthoring(val gameId: GameId) : AppRoute
     data class Play(val gameId: GameId, val thingId: ThingId) : AppRoute
 }
