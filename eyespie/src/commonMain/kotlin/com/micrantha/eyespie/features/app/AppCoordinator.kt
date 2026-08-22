@@ -28,14 +28,18 @@ class AppCoordinator(
 
     fun onCreateGameOutput(output: CreateGameOutput) {
         when (output) {
-            CreateGameOutput.Created,
-            CreateGameOutput.Cancelled -> navigator.navigate(AppRoute.Home)
+            CreateGameOutput.Created -> navigator.navigate(AppRoute.Home)
+            is CreateGameOutput.ClueAdded -> navigator.navigate(AppRoute.GameDetail(output.gameId))
+            is CreateGameOutput.Cancelled -> navigator.navigate(
+                output.returnGameId?.let(AppRoute::GameDetail) ?: AppRoute.Home,
+            )
         }
     }
 
     fun onGameDetailOutput(output: GameDetailOutput) {
         when (output) {
             GameDetailOutput.Closed -> navigator.navigate(AppRoute.Home)
+            is GameDetailOutput.AuthorClueRequested -> navigator.navigate(AppRoute.AuthorClue(output.gameId))
             is GameDetailOutput.PlayRequested -> navigator.navigate(AppRoute.Play(output.gameId, output.thingId))
         }
     }
