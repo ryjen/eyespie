@@ -23,6 +23,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.micrantha.eyespie.imaging.CameraAvailability
 import com.micrantha.eyespie.imaging.CameraCapture
 import com.micrantha.eyespie.presentation.localGameFailureMessage
 
@@ -38,9 +39,7 @@ fun PlayGameScreen(
         OutlinedButton(
             onClick = { dispatch(PlayGameIntent.Back) },
             enabled = !state.busy,
-        ) {
-            Text("Back to game")
-        }
+        ) { Text("Back to game") }
 
         state.failure?.let { failure ->
             Card(modifier = Modifier.fillMaxWidth()) {
@@ -51,14 +50,12 @@ fun PlayGameScreen(
                 ) {
                     Text(
                         when (failure) {
-                            PlayGameFailure.CameraUnavailable -> "Camera access is unavailable. Check permission/settings and try again."
+                            PlayGameFailure.CameraUnavailable -> "No usable camera is available on this device."
                             is PlayGameFailure.Game -> localGameFailureMessage(failure.failure)
                         },
                         modifier = Modifier.weight(1f),
                     )
-                    OutlinedButton(onClick = { dispatch(PlayGameIntent.DismissFailure) }) {
-                        Text("Dismiss")
-                    }
+                    OutlinedButton(onClick = { dispatch(PlayGameIntent.DismissFailure) }) { Text("Dismiss") }
                 }
             }
         }
@@ -67,9 +64,7 @@ fun PlayGameScreen(
             Box(
                 modifier = Modifier.fillMaxWidth().padding(vertical = 48.dp),
                 contentAlignment = Alignment.Center,
-            ) {
-                CircularProgressIndicator()
-            }
+            ) { CircularProgressIndicator() }
             return@Column
         }
 
@@ -160,6 +155,11 @@ fun PlayGameScreen(
                         )
                         CameraCapture(
                             modifier = Modifier.fillMaxWidth().height(300.dp),
+                            onAvailabilityChanged = { availability ->
+                                if (availability == CameraAvailability.Unavailable) {
+                                    dispatch(PlayGameIntent.CameraFailed)
+                                }
+                            },
                             onCameraError = { dispatch(PlayGameIntent.CameraFailed) },
                             onCaptured = { dispatch(PlayGameIntent.GuessCaptured(it)) },
                             captureButton = { capture ->
@@ -167,8 +167,15 @@ fun PlayGameScreen(
                                     modifier = Modifier.fillMaxWidth(),
                                     onClick = capture,
                                     enabled = !state.busy,
-                                ) {
-                                    Text(if (state.busy) "Checking…" else "Check this object")
+                                ) { Text(if (state.busy) "Checking…" else "Check this object") }
+                            },
+                            recoveryButton = { openSettings ->
+                                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                                    Text("Camera permission is turned off. Enable it in system settings to keep playing.")
+                                    OutlinedButton(
+                                        modifier = Modifier.fillMaxWidth(),
+                                        onClick = openSettings,
+                                    ) { Text("Open camera settings") }
                                 }
                             },
                         )
@@ -198,13 +205,9 @@ private fun FoundCard(
             Text("Clue found", style = MaterialTheme.typography.headlineSmall)
             Text("The match has been saved to this device.")
             if (hasNext) {
-                Button(modifier = Modifier.fillMaxWidth(), onClick = onNext) {
-                    Text("Next clue")
-                }
+                Button(modifier = Modifier.fillMaxWidth(), onClick = onNext) { Text("Next clue") }
             } else {
-                OutlinedButton(modifier = Modifier.fillMaxWidth(), onClick = onBack) {
-                    Text("Back to game")
-                }
+                OutlinedButton(modifier = Modifier.fillMaxWidth(), onClick = onBack) { Text("Back to game") }
             }
         }
     }
@@ -222,9 +225,7 @@ private fun CompletionCard(onBack: () -> Unit) {
         ) {
             Text("Case complete", style = MaterialTheme.typography.headlineSmall)
             Text("Every clue in this game has been found. Progress is stored on this device.")
-            Button(modifier = Modifier.fillMaxWidth(), onClick = onBack) {
-                Text("Back to game")
-            }
+            Button(modifier = Modifier.fillMaxWidth(), onClick = onBack) { Text("Back to game") }
         }
     }
 }
