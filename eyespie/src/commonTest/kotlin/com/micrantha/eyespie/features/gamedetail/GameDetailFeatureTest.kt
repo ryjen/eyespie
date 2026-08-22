@@ -61,15 +61,60 @@ class GameDetailFeatureTest {
             outputs,
         )
     }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun local_creator_can_share_through_feature_port() = runTest {
+        val expected = GameDetailContent(
+            name = "Lynn Valley",
+            things = emptyList(),
+            localCreator = true,
+        )
+        val port = FakeGameDetailPort(expected, GameDetailShareResult.Shared)
+        val interactor = GameDetailFactory(port, {}).create(this, testGameId)
+
+        interactor.dispatch(GameDetailIntent.Load)
+        advanceUntilIdle()
+        interactor.dispatch(GameDetailIntent.ShareSelected)
+        assertTrue(interactor.state.value.shareInProgress)
+        advanceUntilIdle()
+
+        assertFalse(interactor.state.value.shareInProgress)
+        assertEquals(GameDetailShareResult.Shared, interactor.state.value.shareResult)
+        assertEquals(listOf(testGameId to "Lynn Valley"), port.shares)
+    }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun imported_game_does_not_start_share_operation() = runTest {
+        val expected = GameDetailContent("Imported", emptyList(), localCreator = false)
+        val port = FakeGameDetailPort(expected, GameDetailShareResult.Shared)
+        val interactor = GameDetailFactory(port, {}).create(this, testGameId)
+
+        interactor.dispatch(GameDetailIntent.Load)
+        advanceUntilIdle()
+        interactor.dispatch(GameDetailIntent.ShareSelected)
+        advanceUntilIdle()
+
+        assertFalse(interactor.state.value.shareInProgress)
+        assertTrue(port.shares.isEmpty())
+    }
 }
 
 private class FakeGameDetailPort(
     private val content: GameDetailContent,
+    private val shareResult: GameDetailShareResult = GameDetailShareResult.Unavailable,
 ) : GameDetailPort {
     val loads = mutableListOf<GameId>()
+    val shares = mutableListOf<Pair<GameId, String>>()
 
     override suspend fun load(gameId: GameId): LocalGameResult<GameDetailContent> {
         loads += gameId
         return LocalGameResult.Success(content)
+    }
+
+    override suspend fun share(gameId: GameId, gameName: String): GameDetailShareResult {
+        shares += gameId to gameName
+        return shareResult
     }
 }
