@@ -2,7 +2,10 @@ package com.micrantha.eyespie.imaging
 
 import android.Manifest
 import android.content.Context
+import android.content.Intent
 import android.content.pm.PackageManager
+import android.net.Uri
+import android.provider.Settings
 import android.view.Surface
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -14,6 +17,7 @@ import androidx.camera.lifecycle.ProcessCameraProvider
 import androidx.camera.view.PreviewView
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -39,9 +43,9 @@ import kotlin.coroutines.resumeWithException
 private const val CAPTURE_PREFIX = "eyespie-capture-"
 private const val CAPTURE_SUFFIX = ".jpg"
 private const val STALE_CAPTURE_AGE_MS = 24L * 60L * 60L * 1000L
+private const val CAMERA_PREFS = "eyespie-camera"
+private const val CAMERA_REQUEST_ATTEMPTED = "request-attempted"
 
-// Process-scoped so a CameraX callback that completes after UI disposal still has an executor on
-// which it can delete its app-private temporary file and release the capture gate.
 private val cameraCaptureExecutor: ExecutorService by lazy {
     Executors.newSingleThreadExecutor { runnable ->
         Thread(runnable, "eyespie-camera-capture").apply { isDaemon = true }
@@ -51,31 +55,47 @@ private val cameraCaptureExecutor: ExecutorService by lazy {
 @Composable
 actual fun CameraCapture(
     modifier: Modifier,
+    onAvailabilityChanged: (CameraAvailability) -> Unit,
     onCameraError: (Throwable) -> Unit,
     onCaptured: (CapturedImage) -> Unit,
     captureButton: @Composable ((capture: () -> Unit) -> Unit),
+    recoveryButton: @Composable ((openSettings: () -> Unit) -> Unit),
 ) {
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val compositionScope = rememberCoroutineScope()
+    val preferences = remember(context) {
+        context.getSharedPreferences(CAMERA_PREFS, Context.MODE_PRIVATE)
+    }
+    val hasCamera = remember(context) {
+        context.packageManager.hasSystemFeature(PackageManager.FEATURE_CAMERA_ANY)
+    }
+    var requestAttempted by remember {
+        mutableStateOf(preferences.getBoolean(CAMERA_REQUEST_ATTEMPTED, false))
+    }
     var permissionGranted by remember {
         mutableStateOf(
             ContextCompat.checkSelfPermission(context, Manifest.permission.CAMERA) ==
                 PackageManager.PERMISSION_GRANTED,
         )
     }
+
+    val availability = when {
+        !hasCamera -> CameraAvailability.Unavailable
+        permissionGranted -> CameraAvailability.Ready
+        requestAttempted -> CameraAvailability.PermissionDenied
+        else -> CameraAvailability.Requestable
+    }
+    LaunchedEffect(availability) { onAvailabilityChanged(availability) }
+
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestPermission(),
     ) { granted ->
+        requestAttempted = true
+        preferences.edit().putBoolean(CAMERA_REQUEST_ATTEMPTED, true).apply()
         permissionGranted = granted
-        if (!granted) {
-            onCameraError(SecurityException("camera permission was denied"))
-        }
     }
 
-    // OS permission state is authoritative. Reconcile it after returning from Settings without
-    // launching another permission request. A revoked grant recomposes out of the active CameraX
-    // session; a newly granted permission recomposes into the preview without a process restart.
     DisposableEffect(lifecycleOwner, context) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
@@ -88,11 +108,28 @@ actual fun CameraCapture(
         onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
     }
 
-    // Do not trigger a native permission prompt merely because the surface entered composition.
-    // The user-provided capture control is the explicit contextual request point.
-    if (!permissionGranted) {
-        captureButton { permissionLauncher.launch(Manifest.permission.CAMERA) }
-        return
+    when (availability) {
+        CameraAvailability.Unavailable -> return
+        CameraAvailability.Requestable -> {
+            captureButton {
+                requestAttempted = true
+                preferences.edit().putBoolean(CAMERA_REQUEST_ATTEMPTED, true).apply()
+                permissionLauncher.launch(Manifest.permission.CAMERA)
+            }
+            return
+        }
+        CameraAvailability.PermissionDenied -> {
+            recoveryButton {
+                context.startActivity(
+                    Intent(
+                        Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                        Uri.fromParts("package", context.packageName, null),
+                    ),
+                )
+            }
+            return
+        }
+        CameraAvailability.Ready -> Unit
     }
 
     val previewView = remember {
@@ -142,10 +179,7 @@ actual fun CameraCapture(
         }
     }
 
-    AndroidView(
-        factory = { previewView },
-        modifier = modifier,
-    )
+    AndroidView(factory = { previewView }, modifier = modifier)
 
     captureButton {
         cameraXImageCapture.targetRotation = previewView.display?.rotation ?: Surface.ROTATION_0
@@ -161,12 +195,6 @@ actual fun CameraCapture(
     }
 }
 
-/**
- * CameraX-backed implementation of the common [ImageCapture] contract.
- *
- * One capture may be owned at a time. A cancelled caller does not release that gate early because
- * CameraX may still be writing the app-private temporary file; the callback owns final cleanup.
- */
 private class AndroidImageCapture(
     private val context: Context,
     private val cameraXImageCapture: CameraXImageCapture,
@@ -204,9 +232,7 @@ private class AndroidImageCapture(
                     object : CameraXImageCapture.OnImageSavedCallback {
                         override fun onError(exception: ImageCaptureException) {
                             finish()
-                            if (continuation.isActive) {
-                                continuation.resumeWithException(exception)
-                            }
+                            if (continuation.isActive) continuation.resumeWithException(exception)
                         }
 
                         override fun onImageSaved(
@@ -214,14 +240,10 @@ private class AndroidImageCapture(
                         ) {
                             try {
                                 if (continuation.isActive) {
-                                    continuation.resume(
-                                        CapturedImage.fromEncoded(outputFile.readBytes()),
-                                    )
+                                    continuation.resume(CapturedImage.fromEncoded(outputFile.readBytes()))
                                 }
                             } catch (error: Throwable) {
-                                if (continuation.isActive) {
-                                    continuation.resumeWithException(error)
-                                }
+                                if (continuation.isActive) continuation.resumeWithException(error)
                             } finally {
                                 finish()
                             }
@@ -230,9 +252,7 @@ private class AndroidImageCapture(
                 )
             } catch (error: Throwable) {
                 finish()
-                if (continuation.isActive) {
-                    continuation.resumeWithException(error)
-                }
+                if (continuation.isActive) continuation.resumeWithException(error)
             }
         }
     }
@@ -245,7 +265,5 @@ private fun pruneStaleCaptureFiles(context: Context, nowMillis: Long = System.cu
             file.name.startsWith(CAPTURE_PREFIX) &&
             file.name.endsWith(CAPTURE_SUFFIX) &&
             file.lastModified() < cutoff
-    }?.forEach { stale ->
-        runCatching { stale.delete() }
-    }
+    }?.forEach { stale -> runCatching { stale.delete() } }
 }
