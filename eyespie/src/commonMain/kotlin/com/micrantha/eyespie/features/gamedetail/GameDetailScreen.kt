@@ -59,6 +59,9 @@ fun GameDetailScreen(
             style = MaterialTheme.typography.titleMedium,
         )
         if (content.localCreator) {
+            Button(onClick = { dispatch(GameDetailIntent.AddClueSelected) }) {
+                Text("Add clue")
+            }
             OutlinedButton(
                 enabled = !state.shareInProgress,
                 onClick = { dispatch(GameDetailIntent.ShareSelected) },
