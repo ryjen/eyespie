@@ -2,11 +2,8 @@ package com.micrantha.eyespie.features.gamedetail
 
 import com.micrantha.eyespie.core.GameId
 import com.micrantha.eyespie.game.LocalGameResult
-import com.micrantha.eyespie.mvi.Interactor
+import com.micrantha.eyespie.mvi.BaseInteractor
 import kotlinx.coroutines.CoroutineScope
-import kotlinx.coroutines.flow.MutableStateFlow
-import kotlinx.coroutines.flow.StateFlow
-import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
 class GameDetailInteractor(
@@ -15,16 +12,15 @@ class GameDetailInteractor(
     private val gameId: GameId,
     private val output: (GameDetailOutput) -> Unit,
     initialState: GameDetailState = GameDetailState(),
-) : Interactor<GameDetailState, GameDetailIntent> {
-    private val mutableState = MutableStateFlow(initialState)
-    override val state: StateFlow<GameDetailState> = mutableState.asStateFlow()
-
-    override fun dispatch(intent: GameDetailIntent) {
-        val previousState = mutableState.value
-        mutableState.value = GameDetailReducer.reduce(previousState, intent)
+) : BaseInteractor<GameDetailState, GameDetailIntent>(initialState, GameDetailReducer) {
+    override fun afterReduce(
+        intent: GameDetailIntent,
+        previousState: GameDetailState,
+        stateAfterReduce: GameDetailState,
+    ) {
         when (intent) {
             GameDetailIntent.Load -> {
-                val generation = mutableState.value.loadGeneration
+                val generation = stateAfterReduce.loadGeneration
                 scope.launch {
                     when (val result = port.load(gameId)) {
                         is LocalGameResult.Success -> dispatch(GameDetailIntent.ContentLoaded(generation, result.value))
