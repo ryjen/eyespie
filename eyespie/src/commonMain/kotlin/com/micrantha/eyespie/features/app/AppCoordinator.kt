@@ -31,7 +31,7 @@ class AppCoordinator(
             CreateGameOutput.Created -> navigator.navigate(AppRoute.Home)
             is CreateGameOutput.ClueAdded -> navigator.navigate(AppRoute.GameDetail(output.gameId))
             is CreateGameOutput.Cancelled -> navigator.navigate(
-                output.returnGameId?.let(AppRoute::GameDetail) ?: AppRoute.Home,
+                output.returnGameId?.let { AppRoute.GameDetail(it) } ?: AppRoute.Home,
             )
         }
     }
