@@ -7,7 +7,8 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
 class GameDetailInteractor(
-    private val port: GameDetailPort,
+    private val loader: GameDetailLoader,
+    private val sharer: GameSharer,
     private val scope: CoroutineScope,
     private val gameId: GameId,
     private val output: (GameDetailOutput) -> Unit,
@@ -22,7 +23,7 @@ class GameDetailInteractor(
             GameDetailIntent.Load -> {
                 val generation = stateAfterReduce.loadGeneration
                 scope.launch {
-                    when (val result = port.load(gameId)) {
+                    when (val result = loader.load(gameId)) {
                         is LocalGameResult.Success -> dispatch(GameDetailIntent.ContentLoaded(generation, result.value))
                         is LocalGameResult.Failure -> dispatch(GameDetailIntent.OperationFailed(generation, result.failure))
                     }
@@ -36,7 +37,7 @@ class GameDetailInteractor(
             ) {
                 val gameName = previousState.content.name
                 scope.launch {
-                    dispatch(GameDetailIntent.ShareFinished(port.share(gameId, gameName)))
+                    dispatch(GameDetailIntent.ShareFinished(sharer.share(gameId, gameName)))
                 }
             }
             GameDetailIntent.Back -> output(GameDetailOutput.Closed)
