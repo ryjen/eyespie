@@ -145,14 +145,24 @@ internal class LocalGameAdapter(
             is LocalGameResult.Success -> {
                 val game = result.value.games.firstOrNull { it.id == gameId }
                     ?: return LocalGameResult.Failure(LocalGameFailure(LocalGameFailureCode.GAME_NOT_FOUND))
-                val thing = game.things.firstOrNull { it.id == thingId }
-                    ?: return LocalGameResult.Failure(LocalGameFailure(LocalGameFailureCode.THING_NOT_FOUND))
+                val currentIndex = game.things.indexOfFirst { it.id == thingId }
+                if (currentIndex < 0) {
+                    return LocalGameResult.Failure(LocalGameFailure(LocalGameFailureCode.THING_NOT_FOUND))
+                }
+                val thing = game.things[currentIndex]
+                val nextUnmatched = game.things.firstOrNull { candidate ->
+                    candidate.id != thingId && candidate.progress?.matched != true
+                }
                 LocalGameResult.Success(
                     PlayGameContent(
                         gameName = game.name,
                         clueText = thing.clue.clueText,
                         matched = thing.progress?.matched ?: false,
                         bestSimilarity = thing.progress?.bestSimilarity,
+                        clueNumber = currentIndex + 1,
+                        clueCount = game.things.size,
+                        matchedClueCount = game.things.count { it.progress?.matched == true },
+                        nextThingId = nextUnmatched?.id,
                     ),
                 )
             }
