@@ -1,20 +1,27 @@
 package com.micrantha.eyespie.features.play
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.Button
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.micrantha.eyespie.imaging.CameraCapture
 import com.micrantha.eyespie.presentation.localGameFailureMessage
@@ -26,70 +33,198 @@ fun PlayGameScreen(
 ) {
     Column(
         modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
-        verticalArrangement = Arrangement.spacedBy(10.dp),
+        verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
+        OutlinedButton(
+            onClick = { dispatch(PlayGameIntent.Back) },
+            enabled = !state.busy,
+        ) {
+            Text("Back to game")
+        }
+
         state.failure?.let { failure ->
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                Text(
-                    when (failure) {
-                        PlayGameFailure.CameraUnavailable -> "Camera access is unavailable. Check permission/settings and try again."
-                        is PlayGameFailure.Game -> localGameFailureMessage(failure.failure)
-                    },
-                    modifier = Modifier.weight(1f),
-                )
-                OutlinedButton(onClick = { dispatch(PlayGameIntent.DismissFailure) }) { Text("Dismiss") }
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(12.dp),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    Text(
+                        when (failure) {
+                            PlayGameFailure.CameraUnavailable -> "Camera access is unavailable. Check permission/settings and try again."
+                            is PlayGameFailure.Game -> localGameFailureMessage(failure.failure)
+                        },
+                        modifier = Modifier.weight(1f),
+                    )
+                    OutlinedButton(onClick = { dispatch(PlayGameIntent.DismissFailure) }) {
+                        Text("Dismiss")
+                    }
+                }
             }
         }
 
         if (state.loading && state.content == null) {
-            CircularProgressIndicator()
-            OutlinedButton(onClick = { dispatch(PlayGameIntent.Back) }) { Text("Back") }
+            Box(
+                modifier = Modifier.fillMaxWidth().padding(vertical = 48.dp),
+                contentAlignment = Alignment.Center,
+            ) {
+                CircularProgressIndicator()
+            }
             return@Column
         }
 
         val content = state.content
         if (content == null) {
-            Text("This local game is no longer available.")
-            OutlinedButton(onClick = { dispatch(PlayGameIntent.Back) }) { Text("Back") }
+            Card(modifier = Modifier.fillMaxWidth()) {
+                Column(
+                    modifier = Modifier.fillMaxWidth().padding(20.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Text("Case unavailable", style = MaterialTheme.typography.titleLarge)
+                    Text("This local game or clue is no longer available on this device.")
+                }
+            }
             return@Column
         }
 
-        Text(content.gameName, style = MaterialTheme.typography.titleLarge)
-        Text("Clue", style = MaterialTheme.typography.titleSmall)
-        Text(content.clueText, style = MaterialTheme.typography.headlineSmall)
-
-        val outcome = state.latestOutcome
-        val matched = outcome?.progress?.matched ?: content.matched
-        val bestSimilarity = outcome?.progress?.bestSimilarity ?: content.bestSimilarity
-        if (bestSimilarity != null) {
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text(
-                if (matched) "Progress: matched · best ${formatSimilarity(bestSimilarity)}"
-                else "Progress: best ${formatSimilarity(bestSimilarity)}",
+                "FIELD CASE",
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.primary,
+                fontWeight = FontWeight.Bold,
             )
-        }
-        outcome?.let {
+            Text(content.gameName, style = MaterialTheme.typography.headlineLarge)
             Text(
-                if (it.match.matched) "Match · similarity ${formatSimilarity(it.match.similarity)}"
-                else "Not a match · similarity ${formatSimilarity(it.match.similarity)}",
-                style = MaterialTheme.typography.titleMedium,
+                "Clue ${content.clueNumber} of ${content.clueCount} · ${state.matchedClues} found",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
 
-        CameraCapture(
-            modifier = Modifier.fillMaxWidth().height(300.dp),
-            onCameraError = { dispatch(PlayGameIntent.CameraFailed) },
-            onCaptured = { dispatch(PlayGameIntent.GuessCaptured(it)) },
-            captureButton = { capture ->
-                Button(onClick = capture, enabled = !state.busy) {
-                    Text(if (state.busy) "Matching…" else "Capture guess")
+        Card(
+            modifier = Modifier.fillMaxWidth(),
+            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+        ) {
+            Column(
+                modifier = Modifier.fillMaxWidth().padding(20.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Text("Your clue", style = MaterialTheme.typography.labelLarge)
+                Text(content.clueText, style = MaterialTheme.typography.headlineSmall)
+            }
+        }
+
+        when {
+            state.completed -> CompletionCard(onBack = { dispatch(PlayGameIntent.Back) })
+            state.matched -> FoundCard(
+                hasNext = content.nextThingId != null,
+                onNext = { dispatch(PlayGameIntent.NextClueSelected) },
+                onBack = { dispatch(PlayGameIntent.Back) },
+            )
+            else -> {
+                state.latestOutcome?.let { outcome ->
+                    if (!outcome.match.matched) {
+                        Card(
+                            modifier = Modifier.fillMaxWidth(),
+                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+                        ) {
+                            Column(
+                                modifier = Modifier.fillMaxWidth().padding(16.dp),
+                                verticalArrangement = Arrangement.spacedBy(4.dp),
+                            ) {
+                                Text("Not it yet", style = MaterialTheme.typography.titleLarge)
+                                Text(
+                                    "Try another angle or move closer to the object described by the clue.",
+                                    style = MaterialTheme.typography.bodyMedium,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                        }
+                    }
                 }
-            },
-        )
-        OutlinedButton(onClick = { dispatch(PlayGameIntent.Back) }, enabled = !state.busy) { Text("Back") }
+
+                Card(
+                    modifier = Modifier.fillMaxWidth(),
+                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+                ) {
+                    Column(
+                        modifier = Modifier.fillMaxWidth().padding(16.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        Text("Scan your guess", style = MaterialTheme.typography.titleLarge)
+                        Text(
+                            "Frame the object clearly, then capture one still image to check it on this device.",
+                            style = MaterialTheme.typography.bodyMedium,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        CameraCapture(
+                            modifier = Modifier.fillMaxWidth().height(300.dp),
+                            onCameraError = { dispatch(PlayGameIntent.CameraFailed) },
+                            onCaptured = { dispatch(PlayGameIntent.GuessCaptured(it)) },
+                            captureButton = { capture ->
+                                Button(
+                                    modifier = Modifier.fillMaxWidth(),
+                                    onClick = capture,
+                                    enabled = !state.busy,
+                                ) {
+                                    Text(if (state.busy) "Checking…" else "Check this object")
+                                }
+                            },
+                        )
+                    }
+                }
+            }
+        }
+
+        Spacer(Modifier.height(4.dp))
     }
 }
 
-private fun formatSimilarity(value: Double): String {
-    val percentageTenths = (value * 1000.0).toInt()
-    return "${percentageTenths / 10.0}%"
+@Composable
+private fun FoundCard(
+    hasNext: Boolean,
+    onNext: () -> Unit,
+    onBack: () -> Unit,
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text("Clue found", style = MaterialTheme.typography.headlineSmall)
+            Text("The match has been saved to this device.")
+            if (hasNext) {
+                Button(modifier = Modifier.fillMaxWidth(), onClick = onNext) {
+                    Text("Next clue")
+                }
+            } else {
+                OutlinedButton(modifier = Modifier.fillMaxWidth(), onClick = onBack) {
+                    Text("Back to game")
+                }
+            }
+        }
+    }
+}
+
+@Composable
+private fun CompletionCard(onBack: () -> Unit) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text("Case complete", style = MaterialTheme.typography.headlineSmall)
+            Text("Every clue in this game has been found. Progress is stored on this device.")
+            Button(modifier = Modifier.fillMaxWidth(), onClick = onBack) {
+                Text("Back to game")
+            }
+        }
+    }
 }
