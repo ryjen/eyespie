@@ -52,6 +52,7 @@ class AppCoordinator(
     fun onPlayGameOutput(output: PlayGameOutput) {
         when (output) {
             is PlayGameOutput.Closed -> navigator.navigate(AppRoute.GameDetail(output.gameId))
+            is PlayGameOutput.Advance -> navigator.navigate(AppRoute.Play(output.gameId, output.thingId))
         }
     }
 }
