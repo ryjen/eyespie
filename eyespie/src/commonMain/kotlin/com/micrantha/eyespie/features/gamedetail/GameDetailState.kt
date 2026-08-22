@@ -6,6 +6,7 @@ import com.micrantha.eyespie.game.LocalGameFailure
 data class GameDetailContent(
     val name: String,
     val things: List<GameDetailThing>,
+    val localCreator: Boolean = false,
 )
 
 data class GameDetailThing(
@@ -20,4 +21,6 @@ data class GameDetailState(
     val loading: Boolean = true,
     val failure: LocalGameFailure? = null,
     val loadGeneration: Long = 0,
+    val shareInProgress: Boolean = false,
+    val shareResult: GameDetailShareResult? = null,
 )
