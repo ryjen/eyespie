@@ -56,6 +56,42 @@ class PlayGameFeatureTest {
     }
 
     @Test
+    fun reducer_uses_sticky_persisted_match_when_current_similarity_misses() {
+        val initial = PlayGameState(
+            gameId = testGameId,
+            thingId = testThingId,
+            content = PlayGameContent(
+                gameName = "Trip",
+                clueText = "Find it",
+                matched = false,
+                bestSimilarity = 0.2,
+                foundCount = 0,
+                totalCount = 2,
+                nextThingId = nextThingId,
+            ),
+            loading = false,
+            busy = true,
+            guessGeneration = 3,
+        )
+        val staleMiss = testGuessOutcome(similarity = 0.4, matched = false).copy(
+            progress = testGuessOutcome(similarity = 0.91, matched = true).progress,
+        )
+
+        val next = PlayGameReducer.reduce(
+            initial,
+            PlayGameIntent.GuessCompleted(3, staleMiss),
+        )
+
+        val feedback = assertIs<PlayFeedback.Matched>(next.feedback)
+        assertEquals(0.91, feedback.similarity)
+        assertEquals(0.91, feedback.bestSimilarity)
+        assertEquals(1, feedback.foundCount)
+        assertEquals(true, next.content?.matched)
+        assertEquals(1, next.content?.foundCount)
+        assertFalse(next.busy)
+    }
+
+    @Test
     fun reducer_ignores_stale_load_and_guess_callbacks() {
         val content = PlayGameContent("Trip", "Find it", false, null)
         val state = PlayGameState(
