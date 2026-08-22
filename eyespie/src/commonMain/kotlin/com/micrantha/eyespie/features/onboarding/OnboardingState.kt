@@ -9,4 +9,5 @@ enum class OnboardingPage {
 
 data class OnboardingState(
     val page: OnboardingPage = OnboardingPage.Local,
+    val completing: Boolean = false,
 )
