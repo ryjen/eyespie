@@ -21,9 +21,9 @@ XCODE_PROJECT = ROOT / "iosApp/iosApp.xcodeproj/project.pbxproj"
 DEBUG_XCCONFIG = ROOT / "iosApp/Configuration/Config.debug.xcconfig"
 RELEASE_XCCONFIG = ROOT / "iosApp/Configuration/Config.release.xcconfig"
 VERSIONS_TOML = ROOT / "gradle/libs.versions.toml"
-CORE_SOURCE = ROOT / "eyespie/src/commonMain/kotlin/com/micrantha/eyespie/core/Core.kt"
+MATCH_ENGINE_SOURCE = ROOT / "eyespie/src/commonMain/kotlin/com/micrantha/eyespie/core/MatchEngine.kt"
 EMBEDDING_SOURCE = ROOT / "eyespie/src/commonMain/kotlin/com/micrantha/eyespie/imaging/ImageEmbedding.kt"
-BUNDLE_SOURCE = ROOT / "eyespie/src/commonMain/kotlin/com/micrantha/eyespie/sharing/GameBundle.kt"
+BUNDLE_CONSTANTS_SOURCE = ROOT / "eyespie/src/commonMain/kotlin/com/micrantha/eyespie/sharing/GameBundleConstants.kt"
 SQLDELIGHT_DIR = ROOT / "eyespie/src/commonMain/sqldelight/com/micrantha/eyespie/data"
 
 CANDIDATE_IDENTITY_SCHEMA_VERSION = 2
@@ -117,7 +117,7 @@ def kotlin_float(text: str, name: str) -> float:
 
 
 def kotlin_string(text: str, name: str) -> str:
-    match = require_regex(text, rf'const val {re.escape(name)}\s*=\s*"([^"]+)"', name)
+    match = require_regex(text, rf'const val {re.escape(name)}\s*=\s*"([^\"]+)"', name)
     return match.group(1)
 
 
@@ -219,13 +219,13 @@ def build_identity(*, allow_dirty: bool) -> dict[str, Any]:
 
     versions = tomllib.loads(read_text(VERSIONS_TOML))["versions"]
     gradle = read_text(BUILD_GRADLE)
-    core = read_text(CORE_SOURCE)
+    match_engine = read_text(MATCH_ENGINE_SOURCE)
     embedding = read_text(EMBEDDING_SOURCE)
-    bundle = read_text(BUNDLE_SOURCE)
+    bundle_constants = read_text(BUNDLE_CONSTANTS_SOURCE)
 
     ios_deployment = require_regex(
         gradle,
-        r'ios\.deploymentTarget\s*=\s*"([^"]+)"',
+        r'ios\.deploymentTarget\s*=\s*"([^\"]+)"',
         "iOS deployment target",
     ).group(1)
 
@@ -261,16 +261,16 @@ def build_identity(*, allow_dirty: bool) -> dict[str, Any]:
             "sqldelight_schema_version": current_sqldelight_schema_version(),
         },
         "match_policy": {
-            "default_cosine_threshold": kotlin_float(core, "DEFAULT_THRESHOLD"),
+            "default_cosine_threshold": kotlin_float(match_engine, "DEFAULT_THRESHOLD"),
         },
         "bundle": {
-            "schema_version": kotlin_int(bundle, "GAME_BUNDLE_SCHEMA_VERSION"),
-            "canonicalization_version": kotlin_int(bundle, "GAME_BUNDLE_CANONICALIZATION_VERSION"),
+            "schema_version": kotlin_int(bundle_constants, "GAME_BUNDLE_SCHEMA_VERSION"),
+            "canonicalization_version": kotlin_int(bundle_constants, "GAME_BUNDLE_CANONICALIZATION_VERSION"),
             "signature_algorithm": kotlin_int(
-                bundle,
+                bundle_constants,
                 "GAME_BUNDLE_SIGNATURE_ALGORITHM_P256_ECDSA_SHA256_DER",
             ),
-            "match_policy_version": kotlin_int(bundle, "GAME_BUNDLE_MATCH_POLICY_VERSION"),
+            "match_policy_version": kotlin_int(bundle_constants, "GAME_BUNDLE_MATCH_POLICY_VERSION"),
         },
         "image_embedding": {
             "contract_version": kotlin_int(embedding, "IMAGE_EMBEDDING_CONTRACT_VERSION"),
