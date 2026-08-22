@@ -68,7 +68,7 @@ actual fun CameraCapture(
         context.getSharedPreferences(CAMERA_PREFS, Context.MODE_PRIVATE)
     }
     val hasCamera = remember(context) {
-        context.packageManager.hasSystemFeature(PackageManager.FEATURE_CAMERA_ANY)
+        context.packageManager.hasSystemFeature(PackageManager.FEATURE_CAMERA)
     }
     var requestAttempted by remember {
         mutableStateOf(preferences.getBoolean(CAMERA_REQUEST_ATTEMPTED, false))
