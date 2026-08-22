@@ -23,7 +23,7 @@ class OnboardingFeatureTest {
         interactor.dispatch(OnboardingIntent.Next)
         interactor.dispatch(OnboardingIntent.Done)
 
-        assertEquals(listOf(OnboardingOutput.Completed), outputs)
+        assertEquals(listOf<OnboardingOutput>(OnboardingOutput.Completed), outputs)
         assertEquals(OnboardingState(), interactor.state.value)
     }
 }
