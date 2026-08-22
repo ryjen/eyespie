@@ -18,7 +18,8 @@ class HomeInteractor(
     override val state: StateFlow<HomeState> = mutableState.asStateFlow()
 
     override fun dispatch(intent: HomeIntent) {
-        mutableState.value = HomeReducer.reduce(mutableState.value, intent)
+        val previousState = mutableState.value
+        mutableState.value = HomeReducer.reduce(previousState, intent)
         when (intent) {
             HomeIntent.Refresh -> {
                 val generation = mutableState.value.refreshGeneration
@@ -26,6 +27,15 @@ class HomeInteractor(
                     when (val result = port.load()) {
                         is LocalGameResult.Success -> dispatch(HomeIntent.ContentLoaded(generation, result.value))
                         is LocalGameResult.Failure -> dispatch(HomeIntent.OperationFailed(result.failure, generation))
+                    }
+                }
+            }
+            HomeIntent.ImportSelected -> if (!previousState.importInProgress) {
+                scope.launch {
+                    val result = port.importGame()
+                    dispatch(HomeIntent.ImportFinished(result))
+                    if (result == HomeImportResult.Imported || result == HomeImportResult.AlreadyPresent) {
+                        dispatch(HomeIntent.Refresh)
                     }
                 }
             }

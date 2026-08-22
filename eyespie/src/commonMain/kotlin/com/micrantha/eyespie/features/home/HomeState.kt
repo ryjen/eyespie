@@ -14,6 +14,7 @@ data class HomeGame(
     val id: GameId,
     val name: String,
     val things: List<HomeThing>,
+    val localCreator: Boolean = false,
 )
 
 data class HomeThing(
@@ -28,4 +29,6 @@ data class HomeState(
     val loading: Boolean = true,
     val failure: LocalGameFailure? = null,
     val refreshGeneration: Long = 0,
+    val importInProgress: Boolean = false,
+    val importResult: HomeImportResult? = null,
 )

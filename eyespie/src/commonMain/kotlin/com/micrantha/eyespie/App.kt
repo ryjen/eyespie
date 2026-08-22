@@ -22,10 +22,16 @@ import com.micrantha.eyespie.features.home.HomeRoute
 import com.micrantha.eyespie.features.onboarding.OnboardingRoute
 import com.micrantha.eyespie.features.play.PlayGameRoute
 import com.micrantha.eyespie.game.EyespieRuntime
+import com.micrantha.eyespie.sharing.GameDocumentTransfer
 
 @Composable
-fun App(runtime: EyespieRuntime) {
-    val graph = remember(runtime) { AppGraphFactory.fromRuntime(runtime) }
+fun App(
+    runtime: EyespieRuntime,
+    documentTransfer: GameDocumentTransfer? = null,
+) {
+    val graph = remember(runtime, documentTransfer) {
+        AppGraphFactory.fromRuntime(runtime, documentTransfer = documentTransfer)
+    }
     val route by graph.navigator.route.collectAsState()
 
     MaterialTheme {

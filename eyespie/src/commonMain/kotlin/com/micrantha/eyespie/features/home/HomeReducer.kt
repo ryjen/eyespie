@@ -9,6 +9,16 @@ object HomeReducer : Reducer<HomeState, HomeIntent> {
             refreshGeneration = state.refreshGeneration + 1,
         )
         HomeIntent.DismissFailure -> state.copy(failure = null)
+        HomeIntent.DismissImportResult -> state.copy(importResult = null)
+        HomeIntent.ImportSelected -> if (state.importInProgress) {
+            state
+        } else {
+            state.copy(importInProgress = true, importResult = null)
+        }
+        is HomeIntent.ImportFinished -> state.copy(
+            importInProgress = false,
+            importResult = if (intent.result == HomeImportResult.Cancelled) null else intent.result,
+        )
         HomeIntent.OnboardingSelected,
         HomeIntent.CreateSelected,
         is HomeIntent.GameSelected -> state
