@@ -7,32 +7,7 @@ import com.micrantha.eyespie.core.GameRepository
 import com.micrantha.eyespie.core.PlayerId
 import com.micrantha.eyespie.core.Thing
 import com.micrantha.eyespie.core.ThingId
-import com.micrantha.eyespie.core.ThingProgress
-import com.micrantha.eyespie.core.ThingProgressRepository
 import com.micrantha.eyespie.data.EyesPieDatabase
-import com.micrantha.eyespie.features.onboarding.OnboardingPreferenceStore
-
-interface EyespieDatabaseFactory {
-    fun create(): EyesPieDatabase
-}
-
-class SqlOnboardingPreferenceStore(
-    database: EyesPieDatabase,
-) : OnboardingPreferenceStore {
-    private val queries = database.eyesPieQueries
-
-    override suspend fun isCompleted(): Boolean =
-        queries.selectPreference(ONBOARDING_COMPLETED_KEY).executeAsOneOrNull() == TRUE_VALUE
-
-    override suspend fun markCompleted() {
-        queries.upsertPreference(ONBOARDING_COMPLETED_KEY, TRUE_VALUE)
-    }
-
-    private companion object {
-        const val ONBOARDING_COMPLETED_KEY = "onboarding.completed"
-        const val TRUE_VALUE = "true"
-    }
-}
 
 class SqlGameRepository(
     private val database: EyesPieDatabase,
@@ -137,58 +112,5 @@ class SqlGameRepository(
         val id: String,
         val name: String,
         val creatorId: String,
-    )
-}
-
-class SqlThingProgressRepository(
-    database: EyesPieDatabase,
-) : ThingProgressRepository {
-    private val queries = database.eyesPieQueries
-
-    override suspend fun get(
-        gameId: GameId,
-        thingId: ThingId,
-        playerId: PlayerId,
-    ): ThingProgress? = queries.selectThingProgress(
-        gameId.value,
-        thingId.value,
-        playerId.value,
-    ) { persistedGameId, persistedThingId, persistedPlayerId, matched, bestSimilarity ->
-        mapProgress(persistedGameId, persistedThingId, persistedPlayerId, matched, bestSimilarity)
-    }.executeAsOneOrNull()
-
-    override suspend fun list(gameId: GameId, playerId: PlayerId): List<ThingProgress> =
-        queries.selectProgressByGameAndPlayer(gameId.value, playerId.value) {
-                persistedGameId,
-                persistedThingId,
-                persistedPlayerId,
-                matched,
-                bestSimilarity,
-            ->
-            mapProgress(persistedGameId, persistedThingId, persistedPlayerId, matched, bestSimilarity)
-        }.executeAsList()
-
-    override suspend fun save(progress: ThingProgress) {
-        queries.upsertThingProgress(
-            progress.gameId.value,
-            progress.thingId.value,
-            progress.playerId.value,
-            if (progress.matched) 1L else 0L,
-            progress.bestSimilarity,
-        )
-    }
-
-    private fun mapProgress(
-        gameId: String,
-        thingId: String,
-        playerId: String,
-        matched: Long,
-        bestSimilarity: Double?,
-    ): ThingProgress = ThingProgress(
-        gameId = GameId(gameId),
-        thingId = ThingId(thingId),
-        playerId = PlayerId(playerId),
-        matched = matched != 0L,
-        bestSimilarity = bestSimilarity,
     )
 }
