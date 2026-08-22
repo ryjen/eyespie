@@ -16,13 +16,13 @@ def split_top_level_parameters(signature: str) -> list[str]:
     paren = angle = bracket = 0
 
     for char in signature:
-        if char == "(" :
+        if char == "(":
             paren += 1
         elif char == ")":
             paren -= 1
         elif char == "<":
             angle += 1
-        elif char == ">":
+        elif char == ">" and angle > 0:
             angle -= 1
         elif char == "[":
             bracket += 1
