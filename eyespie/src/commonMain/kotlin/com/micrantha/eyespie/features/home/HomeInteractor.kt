@@ -30,14 +30,25 @@ class HomeInteractor(
                     }
                 }
             }
-            HomeIntent.ImportSelected -> if (!previousState.importInProgress) {
+            HomeIntent.ImportSelected -> if (!previousState.importInProgress && previousState.importPreview == null) {
                 scope.launch {
-                    val result = port.importGame()
+                    when (val result = port.prepareImport()) {
+                        is HomeImportPreparationResult.Ready -> dispatch(HomeIntent.ImportPreviewReady(result.preview))
+                        is HomeImportPreparationResult.Terminal -> dispatch(HomeIntent.ImportFinished(result.result))
+                    }
+                }
+            }
+            HomeIntent.ImportConfirmed -> if (!previousState.importInProgress && previousState.importPreview != null) {
+                scope.launch {
+                    val result = port.confirmImport()
                     dispatch(HomeIntent.ImportFinished(result))
                     if (result == HomeImportResult.Imported || result == HomeImportResult.AlreadyPresent) {
                         dispatch(HomeIntent.Refresh)
                     }
                 }
+            }
+            HomeIntent.ImportPreviewCancelled -> if (!previousState.importInProgress && previousState.importPreview != null) {
+                port.cancelImport()
             }
             HomeIntent.OnboardingSelected -> output(HomeOutput.OnboardingRequested)
             HomeIntent.UtilitySelected -> output(HomeOutput.UtilityRequested)
