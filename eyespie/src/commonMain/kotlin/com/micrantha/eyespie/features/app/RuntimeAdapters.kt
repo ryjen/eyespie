@@ -2,23 +2,28 @@ package com.micrantha.eyespie.features.app
 
 import com.micrantha.eyespie.core.GameId
 import com.micrantha.eyespie.core.ThingId
-import com.micrantha.eyespie.features.clueauthoring.ClueAuthoringPort
-import com.micrantha.eyespie.features.create.CreateGamePort
+import com.micrantha.eyespie.features.clueauthoring.ClueAuthor
+import com.micrantha.eyespie.features.create.GameCreator
 import com.micrantha.eyespie.features.gamedetail.GameDetailContent
-import com.micrantha.eyespie.features.gamedetail.GameDetailPort
+import com.micrantha.eyespie.features.gamedetail.GameDetailLoader
 import com.micrantha.eyespie.features.gamedetail.GameDetailShareResult
 import com.micrantha.eyespie.features.gamedetail.GameDetailThing
+import com.micrantha.eyespie.features.gamedetail.GameSharer
+import com.micrantha.eyespie.features.home.GameImportCanceller
+import com.micrantha.eyespie.features.home.GameImportConfirmer
+import com.micrantha.eyespie.features.home.GameImportPreparer
 import com.micrantha.eyespie.features.home.HomeContent
 import com.micrantha.eyespie.features.home.HomeGame
 import com.micrantha.eyespie.features.home.HomeImportPreparationResult
 import com.micrantha.eyespie.features.home.HomeImportPreview
 import com.micrantha.eyespie.features.home.HomeImportResult
-import com.micrantha.eyespie.features.home.HomePort
+import com.micrantha.eyespie.features.home.HomeLoader
 import com.micrantha.eyespie.features.home.HomeThing
+import com.micrantha.eyespie.features.play.GuessSubmitter
 import com.micrantha.eyespie.features.play.PlayGameContent
-import com.micrantha.eyespie.features.play.PlayGamePort
+import com.micrantha.eyespie.features.play.PlayGameLoader
 import com.micrantha.eyespie.features.utility.UtilityContent
-import com.micrantha.eyespie.features.utility.UtilityPort
+import com.micrantha.eyespie.features.utility.UtilityLoader
 import com.micrantha.eyespie.game.AuthoredThing
 import com.micrantha.eyespie.game.CreatedGame
 import com.micrantha.eyespie.game.EyespieRuntime
@@ -40,7 +45,17 @@ import kotlin.coroutines.cancellation.CancellationException
 internal class LocalGameAdapter(
     runtime: EyespieRuntime,
     private val documentTransfer: GameDocumentTransfer? = null,
-) : HomePort, UtilityPort, CreateGamePort, ClueAuthoringPort, GameDetailPort, PlayGamePort {
+) : HomeLoader,
+    GameImportPreparer,
+    GameImportConfirmer,
+    GameImportCanceller,
+    UtilityLoader,
+    GameCreator,
+    ClueAuthor,
+    GameDetailLoader,
+    GameSharer,
+    PlayGameLoader,
+    GuessSubmitter {
     private val gameLoop = runtime.gameLoop
     private val bundleService = runtime.bundleService
     private var pendingImportBytes: ByteArray? = null
@@ -225,10 +240,10 @@ internal class LocalGameAdapter(
     ): LocalGameResult<GuessOutcome> = gameLoop.guess(gameId, thingId, guessImage)
 }
 
-internal class HomeBackedGameDetailPort(
-    private val homePort: HomePort,
-) : GameDetailPort {
-    override suspend fun load(gameId: GameId): LocalGameResult<GameDetailContent> = when (val result = homePort.load()) {
+internal class HomeBackedGameDetailLoader(
+    private val homeLoader: HomeLoader,
+) : GameDetailLoader {
+    override suspend fun load(gameId: GameId): LocalGameResult<GameDetailContent> = when (val result = homeLoader.load()) {
         is LocalGameResult.Failure -> result
         is LocalGameResult.Success -> {
             val game = result.value.games.firstOrNull { it.id == gameId }
@@ -236,6 +251,11 @@ internal class HomeBackedGameDetailPort(
             LocalGameResult.Success(game.toGameDetailContent())
         }
     }
+}
+
+internal object UnavailableGameSharer : GameSharer {
+    override suspend fun share(gameId: GameId, gameName: String): GameDetailShareResult =
+        GameDetailShareResult.Unavailable
 }
 
 private fun GameBundleImportResult.toHomeImportResult(): HomeImportResult = when (this) {
