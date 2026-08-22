@@ -10,6 +10,8 @@ import com.micrantha.eyespie.features.gamedetail.GameDetailShareResult
 import com.micrantha.eyespie.features.gamedetail.GameDetailThing
 import com.micrantha.eyespie.features.home.HomeContent
 import com.micrantha.eyespie.features.home.HomeGame
+import com.micrantha.eyespie.features.home.HomeImportPreparationResult
+import com.micrantha.eyespie.features.home.HomeImportPreview
 import com.micrantha.eyespie.features.home.HomeImportResult
 import com.micrantha.eyespie.features.home.HomePort
 import com.micrantha.eyespie.features.home.HomeThing
@@ -27,6 +29,7 @@ import com.micrantha.eyespie.game.LocalGameResult
 import com.micrantha.eyespie.imaging.CapturedImage
 import com.micrantha.eyespie.sharing.GameBundleExportFailureCode
 import com.micrantha.eyespie.sharing.GameBundleExportResult
+import com.micrantha.eyespie.sharing.GameBundleImportPreviewResult
 import com.micrantha.eyespie.sharing.GameBundleImportResult
 import com.micrantha.eyespie.sharing.GameDocumentReadResult
 import com.micrantha.eyespie.sharing.GameDocumentTransfer
@@ -40,6 +43,7 @@ internal class LocalGameAdapter(
 ) : HomePort, UtilityPort, CreateGamePort, ClueAuthoringPort, GameDetailPort, PlayGamePort {
     private val gameLoop = runtime.gameLoop
     private val bundleService = runtime.bundleService
+    private var pendingImportBytes: ByteArray? = null
 
     override suspend fun load(): LocalGameResult<HomeContent> = when (val result = gameLoop.loadSnapshot()) {
         is LocalGameResult.Success -> LocalGameResult.Success(
@@ -77,27 +81,59 @@ internal class LocalGameAdapter(
             is LocalGameResult.Failure -> result
         }
 
-    override suspend fun importGame(): HomeImportResult {
-        val transfer = documentTransfer ?: return HomeImportResult.Unavailable
+    override suspend fun prepareImport(): HomeImportPreparationResult {
+        cancelImport()
+        val transfer = documentTransfer
+            ?: return HomeImportPreparationResult.Terminal(HomeImportResult.Unavailable)
         return try {
             when (val read = transfer.read()) {
-                is GameDocumentReadResult.Success -> when (bundleService.import(read.bytes)) {
-                    is GameBundleImportResult.Imported -> HomeImportResult.Imported
-                    is GameBundleImportResult.AlreadyPresent -> HomeImportResult.AlreadyPresent
-                    is GameBundleImportResult.Conflict -> HomeImportResult.Conflict
-                    is GameBundleImportResult.InvalidFormat -> HomeImportResult.InvalidFile
-                    is GameBundleImportResult.Failure -> HomeImportResult.Failed
+                is GameDocumentReadResult.Success -> when (val preview = bundleService.previewImport(read.bytes)) {
+                    is GameBundleImportPreviewResult.Ready -> {
+                        pendingImportBytes = read.bytes.copyOf()
+                        HomeImportPreparationResult.Ready(
+                            HomeImportPreview(
+                                gameName = preview.preview.gameName,
+                                clueCount = preview.preview.thingCount,
+                                creatorIdSuffix = preview.preview.creatorPlayerId.value.takeLast(12),
+                                gameIdSuffix = preview.preview.gameId.value.takeLast(12),
+                            ),
+                        )
+                    }
+                    is GameBundleImportPreviewResult.InvalidFormat ->
+                        HomeImportPreparationResult.Terminal(HomeImportResult.InvalidFile)
+                    is GameBundleImportPreviewResult.Failure ->
+                        HomeImportPreparationResult.Terminal(HomeImportResult.Failed)
                 }
-                GameDocumentReadResult.Cancelled -> HomeImportResult.Cancelled
-                GameDocumentReadResult.Busy -> HomeImportResult.Busy
-                GameDocumentReadResult.TooLarge -> HomeImportResult.TooLarge
-                GameDocumentReadResult.Failed -> HomeImportResult.Failed
+                GameDocumentReadResult.Cancelled -> HomeImportPreparationResult.Terminal(HomeImportResult.Cancelled)
+                GameDocumentReadResult.Busy -> HomeImportPreparationResult.Terminal(HomeImportResult.Busy)
+                GameDocumentReadResult.TooLarge -> HomeImportPreparationResult.Terminal(HomeImportResult.TooLarge)
+                GameDocumentReadResult.Failed -> HomeImportPreparationResult.Terminal(HomeImportResult.Failed)
             }
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (_: Exception) {
-            HomeImportResult.Failed
+            cancelImport()
+            HomeImportPreparationResult.Terminal(HomeImportResult.Failed)
         }
+    }
+
+    override suspend fun confirmImport(): HomeImportResult {
+        val bytes = pendingImportBytes ?: return HomeImportResult.Failed
+        pendingImportBytes = null
+        return try {
+            mapImportResult(bundleService.import(bytes))
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            HomeImportResult.Failed
+        } finally {
+            bytes.fill(0)
+        }
+    }
+
+    override fun cancelImport() {
+        pendingImportBytes?.fill(0)
+        pendingImportBytes = null
     }
 
     override suspend fun create(
@@ -201,6 +237,16 @@ internal class HomeBackedGameDetailPort(
         }
     }
 }
+
+private fun GameBundleImportResult.toHomeImportResult(): HomeImportResult = when (this) {
+    is GameBundleImportResult.Imported -> HomeImportResult.Imported
+    is GameBundleImportResult.AlreadyPresent -> HomeImportResult.AlreadyPresent
+    is GameBundleImportResult.Conflict -> HomeImportResult.Conflict
+    is GameBundleImportResult.InvalidFormat -> HomeImportResult.InvalidFile
+    is GameBundleImportResult.Failure -> HomeImportResult.Failed
+}
+
+private fun mapImportResult(result: GameBundleImportResult): HomeImportResult = result.toHomeImportResult()
 
 private fun HomeGame.toGameDetailContent(): GameDetailContent = GameDetailContent(
     name = name,
