@@ -6,7 +6,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
 class CreateGameInteractor(
-    private val port: CreateGamePort,
+    private val creator: GameCreator,
     private val scope: CoroutineScope,
     private val output: (CreateGameOutput) -> Unit,
     initialState: CreateGameState = CreateGameState(),
@@ -19,7 +19,7 @@ class CreateGameInteractor(
         when (intent) {
             is CreateGameIntent.TargetCaptured -> scope.launch {
                 when (
-                    val result = port.create(
+                    val result = creator.create(
                         name = stateAfterReduce.name,
                         clueText = stateAfterReduce.clue,
                         expectedAnswer = stateAfterReduce.expectedAnswer,
