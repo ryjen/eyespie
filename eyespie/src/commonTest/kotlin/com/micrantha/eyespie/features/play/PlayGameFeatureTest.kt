@@ -56,7 +56,7 @@ class PlayGameFeatureTest {
         assertEquals(1, port.guesses)
 
         interactor.dispatch(PlayGameIntent.Back)
-        assertEquals(listOf(PlayGameOutput.Closed), outputs)
+        assertEquals(listOf<PlayGameOutput>(PlayGameOutput.Closed), outputs)
     }
 }
 
