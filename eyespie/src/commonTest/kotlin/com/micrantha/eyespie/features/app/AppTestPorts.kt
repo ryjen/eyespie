@@ -8,15 +8,20 @@ import com.micrantha.eyespie.features.home.HomeContent
 import com.micrantha.eyespie.features.home.HomePort
 import com.micrantha.eyespie.features.play.PlayGameContent
 import com.micrantha.eyespie.features.play.PlayGamePort
+import com.micrantha.eyespie.features.utility.UtilityContent
+import com.micrantha.eyespie.features.utility.UtilityPort
 import com.micrantha.eyespie.game.AuthoredThing
 import com.micrantha.eyespie.game.CreatedGame
 import com.micrantha.eyespie.game.GuessOutcome
 import com.micrantha.eyespie.game.LocalGameResult
 import com.micrantha.eyespie.imaging.CapturedImage
 
-internal object AppTestPorts : HomePort, CreateGamePort, ClueAuthoringPort, PlayGamePort {
+internal object AppTestPorts : HomePort, UtilityPort, CreateGamePort, ClueAuthoringPort, PlayGamePort {
     override suspend fun load(): LocalGameResult<HomeContent> =
         LocalGameResult.Success(HomeContent("Agent", "player-1", emptyList()))
+
+    override suspend fun loadUtility(): LocalGameResult<UtilityContent> =
+        LocalGameResult.Success(UtilityContent("Agent", "player-1"))
 
     override suspend fun create(
         name: String,
