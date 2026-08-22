@@ -35,6 +35,7 @@ enum class LocalGameFailureCode {
     GUESS_EMBEDDING_FAILED,
     GAME_NOT_FOUND,
     THING_NOT_FOUND,
+    NOT_LOCAL_CREATOR,
     MATCH_POLICY_INVALID,
     PERSISTENCE_FAILED,
 }
@@ -71,6 +72,12 @@ data class CreatedGame(
     val gameId: GameId,
     val thingId: ThingId,
     val name: String,
+    val clue: PlayableClue,
+)
+
+data class CreatedClue(
+    val gameId: GameId,
+    val thingId: ThingId,
     val clue: PlayableClue,
 )
 
@@ -206,6 +213,76 @@ class LocalGameLoop(
                 gameId = gameId,
                 thingId = thingId,
                 name = normalizedName,
+                clue = clueAuthority.playable(),
+            ),
+        )
+    }
+
+    suspend fun addClue(
+        gameId: GameId,
+        clueText: String,
+        expectedAnswer: String,
+        targetImage: CapturedImage,
+    ): LocalGameResult<CreatedClue> = exclusiveOperation {
+        val clueAuthority = when (val authored = ClueAuthority.manual(clueText, expectedAnswer)) {
+            is ClueAuthoringResult.Accepted -> authored.authority
+            is ClueAuthoringResult.Rejected -> {
+                return@exclusiveOperation LocalGameResult.Failure(
+                    LocalGameFailure(
+                        code = LocalGameFailureCode.INVALID_CLUE,
+                        clueValidationError = authored.error,
+                    ),
+                )
+            }
+        }
+
+        val identity = try {
+            identityRepository.current()
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            return@exclusiveOperation failure(LocalGameFailureCode.IDENTITY_UNAVAILABLE)
+        }
+
+        val game = try {
+            gameRepository.get(gameId)
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            return@exclusiveOperation failure(LocalGameFailureCode.PERSISTENCE_FAILED)
+        } ?: return@exclusiveOperation failure(LocalGameFailureCode.GAME_NOT_FOUND)
+
+        if (game.creator != identity.id) {
+            return@exclusiveOperation failure(LocalGameFailureCode.NOT_LOCAL_CREATOR)
+        }
+
+        val targetEmbedding = try {
+            canonicalImageEmbedding(embeddingGenerator.generate(targetImage))
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            return@exclusiveOperation failure(LocalGameFailureCode.TARGET_EMBEDDING_FAILED)
+        }
+
+        val thingId = idGenerator.nextThingId()
+        val thing = Thing(
+            id = thingId,
+            clueAuthority = clueAuthority,
+            targetEmbedding = targetEmbedding,
+        )
+
+        try {
+            gameRepository.save(game.copy(things = game.things + thing))
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            return@exclusiveOperation failure(LocalGameFailureCode.PERSISTENCE_FAILED)
+        }
+
+        LocalGameResult.Success(
+            CreatedClue(
+                gameId = gameId,
+                thingId = thingId,
                 clue = clueAuthority.playable(),
             ),
         )
