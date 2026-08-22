@@ -21,11 +21,9 @@ adb shell getprop | sort > "$ARTIFACT_DIR/emulator-getprop.txt"
 adb shell settings put system font_scale 1.30
 adb shell settings get system font_scale | tee "$ARTIFACT_DIR/font-scale.txt"
 
-# Camera hardware remains present, but runtime permission stays ungranted. Pure
-# screen rendering therefore exercises the requestable state without opening a
-# CameraX session or invoking MediaPipe.
-adb shell pm revoke com.micrantha.eyespie.debug android.permission.CAMERA 2>/dev/null || true
-
+# The Gradle instrumentation install is fresh and does not grant CAMERA permission.
+# Keeping emulated camera hardware present exercises the requestable state without
+# opening a CameraX session or invoking MediaPipe during pure screen interactions.
 set +e
 mise run screen-test
 status=$?
