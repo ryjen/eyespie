@@ -6,7 +6,6 @@ import com.micrantha.eyespie.game.LocalGameFailure
 sealed interface HomeIntent {
     data object Refresh : HomeIntent
     data object DismissFailure : HomeIntent
-    data object DismissImportResult : HomeIntent
     data object ImportSelected : HomeIntent
     data object ImportConfirmed : HomeIntent
     data object ImportPreviewCancelled : HomeIntent
