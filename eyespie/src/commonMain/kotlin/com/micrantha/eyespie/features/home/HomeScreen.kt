@@ -64,6 +64,16 @@ fun HomeScreen(
             return@Column
         }
 
+        state.importPreview?.let { preview ->
+            ImportPreviewCard(
+                preview = preview,
+                adding = state.importInProgress,
+                onConfirm = { dispatch(HomeIntent.ImportConfirmed) },
+                onCancel = { dispatch(HomeIntent.ImportPreviewCancelled) },
+            )
+            return@Column
+        }
+
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(10.dp),
@@ -134,6 +144,60 @@ private fun HomeHeader(state: HomeState) {
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+        }
+    }
+}
+
+@Composable
+private fun ImportPreviewCard(
+    preview: HomeImportPreview,
+    adding: Boolean,
+    onConfirm: () -> Unit,
+    onCancel: () -> Unit,
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(20.dp),
+            verticalArrangement = Arrangement.spacedBy(12.dp),
+        ) {
+            Text(
+                "VERIFIED GAME FILE",
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.primary,
+                fontWeight = FontWeight.Bold,
+            )
+            Text(preview.gameName, style = MaterialTheme.typography.headlineSmall)
+            Text(
+                "${preview.clueCount} ${if (preview.clueCount == 1) "clue" else "clues"}",
+                style = MaterialTheme.typography.titleMedium,
+            )
+            Text(
+                "Creator …${preview.creatorIdSuffix} · Game …${preview.gameIdSuffix}",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Text(
+                "Eyespie verified the bundle format, creator identity, and signature. Adding it stores the playable game on this device; signed bundles provide integrity, not secrecy, and their gameplay data can be inspected by a device owner.",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Button(
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !adding,
+                onClick = onConfirm,
+            ) {
+                Text(if (adding) "Adding…" else "Add game")
+            }
+            OutlinedButton(
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !adding,
+                onClick = onCancel,
+            ) {
+                Text("Cancel")
+            }
         }
     }
 }
