@@ -2,7 +2,6 @@ package com.micrantha.eyespie.features.home
 
 import com.micrantha.eyespie.game.LocalGameResult
 import com.micrantha.eyespie.testsupport.testGameId
-import com.micrantha.eyespie.testsupport.testThingId
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
@@ -53,10 +52,10 @@ class HomeFeatureTest {
             .create(this)
 
         interactor.dispatch(HomeIntent.CreateSelected)
-        interactor.dispatch(HomeIntent.PlaySelected(testGameId, testThingId))
+        interactor.dispatch(HomeIntent.GameSelected(testGameId))
 
         assertEquals(
-            listOf(HomeOutput.CreateRequested, HomeOutput.PlayRequested(testGameId, testThingId)),
+            listOf(HomeOutput.CreateRequested, HomeOutput.GameRequested(testGameId)),
             outputs,
         )
     }

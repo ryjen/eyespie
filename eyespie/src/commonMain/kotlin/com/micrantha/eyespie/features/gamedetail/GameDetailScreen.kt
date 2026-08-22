@@ -1,4 +1,4 @@
-package com.micrantha.eyespie.features.home
+package com.micrantha.eyespie.features.gamedetail
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
@@ -20,52 +20,63 @@ import androidx.compose.ui.unit.dp
 import com.micrantha.eyespie.presentation.localGameFailureMessage
 
 @Composable
-fun HomeScreen(
-    state: HomeState,
-    dispatch: (HomeIntent) -> Unit,
+fun GameDetailScreen(
+    state: GameDetailState,
+    dispatch: (GameDetailIntent) -> Unit,
 ) {
     Column(
         modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
+        OutlinedButton(onClick = { dispatch(GameDetailIntent.Back) }) { Text("Back to games") }
+
         state.failure?.let { failure ->
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(localGameFailureMessage(failure), modifier = Modifier.weight(1f))
-                OutlinedButton(onClick = { dispatch(HomeIntent.DismissFailure) }) { Text("Dismiss") }
+                OutlinedButton(onClick = { dispatch(GameDetailIntent.DismissFailure) }) { Text("Dismiss") }
             }
         }
+
         if (state.loading && state.content == null) {
             Spacer(Modifier.height(24.dp))
             CircularProgressIndicator()
             return@Column
         }
-        state.content?.let { content ->
-            Text("Local agent: ${content.identityDisplayName}", style = MaterialTheme.typography.titleSmall)
-            Text("Identity ${content.identityIdSuffix}", style = MaterialTheme.typography.bodySmall)
-        }
-        Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-            Button(onClick = { dispatch(HomeIntent.CreateSelected) }) { Text("Create game") }
-            OutlinedButton(onClick = { dispatch(HomeIntent.OnboardingSelected) }) { Text("How to play") }
-            OutlinedButton(onClick = { dispatch(HomeIntent.Refresh) }) { Text("Refresh") }
-        }
+
+        val content = state.content ?: return@Column
+        Text(content.name, style = MaterialTheme.typography.headlineMedium)
+
+        val found = content.things.count { it.matched }
+        Text(
+            if (content.things.isEmpty()) "No clues yet"
+            else "$found of ${content.things.size} clues found",
+            style = MaterialTheme.typography.titleMedium,
+        )
         HorizontalDivider()
-        Text("Local games", style = MaterialTheme.typography.titleLarge)
-        val games = state.content?.games.orEmpty()
-        if (games.isEmpty()) {
-            Text("No games yet. Create a target and clue entirely on this device.")
+
+        if (content.things.isEmpty()) {
+            Text("This game does not have a playable clue yet.")
         }
-        games.forEach { game ->
-            Text(game.name, style = MaterialTheme.typography.titleMedium)
-            val matched = game.things.count { it.matched }
+
+        content.things.forEachIndexed { index, thing ->
+            Text("Clue ${index + 1}", style = MaterialTheme.typography.labelLarge)
+            Text(thing.clueText, style = MaterialTheme.typography.bodyLarge)
             Text(
-                if (game.things.isEmpty()) "No playable clues yet"
-                else "$matched of ${game.things.size} clues found",
+                if (thing.matched) "Found" else "Searching",
                 style = MaterialTheme.typography.bodyMedium,
             )
-            OutlinedButton(onClick = { dispatch(HomeIntent.GameSelected(game.id)) }) {
-                Text("Open game")
+            thing.bestSimilarity?.let { similarity ->
+                Text("Best match ${formatSimilarity(similarity)}", style = MaterialTheme.typography.bodySmall)
+            }
+            Button(onClick = { dispatch(GameDetailIntent.PlaySelected(thing.id)) }) {
+                Text(if (thing.matched) "View clue" else "Play clue")
             }
             Spacer(Modifier.height(8.dp))
         }
     }
+}
+
+private fun formatSimilarity(value: Double): String {
+    val percentageTenths = (value * 1000.0).toInt()
+    return "${percentageTenths / 10.0}%"
 }

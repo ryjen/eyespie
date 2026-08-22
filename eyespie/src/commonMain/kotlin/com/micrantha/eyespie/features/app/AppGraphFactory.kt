@@ -2,6 +2,7 @@ package com.micrantha.eyespie.features.app
 
 import com.micrantha.eyespie.features.create.CreateGameFactory
 import com.micrantha.eyespie.features.create.CreateGamePort
+import com.micrantha.eyespie.features.gamedetail.GameDetailFactory
 import com.micrantha.eyespie.features.home.HomeFactory
 import com.micrantha.eyespie.features.home.HomePort
 import com.micrantha.eyespie.features.onboarding.OnboardingFactory
@@ -35,6 +36,10 @@ object AppGraphFactory {
             homeFactory = HomeFactory(homePort, coordinator::onHomeOutput),
             onboardingFactory = OnboardingFactory(coordinator::onOnboardingOutput),
             createGameFactory = CreateGameFactory(createGamePort, coordinator::onCreateGameOutput),
+            gameDetailFactory = GameDetailFactory(
+                HomeBackedGameDetailPort(homePort),
+                coordinator::onGameDetailOutput,
+            ),
             playGameFactory = PlayGameFactory(playGamePort, coordinator::onPlayGameOutput),
         )
     }
