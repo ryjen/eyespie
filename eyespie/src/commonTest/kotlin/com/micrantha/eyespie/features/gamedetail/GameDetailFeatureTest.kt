@@ -37,6 +37,7 @@ class GameDetailFeatureTest {
         val expected = GameDetailContent(
             name = "Lynn Valley",
             things = listOf(GameDetailThing(testThingId, "Find the red sign", false, 0.3)),
+            localCreator = true,
         )
         val port = FakeGameDetailPort(expected)
         val outputs = mutableListOf<GameDetailOutput>()
@@ -50,11 +51,13 @@ class GameDetailFeatureTest {
         assertEquals(expected, interactor.state.value.content)
         assertEquals(listOf(testGameId), port.loads)
 
+        interactor.dispatch(GameDetailIntent.AddClueSelected)
         interactor.dispatch(GameDetailIntent.PlaySelected(testThingId))
         interactor.dispatch(GameDetailIntent.Back)
 
         assertEquals(
             listOf(
+                GameDetailOutput.AuthorClueRequested(testGameId),
                 GameDetailOutput.PlayRequested(testGameId, testThingId),
                 GameDetailOutput.Closed,
             ),
@@ -86,18 +89,21 @@ class GameDetailFeatureTest {
 
     @OptIn(ExperimentalCoroutinesApi::class)
     @Test
-    fun imported_game_does_not_start_share_operation() = runTest {
+    fun imported_game_does_not_start_creator_actions() = runTest {
         val expected = GameDetailContent("Imported", emptyList(), localCreator = false)
         val port = FakeGameDetailPort(expected, GameDetailShareResult.Shared)
-        val interactor = GameDetailFactory(port, {}).create(this, testGameId)
+        val outputs = mutableListOf<GameDetailOutput>()
+        val interactor = GameDetailFactory(port, outputs::add).create(this, testGameId)
 
         interactor.dispatch(GameDetailIntent.Load)
         advanceUntilIdle()
         interactor.dispatch(GameDetailIntent.ShareSelected)
+        interactor.dispatch(GameDetailIntent.AddClueSelected)
         advanceUntilIdle()
 
         assertFalse(interactor.state.value.shareInProgress)
         assertTrue(port.shares.isEmpty())
+        assertTrue(outputs.isEmpty())
     }
 }
 
