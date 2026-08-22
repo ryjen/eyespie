@@ -20,6 +20,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.micrantha.eyespie.imaging.CameraAvailability
 import com.micrantha.eyespie.imaging.CameraCapture
 import com.micrantha.eyespie.presentation.localGameFailureMessage
 
@@ -35,9 +36,7 @@ fun CreateGameScreen(
         OutlinedButton(
             onClick = { dispatch(CreateGameIntent.Back) },
             enabled = !state.busy,
-        ) {
-            Text("Back to field desk")
-        }
+        ) { Text("Back to field desk") }
 
         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text(
@@ -62,7 +61,7 @@ fun CreateGameScreen(
                 ) {
                     Text(
                         when (failure) {
-                            CreateGameFailure.CameraUnavailable -> "Camera access is unavailable. Check permission/settings and try again."
+                            CreateGameFailure.CameraUnavailable -> "No usable camera is available on this device."
                             is CreateGameFailure.Game -> localGameFailureMessage(failure.failure)
                         },
                         modifier = Modifier.weight(1f),
@@ -125,6 +124,11 @@ fun CreateGameScreen(
                 )
                 CameraCapture(
                     modifier = Modifier.fillMaxWidth().height(280.dp),
+                    onAvailabilityChanged = { availability ->
+                        if (availability == CameraAvailability.Unavailable) {
+                            dispatch(CreateGameIntent.CameraFailed)
+                        }
+                    },
                     onCameraError = { dispatch(CreateGameIntent.CameraFailed) },
                     onCaptured = { dispatch(CreateGameIntent.TargetCaptured(it)) },
                     captureButton = { capture ->
@@ -132,8 +136,15 @@ fun CreateGameScreen(
                             modifier = Modifier.fillMaxWidth(),
                             onClick = capture,
                             enabled = !state.busy && state.name.isNotBlank() && state.clue.isNotBlank() && state.expectedAnswer.isNotBlank(),
-                        ) {
-                            Text(if (state.busy) "Creating…" else "Capture target & create game")
+                        ) { Text(if (state.busy) "Creating…" else "Capture target & create game") }
+                    },
+                    recoveryButton = { openSettings ->
+                        Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                            Text("Camera permission is turned off. Enable it in system settings to capture this target.")
+                            OutlinedButton(
+                                modifier = Modifier.fillMaxWidth(),
+                                onClick = openSettings,
+                            ) { Text("Open camera settings") }
                         }
                     },
                 )
