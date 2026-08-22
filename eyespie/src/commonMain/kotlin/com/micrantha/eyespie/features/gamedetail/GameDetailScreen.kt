@@ -36,6 +36,12 @@ fun GameDetailScreen(
                 OutlinedButton(onClick = { dispatch(GameDetailIntent.DismissFailure) }) { Text("Dismiss") }
             }
         }
+        state.shareResult?.let { result ->
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                Text(gameDetailShareMessage(result), modifier = Modifier.weight(1f))
+                OutlinedButton(onClick = { dispatch(GameDetailIntent.DismissShareResult) }) { Text("Dismiss") }
+            }
+        }
 
         if (state.loading && state.content == null) {
             Spacer(Modifier.height(24.dp))
@@ -52,6 +58,14 @@ fun GameDetailScreen(
             else "$found of ${content.things.size} clues found",
             style = MaterialTheme.typography.titleMedium,
         )
+        if (content.localCreator) {
+            OutlinedButton(
+                enabled = !state.shareInProgress,
+                onClick = { dispatch(GameDetailIntent.ShareSelected) },
+            ) {
+                Text(if (state.shareInProgress) "Sharing…" else "Share game")
+            }
+        }
         HorizontalDivider()
 
         if (content.things.isEmpty()) {
@@ -74,6 +88,16 @@ fun GameDetailScreen(
             Spacer(Modifier.height(8.dp))
         }
     }
+}
+
+private fun gameDetailShareMessage(result: GameDetailShareResult): String = when (result) {
+    GameDetailShareResult.Shared -> "Game shared."
+    GameDetailShareResult.NotLocalCreator -> "Only games authored by this local identity can be shared."
+    GameDetailShareResult.TooLarge -> "The Eyespie game is too large to share."
+    GameDetailShareResult.Busy -> "Another document operation is already running."
+    GameDetailShareResult.Failed -> "This local game could not be shared."
+    GameDetailShareResult.Unavailable -> "Game sharing is unavailable on this platform."
+    GameDetailShareResult.Cancelled -> ""
 }
 
 private fun formatSimilarity(value: Double): String {
