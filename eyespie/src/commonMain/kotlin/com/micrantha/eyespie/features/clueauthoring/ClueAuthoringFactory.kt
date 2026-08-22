@@ -4,7 +4,7 @@ import com.micrantha.eyespie.core.GameId
 import kotlinx.coroutines.CoroutineScope
 
 class ClueAuthoringFactory(
-    private val port: ClueAuthoringPort,
+    private val author: ClueAuthor,
     private val output: (ClueAuthoringOutput) -> Unit,
 ) {
     fun create(
@@ -12,7 +12,7 @@ class ClueAuthoringFactory(
         gameId: GameId,
         initialState: ClueAuthoringState = ClueAuthoringState(),
     ): ClueAuthoringInteractor = ClueAuthoringInteractor(
-        port = port,
+        author = author,
         scope = scope,
         gameId = gameId,
         output = output,
