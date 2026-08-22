@@ -53,15 +53,27 @@ mise run ci
 
 That verifies release-candidate identity, Python evidence tooling, Android unit tests, the debug application, and the instrumentation-test APK.
 
-Ordinary build/CI paths intentionally remain network-independent and do not provision the external image-embedding model. To provision the pinned model and install a runnable Android debug application on a connected device/emulator, use:
+Ordinary build/CI paths intentionally remain network-independent and do not provision the external image-embedding model. To provision the pinned model, verify it, and install a runnable Android debug application on a connected device/emulator, use:
 
 ```bash
 mise run android-runtime
 ```
 
-The Gradle application project is named `:app` even though its source directory is `eyespie/`; the direct provisioning task is therefore `./gradlew :app:stageAndroidImageEmbedderModel`.
+To verify an already-staged Android runtime model **without network access or repair**, use:
 
-See [`docs/development/android-runtime.md`](docs/development/android-runtime.md) for the runtime provisioning contract, failure diagnosis, and shared-automation boundary.
+```bash
+mise run android-runtime-verify
+```
+
+The Gradle application project is named `:app` even though its source directory is `eyespie/`. The direct operations are therefore:
+
+```bash
+./gradlew :app:stageAndroidImageEmbedderModel
+./gradlew :app:verifyAndroidRuntime
+./gradlew :app:installDebug
+```
+
+See [`docs/development/android-runtime.md`](docs/development/android-runtime.md) for the stage → verify → install contract, failure diagnosis, and shared-automation boundary.
 
 The iOS integration workflow additionally resolves the project-specific MediaPipe CocoaPods graph, compiles the Kotlin/Native simulator target, and builds the real unsigned Xcode simulator application.
 
