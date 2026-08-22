@@ -9,6 +9,13 @@ run = "./gradlew :app:testDebugUnitTest --no-daemon --stacktrace"
 description = "Assemble the Android offline-core debug artifact"
 run = "./gradlew :app:assembleDebug --no-daemon --stacktrace"
 
+[tasks.android-runtime]
+description = "Provision the pinned Android image embedder, then build and install a runnable debug app"
+run = """
+./gradlew :app:stageAndroidImageEmbedderModel --no-daemon --stacktrace
+./gradlew :app:installDebug --no-daemon --stacktrace
+"""
+
 [tasks.ci]
 description = "Run release-evidence verification plus the Android offline-core gate"
 run = """
