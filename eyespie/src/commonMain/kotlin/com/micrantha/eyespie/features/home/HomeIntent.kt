@@ -9,6 +9,7 @@ sealed interface HomeIntent {
     data object DismissImportResult : HomeIntent
     data object ImportSelected : HomeIntent
     data object OnboardingSelected : HomeIntent
+    data object UtilitySelected : HomeIntent
     data object CreateSelected : HomeIntent
     data class GameSelected(val gameId: GameId) : HomeIntent
     data class ContentLoaded(val generation: Long, val content: HomeContent) : HomeIntent
