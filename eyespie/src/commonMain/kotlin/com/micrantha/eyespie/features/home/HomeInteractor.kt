@@ -57,4 +57,8 @@ class HomeInteractor(
             else -> Unit
         }
     }
+
+    fun dispose() {
+        port.cancelImport()
+    }
 }
