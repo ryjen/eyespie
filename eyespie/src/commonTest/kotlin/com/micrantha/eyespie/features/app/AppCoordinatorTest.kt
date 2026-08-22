@@ -24,6 +24,9 @@ class AppCoordinatorTest {
 
         coordinator.onGameDetailOutput(GameDetailOutput.PlayRequested(testGameId, testThingId))
         assertEquals(AppRoute.Play(testGameId, testThingId), navigator.route.value)
+
+        coordinator.onPlayGameOutput(PlayGameOutput.Advance(testGameId, testThingId))
+        assertEquals(AppRoute.Play(testGameId, testThingId), navigator.route.value)
     }
 
     @Test
