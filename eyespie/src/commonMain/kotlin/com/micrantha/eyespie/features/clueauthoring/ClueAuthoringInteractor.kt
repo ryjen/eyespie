@@ -7,7 +7,7 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
 class ClueAuthoringInteractor(
-    private val port: ClueAuthoringPort,
+    private val author: ClueAuthor,
     private val scope: CoroutineScope,
     private val gameId: GameId,
     private val output: (ClueAuthoringOutput) -> Unit,
@@ -22,7 +22,7 @@ class ClueAuthoringInteractor(
             is ClueAuthoringIntent.TargetCaptured -> if (!previousState.busy) {
                 scope.launch {
                     when (
-                        val result = port.addClue(
+                        val result = author.addClue(
                             gameId = gameId,
                             clueText = previousState.clue,
                             expectedAnswer = previousState.expectedAnswer,
