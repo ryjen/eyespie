@@ -43,13 +43,16 @@ import platform.CoreVideo.kCVPixelBufferPixelFormatTypeKey
 import platform.CoreVideo.kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange
 import platform.Foundation.NSError
 import platform.Foundation.NSNotificationCenter
+import platform.Foundation.NSURL
 import platform.ImageIO.kCGImagePropertyOrientationDown
 import platform.ImageIO.kCGImagePropertyOrientationLeft
 import platform.ImageIO.kCGImagePropertyOrientationRight
 import platform.ImageIO.kCGImagePropertyOrientationUp
 import platform.QuartzCore.CATransaction
 import platform.QuartzCore.kCATransactionDisableActions
+import platform.UIKit.UIApplication
 import platform.UIKit.UIApplicationDidBecomeActiveNotification
+import platform.UIKit.UIApplicationOpenSettingsURLString
 import platform.UIKit.UIView
 import platform.darwin.NSObject
 import platform.darwin.dispatch_async
@@ -59,31 +62,39 @@ import kotlin.coroutines.resume
 @Composable
 actual fun CameraCapture(
     modifier: Modifier,
+    onAvailabilityChanged: (CameraAvailability) -> Unit,
     onCameraError: (Throwable) -> Unit,
     onCaptured: (CapturedImage) -> Unit,
     captureButton: @Composable ((capture: () -> Unit) -> Unit),
+    recoveryButton: @Composable ((openSettings: () -> Unit) -> Unit),
 ) {
     val controller: ImageCapture = remember { IosCameraCaptureController() }
     val compositionScope = rememberCoroutineScope()
-    var authorized by remember { mutableStateOf(currentCameraAuthorization()) }
+    var authorization by remember { mutableStateOf(currentCameraAvailability()) }
 
-    // Reconcile OS-authoritative camera state after returning from Settings. This notification is
-    // observation-only: it must never trigger a permission request merely because the app became
-    // active. A revoked grant tears down the stream by recomposition; a new grant starts it again.
     DisposableEffect(Unit) {
         val observer = NSNotificationCenter.defaultCenter.addObserverForName(
             UIApplicationDidBecomeActiveNotification,
             null,
             null,
         ) {
-            authorized = currentCameraAuthorization()
+            authorization = currentCameraAvailability()
         }
         onDispose { NSNotificationCenter.defaultCenter.removeObserver(observer) }
     }
 
-    val device = remember(authorized) {
-        if (authorized == true) AVCaptureDevice.defaultDeviceWithMediaType(AVMediaTypeVideo) else null
+    val device = remember(authorization) {
+        if (authorization == CameraAvailability.Ready) {
+            AVCaptureDevice.defaultDeviceWithMediaType(AVMediaTypeVideo)
+        } else {
+            null
+        }
     }
+    val effectiveAvailability = if (
+        authorization == CameraAvailability.Ready && device == null
+    ) CameraAvailability.Unavailable else authorization
+    LaunchedEffect(effectiveAvailability) { onAvailabilityChanged(effectiveAvailability) }
+
     val stream = remember(device, onCameraError) {
         device?.let {
             CameraStream(
@@ -93,12 +104,6 @@ actual fun CameraCapture(
                 },
                 onCameraFrame = (controller as IosCameraCaptureController)::updateFrame,
             )
-        }
-    }
-
-    if (authorized == true && stream == null) {
-        LaunchedEffect(Unit) {
-            onCameraError(IllegalStateException("no video capture device is available"))
         }
     }
 
@@ -119,52 +124,61 @@ actual fun CameraCapture(
         )
     }
 
-    captureButton {
-        compositionScope.launch {
-            if (authorized != true) {
-                authorized = requestCameraAccess()
-                if (authorized != true) {
-                    onCameraError(IllegalStateException("camera permission was denied"))
-                }
-                // A newly granted permission must first recompose and start the camera session.
-                return@launch
+    when (effectiveAvailability) {
+        CameraAvailability.Requestable -> captureButton {
+            compositionScope.launch {
+                authorization = requestCameraAccess()
             }
-
-            try {
-                onCaptured(controller.capture())
-            } catch (cancelled: CancellationException) {
-                throw cancelled
-            } catch (error: Throwable) {
-                onCameraError(error)
+        }
+        CameraAvailability.PermissionDenied -> recoveryButton {
+            val settingsUrl = NSURL(string = UIApplicationOpenSettingsURLString)
+            if (settingsUrl != null) {
+                UIApplication.sharedApplication.openURL(settingsUrl)
+            }
+        }
+        CameraAvailability.Unavailable -> Unit
+        CameraAvailability.Ready -> captureButton {
+            compositionScope.launch {
+                try {
+                    onCaptured(controller.capture())
+                } catch (cancelled: CancellationException) {
+                    throw cancelled
+                } catch (error: Throwable) {
+                    onCameraError(error)
+                }
             }
         }
     }
 }
 
-private fun currentCameraAuthorization(): Boolean? =
+private fun currentCameraAvailability(): CameraAvailability =
     when (AVCaptureDevice.authorizationStatusForMediaType(AVMediaTypeVideo)) {
-        AVAuthorizationStatusAuthorized -> true
-        AVAuthorizationStatusNotDetermined -> null
-        else -> false
+        AVAuthorizationStatusAuthorized -> CameraAvailability.Ready
+        AVAuthorizationStatusNotDetermined -> CameraAvailability.Requestable
+        AVAuthorizationStatusDenied -> CameraAvailability.PermissionDenied
+        AVAuthorizationStatusRestricted -> CameraAvailability.Unavailable
+        else -> CameraAvailability.Unavailable
     }
 
-private suspend fun requestCameraAccess(): Boolean =
+private suspend fun requestCameraAccess(): CameraAvailability =
     when (AVCaptureDevice.authorizationStatusForMediaType(AVMediaTypeVideo)) {
-        AVAuthorizationStatusAuthorized -> true
+        AVAuthorizationStatusAuthorized -> CameraAvailability.Ready
         AVAuthorizationStatusNotDetermined -> suspendCancellableCoroutine { continuation ->
             AVCaptureDevice.requestAccessForMediaType(
                 mediaType = AVMediaTypeVideo,
             ) { granted: Boolean ->
-                if (continuation.isActive) continuation.resume(granted)
+                if (continuation.isActive) {
+                    continuation.resume(
+                        if (granted) CameraAvailability.Ready else CameraAvailability.PermissionDenied,
+                    )
+                }
             }
         }
-        else -> false
+        AVAuthorizationStatusDenied -> CameraAvailability.PermissionDenied
+        AVAuthorizationStatusRestricted -> CameraAvailability.Unavailable
+        else -> CameraAvailability.Unavailable
     }
 
-/**
- * iOS implementation of the common [ImageCapture] contract backed by the most recent app-owned
- * frame. At most one explicit encoding operation is owned at a time; concurrent taps fail closed.
- */
 private class IosCameraCaptureController : ImageCapture {
     private val stateMutex = Mutex()
     private var latestFrame: OwnedCameraFrame? = null
@@ -237,8 +251,6 @@ private class CameraStream(
                 onCameraError(error)
             }
         }
-        // Completion is the native ownership boundary. This also runs when the scope was already
-        // cancelled before the coroutine body started, so every retain has exactly one release.
         conversionJob.invokeOnCompletion {
             CVPixelBufferRelease(pixelBuffer)
             dispatch_async(dispatchQueue) { frameInFlight = false }
