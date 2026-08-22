@@ -58,6 +58,7 @@ data class LocalGameSummary(
     val id: GameId,
     val name: String,
     val things: List<PlayableThingSummary>,
+    val localCreator: Boolean = false,
 )
 
 data class PlayableThingSummary(
@@ -122,6 +123,7 @@ class LocalGameLoop(
                             progress = progressByThing[thing.id],
                         )
                     },
+                    localCreator = game.creator == identity.id,
                 )
             }
         } catch (cancelled: CancellationException) {
