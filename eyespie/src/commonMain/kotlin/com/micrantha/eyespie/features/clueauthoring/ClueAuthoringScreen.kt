@@ -16,6 +16,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.micrantha.eyespie.imaging.CameraAvailability
 import com.micrantha.eyespie.imaging.CameraCapture
 import com.micrantha.eyespie.presentation.localGameFailureMessage
 
@@ -32,7 +33,7 @@ fun ClueAuthoringScreen(
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
                     when (failure) {
-                        ClueAuthoringFailure.CameraUnavailable -> "Camera access is unavailable. Check permission/settings and try again."
+                        ClueAuthoringFailure.CameraUnavailable -> "No usable camera is available on this device."
                         is ClueAuthoringFailure.Game -> localGameFailureMessage(failure.failure)
                     },
                     modifier = Modifier.weight(1f),
@@ -60,13 +61,28 @@ fun ClueAuthoringScreen(
         )
         CameraCapture(
             modifier = Modifier.fillMaxWidth().height(280.dp),
+            onAvailabilityChanged = { availability ->
+                if (availability == CameraAvailability.Unavailable) {
+                    dispatch(ClueAuthoringIntent.CameraFailed)
+                }
+            },
             onCameraError = { dispatch(ClueAuthoringIntent.CameraFailed) },
             onCaptured = { dispatch(ClueAuthoringIntent.TargetCaptured(it)) },
             captureButton = { capture ->
                 Button(
+                    modifier = Modifier.fillMaxWidth(),
                     onClick = capture,
                     enabled = !state.busy && state.clue.isNotBlank() && state.expectedAnswer.isNotBlank(),
                 ) { Text(if (state.busy) "Adding…" else "Capture target & add clue") }
+            },
+            recoveryButton = { openSettings ->
+                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                    Text("Camera permission is turned off. Enable it in system settings to capture this clue target.")
+                    OutlinedButton(
+                        modifier = Modifier.fillMaxWidth(),
+                        onClick = openSettings,
+                    ) { Text("Open camera settings") }
+                }
             },
         )
         OutlinedButton(
