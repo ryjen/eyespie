@@ -42,6 +42,19 @@ enum class GameBundleImportFailureCode {
     PERSISTENCE_FAILED,
 }
 
+data class GameBundleImportPreview(
+    val gameId: GameId,
+    val gameName: String,
+    val creatorPlayerId: PlayerId,
+    val thingCount: Int,
+)
+
+sealed interface GameBundleImportPreviewResult {
+    data class Ready(val preview: GameBundleImportPreview) : GameBundleImportPreviewResult
+    data class InvalidFormat(val code: GameBundleFailureCode) : GameBundleImportPreviewResult
+    data class Failure(val code: GameBundleImportFailureCode) : GameBundleImportPreviewResult
+}
+
 sealed interface GameBundleImportResult {
     data class Imported(val gameId: GameId) : GameBundleImportResult
     data class AlreadyPresent(val gameId: GameId) : GameBundleImportResult
@@ -54,9 +67,11 @@ sealed interface GameBundleImportResult {
 /**
  * Application-owned portable game service.
  *
- * Parsing and cryptographic verification complete before the import mutex enters the local-authority
- * decision. The mutex serializes the check/save pair within one application process so a conflicting
- * same-ID import cannot race an otherwise valid import into the repository.
+ * Preview verification performs the same format, creator, signature, and domain checks as import,
+ * but does not inspect or mutate the local repository. A later import always revalidates the bytes
+ * before the import mutex enters the local-authority decision, so preview is never authorization.
+ * The mutex serializes the check/save pair within one application process so a conflicting same-ID
+ * import cannot race an otherwise valid import into the repository.
  */
 class GameBundleService(
     private val identityRepository: PlayerIdentityRepository,
@@ -139,6 +154,54 @@ class GameBundleService(
             return GameBundleExportResult.Failure(GameBundleExportFailureCode.SIGNING_FAILED)
         }
         return GameBundleExportResult.Success(game.id, bytes)
+    }
+
+    suspend fun previewImport(bytes: ByteArray): GameBundleImportPreviewResult {
+        val decoded = when (val result = codec.decode(bytes)) {
+            is GameBundleDecodeResult.Success -> result.bundle
+            is GameBundleDecodeResult.Failure -> return GameBundleImportPreviewResult.InvalidFormat(result.code)
+        }
+
+        val creatorId = try {
+            playerIdFor(decoded.game.creatorPublicKey)
+        } catch (_: Exception) {
+            return GameBundleImportPreviewResult.Failure(GameBundleImportFailureCode.CREATOR_ID_MISMATCH)
+        }
+        if (creatorId.value != decoded.game.creatorPlayerId) {
+            return GameBundleImportPreviewResult.Failure(GameBundleImportFailureCode.CREATOR_ID_MISMATCH)
+        }
+
+        val verified = try {
+            signingIdentity.verify(
+                decoded.game.creatorPublicKey,
+                decoded.unsignedBytes,
+                decoded.signature,
+            )
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            return GameBundleImportPreviewResult.Failure(
+                GameBundleImportFailureCode.SIGNATURE_VERIFICATION_FAILED,
+            )
+        }
+        if (!verified) {
+            return GameBundleImportPreviewResult.Failure(GameBundleImportFailureCode.INVALID_SIGNATURE)
+        }
+
+        val importedGame = try {
+            decoded.game.toImportedGame()
+        } catch (_: Exception) {
+            return GameBundleImportPreviewResult.Failure(GameBundleImportFailureCode.INVALID_GAME)
+        }
+
+        return GameBundleImportPreviewResult.Ready(
+            GameBundleImportPreview(
+                gameId = importedGame.id,
+                gameName = importedGame.name,
+                creatorPlayerId = importedGame.creator,
+                thingCount = importedGame.things.size,
+            ),
+        )
     }
 
     suspend fun import(bytes: ByteArray): GameBundleImportResult {

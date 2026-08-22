@@ -14,8 +14,18 @@ sealed interface HomeImportResult {
     data object Unavailable : HomeImportResult
 }
 
+sealed interface HomeImportPreparationResult {
+    data class Ready(val preview: HomeImportPreview) : HomeImportPreparationResult
+    data class Terminal(val result: HomeImportResult) : HomeImportPreparationResult
+}
+
 interface HomePort {
     suspend fun load(): LocalGameResult<HomeContent>
 
-    suspend fun importGame(): HomeImportResult = HomeImportResult.Unavailable
+    suspend fun prepareImport(): HomeImportPreparationResult =
+        HomeImportPreparationResult.Terminal(HomeImportResult.Unavailable)
+
+    suspend fun confirmImport(): HomeImportResult = HomeImportResult.Unavailable
+
+    fun cancelImport() = Unit
 }

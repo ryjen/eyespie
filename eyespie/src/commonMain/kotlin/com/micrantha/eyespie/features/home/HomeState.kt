@@ -24,11 +24,19 @@ data class HomeThing(
     val bestSimilarity: Double?,
 )
 
+data class HomeImportPreview(
+    val gameName: String,
+    val clueCount: Int,
+    val creatorIdSuffix: String,
+    val gameIdSuffix: String,
+)
+
 data class HomeState(
     val content: HomeContent? = null,
     val loading: Boolean = true,
     val failure: LocalGameFailure? = null,
     val refreshGeneration: Long = 0,
     val importInProgress: Boolean = false,
+    val importPreview: HomeImportPreview? = null,
     val importResult: HomeImportResult? = null,
 )

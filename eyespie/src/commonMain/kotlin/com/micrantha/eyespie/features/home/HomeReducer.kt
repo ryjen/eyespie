@@ -10,13 +10,29 @@ object HomeReducer : Reducer<HomeState, HomeIntent> {
         )
         HomeIntent.DismissFailure -> state.copy(failure = null)
         HomeIntent.DismissImportResult -> state.copy(importResult = null)
-        HomeIntent.ImportSelected -> if (state.importInProgress) {
+        HomeIntent.ImportSelected -> if (state.importInProgress || state.importPreview != null) {
             state
         } else {
             state.copy(importInProgress = true, importResult = null)
         }
+        is HomeIntent.ImportPreviewReady -> state.copy(
+            importInProgress = false,
+            importPreview = intent.preview,
+            importResult = null,
+        )
+        HomeIntent.ImportConfirmed -> if (state.importPreview == null || state.importInProgress) {
+            state
+        } else {
+            state.copy(importInProgress = true, importResult = null)
+        }
+        HomeIntent.ImportPreviewCancelled -> if (state.importInProgress) {
+            state
+        } else {
+            state.copy(importPreview = null)
+        }
         is HomeIntent.ImportFinished -> state.copy(
             importInProgress = false,
+            importPreview = null,
             importResult = if (intent.result == HomeImportResult.Cancelled) null else intent.result,
         )
         HomeIntent.OnboardingSelected,
