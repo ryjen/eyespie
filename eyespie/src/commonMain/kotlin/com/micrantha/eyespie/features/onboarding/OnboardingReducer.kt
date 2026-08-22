@@ -6,18 +6,21 @@ object OnboardingReducer : Reducer<OnboardingState, OnboardingIntent> {
     override fun reduce(state: OnboardingState, intent: OnboardingIntent): OnboardingState = when (intent) {
         OnboardingIntent.Next -> state.copy(
             page = when (state.page) {
-                OnboardingPage.Welcome -> OnboardingPage.Create
-                OnboardingPage.Create -> OnboardingPage.Play
-                OnboardingPage.Play -> OnboardingPage.Play
+                OnboardingPage.Local -> OnboardingPage.Create
+                OnboardingPage.Create -> OnboardingPage.Share
+                OnboardingPage.Share -> OnboardingPage.Join
+                OnboardingPage.Join -> OnboardingPage.Join
             },
         )
         OnboardingIntent.Previous -> state.copy(
             page = when (state.page) {
-                OnboardingPage.Welcome -> OnboardingPage.Welcome
-                OnboardingPage.Create -> OnboardingPage.Welcome
-                OnboardingPage.Play -> OnboardingPage.Create
+                OnboardingPage.Local -> OnboardingPage.Local
+                OnboardingPage.Create -> OnboardingPage.Local
+                OnboardingPage.Share -> OnboardingPage.Create
+                OnboardingPage.Join -> OnboardingPage.Share
             },
         )
+        OnboardingIntent.Skip,
         OnboardingIntent.Done,
         OnboardingIntent.Back -> OnboardingState()
     }
