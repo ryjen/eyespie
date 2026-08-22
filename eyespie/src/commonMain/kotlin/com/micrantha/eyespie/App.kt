@@ -76,6 +76,10 @@ fun App(
                             AppRoute.Home -> HomeRoute(graph.homeFactory)
                             AppRoute.Onboarding -> OnboardingRoute(graph.onboardingFactory)
                             AppRoute.Create -> CreateGameRoute(graph.createGameFactory)
+                            is AppRoute.AuthorClue -> CreateGameRoute(
+                                factory = graph.createGameFactory,
+                                gameId = current.gameId,
+                            )
                             is AppRoute.GameDetail -> GameDetailRoute(
                                 factory = graph.gameDetailFactory,
                                 gameId = current.gameId,
