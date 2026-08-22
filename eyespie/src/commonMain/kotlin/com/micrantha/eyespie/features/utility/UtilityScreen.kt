@@ -3,6 +3,7 @@ package com.micrantha.eyespie.features.utility
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
@@ -77,10 +78,7 @@ fun UtilityScreen(
         } else {
             state.content?.let { content ->
                 UtilityCard(title = "Local identity") {
-                    Text(
-                        content.identityDisplayName,
-                        style = MaterialTheme.typography.titleLarge,
-                    )
+                    Text(content.identityDisplayName, style = MaterialTheme.typography.titleLarge)
                     Text(
                         "Device identity · …${content.identityIdSuffix}",
                         style = MaterialTheme.typography.bodyMedium,
