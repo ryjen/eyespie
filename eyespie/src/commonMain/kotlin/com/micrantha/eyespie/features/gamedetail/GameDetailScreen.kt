@@ -24,7 +24,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.micrantha.eyespie.generated.resources.*
 import com.micrantha.eyespie.presentation.localGameFailureMessage
+import org.jetbrains.compose.resources.stringResource
 
 @Composable
 fun GameDetailScreen(
@@ -213,13 +215,14 @@ private fun MessageCard(
     }
 }
 
+@Composable
 private fun gameDetailShareMessage(result: GameDetailShareResult): String = when (result) {
-    GameDetailShareResult.Shared -> "Game shared."
-    GameDetailShareResult.NotLocalCreator -> "Only games authored by this local identity can be shared."
-    GameDetailShareResult.TooLarge -> "The Eyespie game is too large to share."
-    GameDetailShareResult.Busy -> "Another document operation is already running."
-    GameDetailShareResult.Failed -> "This local game could not be shared."
-    GameDetailShareResult.Unavailable -> "Game sharing is unavailable on this platform."
+    GameDetailShareResult.Shared -> stringResource(Res.string.feedback_game_shared)
+    GameDetailShareResult.NotLocalCreator -> stringResource(Res.string.failure_share_not_local_creator)
+    GameDetailShareResult.TooLarge -> stringResource(Res.string.failure_share_too_large)
+    GameDetailShareResult.Busy -> stringResource(Res.string.failure_document_busy)
+    GameDetailShareResult.Failed -> stringResource(Res.string.failure_share_failed)
+    GameDetailShareResult.Unavailable -> stringResource(Res.string.failure_share_unavailable)
     GameDetailShareResult.Cancelled -> ""
 }
 
