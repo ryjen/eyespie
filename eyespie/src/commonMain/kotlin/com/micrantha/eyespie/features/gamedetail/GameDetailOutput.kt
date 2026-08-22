@@ -5,5 +5,6 @@ import com.micrantha.eyespie.core.ThingId
 
 sealed interface GameDetailOutput {
     data object Closed : GameDetailOutput
+    data class AuthorClueRequested(val gameId: GameId) : GameDetailOutput
     data class PlayRequested(val gameId: GameId, val thingId: ThingId) : GameDetailOutput
 }
