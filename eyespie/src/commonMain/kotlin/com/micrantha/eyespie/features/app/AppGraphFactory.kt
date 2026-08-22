@@ -3,24 +3,28 @@ package com.micrantha.eyespie.features.app
 import com.micrantha.eyespie.features.create.CreateGameFactory
 import com.micrantha.eyespie.features.create.CreateGamePort
 import com.micrantha.eyespie.features.gamedetail.GameDetailFactory
+import com.micrantha.eyespie.features.gamedetail.GameDetailPort
 import com.micrantha.eyespie.features.home.HomeFactory
 import com.micrantha.eyespie.features.home.HomePort
 import com.micrantha.eyespie.features.onboarding.OnboardingFactory
 import com.micrantha.eyespie.features.play.PlayGameFactory
 import com.micrantha.eyespie.features.play.PlayGamePort
 import com.micrantha.eyespie.game.EyespieRuntime
+import com.micrantha.eyespie.sharing.GameDocumentTransfer
 
 object AppGraphFactory {
     fun fromRuntime(
         runtime: EyespieRuntime,
         navigator: AppNavigator = StateFlowAppNavigator(),
+        documentTransfer: GameDocumentTransfer? = null,
     ): AppGraph {
-        val adapter = LocalGameAdapter(runtime)
+        val adapter = LocalGameAdapter(runtime, documentTransfer)
         return fromPorts(
             homePort = adapter,
             createGamePort = adapter,
             playGamePort = adapter,
             navigator = navigator,
+            gameDetailPort = adapter,
         )
     }
 
@@ -29,6 +33,7 @@ object AppGraphFactory {
         createGamePort: CreateGamePort,
         playGamePort: PlayGamePort,
         navigator: AppNavigator = StateFlowAppNavigator(),
+        gameDetailPort: GameDetailPort = HomeBackedGameDetailPort(homePort),
     ): AppGraph {
         val coordinator = AppCoordinator(navigator)
         return AppGraph(
@@ -37,7 +42,7 @@ object AppGraphFactory {
             onboardingFactory = OnboardingFactory(coordinator::onOnboardingOutput),
             createGameFactory = CreateGameFactory(createGamePort, coordinator::onCreateGameOutput),
             gameDetailFactory = GameDetailFactory(
-                HomeBackedGameDetailPort(homePort),
+                gameDetailPort,
                 coordinator::onGameDetailOutput,
             ),
             playGameFactory = PlayGameFactory(playGamePort, coordinator::onPlayGameOutput),
