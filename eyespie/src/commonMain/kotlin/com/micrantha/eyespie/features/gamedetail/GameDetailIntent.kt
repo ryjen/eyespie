@@ -6,6 +6,7 @@ import com.micrantha.eyespie.game.LocalGameFailure
 sealed interface GameDetailIntent {
     data object Load : GameDetailIntent
     data object Back : GameDetailIntent
+    data object AddClueSelected : GameDetailIntent
     data object DismissFailure : GameDetailIntent
     data object DismissShareResult : GameDetailIntent
     data object ShareSelected : GameDetailIntent
