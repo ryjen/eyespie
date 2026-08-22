@@ -18,7 +18,8 @@ class PlayGameInteractor(
     override val state: StateFlow<PlayGameState> = mutableState.asStateFlow()
 
     override fun dispatch(intent: PlayGameIntent) {
-        mutableState.value = PlayGameReducer.reduce(mutableState.value, intent)
+        val previousState = mutableState.value
+        mutableState.value = PlayGameReducer.reduce(previousState, intent)
         val stateAfterReduce = mutableState.value
         when (intent) {
             PlayGameIntent.Load -> scope.launch {
@@ -27,19 +28,29 @@ class PlayGameInteractor(
                     is LocalGameResult.Failure -> dispatch(PlayGameIntent.LoadFailed(result.failure))
                 }
             }
-            is PlayGameIntent.GuessCaptured -> scope.launch {
-                when (
-                    val result = port.guess(
-                        gameId = stateAfterReduce.gameId,
-                        thingId = stateAfterReduce.thingId,
-                        guessImage = intent.image,
-                    )
-                ) {
-                    is LocalGameResult.Success -> dispatch(PlayGameIntent.GuessCompleted(result.value))
-                    is LocalGameResult.Failure -> dispatch(PlayGameIntent.OperationFailed(result.failure))
+            is PlayGameIntent.GuessCaptured -> if (!previousState.busy && !previousState.matched && stateAfterReduce.busy) {
+                val generation = stateAfterReduce.guessGeneration
+                scope.launch {
+                    when (
+                        val result = port.guess(
+                            gameId = stateAfterReduce.gameId,
+                            thingId = stateAfterReduce.thingId,
+                            guessImage = intent.image,
+                        )
+                    ) {
+                        is LocalGameResult.Success -> dispatch(PlayGameIntent.GuessCompleted(generation, result.value))
+                        is LocalGameResult.Failure -> dispatch(PlayGameIntent.OperationFailed(generation, result.failure))
+                    }
                 }
             }
-            PlayGameIntent.Back -> output(PlayGameOutput.Closed(stateAfterReduce.gameId))
+            PlayGameIntent.NextClueSelected -> {
+                if (previousState.matched) {
+                    previousState.content?.nextThingId?.let { nextThingId ->
+                        output(PlayGameOutput.Advance(previousState.gameId, nextThingId))
+                    }
+                }
+            }
+            PlayGameIntent.Back -> output(PlayGameOutput.Closed(previousState.gameId))
             else -> Unit
         }
     }
