@@ -9,6 +9,10 @@ run = "./gradlew :app:testDebugUnitTest --no-daemon --stacktrace"
 description = "Assemble the Android offline-core debug artifact"
 run = "./gradlew :app:assembleDebug --no-daemon --stacktrace"
 
+[tasks.screen-test]
+description = "Run feature screen instrumentation against a connected Android device or emulator"
+run = "./gradlew :app:connectedDebugAndroidTest -Pandroid.testInstrumentationRunnerArguments.package=com.micrantha.eyespie.features --no-daemon --stacktrace"
+
 [tasks.android-runtime]
 description = "Provision the pinned Android image embedder, then build and install a runnable debug app"
 run = """
