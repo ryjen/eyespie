@@ -22,6 +22,9 @@ class AppCoordinatorTest {
         coordinator.onHomeOutput(HomeOutput.GameRequested(testGameId))
         assertEquals(AppRoute.GameDetail(testGameId), navigator.route.value)
 
+        coordinator.onGameDetailOutput(GameDetailOutput.AuthorClueRequested(testGameId))
+        assertEquals(AppRoute.AuthorClue(testGameId), navigator.route.value)
+
         coordinator.onGameDetailOutput(GameDetailOutput.PlayRequested(testGameId, testThingId))
         assertEquals(AppRoute.Play(testGameId, testThingId), navigator.route.value)
     }
@@ -31,8 +34,16 @@ class AppCoordinatorTest {
         val navigator = StateFlowAppNavigator(AppRoute.Create)
         val coordinator = AppCoordinator(navigator)
 
-        coordinator.onCreateGameOutput(CreateGameOutput.Cancelled)
+        coordinator.onCreateGameOutput(CreateGameOutput.Cancelled())
         assertEquals(AppRoute.Home, navigator.route.value)
+
+        navigator.navigate(AppRoute.AuthorClue(testGameId))
+        coordinator.onCreateGameOutput(CreateGameOutput.Cancelled(testGameId))
+        assertEquals(AppRoute.GameDetail(testGameId), navigator.route.value)
+
+        navigator.navigate(AppRoute.AuthorClue(testGameId))
+        coordinator.onCreateGameOutput(CreateGameOutput.ClueAdded(testGameId))
+        assertEquals(AppRoute.GameDetail(testGameId), navigator.route.value)
 
         navigator.navigate(AppRoute.Onboarding)
         coordinator.onOnboardingOutput(OnboardingOutput.Completed)
