@@ -24,7 +24,7 @@ class UtilityInteractor(
             UtilityIntent.Retry -> {
                 val generation = mutableState.value.loadGeneration
                 scope.launch {
-                    when (val result = port.load()) {
+                    when (val result = port.loadUtility()) {
                         is LocalGameResult.Success -> dispatch(UtilityIntent.ContentLoaded(generation, result.value))
                         is LocalGameResult.Failure -> dispatch(UtilityIntent.LoadFailed(generation, result.failure))
                     }
