@@ -1,5 +1,7 @@
 package com.micrantha.eyespie.features.play
 
+import com.micrantha.eyespie.core.GameId
+
 sealed interface PlayGameOutput {
-    data object Closed : PlayGameOutput
+    data class Closed(val gameId: GameId) : PlayGameOutput
 }
