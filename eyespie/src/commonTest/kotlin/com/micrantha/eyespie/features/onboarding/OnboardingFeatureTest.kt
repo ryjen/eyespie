@@ -51,7 +51,7 @@ class OnboardingFeatureTest {
         advanceUntilIdle()
 
         assertTrue(preferences.completed)
-        assertEquals(listOf(OnboardingOutput.Completed), outputs)
+        assertEquals(listOf<OnboardingOutput>(OnboardingOutput.Completed), outputs)
     }
 
     @OptIn(ExperimentalCoroutinesApi::class)
@@ -65,7 +65,7 @@ class OnboardingFeatureTest {
         advanceUntilIdle()
 
         assertTrue(preferences.completed)
-        assertEquals(listOf(OnboardingOutput.Dismissed), outputs)
+        assertEquals(listOf<OnboardingOutput>(OnboardingOutput.Dismissed), outputs)
     }
 
     @OptIn(ExperimentalCoroutinesApi::class)
