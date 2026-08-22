@@ -16,6 +16,7 @@ class OnboardingInteractor(
         mutableState.value = OnboardingReducer.reduce(mutableState.value, intent)
         when (intent) {
             OnboardingIntent.Done -> output(OnboardingOutput.Completed)
+            OnboardingIntent.Skip,
             OnboardingIntent.Back -> output(OnboardingOutput.Dismissed)
             else -> Unit
         }

@@ -1,11 +1,12 @@
 package com.micrantha.eyespie.features.onboarding
 
 enum class OnboardingPage {
-    Welcome,
+    Local,
     Create,
-    Play,
+    Share,
+    Join,
 }
 
 data class OnboardingState(
-    val page: OnboardingPage = OnboardingPage.Welcome,
+    val page: OnboardingPage = OnboardingPage.Local,
 )
