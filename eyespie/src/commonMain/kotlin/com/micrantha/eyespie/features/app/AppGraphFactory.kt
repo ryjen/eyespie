@@ -1,5 +1,7 @@
 package com.micrantha.eyespie.features.app
 
+import com.micrantha.eyespie.features.clueauthoring.ClueAuthoringFactory
+import com.micrantha.eyespie.features.clueauthoring.ClueAuthoringPort
 import com.micrantha.eyespie.features.create.CreateGameFactory
 import com.micrantha.eyespie.features.create.CreateGamePort
 import com.micrantha.eyespie.features.gamedetail.GameDetailFactory
@@ -23,6 +25,7 @@ object AppGraphFactory {
         return fromPorts(
             homePort = adapter,
             createGamePort = adapter,
+            clueAuthoringPort = adapter,
             playGamePort = adapter,
             onboardingPreferences = runtime.onboardingPreferences,
             navigator = navigator,
@@ -33,6 +36,7 @@ object AppGraphFactory {
     fun fromPorts(
         homePort: HomePort,
         createGamePort: CreateGamePort,
+        clueAuthoringPort: ClueAuthoringPort,
         playGamePort: PlayGamePort,
         onboardingPreferences: OnboardingPreferenceStore,
         navigator: AppNavigator = StateFlowAppNavigator(),
@@ -50,6 +54,10 @@ object AppGraphFactory {
             gameDetailFactory = GameDetailFactory(
                 gameDetailPort,
                 coordinator::onGameDetailOutput,
+            ),
+            clueAuthoringFactory = ClueAuthoringFactory(
+                clueAuthoringPort,
+                coordinator::onClueAuthoringOutput,
             ),
             playGameFactory = PlayGameFactory(playGamePort, coordinator::onPlayGameOutput),
         )
