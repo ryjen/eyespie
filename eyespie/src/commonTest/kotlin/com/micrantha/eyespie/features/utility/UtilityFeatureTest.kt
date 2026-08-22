@@ -29,16 +29,16 @@ class UtilityFeatureTest {
     @OptIn(ExperimentalCoroutinesApi::class)
     @Test
     fun factory_loads_local_identity_and_emits_semantic_navigation() = runTest {
-        val port = FakeUtilityPort()
+        val loader = FakeUtilityLoader()
         val outputs = mutableListOf<UtilityOutput>()
-        val interactor = UtilityFactory(port, outputs::add).create(this)
+        val interactor = UtilityFactory(loader, outputs::add).create(this)
 
         interactor.dispatch(UtilityIntent.Load)
         advanceUntilIdle()
 
-        assertEquals(port.content, interactor.state.value.content)
+        assertEquals(loader.content, interactor.state.value.content)
         assertNull(interactor.state.value.failure)
-        assertEquals(1, port.loads)
+        assertEquals(1, loader.loads)
 
         interactor.dispatch(UtilityIntent.OnboardingSelected)
         interactor.dispatch(UtilityIntent.Back)
@@ -51,8 +51,8 @@ class UtilityFeatureTest {
     @OptIn(ExperimentalCoroutinesApi::class)
     @Test
     fun retry_recovers_from_local_identity_load_failure() = runTest {
-        val port = FakeUtilityPort(failFirst = true)
-        val interactor = UtilityFactory(port, {}).create(this)
+        val loader = FakeUtilityLoader(failFirst = true)
+        val interactor = UtilityFactory(loader, {}).create(this)
 
         interactor.dispatch(UtilityIntent.Load)
         advanceUntilIdle()
@@ -60,15 +60,15 @@ class UtilityFeatureTest {
 
         interactor.dispatch(UtilityIntent.Retry)
         advanceUntilIdle()
-        assertEquals(port.content, interactor.state.value.content)
+        assertEquals(loader.content, interactor.state.value.content)
         assertNull(interactor.state.value.failure)
     }
 }
 
-private class FakeUtilityPort(
+private class FakeUtilityLoader(
     val content: UtilityContent = UtilityContent("Agent", "player-1"),
     private val failFirst: Boolean = false,
-) : UtilityPort {
+) : UtilityLoader {
     var loads = 0
 
     override suspend fun loadUtility(): LocalGameResult<UtilityContent> {
