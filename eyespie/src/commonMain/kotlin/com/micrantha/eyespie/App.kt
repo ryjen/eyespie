@@ -19,6 +19,7 @@ import androidx.compose.ui.unit.dp
 import com.micrantha.eyespie.features.app.AppGraphFactory
 import com.micrantha.eyespie.features.app.AppRoute
 import com.micrantha.eyespie.features.app.StateFlowAppNavigator
+import com.micrantha.eyespie.features.clueauthoring.ClueAuthoringRoute
 import com.micrantha.eyespie.features.create.CreateGameRoute
 import com.micrantha.eyespie.features.gamedetail.GameDetailRoute
 import com.micrantha.eyespie.features.home.HomeRoute
@@ -78,6 +79,10 @@ fun App(
                             AppRoute.Create -> CreateGameRoute(graph.createGameFactory)
                             is AppRoute.GameDetail -> GameDetailRoute(
                                 factory = graph.gameDetailFactory,
+                                gameId = current.gameId,
+                            )
+                            is AppRoute.ClueAuthoring -> ClueAuthoringRoute(
+                                factory = graph.clueAuthoringFactory,
                                 gameId = current.gameId,
                             )
                             is AppRoute.Play -> PlayGameRoute(

@@ -90,6 +90,29 @@ fun GameDetailScreen(
                     modifier = Modifier.fillMaxWidth().padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
+                    Text("Build this case", style = MaterialTheme.typography.titleLarge)
+                    Text(
+                        "Add another clue and capture its real-world target on this device.",
+                        style = MaterialTheme.typography.bodyMedium,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Button(
+                        modifier = Modifier.fillMaxWidth(),
+                        onClick = { dispatch(GameDetailIntent.AddClueSelected) },
+                    ) {
+                        Text("Add clue")
+                    }
+                }
+            }
+
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+            ) {
+                Column(
+                    modifier = Modifier.fillMaxWidth().padding(16.dp),
+                    verticalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
                     Text("Share this game", style = MaterialTheme.typography.titleLarge)
                     Text(
                         "Export a signed .eyespie game file and hand it off with the platform share flow.",

@@ -15,6 +15,7 @@ fun localGameFailureMessage(failure: LocalGameFailure): String = when (failure.c
         null -> "The clue authority is invalid."
     }
     LocalGameFailureCode.IDENTITY_UNAVAILABLE -> "The device-local player identity is unavailable."
+    LocalGameFailureCode.NOT_LOCAL_CREATOR -> "Only the local creator of this game can add clues."
     LocalGameFailureCode.TARGET_EMBEDDING_FAILED -> "The target image could not be embedded on this device."
     LocalGameFailureCode.GUESS_EMBEDDING_FAILED -> "The guess image could not be embedded on this device."
     LocalGameFailureCode.GAME_NOT_FOUND -> "The selected local game no longer exists."

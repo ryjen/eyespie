@@ -2,6 +2,7 @@ package com.micrantha.eyespie.features.app
 
 import com.micrantha.eyespie.core.GameId
 import com.micrantha.eyespie.core.ThingId
+import com.micrantha.eyespie.features.clueauthoring.ClueAuthoringPort
 import com.micrantha.eyespie.features.create.CreateGamePort
 import com.micrantha.eyespie.features.gamedetail.GameDetailContent
 import com.micrantha.eyespie.features.gamedetail.GameDetailPort
@@ -14,6 +15,7 @@ import com.micrantha.eyespie.features.home.HomePort
 import com.micrantha.eyespie.features.home.HomeThing
 import com.micrantha.eyespie.features.play.PlayGameContent
 import com.micrantha.eyespie.features.play.PlayGamePort
+import com.micrantha.eyespie.game.AuthoredThing
 import com.micrantha.eyespie.game.CreatedGame
 import com.micrantha.eyespie.game.EyespieRuntime
 import com.micrantha.eyespie.game.GuessOutcome
@@ -33,7 +35,7 @@ import kotlin.coroutines.cancellation.CancellationException
 internal class LocalGameAdapter(
     runtime: EyespieRuntime,
     private val documentTransfer: GameDocumentTransfer? = null,
-) : HomePort, CreateGamePort, GameDetailPort, PlayGamePort {
+) : HomePort, CreateGamePort, ClueAuthoringPort, GameDetailPort, PlayGamePort {
     private val gameLoop = runtime.gameLoop
     private val bundleService = runtime.bundleService
 
@@ -91,6 +93,13 @@ internal class LocalGameAdapter(
         expectedAnswer: String,
         targetImage: CapturedImage,
     ): LocalGameResult<CreatedGame> = gameLoop.createGame(name, clueText, expectedAnswer, targetImage)
+
+    override suspend fun addClue(
+        gameId: GameId,
+        clueText: String,
+        expectedAnswer: String,
+        targetImage: CapturedImage,
+    ): LocalGameResult<AuthoredThing> = gameLoop.addClue(gameId, clueText, expectedAnswer, targetImage)
 
     override suspend fun load(gameId: GameId): LocalGameResult<GameDetailContent> =
         when (val result = load()) {
