@@ -20,7 +20,8 @@ class GameDetailInteractor(
     override val state: StateFlow<GameDetailState> = mutableState.asStateFlow()
 
     override fun dispatch(intent: GameDetailIntent) {
-        mutableState.value = GameDetailReducer.reduce(mutableState.value, intent)
+        val previousState = mutableState.value
+        mutableState.value = GameDetailReducer.reduce(previousState, intent)
         when (intent) {
             GameDetailIntent.Load -> {
                 val generation = mutableState.value.loadGeneration
@@ -29,6 +30,14 @@ class GameDetailInteractor(
                         is LocalGameResult.Success -> dispatch(GameDetailIntent.ContentLoaded(generation, result.value))
                         is LocalGameResult.Failure -> dispatch(GameDetailIntent.OperationFailed(generation, result.failure))
                     }
+                }
+            }
+            GameDetailIntent.ShareSelected -> if (
+                !previousState.shareInProgress && previousState.content?.localCreator == true
+            ) {
+                val gameName = previousState.content.name
+                scope.launch {
+                    dispatch(GameDetailIntent.ShareFinished(port.share(gameId, gameName)))
                 }
             }
             GameDetailIntent.Back -> output(GameDetailOutput.Closed)
