@@ -42,15 +42,20 @@ object PlayGameReducer : Reducer<PlayGameState, PlayGameIntent> {
                 state.copy(busy = false)
             } else {
                 val progress = intent.outcome.progress
-                val feedback = if (intent.outcome.match.matched) {
+                val feedback = if (progress.matched) {
                     val foundCount = if (content.matched) {
                         content.foundCount
                     } else {
                         minOf(content.totalCount, content.foundCount + 1)
                     }
+                    val authoritativeSimilarity = if (intent.outcome.match.matched) {
+                        intent.outcome.match.similarity
+                    } else {
+                        progress.bestSimilarity ?: intent.outcome.match.similarity
+                    }
                     PlayFeedback.Matched(
-                        similarity = intent.outcome.match.similarity,
-                        bestSimilarity = progress.bestSimilarity ?: intent.outcome.match.similarity,
+                        similarity = authoritativeSimilarity,
+                        bestSimilarity = progress.bestSimilarity ?: authoritativeSimilarity,
                         foundCount = foundCount,
                         totalCount = content.totalCount,
                         nextThingId = content.nextThingId,
