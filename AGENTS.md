@@ -44,6 +44,8 @@ mise run ci
 
 Narrow targets are also available as `mise run test` and `mise run build`. These tasks wrap Eyespie's existing Gradle targets; Gradle and the KMP module graph remain the build authority rather than Morifolium.
 
+Reducer/interactor behavior is covered by common/JVM tests. Pure Compose feature-screen interactions run separately with `mise run screen-test` against a connected Android device or emulator; pull-request CI executes that screen suite on a GitHub-hosted emulator with camera hardware present, CAMERA permission ungranted, and enlarged system text. This keeps CameraX/MediaPipe inactive while exercising requestable permission state and long-copy/scroll behavior. Physical MediaPipe calibration remains a separate evidence boundary and is intentionally excluded from the hosted presentation suite.
+
 Apple/MediaPipe integration is validated independently by `.github/workflows/ios-mediapipe.yml`.
 
 ## Changes

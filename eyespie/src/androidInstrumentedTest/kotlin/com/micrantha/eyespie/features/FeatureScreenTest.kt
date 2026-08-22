@@ -4,12 +4,20 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
+import androidx.compose.ui.test.performScrollTo
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.micrantha.eyespie.core.GameId
 import com.micrantha.eyespie.core.ThingId
+import com.micrantha.eyespie.features.clueauthoring.ClueAuthoringIntent
+import com.micrantha.eyespie.features.clueauthoring.ClueAuthoringScreen
+import com.micrantha.eyespie.features.clueauthoring.ClueAuthoringState
 import com.micrantha.eyespie.features.create.CreateGameIntent
 import com.micrantha.eyespie.features.create.CreateGameScreen
 import com.micrantha.eyespie.features.create.CreateGameState
+import com.micrantha.eyespie.features.gamedetail.GameDetailContent
+import com.micrantha.eyespie.features.gamedetail.GameDetailIntent
+import com.micrantha.eyespie.features.gamedetail.GameDetailScreen
+import com.micrantha.eyespie.features.gamedetail.GameDetailState
 import com.micrantha.eyespie.features.home.HomeContent
 import com.micrantha.eyespie.features.home.HomeIntent
 import com.micrantha.eyespie.features.home.HomeScreen
@@ -21,6 +29,10 @@ import com.micrantha.eyespie.features.play.PlayGameContent
 import com.micrantha.eyespie.features.play.PlayGameIntent
 import com.micrantha.eyespie.features.play.PlayGameScreen
 import com.micrantha.eyespie.features.play.PlayGameState
+import com.micrantha.eyespie.features.utility.UtilityContent
+import com.micrantha.eyespie.features.utility.UtilityIntent
+import com.micrantha.eyespie.features.utility.UtilityScreen
+import com.micrantha.eyespie.features.utility.UtilityState
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
@@ -80,9 +92,50 @@ class FeatureScreenTest {
             }
         }
 
-        compose.onNodeWithText("Back").performClick()
+        compose.onNodeWithText("Back to field desk").performClick()
 
         assertEquals(listOf(CreateGameIntent.Back), intents)
+    }
+
+    @Test
+    fun game_detail_screen_dispatches_add_clue_intent() {
+        val intents = mutableListOf<GameDetailIntent>()
+        compose.setContent {
+            MaterialTheme {
+                GameDetailScreen(
+                    state = GameDetailState(
+                        content = GameDetailContent(
+                            name = "Trip",
+                            things = emptyList(),
+                            localCreator = true,
+                        ),
+                        loading = false,
+                    ),
+                    dispatch = intents::add,
+                )
+            }
+        }
+
+        compose.onNodeWithText("Add clue").performScrollTo().performClick()
+
+        assertEquals(listOf(GameDetailIntent.AddClueSelected), intents)
+    }
+
+    @Test
+    fun clue_authoring_screen_dispatches_back_intent_without_capturing() {
+        val intents = mutableListOf<ClueAuthoringIntent>()
+        compose.setContent {
+            MaterialTheme {
+                ClueAuthoringScreen(
+                    state = ClueAuthoringState(),
+                    dispatch = intents::add,
+                )
+            }
+        }
+
+        compose.onNodeWithText("Back to game").performScrollTo().performClick()
+
+        assertEquals(listOf(ClueAuthoringIntent.Back), intents)
     }
 
     @Test
@@ -110,5 +163,25 @@ class FeatureScreenTest {
         compose.onNodeWithText("Back to game").performClick()
 
         assertEquals(listOf(PlayGameIntent.Back), intents)
+    }
+
+    @Test
+    fun utility_screen_reopens_onboarding_after_scrolling_long_copy() {
+        val intents = mutableListOf<UtilityIntent>()
+        compose.setContent {
+            MaterialTheme {
+                UtilityScreen(
+                    state = UtilityState(
+                        content = UtilityContent("Agent", "player-1"),
+                        loading = false,
+                    ),
+                    dispatch = intents::add,
+                )
+            }
+        }
+
+        compose.onNodeWithText("Show how Eyespie works").performScrollTo().performClick()
+
+        assertEquals(listOf(UtilityIntent.OnboardingSelected), intents)
     }
 }
