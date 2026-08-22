@@ -3,6 +3,9 @@ package com.micrantha.eyespie.features.app
 import com.micrantha.eyespie.core.GameId
 import com.micrantha.eyespie.core.ThingId
 import com.micrantha.eyespie.features.create.CreateGamePort
+import com.micrantha.eyespie.features.gamedetail.GameDetailContent
+import com.micrantha.eyespie.features.gamedetail.GameDetailPort
+import com.micrantha.eyespie.features.gamedetail.GameDetailThing
 import com.micrantha.eyespie.features.home.HomeContent
 import com.micrantha.eyespie.features.home.HomeGame
 import com.micrantha.eyespie.features.home.HomePort
@@ -78,4 +81,29 @@ internal class LocalGameAdapter(
         thingId: ThingId,
         guessImage: CapturedImage,
     ): LocalGameResult<GuessOutcome> = gameLoop.guess(gameId, thingId, guessImage)
+}
+
+internal class HomeBackedGameDetailPort(
+    private val homePort: HomePort,
+) : GameDetailPort {
+    override suspend fun load(gameId: GameId): LocalGameResult<GameDetailContent> = when (val result = homePort.load()) {
+        is LocalGameResult.Failure -> result
+        is LocalGameResult.Success -> {
+            val game = result.value.games.firstOrNull { it.id == gameId }
+                ?: return LocalGameResult.Failure(LocalGameFailure(LocalGameFailureCode.GAME_NOT_FOUND))
+            LocalGameResult.Success(
+                GameDetailContent(
+                    name = game.name,
+                    things = game.things.map { thing ->
+                        GameDetailThing(
+                            id = thing.id,
+                            clueText = thing.clueText,
+                            matched = thing.matched,
+                            bestSimilarity = thing.bestSimilarity,
+                        )
+                    },
+                ),
+            )
+        }
+    }
 }
