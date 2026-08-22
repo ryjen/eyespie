@@ -126,7 +126,7 @@ fun UtilityScreen(
                 style = MaterialTheme.typography.bodyMedium,
             )
             Text(
-                "Permission controls are not shown here until the platform contract can report current permission state and a valid recovery action.",
+                "If camera access is denied, supported capture screens offer the platform Settings recovery action when it is valid. This page does not duplicate system permission controls.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
