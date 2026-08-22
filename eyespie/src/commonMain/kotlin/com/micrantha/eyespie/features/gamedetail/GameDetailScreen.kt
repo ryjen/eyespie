@@ -90,13 +90,19 @@ fun GameDetailScreen(
                     modifier = Modifier.fillMaxWidth().padding(16.dp),
                     verticalArrangement = Arrangement.spacedBy(10.dp),
                 ) {
-                    Text("Share this game", style = MaterialTheme.typography.titleLarge)
+                    Text("Build this game", style = MaterialTheme.typography.titleLarge)
                     Text(
-                        "Export a signed .eyespie game file and hand it off with the platform share flow.",
+                        "Add another clue and real-world target, or export the current game as a signed .eyespie file.",
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Button(
+                        modifier = Modifier.fillMaxWidth(),
+                        onClick = { dispatch(GameDetailIntent.AddClueSelected) },
+                    ) {
+                        Text("Add clue")
+                    }
+                    OutlinedButton(
                         modifier = Modifier.fillMaxWidth(),
                         enabled = !state.shareInProgress,
                         onClick = { dispatch(GameDetailIntent.ShareSelected) },
