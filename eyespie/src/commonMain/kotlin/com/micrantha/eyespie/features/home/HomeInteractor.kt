@@ -31,7 +31,7 @@ class HomeInteractor(
             }
             HomeIntent.OnboardingSelected -> output(HomeOutput.OnboardingRequested)
             HomeIntent.CreateSelected -> output(HomeOutput.CreateRequested)
-            is HomeIntent.PlaySelected -> output(HomeOutput.PlayRequested(intent.gameId, intent.thingId))
+            is HomeIntent.GameSelected -> output(HomeOutput.GameRequested(intent.gameId))
             else -> Unit
         }
     }
