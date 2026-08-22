@@ -89,6 +89,18 @@ jobs:
             --candidate "$RUNNER_TEMP/candidate.json" \
             --expected-sha "$SOURCE_SHA"
 
+      - name: Stage pinned Android runtime model
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./gradlew :app:stageAndroidImageEmbedderModel --no-daemon --stacktrace
+
+      - name: Verify Android runtime model without repair
+        shell: bash
+        run: |
+          set -euo pipefail
+          ./gradlew :app:verifyAndroidRuntime --no-daemon --stacktrace
+
       - name: Install Android signing material from SOPS
         shell: bash
         env:
