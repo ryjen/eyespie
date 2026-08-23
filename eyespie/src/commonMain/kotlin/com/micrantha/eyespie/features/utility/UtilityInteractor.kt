@@ -6,18 +6,22 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
 class UtilityInteractor(
-    private val port: UtilityPort,
+    private val loader: UtilityLoader,
     private val scope: CoroutineScope,
     private val output: (UtilityOutput) -> Unit,
     initialState: UtilityState = UtilityState(),
 ) : BaseInteractor<UtilityState, UtilityIntent>(initialState, UtilityReducer) {
-    override fun afterReduce(intent: UtilityIntent, previousState: UtilityState, stateAfterReduce: UtilityState) {
+    override fun afterReduce(
+        intent: UtilityIntent,
+        previousState: UtilityState,
+        stateAfterReduce: UtilityState,
+    ) {
         when (intent) {
             UtilityIntent.Load,
             UtilityIntent.Retry -> {
                 val generation = stateAfterReduce.loadGeneration
                 scope.launch {
-                    when (val result = port.loadUtility()) {
+                    when (val result = loader.loadUtility()) {
                         is LocalGameResult.Success -> dispatch(UtilityIntent.ContentLoaded(generation, result.value))
                         is LocalGameResult.Failure -> dispatch(UtilityIntent.LoadFailed(generation, result.failure))
                     }
