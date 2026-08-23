@@ -95,10 +95,10 @@ class LocalGameLoop(
     private val progressRepository: ThingProgressRepository,
     private val embeddingGenerator: ImageEmbeddingGenerator,
     private val idGenerator: LocalGameIdGenerator,
-) {
+) : GameSnapshotLoader {
     private val operationMutex = Mutex()
 
-    suspend fun loadSnapshot(): LocalGameResult<LocalGameSnapshot> {
+    override suspend fun loadSnapshot(): LocalGameResult<LocalGameSnapshot> {
         val identity = try {
             identityRepository.current()
         } catch (cancelled: CancellationException) {
@@ -139,12 +139,7 @@ class LocalGameLoop(
             return failure(LocalGameFailureCode.PERSISTENCE_FAILED)
         }
 
-        return LocalGameResult.Success(
-            LocalGameSnapshot(
-                identity = identity,
-                games = summaries,
-            ),
-        )
+        return LocalGameResult.Success(LocalGameSnapshot(identity = identity, games = summaries))
     }
 
     suspend fun createGame(
@@ -160,14 +155,9 @@ class LocalGameLoop(
 
         val clueAuthority = when (val authored = ClueAuthority.manual(clueText, expectedAnswer)) {
             is ClueAuthoringResult.Accepted -> authored.authority
-            is ClueAuthoringResult.Rejected -> {
-                return@exclusiveOperation LocalGameResult.Failure(
-                    LocalGameFailure(
-                        code = LocalGameFailureCode.INVALID_CLUE,
-                        clueValidationError = authored.error,
-                    ),
-                )
-            }
+            is ClueAuthoringResult.Rejected -> return@exclusiveOperation LocalGameResult.Failure(
+                LocalGameFailure(LocalGameFailureCode.INVALID_CLUE, authored.error),
+            )
         }
 
         val identity = try {
@@ -188,17 +178,8 @@ class LocalGameLoop(
 
         val gameId = idGenerator.nextGameId()
         val thingId = idGenerator.nextThingId()
-        val thing = Thing(
-            id = thingId,
-            clueAuthority = clueAuthority,
-            targetEmbedding = targetEmbedding,
-        )
-        val game = Game(
-            id = gameId,
-            name = normalizedName,
-            creator = identity.id,
-            things = listOf(thing),
-        )
+        val thing = Thing(thingId, clueAuthority, targetEmbedding)
+        val game = Game(gameId, normalizedName, identity.id, listOf(thing))
 
         try {
             gameRepository.save(game)
@@ -208,14 +189,7 @@ class LocalGameLoop(
             return@exclusiveOperation failure(LocalGameFailureCode.PERSISTENCE_FAILED)
         }
 
-        LocalGameResult.Success(
-            CreatedGame(
-                gameId = gameId,
-                thingId = thingId,
-                name = normalizedName,
-                clue = clueAuthority.playable(),
-            ),
-        )
+        LocalGameResult.Success(CreatedGame(gameId, thingId, normalizedName, clueAuthority.playable()))
     }
 
     suspend fun addClue(
@@ -226,14 +200,9 @@ class LocalGameLoop(
     ): LocalGameResult<AuthoredThing> = exclusiveOperation {
         val clueAuthority = when (val authored = ClueAuthority.manual(clueText, expectedAnswer)) {
             is ClueAuthoringResult.Accepted -> authored.authority
-            is ClueAuthoringResult.Rejected -> {
-                return@exclusiveOperation LocalGameResult.Failure(
-                    LocalGameFailure(
-                        code = LocalGameFailureCode.INVALID_CLUE,
-                        clueValidationError = authored.error,
-                    ),
-                )
-            }
+            is ClueAuthoringResult.Rejected -> return@exclusiveOperation LocalGameResult.Failure(
+                LocalGameFailure(LocalGameFailureCode.INVALID_CLUE, authored.error),
+            )
         }
 
         val identity = try {
@@ -251,9 +220,7 @@ class LocalGameLoop(
             return@exclusiveOperation failure(LocalGameFailureCode.PERSISTENCE_FAILED)
         } ?: return@exclusiveOperation failure(LocalGameFailureCode.GAME_NOT_FOUND)
 
-        if (game.creator != identity.id) {
-            return@exclusiveOperation failure(LocalGameFailureCode.NOT_LOCAL_CREATOR)
-        }
+        if (game.creator != identity.id) return@exclusiveOperation failure(LocalGameFailureCode.NOT_LOCAL_CREATOR)
 
         val targetEmbedding = try {
             canonicalImageEmbedding(embeddingGenerator.generate(targetImage))
@@ -264,11 +231,7 @@ class LocalGameLoop(
         }
 
         val thingId = idGenerator.nextThingId()
-        val thing = Thing(
-            id = thingId,
-            clueAuthority = clueAuthority,
-            targetEmbedding = targetEmbedding,
-        )
+        val thing = Thing(thingId, clueAuthority, targetEmbedding)
         try {
             gameRepository.save(game.copy(things = game.things + thing))
         } catch (cancelled: CancellationException) {
@@ -277,13 +240,7 @@ class LocalGameLoop(
             return@exclusiveOperation failure(LocalGameFailureCode.PERSISTENCE_FAILED)
         }
 
-        LocalGameResult.Success(
-            AuthoredThing(
-                gameId = gameId,
-                thingId = thingId,
-                clue = clueAuthority.playable(),
-            ),
-        )
+        LocalGameResult.Success(AuthoredThing(gameId, thingId, clueAuthority.playable()))
     }
 
     suspend fun guess(
@@ -333,8 +290,7 @@ class LocalGameLoop(
         } catch (_: Exception) {
             return@exclusiveOperation failure(LocalGameFailureCode.PERSISTENCE_FAILED)
         }
-        val bestSimilarity = existing?.bestSimilarity?.let { maxOf(it, match.similarity) }
-            ?: match.similarity
+        val bestSimilarity = existing?.bestSimilarity?.let { maxOf(it, match.similarity) } ?: match.similarity
         val progress = ThingProgress(
             gameId = gameId,
             thingId = thingId,
@@ -351,28 +307,12 @@ class LocalGameLoop(
             return@exclusiveOperation failure(LocalGameFailureCode.PERSISTENCE_FAILED)
         }
 
-        LocalGameResult.Success(
-            GuessOutcome(
-                gameId = gameId,
-                thingId = thingId,
-                clue = thing.playableClue(),
-                match = match,
-                progress = progress,
-            ),
-        )
+        LocalGameResult.Success(GuessOutcome(gameId, thingId, thing.playableClue(), match, progress))
     }
 
-    private suspend fun <T> exclusiveOperation(
-        operation: suspend () -> LocalGameResult<T>,
-    ): LocalGameResult<T> {
-        if (!operationMutex.tryLock()) {
-            return failure(LocalGameFailureCode.OPERATION_IN_PROGRESS)
-        }
-        return try {
-            operation()
-        } finally {
-            operationMutex.unlock()
-        }
+    private suspend fun <T> exclusiveOperation(operation: suspend () -> LocalGameResult<T>): LocalGameResult<T> {
+        if (!operationMutex.tryLock()) return failure(LocalGameFailureCode.OPERATION_IN_PROGRESS)
+        return try { operation() } finally { operationMutex.unlock() }
     }
 
     private fun <T> failure(code: LocalGameFailureCode): LocalGameResult<T> =
@@ -380,7 +320,6 @@ class LocalGameLoop(
 
     private companion object {
         const val MAX_GAME_NAME_LENGTH = 80
-
         fun normalizeText(value: String): String = value.trim().replace(Regex("\\s+"), " ")
     }
 }

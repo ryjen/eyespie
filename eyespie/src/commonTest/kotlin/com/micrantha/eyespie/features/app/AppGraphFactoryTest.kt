@@ -16,14 +16,12 @@ class AppGraphFactoryTest {
         val navigator = StateFlowAppNavigator()
         val onboardingPreferences = TestOnboardingPreferences()
         val graph = AppGraphFactory.fromCapabilities(
-            homeLoader = AppTestCapabilities,
+            gameSnapshotLoader = AppTestCapabilities,
             gameImportPreparer = AppTestCapabilities,
             gameImportConfirmer = AppTestCapabilities,
             gameImportCanceller = AppTestCapabilities,
-            utilityLoader = AppTestCapabilities,
             gameCreator = AppTestCapabilities,
             clueAuthor = AppTestCapabilities,
-            playGameLoader = AppTestCapabilities,
             guessSubmitter = AppTestCapabilities,
             onboardingPreferences = onboardingPreferences,
             navigator = navigator,
