@@ -12,6 +12,7 @@ import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 
@@ -25,7 +26,6 @@ class HomeFeatureTest {
             HomeReducer.reduce(refreshing, HomeIntent.Refresh),
             HomeIntent.ContentLoaded(refreshing.refreshGeneration, stale),
         )
-
         assertEquals(current, late.content)
         assertTrue(late.loading)
     }
@@ -35,16 +35,10 @@ class HomeFeatureTest {
     fun factory_maps_domain_snapshot_and_reduces_before_loading() = runTest {
         val expected = HomeContent("Agent", "player-1", emptyList())
         val capabilities = FakeHomeCapabilities(snapshot())
-        val outputs = mutableListOf<HomeOutput>()
-        val interactor = homeFactory(capabilities, outputs::add).create(
-            scope = this,
-            initialState = HomeState(loading = false),
-        )
-
+        val interactor = homeFactory(capabilities, {}).create(this, HomeState(loading = false))
         interactor.dispatch(HomeIntent.Refresh)
         assertTrue(interactor.state.value.loading)
         advanceUntilIdle()
-
         assertFalse(interactor.state.value.loading)
         assertEquals(expected, interactor.state.value.content)
         assertEquals(1, capabilities.loads)
@@ -55,23 +49,13 @@ class HomeFeatureTest {
     fun selected_game_is_previewed_without_import_or_library_refresh() = runTest {
         val expected = HomeContent("Agent", "player-1", emptyList())
         val preview = HomeImportPreview("Road Trip", 3, "creator-1234", "game-5678")
-        val capabilities = FakeHomeCapabilities(
-            snapshot = snapshot(),
-            preparation = HomeImportPreparationResult.Ready(preview),
-            confirmResult = HomeImportResult.Imported,
-        )
-        val interactor = homeFactory(capabilities, {}).create(
-            scope = this,
-            initialState = HomeState(content = expected, loading = false),
-        )
-
+        val capabilities = FakeHomeCapabilities(snapshot(), HomeImportPreparationResult.Ready(preview), HomeImportResult.Imported)
+        val interactor = homeFactory(capabilities, {}).create(this, HomeState(content = expected, loading = false))
         interactor.dispatch(HomeIntent.ImportSelected)
         assertTrue(interactor.state.value.importInProgress)
         advanceUntilIdle()
-
         assertFalse(interactor.state.value.importInProgress)
         assertEquals(preview, interactor.state.value.importPreview)
-        assertNull(interactor.state.value.importResult)
         assertEquals(1, capabilities.prepares)
         assertEquals(0, capabilities.confirms)
         assertEquals(0, capabilities.loads)
@@ -79,28 +63,19 @@ class HomeFeatureTest {
 
     @OptIn(ExperimentalCoroutinesApi::class)
     @Test
-    fun confirmed_import_refreshes_library_and_records_result() = runTest {
+    fun confirmed_import_refreshes_library_and_emits_feedback() = runTest {
         val expected = HomeContent("Agent", "player-1", emptyList())
         val preview = HomeImportPreview("Road Trip", 1, "creator-1234", "game-5678")
-        val capabilities = FakeHomeCapabilities(
-            snapshot = snapshot(),
-            preparation = HomeImportPreparationResult.Ready(preview),
-            confirmResult = HomeImportResult.Imported,
-        )
-        val interactor = homeFactory(capabilities, {}).create(
-            scope = this,
-            initialState = HomeState(content = expected, loading = false),
-        )
-
+        val capabilities = FakeHomeCapabilities(snapshot(), HomeImportPreparationResult.Ready(preview), HomeImportResult.Imported)
+        val interactor = homeFactory(capabilities, {}).create(this, HomeState(content = expected, loading = false))
         interactor.dispatch(HomeIntent.ImportSelected)
         advanceUntilIdle()
         interactor.dispatch(HomeIntent.ImportConfirmed)
         assertTrue(interactor.state.value.importInProgress)
         advanceUntilIdle()
-
         assertFalse(interactor.state.value.importInProgress)
         assertNull(interactor.state.value.importPreview)
-        assertEquals(HomeImportResult.Imported, interactor.state.value.importResult)
+        assertEquals(HomeEffect.ImportFinished(HomeImportResult.Imported), interactor.effects.first())
         assertEquals(1, capabilities.prepares)
         assertEquals(1, capabilities.confirms)
         assertEquals(1, capabilities.loads)
@@ -111,21 +86,12 @@ class HomeFeatureTest {
     fun cancelled_preview_clears_pending_import_without_refresh() = runTest {
         val expected = HomeContent("Agent", "player-1", emptyList())
         val preview = HomeImportPreview("Road Trip", 1, "creator-1234", "game-5678")
-        val capabilities = FakeHomeCapabilities(
-            snapshot = snapshot(),
-            preparation = HomeImportPreparationResult.Ready(preview),
-        )
-        val interactor = homeFactory(capabilities, {}).create(
-            scope = this,
-            initialState = HomeState(content = expected, loading = false),
-        )
-
+        val capabilities = FakeHomeCapabilities(snapshot(), HomeImportPreparationResult.Ready(preview))
+        val interactor = homeFactory(capabilities, {}).create(this, HomeState(content = expected, loading = false))
         interactor.dispatch(HomeIntent.ImportSelected)
         advanceUntilIdle()
         interactor.dispatch(HomeIntent.ImportPreviewCancelled)
-
         assertNull(interactor.state.value.importPreview)
-        assertNull(interactor.state.value.importResult)
         assertEquals(1, capabilities.cancels)
         assertEquals(0, capabilities.confirms)
         assertEquals(0, capabilities.loads)
@@ -136,19 +102,11 @@ class HomeFeatureTest {
     fun disposal_clears_pending_import_candidate() = runTest {
         val expected = HomeContent("Agent", "player-1", emptyList())
         val preview = HomeImportPreview("Road Trip", 1, "creator-1234", "game-5678")
-        val capabilities = FakeHomeCapabilities(
-            snapshot = snapshot(),
-            preparation = HomeImportPreparationResult.Ready(preview),
-        )
-        val interactor = homeFactory(capabilities, {}).create(
-            scope = this,
-            initialState = HomeState(content = expected, loading = false),
-        )
-
+        val capabilities = FakeHomeCapabilities(snapshot(), HomeImportPreparationResult.Ready(preview))
+        val interactor = homeFactory(capabilities, {}).create(this, HomeState(content = expected, loading = false))
         interactor.dispatch(HomeIntent.ImportSelected)
         advanceUntilIdle()
         interactor.dispose()
-
         assertEquals(preview, interactor.state.value.importPreview)
         assertEquals(1, capabilities.cancels)
         assertEquals(0, capabilities.confirms)
@@ -159,20 +117,11 @@ class HomeFeatureTest {
     @Test
     fun cancelled_document_selection_is_silent_and_does_not_refresh() = runTest {
         val expected = HomeContent("Agent", "player-1", emptyList())
-        val capabilities = FakeHomeCapabilities(
-            snapshot = snapshot(),
-            preparation = HomeImportPreparationResult.Terminal(HomeImportResult.Cancelled),
-        )
-        val interactor = homeFactory(capabilities, {}).create(
-            scope = this,
-            initialState = HomeState(content = expected, loading = false),
-        )
-
+        val capabilities = FakeHomeCapabilities(snapshot(), HomeImportPreparationResult.Terminal(HomeImportResult.Cancelled))
+        val interactor = homeFactory(capabilities, {}).create(this, HomeState(content = expected, loading = false))
         interactor.dispatch(HomeIntent.ImportSelected)
         advanceUntilIdle()
-
         assertNull(interactor.state.value.importPreview)
-        assertNull(interactor.state.value.importResult)
         assertEquals(1, capabilities.prepares)
         assertEquals(0, capabilities.confirms)
         assertEquals(0, capabilities.loads)
@@ -181,28 +130,18 @@ class HomeFeatureTest {
     @Test
     fun factory_wires_semantic_outputs_without_app_routes() = runTest {
         val outputs = mutableListOf<HomeOutput>()
-        val capabilities = FakeHomeCapabilities(snapshot())
-        val interactor = homeFactory(capabilities, outputs::add).create(this)
-
+        val interactor = homeFactory(FakeHomeCapabilities(snapshot()), outputs::add).create(this)
         interactor.dispatch(HomeIntent.UtilitySelected)
         interactor.dispatch(HomeIntent.CreateSelected)
         interactor.dispatch(HomeIntent.GameSelected(testGameId))
-
         assertEquals(
-            listOf(
-                HomeOutput.UtilityRequested,
-                HomeOutput.CreateRequested,
-                HomeOutput.GameRequested(testGameId),
-            ),
+            listOf(HomeOutput.UtilityRequested, HomeOutput.CreateRequested, HomeOutput.GameRequested(testGameId)),
             outputs,
         )
     }
 }
 
-private fun homeFactory(
-    capabilities: FakeHomeCapabilities,
-    output: (HomeOutput) -> Unit,
-): HomeFactory = HomeFactory(
+private fun homeFactory(capabilities: FakeHomeCapabilities, output: (HomeOutput) -> Unit): HomeFactory = HomeFactory(
     snapshotLoader = capabilities,
     importPreparer = capabilities,
     importConfirmer = capabilities,
@@ -217,8 +156,7 @@ private fun snapshot(): LocalGameSnapshot = LocalGameSnapshot(
 
 private class FakeHomeCapabilities(
     private val snapshot: LocalGameSnapshot,
-    private val preparation: HomeImportPreparationResult =
-        HomeImportPreparationResult.Terminal(HomeImportResult.Unavailable),
+    private val preparation: HomeImportPreparationResult = HomeImportPreparationResult.Terminal(HomeImportResult.Unavailable),
     private val confirmResult: HomeImportResult = HomeImportResult.Unavailable,
 ) : GameSnapshotLoader, GameImportPreparer, GameImportConfirmer, GameImportCanceller {
     var loads = 0
@@ -230,18 +168,7 @@ private class FakeHomeCapabilities(
         loads += 1
         return LocalGameResult.Success(snapshot)
     }
-
-    override suspend fun prepareImport(): HomeImportPreparationResult {
-        prepares += 1
-        return preparation
-    }
-
-    override suspend fun confirmImport(): HomeImportResult {
-        confirms += 1
-        return confirmResult
-    }
-
-    override fun cancelImport() {
-        cancels += 1
-    }
+    override suspend fun prepareImport(): HomeImportPreparationResult { prepares += 1; return preparation }
+    override suspend fun confirmImport(): HomeImportResult { confirms += 1; return confirmResult }
+    override fun cancelImport() { cancels += 1 }
 }

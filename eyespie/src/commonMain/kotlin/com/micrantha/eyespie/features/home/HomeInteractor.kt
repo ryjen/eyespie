@@ -3,7 +3,10 @@ package com.micrantha.eyespie.features.home
 import com.micrantha.eyespie.game.GameSnapshotLoader
 import com.micrantha.eyespie.game.LocalGameResult
 import com.micrantha.eyespie.mvi.BaseInteractor
+import com.micrantha.eyespie.mvi.EffectEmitter
+import com.micrantha.eyespie.mvi.EffectSource
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
 
 class HomeInteractor(
@@ -14,7 +17,10 @@ class HomeInteractor(
     private val scope: CoroutineScope,
     private val output: (HomeOutput) -> Unit,
     initialState: HomeState = HomeState(),
-) : BaseInteractor<HomeState, HomeIntent>(initialState, HomeReducer) {
+) : BaseInteractor<HomeState, HomeIntent>(initialState, HomeReducer), EffectSource<HomeEffect> {
+    private val effectEmitter = EffectEmitter<HomeEffect>()
+    override val effects: Flow<HomeEffect> = effectEmitter.effects
+
     override fun afterReduce(
         intent: HomeIntent,
         previousState: HomeState,
@@ -48,6 +54,9 @@ class HomeInteractor(
                         dispatch(HomeIntent.Refresh)
                     }
                 }
+            }
+            is HomeIntent.ImportFinished -> if (intent.result != HomeImportResult.Cancelled) {
+                effectEmitter.emit(HomeEffect.ImportFinished(intent.result))
             }
             HomeIntent.ImportPreviewCancelled -> if (!previousState.importInProgress && previousState.importPreview != null) {
                 importCanceller.cancelImport()
