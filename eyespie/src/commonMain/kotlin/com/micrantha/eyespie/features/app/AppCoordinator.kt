@@ -9,10 +9,10 @@ import com.micrantha.eyespie.features.play.PlayGameOutput
 import com.micrantha.eyespie.features.utility.UtilityOutput
 
 class AppCoordinator(
-    private val navigator: AppNavigator,
+    private val navigation: AppNavigation,
 ) {
     fun onHomeOutput(output: HomeOutput) {
-        navigator.navigate(
+        navigation.push(
             when (output) {
                 HomeOutput.OnboardingRequested -> AppRoute.Onboarding
                 HomeOutput.UtilityRequested -> AppRoute.Utility
@@ -25,43 +25,43 @@ class AppCoordinator(
     fun onOnboardingOutput(output: OnboardingOutput) {
         when (output) {
             OnboardingOutput.Completed,
-            OnboardingOutput.Dismissed -> navigator.navigate(AppRoute.Home)
+            OnboardingOutput.Dismissed -> navigation.replaceAll(AppRoute.Home)
         }
     }
 
     fun onUtilityOutput(output: UtilityOutput) {
         when (output) {
-            UtilityOutput.Closed -> navigator.navigate(AppRoute.Home)
-            UtilityOutput.OnboardingRequested -> navigator.navigate(AppRoute.Onboarding)
+            UtilityOutput.Closed -> navigation.pop()
+            UtilityOutput.OnboardingRequested -> navigation.push(AppRoute.Onboarding)
         }
     }
 
     fun onCreateGameOutput(output: CreateGameOutput) {
         when (output) {
             CreateGameOutput.Created,
-            CreateGameOutput.Cancelled -> navigator.navigate(AppRoute.Home)
+            CreateGameOutput.Cancelled -> navigation.pop()
         }
     }
 
     fun onGameDetailOutput(output: GameDetailOutput) {
         when (output) {
-            GameDetailOutput.Closed -> navigator.navigate(AppRoute.Home)
-            is GameDetailOutput.AddClueRequested -> navigator.navigate(AppRoute.ClueAuthoring(output.gameId))
-            is GameDetailOutput.PlayRequested -> navigator.navigate(AppRoute.Play(output.gameId, output.thingId))
+            GameDetailOutput.Closed -> navigation.pop()
+            is GameDetailOutput.AddClueRequested -> navigation.push(AppRoute.ClueAuthoring(output.gameId))
+            is GameDetailOutput.PlayRequested -> navigation.push(AppRoute.Play(output.gameId, output.thingId))
         }
     }
 
     fun onClueAuthoringOutput(output: ClueAuthoringOutput) {
         when (output) {
-            is ClueAuthoringOutput.Closed -> navigator.navigate(AppRoute.GameDetail(output.gameId))
-            is ClueAuthoringOutput.Completed -> navigator.navigate(AppRoute.GameDetail(output.gameId))
+            is ClueAuthoringOutput.Closed,
+            is ClueAuthoringOutput.Completed -> navigation.pop()
         }
     }
 
     fun onPlayGameOutput(output: PlayGameOutput) {
         when (output) {
-            is PlayGameOutput.Closed -> navigator.navigate(AppRoute.GameDetail(output.gameId))
-            is PlayGameOutput.Advance -> navigator.navigate(AppRoute.Play(output.gameId, output.thingId))
+            is PlayGameOutput.Closed -> navigation.pop()
+            is PlayGameOutput.Advance -> navigation.replace(AppRoute.Play(output.gameId, output.thingId))
         }
     }
 }

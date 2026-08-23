@@ -9,7 +9,6 @@ import com.micrantha.eyespie.features.play.PlayGameFactory
 import com.micrantha.eyespie.features.utility.UtilityFactory
 
 class AppGraph(
-    val navigator: AppNavigator,
     val homeFactory: HomeFactory,
     val onboardingFactory: OnboardingFactory,
     val utilityFactory: UtilityFactory,

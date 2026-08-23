@@ -22,7 +22,7 @@ import com.micrantha.eyespie.sharing.GameDocumentTransfer
 object AppGraphFactory {
     fun fromRuntime(
         runtime: EyespieRuntime,
-        navigator: AppNavigator = StateFlowAppNavigator(),
+        navigation: AppNavigation,
         documentTransfer: GameDocumentTransfer? = null,
     ): AppGraph {
         val capabilities = LocalGameAdapter(runtime, documentTransfer)
@@ -35,7 +35,7 @@ object AppGraphFactory {
             clueAuthor = capabilities,
             guessSubmitter = capabilities,
             onboardingPreferences = runtime.onboardingPreferences,
-            navigator = navigator,
+            navigation = navigation,
             gameSharer = capabilities,
         )
     }
@@ -49,12 +49,11 @@ object AppGraphFactory {
         clueAuthor: ClueAuthor,
         guessSubmitter: GuessSubmitter,
         onboardingPreferences: OnboardingPreferenceStore,
-        navigator: AppNavigator = StateFlowAppNavigator(),
+        navigation: AppNavigation,
         gameSharer: GameSharer = UnavailableGameSharer,
     ): AppGraph {
-        val coordinator = AppCoordinator(navigator)
+        val coordinator = AppCoordinator(navigation)
         return AppGraph(
-            navigator = navigator,
             homeFactory = HomeFactory(
                 snapshotLoader = gameSnapshotLoader,
                 importPreparer = gameImportPreparer,
