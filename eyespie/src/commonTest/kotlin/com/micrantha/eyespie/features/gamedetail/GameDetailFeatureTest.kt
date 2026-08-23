@@ -38,9 +38,9 @@ class GameDetailFeatureTest {
             name = "Lynn Valley",
             things = listOf(GameDetailThing(testThingId, "Find the red sign", false, 0.3)),
         )
-        val port = FakeGameDetailPort(expected)
+        val capabilities = FakeGameDetailCapabilities(expected)
         val outputs = mutableListOf<GameDetailOutput>()
-        val interactor = GameDetailFactory(port, outputs::add).create(this, testGameId)
+        val interactor = GameDetailFactory(capabilities, capabilities, outputs::add).create(this, testGameId)
 
         interactor.dispatch(GameDetailIntent.Load)
         assertTrue(interactor.state.value.loading)
@@ -48,7 +48,7 @@ class GameDetailFeatureTest {
 
         assertFalse(interactor.state.value.loading)
         assertEquals(expected, interactor.state.value.content)
-        assertEquals(listOf(testGameId), port.loads)
+        assertEquals(listOf(testGameId), capabilities.loads)
 
         interactor.dispatch(GameDetailIntent.PlaySelected(testThingId))
         interactor.dispatch(GameDetailIntent.Back)
@@ -64,14 +64,14 @@ class GameDetailFeatureTest {
 
     @OptIn(ExperimentalCoroutinesApi::class)
     @Test
-    fun local_creator_can_share_through_feature_port() = runTest {
+    fun local_creator_can_share_through_feature_capability() = runTest {
         val expected = GameDetailContent(
             name = "Lynn Valley",
             things = emptyList(),
             localCreator = true,
         )
-        val port = FakeGameDetailPort(expected, GameDetailShareResult.Shared)
-        val interactor = GameDetailFactory(port, {}).create(this, testGameId)
+        val capabilities = FakeGameDetailCapabilities(expected, GameDetailShareResult.Shared)
+        val interactor = GameDetailFactory(capabilities, capabilities, {}).create(this, testGameId)
 
         interactor.dispatch(GameDetailIntent.Load)
         advanceUntilIdle()
@@ -81,15 +81,15 @@ class GameDetailFeatureTest {
 
         assertFalse(interactor.state.value.shareInProgress)
         assertEquals(GameDetailShareResult.Shared, interactor.state.value.shareResult)
-        assertEquals(listOf(testGameId to "Lynn Valley"), port.shares)
+        assertEquals(listOf(testGameId to "Lynn Valley"), capabilities.shares)
     }
 
     @OptIn(ExperimentalCoroutinesApi::class)
     @Test
     fun imported_game_does_not_start_share_operation() = runTest {
         val expected = GameDetailContent("Imported", emptyList(), localCreator = false)
-        val port = FakeGameDetailPort(expected, GameDetailShareResult.Shared)
-        val interactor = GameDetailFactory(port, {}).create(this, testGameId)
+        val capabilities = FakeGameDetailCapabilities(expected, GameDetailShareResult.Shared)
+        val interactor = GameDetailFactory(capabilities, capabilities, {}).create(this, testGameId)
 
         interactor.dispatch(GameDetailIntent.Load)
         advanceUntilIdle()
@@ -97,14 +97,14 @@ class GameDetailFeatureTest {
         advanceUntilIdle()
 
         assertFalse(interactor.state.value.shareInProgress)
-        assertTrue(port.shares.isEmpty())
+        assertTrue(capabilities.shares.isEmpty())
     }
 }
 
-private class FakeGameDetailPort(
+private class FakeGameDetailCapabilities(
     private val content: GameDetailContent,
     private val shareResult: GameDetailShareResult = GameDetailShareResult.Unavailable,
-) : GameDetailPort {
+) : GameDetailLoader, GameSharer {
     val loads = mutableListOf<GameId>()
     val shares = mutableListOf<Pair<GameId, String>>()
 

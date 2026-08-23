@@ -5,7 +5,7 @@ import com.micrantha.eyespie.game.AuthoredThing
 import com.micrantha.eyespie.game.LocalGameResult
 import com.micrantha.eyespie.imaging.CapturedImage
 
-interface ClueAuthoringPort {
+interface ClueAuthor {
     suspend fun addClue(
         gameId: GameId,
         clueText: String,

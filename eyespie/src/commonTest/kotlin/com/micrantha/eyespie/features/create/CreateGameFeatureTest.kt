@@ -34,10 +34,10 @@ class CreateGameFeatureTest {
 
     @OptIn(ExperimentalCoroutinesApi::class)
     @Test
-    fun factory_injects_create_port_and_emits_created_output() = runTest {
-        val port = FakeCreatePort()
+    fun factory_injects_game_creator_and_emits_created_output() = runTest {
+        val creator = FakeGameCreator()
         val outputs = mutableListOf<CreateGameOutput>()
-        val interactor = CreateGameFactory(port, outputs::add).create(this)
+        val interactor = CreateGameFactory(creator, outputs::add).create(this)
         interactor.dispatch(CreateGameIntent.NameChanged("Trip"))
         interactor.dispatch(CreateGameIntent.ClueChanged("Find it"))
         interactor.dispatch(CreateGameIntent.ExpectedAnswerChanged("it"))
@@ -48,7 +48,7 @@ class CreateGameFeatureTest {
 
         assertFalse(interactor.state.value.busy)
         assertEquals(listOf<CreateGameOutput>(CreateGameOutput.Created), outputs)
-        assertEquals(1, port.creates)
+        assertEquals(1, creator.creates)
         assertEquals(CreateGameState(), interactor.state.value)
     }
 
@@ -56,7 +56,7 @@ class CreateGameFeatureTest {
     @Test
     fun cancelling_route_scope_prevents_stale_completion_output() = runTest {
         val result = CompletableDeferred<LocalGameResult<CreatedGame>>()
-        val port = object : CreateGamePort {
+        val creator = object : GameCreator {
             override suspend fun create(
                 name: String,
                 clueText: String,
@@ -67,7 +67,7 @@ class CreateGameFeatureTest {
         val routeJob = Job()
         val routeScope = CoroutineScope(StandardTestDispatcher(testScheduler) + routeJob)
         val outputs = mutableListOf<CreateGameOutput>()
-        val interactor = CreateGameFactory(port, outputs::add).create(routeScope)
+        val interactor = CreateGameFactory(creator, outputs::add).create(routeScope)
         interactor.dispatch(CreateGameIntent.NameChanged("Trip"))
         interactor.dispatch(CreateGameIntent.ClueChanged("Find it"))
         interactor.dispatch(CreateGameIntent.ExpectedAnswerChanged("it"))
@@ -82,7 +82,7 @@ class CreateGameFeatureTest {
     }
 }
 
-private class FakeCreatePort : CreateGamePort {
+private class FakeGameCreator : GameCreator {
     var creates = 0
 
     override suspend fun create(

@@ -7,17 +7,28 @@ import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
 class ClueAuthoringInteractor(
-    private val port: ClueAuthoringPort,
+    private val author: ClueAuthor,
     private val scope: CoroutineScope,
     private val gameId: GameId,
     private val output: (ClueAuthoringOutput) -> Unit,
     initialState: ClueAuthoringState = ClueAuthoringState(),
 ) : BaseInteractor<ClueAuthoringState, ClueAuthoringIntent>(initialState, ClueAuthoringReducer) {
-    override fun afterReduce(intent: ClueAuthoringIntent, previousState: ClueAuthoringState, stateAfterReduce: ClueAuthoringState) {
+    override fun afterReduce(
+        intent: ClueAuthoringIntent,
+        previousState: ClueAuthoringState,
+        stateAfterReduce: ClueAuthoringState,
+    ) {
         when (intent) {
             is ClueAuthoringIntent.TargetCaptured -> if (!previousState.busy) {
                 scope.launch {
-                    when (val result = port.addClue(gameId, previousState.clue, previousState.expectedAnswer, intent.image)) {
+                    when (
+                        val result = author.addClue(
+                            gameId = gameId,
+                            clueText = previousState.clue,
+                            expectedAnswer = previousState.expectedAnswer,
+                            targetImage = intent.image,
+                        )
+                    ) {
                         is LocalGameResult.Success -> {
                             dispatch(ClueAuthoringIntent.Added)
                             output(ClueAuthoringOutput.Completed(gameId))
