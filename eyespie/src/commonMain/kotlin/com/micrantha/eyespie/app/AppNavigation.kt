@@ -1,4 +1,4 @@
-package com.micrantha.eyespie.features.app
+package com.micrantha.eyespie.app
 
 interface AppNavigation {
     fun push(route: AppRoute)

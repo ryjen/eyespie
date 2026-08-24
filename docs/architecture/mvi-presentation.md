@@ -1,51 +1,91 @@
 # MVI Presentation Architecture
 
-Eyespie uses the feature-level MVI interactor model established in Achillea, adapted to Kotlin Multiplatform and Compose. The pre-backendless Eyespie branch provides historical precedent for feature-owned state machines and ScreenModel-style orchestration; the current backendless/local-authoritative runtime remains the implementation boundary below presentation.
+Eyespie uses feature-level MVI adapted to Kotlin Multiplatform and Compose. The backendless/local-authoritative runtime remains the authority below presentation; MVI owns presentation state and orchestration, not game persistence or domain truth.
 
 ## Core contract
 
 ```text
-Intent -> Interactor -> Reducer -> immutable State
+Intent -> Interactor -> pure Reducer -> immutable State
           |
-          +-> induced work through feature-owned ports
+          +-> induced work through narrow capabilities
+          |
+          +-> one-shot Effect
           |
           +-> semantic feature Output
 ```
 
 - `State` is immutable, lightweight presentation state.
 - `Intent` is a typed user/system event entering the feature.
-- `Reducer` is pure and synchronous: `(State, Intent) -> State`.
-- `Interactor` always reduces first, then induces asynchronous work or emits a semantic output.
-- `Port` is an interface owned by the consuming feature and implemented by the app/runtime adapter.
-- `Output` is a semantic feature event; it never contains an app route.
+- `Reducer` is pure, synchronous, and deterministic: `(State, Intent) -> State`.
+- `Interactor` owns orchestration around reduction and asynchronous capability calls.
+- `StateReader` and `IntentDispatcher` expose the minimum common interaction surface.
+- `EffectSource` exposes transient one-shot presentation events when a feature needs them.
+- `Output` is a semantic feature event for the application coordinator; it never contains a navigation-framework type.
 - `StateFlow` is the common KMP state container.
+
+Reducers do not perform I/O, launch coroutines, navigate, resolve resources, emit snackbars, access clocks/randomness implicitly, or mutate external state.
 
 ## Dependency direction
 
 ```text
-app -> feature contracts + feature factories/routes
-feature -> domain/core + feature-owned port
-runtime adapter -> feature-owned ports
-
-feature -X-> features.app
-feature -X-> another feature
+app composition/navigation
+        |
+        v
+presentation features -> application/domain capabilities
+        |                         |
+        v                         v
+presentation mappers         domain/core
+                                  |
+                                  v
+                          data/persistence
 ```
 
-The app may know all features. Features do not know application navigation, application DI, or other features.
+The app layer may know all features. A feature must not import application composition/navigation or another feature.
+
+Use narrow capability interfaces named for what they do (`GameCreator`, `GameSnapshotLoader`, `GuessSubmitter`, `GameSharer`, etc.). `Port` and `Adapter` are not default architectural suffixes. Reserve `Adapter` for genuine external API/type translation.
+
+## Data, domain, and presentation boundaries
+
+The preferred flow is:
+
+```text
+SQL row / serialized DTO
+        |
+        v
+     data mapper
+        |
+        v
+domain/application model
+        |
+        v
+ presentation mapper
+        |
+        v
+feature State
+```
+
+- Persistence/transport representations stay below the data boundary.
+- Domain models contain gameplay concepts and invariants, not Compose resources, navigation, formatting, or SQL concerns.
+- Presentation state contains exactly what a screen needs and is never persistence authority.
+- Non-trivial conversions should be explicit, pure, testable mappers.
+- Avoid mapper ceremony where two trivial value representations are genuinely identical.
+
+`LocalGameSnapshot` is the neutral application/domain projection used by current feature loaders; Home, Utility, Game Detail, and Play derive screen-specific presentation content through pure mappers.
 
 ## Route / Screen invariant
 
 Every interactive feature has a higher-order route and a pure screen.
 
 ```text
-AppRoute
-   |
-   v
+Voyager Screen / AppRoute
+        |
+        v
 FeatureRoute
    |-- creates route-scoped interactor through FeatureFactory
    |-- owns route CoroutineScope lifetime
-   |-- collects StateFlow
-   v
+   |-- collects StateFlow and optional EffectSource
+        |
+        v
 FeatureScreen(state, dispatch)
 ```
 
@@ -59,103 +99,95 @@ fun CreateGameScreen(
 )
 ```
 
-Screens do not receive or resolve navigators, repositories, ports, factories, coroutine scopes, app graphs, or domain/application services. Platform UI surfaces such as camera preview/capture may live inside a screen but may only return bounded values by dispatching intents.
+Screens do not receive or resolve navigators, repositories, capability implementations, factories, coroutine scopes, app graphs, or domain/application services. Platform UI surfaces such as camera preview/capture may live inside a screen but return bounded values by dispatching intents.
 
-The route is responsible for interactor initialization and state binding. Route-owned coroutine scopes are cancelled when the route leaves composition, releasing feature work and retained state.
+Route-owned work is cancelled when the route leaves composition.
 
 ## Feature file layout
 
-Prefer one concern per file:
+Prefer one cohesive concern per file without forcing ceremony around tiny declarations:
 
 ```text
 features/<feature>/
 ├── <Feature>State.kt
 ├── <Feature>Intent.kt
 ├── <Feature>Output.kt
-├── <Feature>Port.kt
+├── <Feature>Effect.kt          # only when transient events exist
+├── <Capability>.kt            # one narrow capability per responsibility
 ├── <Feature>Reducer.kt
 ├── <Feature>Interactor.kt
 ├── <Feature>Factory.kt
+├── <Feature>Mapper.kt          # when presentation projection is non-trivial
 ├── <Feature>Route.kt
 └── <Feature>Screen.kt
 ```
 
-Feature-specific presentation failure types may be separate files as needed.
+## Application composition and navigation
 
-## App layer
-
-`features/app` owns application composition and route translation, split by responsibility:
+Application composition/navigation belongs outside `features/` in the top-level `app` package:
 
 ```text
-features/app/
-├── AppRoute.kt
-├── AppNavigator.kt
-├── StateFlowAppNavigator.kt
+app/
 ├── AppCoordinator.kt
 ├── AppGraph.kt
 ├── AppGraphFactory.kt
+├── AppRoute.kt
+├── AppNavigation.kt
+├── AppNavigationBridge.kt
+├── AppDestination.kt
+├── VoyagerAppNavigation.kt
 └── RuntimeAdapters.kt
 ```
 
-- `AppRoute` defines implemented application destinations.
-- `AppNavigator` owns application route state only.
-- `AppCoordinator` translates feature outputs into app routes.
-- `AppGraph` contains already-composed factories/navigation, not process-lifetime feature interactors.
-- `AppGraphFactory` is the composition root.
-- `RuntimeAdapters` implement feature-owned ports over `EyespieRuntime`/`LocalGameLoop`.
+The package boundary is the important ownership signal; a second `app/navigation` namespace is unnecessary while this set remains small. `RuntimeAdapters` is retained only for implementations that genuinely translate runtime/platform APIs into the narrow capabilities consumed above them; `Adapter` is not a general architecture suffix.
 
-No service locator or DI/navigation framework is required for this topology.
+`AppCoordinator` translates semantic feature outputs into application navigation commands. `AppGraphFactory` is the composition root and supplies already-composed feature factories/capabilities; it does not retain process-lifetime feature interactors.
+
+Voyager is the single back-stack owner. The app keeps a small command-oriented `AppNavigation` seam (`push`, `pop`, `replace`, `replaceAll`) so coordinator behavior remains framework-independent and unit-testable. Voyager types do not enter feature, domain, or data APIs.
+
+Parameterized destinations use explicit screen keys. Route-scoped interactor disposal remains tied to composition lifetime.
+
+## Transient feedback
+
+Do not put one-shot success/minor recoverable feedback into durable state merely so the UI can consume/reset it.
+
+- transient result -> typed `EffectSource` event -> localized presentation message -> shared `SnackbarHost`;
+- persistent actionable condition -> feature state;
+- destructive/explicit confirmation -> dialog/sheet state;
+- application transition -> semantic feature `Output` -> `AppCoordinator`.
+
+The app shell owns the shared snackbar host. Typed lower-layer failures remain UI-independent and are mapped to Compose resources at the presentation edge.
+
+## Package and naming guidance
+
+Package ownership is the first layer signal; add type prefixes only when ambiguity remains.
+
+Current ownership:
+
+- `core` — domain kernel/value types/matching contracts;
+- `game` — local application/game orchestration;
+- `persistence` — SQLDelight-backed data implementations;
+- `features` — presentation features;
+- `presentation` — shared presentation mapping/resources;
+- `app` — application composition and navigation.
+
+Prefer names such as `data.repository.SqlGameRepository` or `presentation.game.GameState`; do not mechanically produce redundant names such as `data.repository.DataSqlGameRepository` when the package is already clear.
 
 ## Routing and product mockups
 
-The product route-map direction comes from `docs/design/eyespie-app-mockups/` and #220. The board covers onboarding, game list/detail, create/clue authoring, signed share/export, import, play/camera, progress, and profile/settings.
+The product route-map direction comes from `docs/design/eyespie-app-mockups/` and #220. Only implemented destinations belong in `AppRoute`; do not add dead placeholder screens merely to mirror the board.
 
-Only implemented destinations belong in `AppRoute`; do not add dead placeholder screens merely to mirror the board. Future destinations must follow the same feature-output -> `AppCoordinator` -> `AppRoute` direction.
+Keep routing coarse-grained. Transient variants such as import preview/success/conflict/invalid remain feature state/effects unless they require distinct back-stack/lifecycle semantics.
 
-Keep routing coarse-grained. Transient variants such as import preview/success/conflict/invalid should normally remain one feature's state unless they require distinct back-stack/lifecycle semantics.
-
-The mockups are UX direction, not authority/security overrides. Their documented corrections for document import, non-mutating conflicts, and signed-bundle privacy/provenance remain binding.
+The mockups are UX direction, not authority/security overrides.
 
 ## Performance and memory
 
-Presentation architecture is also a lifetime/allocation boundary.
+Application lifetime may retain navigation, coordinator, runtime capability implementations, and feature factories. Route lifetime owns feature interactors, feature state flows, route coroutine jobs, and transient operation closures.
 
-### Object lifetime
+Camera frames, decoded images, `CapturedImage`, embeddings, model/session handles, and other large/native values must not be retained in long-lived presentation state. A capture may enter as an intent and be retained only by the induced operation while it runs.
 
-Application lifetime:
-
-- navigator;
-- coordinator;
-- runtime adapter(s);
-- feature factories.
-
-Route lifetime:
-
-- feature interactor;
-- feature `StateFlow`;
-- route coroutine jobs;
-- transient capture/operation closures.
-
-Do not eagerly retain every feature interactor for process lifetime.
-
-### Heavy values
-
-Camera frames, decoded images, `CapturedImage`, embeddings, model/session handles, and other large/native values must not be retained in long-lived presentation state.
-
-A capture may enter as an intent and be held only by the induced operation while it is running. Reducers store lightweight flags/results instead.
-
-### Presentation state sizing
-
-State contains exactly what the screen needs. Prefer IDs and small presentation models over carrying domain aggregates or duplicate whole-app snapshots.
-
-Current implementation follows this by:
-
-- mapping Home's runtime snapshot into `HomeContent`;
-- initializing Play from `GameId`/`ThingId` and loading a small `PlayGameContent`;
-- using `GuessOutcome.progress` directly after a guess rather than reloading/adopting the entire Home snapshot;
-- returning Home to an independent refresh on route entry after Create/Play.
-
-Whole-snapshot reloads remain acceptable at the runtime boundary for alpha, but should not become cross-feature presentation synchronization. If data volume grows, prefer narrow queries/events rather than rebuilding duplicate presentation graphs after every operation.
+Prefer IDs and small presentation models over domain aggregates or duplicate whole-app snapshots. If data volume grows, prefer narrow queries/events rather than cross-feature presentation synchronization.
 
 ## Backendless authority boundary
 
@@ -163,45 +195,47 @@ MVI does not become game authority:
 
 - SQLDelight owns persisted local game/progress state.
 - `LocalGameLoop` owns game orchestration and matching.
-- MediaPipe remains behind embedding boundaries.
+- MediaPipe remains behind embedding capabilities.
 - platform implementations own camera/native lifecycle.
 - cryptographic identity remains platform-backed.
 
-Runtime adapters translate those capabilities into feature-owned ports; features do not duplicate authority.
+Features depend on narrow capabilities and domain/application results rather than persistence/platform implementations.
 
 ## Test triangle
 
 Every interactive feature has three test sides:
 
-1. **Reducer** — deterministic `State + Intent -> State` transitions.
-2. **Interactor through feature factory** — behavior/effects using fake feature-owned ports; tests do not recreate production constructor wiring manually.
-3. **Screen** — render/interaction coverage against the pure two-parameter screen; user interaction emits the expected intent and rendered output derives only from state.
+1. **Reducer** — synchronous deterministic `State + Intent -> State` tests.
+2. **Interactor/factory** — orchestration, capability use, outputs, and effects through focused fakes.
+3. **Screen** — render/interaction coverage for the pure two-parameter screen.
 
-Reducer/interactor coverage runs in common/JVM tests. Pure Compose screen interaction coverage runs as Android instrumentation against a GitHub-hosted emulator in `.github/workflows/android-screen-instrumentation.yml`. The emulator keeps camera hardware available but leaves CAMERA permission ungranted, so rendering exercises the requestable-permission presentation state without opening CameraX or MediaPipe. CI also uses enlarged system text and scroll-based interactions to cover long-copy navigation. This boundary does not depend on Dubnium or physical camera hardware. Physical-device MediaPipe calibration remains separate and is intentionally excluded from the hosted screen suite.
+Reducer/interactor coverage runs in common/JVM tests. Compose feature-screen interactions run as Android instrumentation on the hosted emulator. Physical MediaPipe calibration remains a separate evidence boundary.
 
-App tests are separate:
+Application tests cover:
 
-- `AppCoordinator` output -> route translation;
-- navigator behavior;
-- `AppGraphFactory` composition from replaceable ports;
-- production runtime-adapter wiring where useful.
+- `AppCoordinator` semantic output -> navigation command translation;
+- `AppNavigationBridge` delegation;
+- `AppGraphFactory` composition from narrow capabilities;
+- production runtime capability wiring where useful.
 
-Feature unit tests do not depend on the global `AppGraph`.
+Feature tests do not depend on the global `AppGraph` or Voyager.
 
 ## Architecture enforcement
 
 The following are architectural failures:
 
-- a feature source importing `features.app`;
+- a feature source importing `com.micrantha.eyespie.app...`;
 - a feature importing another feature;
 - a pure screen with parameters other than `state` and `dispatch`;
 - a screen resolving DI/navigation/services;
-- a feature interactor depending on `AppRoute`/`AppNavigator`;
+- a feature interactor depending on `AppRoute`, Voyager, SQLDelight rows, or platform implementations;
+- a reducer performing side effects or external mutation;
+- presentation models flowing down into data/runtime contracts;
 - heavy/native capture/model values stored in long-lived state;
 - route-scoped work launched into an application-lifetime scope.
 
-These rules should be enforced with lightweight static checks in addition to code review.
+`scripts/verify_feature_boundaries.py` enforces the import and screen-signature subset in CI; tests cover the verifier itself.
 
 ## Non-goals
 
-This architecture does not restore the old Kodein/Voyager/Supabase feature graph, add Koin/Hilt/Decompose, or change SQLDelight/MediaPipe/identity authority. Framework adoption requires a demonstrated complexity need and a separate architecture decision.
+This architecture does not restore the old Supabase/backend graph, old Kodein feature graph, or vendored Bluebell runtime. It does not make Voyager the application/domain architecture, and it does not require speculative abstraction extraction into Bluebell/community before an Eyespie abstraction proves reusable.

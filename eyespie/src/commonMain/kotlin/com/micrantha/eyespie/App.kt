@@ -22,13 +22,13 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import cafe.adriel.voyager.navigator.Navigator
-import com.micrantha.eyespie.features.app.AppGraphFactory
-import com.micrantha.eyespie.features.app.AppNavigationBridge
-import com.micrantha.eyespie.features.app.AppRoute
-import com.micrantha.eyespie.features.app.LocalAppGraph
-import com.micrantha.eyespie.features.app.LocalAppMessageSink
-import com.micrantha.eyespie.features.app.VoyagerAppNavigation
-import com.micrantha.eyespie.features.app.toDestination
+import com.micrantha.eyespie.app.AppGraphFactory
+import com.micrantha.eyespie.app.AppNavigationBridge
+import com.micrantha.eyespie.app.AppRoute
+import com.micrantha.eyespie.app.LocalAppGraph
+import com.micrantha.eyespie.app.LocalAppMessageSink
+import com.micrantha.eyespie.app.VoyagerAppNavigation
+import com.micrantha.eyespie.app.toDestination
 import com.micrantha.eyespie.game.EyespieRuntime
 import com.micrantha.eyespie.sharing.GameDocumentTransfer
 
