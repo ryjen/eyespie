@@ -7,6 +7,10 @@ plugins {
     alias(libs.plugins.sqldelight)
 }
 
+compose.resources {
+    packageOfResClass = "com.micrantha.eyespie.generated.resources"
+}
+
 fun xcconfigValue(path: String, name: String): String {
     val configFile = rootProject.file(path)
     return configFile
