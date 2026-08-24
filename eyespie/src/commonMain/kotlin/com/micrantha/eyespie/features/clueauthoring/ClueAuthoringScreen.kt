@@ -18,6 +18,8 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import com.micrantha.eyespie.imaging.CameraAvailability
 import com.micrantha.eyespie.imaging.CameraCapture
+import com.micrantha.eyespie.presentation.cameraUnavailableMessage
+import com.micrantha.eyespie.presentation.clueTargetCameraPermissionMessage
 import com.micrantha.eyespie.presentation.localGameFailureMessage
 
 @Composable
@@ -33,7 +35,7 @@ fun ClueAuthoringScreen(
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 Text(
                     when (failure) {
-                        ClueAuthoringFailure.CameraUnavailable -> "No usable camera is available on this device."
+                        ClueAuthoringFailure.CameraUnavailable -> cameraUnavailableMessage()
                         is ClueAuthoringFailure.Game -> localGameFailureMessage(failure.failure)
                     },
                     modifier = Modifier.weight(1f),
@@ -77,7 +79,7 @@ fun ClueAuthoringScreen(
             },
             recoveryButton = { openSettings ->
                 Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                    Text("Camera permission is turned off. Enable it in system settings to capture this clue target.")
+                    Text(clueTargetCameraPermissionMessage())
                     OutlinedButton(
                         modifier = Modifier.fillMaxWidth(),
                         onClick = openSettings,
