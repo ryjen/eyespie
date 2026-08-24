@@ -4,32 +4,19 @@ import com.micrantha.eyespie.core.GameId
 import com.micrantha.eyespie.core.ThingId
 import com.micrantha.eyespie.features.clueauthoring.ClueAuthor
 import com.micrantha.eyespie.features.create.GameCreator
-import com.micrantha.eyespie.features.gamedetail.GameDetailContent
-import com.micrantha.eyespie.features.gamedetail.GameDetailLoader
 import com.micrantha.eyespie.features.gamedetail.GameDetailShareResult
-import com.micrantha.eyespie.features.gamedetail.GameDetailThing
 import com.micrantha.eyespie.features.gamedetail.GameSharer
 import com.micrantha.eyespie.features.home.GameImportCanceller
 import com.micrantha.eyespie.features.home.GameImportConfirmer
 import com.micrantha.eyespie.features.home.GameImportPreparer
-import com.micrantha.eyespie.features.home.HomeContent
-import com.micrantha.eyespie.features.home.HomeGame
 import com.micrantha.eyespie.features.home.HomeImportPreparationResult
 import com.micrantha.eyespie.features.home.HomeImportPreview
 import com.micrantha.eyespie.features.home.HomeImportResult
-import com.micrantha.eyespie.features.home.HomeLoader
-import com.micrantha.eyespie.features.home.HomeThing
 import com.micrantha.eyespie.features.play.GuessSubmitter
-import com.micrantha.eyespie.features.play.PlayGameContent
-import com.micrantha.eyespie.features.play.PlayGameLoader
-import com.micrantha.eyespie.features.utility.UtilityContent
-import com.micrantha.eyespie.features.utility.UtilityLoader
 import com.micrantha.eyespie.game.AuthoredThing
 import com.micrantha.eyespie.game.CreatedGame
 import com.micrantha.eyespie.game.EyespieRuntime
 import com.micrantha.eyespie.game.GuessOutcome
-import com.micrantha.eyespie.game.LocalGameFailure
-import com.micrantha.eyespie.game.LocalGameFailureCode
 import com.micrantha.eyespie.game.LocalGameResult
 import com.micrantha.eyespie.imaging.CapturedImage
 import com.micrantha.eyespie.sharing.GameBundleExportFailureCode
@@ -45,56 +32,16 @@ import kotlin.coroutines.cancellation.CancellationException
 internal class LocalGameAdapter(
     runtime: EyespieRuntime,
     private val documentTransfer: GameDocumentTransfer? = null,
-) : HomeLoader,
-    GameImportPreparer,
+) : GameImportPreparer,
     GameImportConfirmer,
     GameImportCanceller,
-    UtilityLoader,
     GameCreator,
     ClueAuthor,
-    GameDetailLoader,
     GameSharer,
-    PlayGameLoader,
     GuessSubmitter {
     private val gameLoop = runtime.gameLoop
     private val bundleService = runtime.bundleService
     private var pendingImportBytes: ByteArray? = null
-
-    override suspend fun load(): LocalGameResult<HomeContent> = when (val result = gameLoop.loadSnapshot()) {
-        is LocalGameResult.Success -> LocalGameResult.Success(
-            HomeContent(
-                identityDisplayName = result.value.identity.displayName,
-                identityIdSuffix = result.value.identity.id.value.takeLast(12),
-                games = result.value.games.map { game ->
-                    HomeGame(
-                        id = game.id,
-                        name = game.name,
-                        things = game.things.map { thing ->
-                            HomeThing(
-                                id = thing.id,
-                                clueText = thing.clue.clueText,
-                                matched = thing.progress?.matched ?: false,
-                                bestSimilarity = thing.progress?.bestSimilarity,
-                            )
-                        },
-                        localCreator = game.localCreator,
-                    )
-                },
-            ),
-        )
-        is LocalGameResult.Failure -> result
-    }
-
-    override suspend fun loadUtility(): LocalGameResult<UtilityContent> =
-        when (val result = gameLoop.loadSnapshot()) {
-            is LocalGameResult.Success -> LocalGameResult.Success(
-                UtilityContent(
-                    identityDisplayName = result.value.identity.displayName,
-                    identityIdSuffix = result.value.identity.id.value.takeLast(12),
-                ),
-            )
-            is LocalGameResult.Failure -> result
-        }
 
     override suspend fun prepareImport(): HomeImportPreparationResult {
         cancelImport()
@@ -165,16 +112,6 @@ internal class LocalGameAdapter(
         targetImage: CapturedImage,
     ): LocalGameResult<AuthoredThing> = gameLoop.addClue(gameId, clueText, expectedAnswer, targetImage)
 
-    override suspend fun load(gameId: GameId): LocalGameResult<GameDetailContent> =
-        when (val result = load()) {
-            is LocalGameResult.Failure -> result
-            is LocalGameResult.Success -> {
-                val game = result.value.games.firstOrNull { it.id == gameId }
-                    ?: return LocalGameResult.Failure(LocalGameFailure(LocalGameFailureCode.GAME_NOT_FOUND))
-                LocalGameResult.Success(game.toGameDetailContent())
-            }
-        }
-
     override suspend fun share(gameId: GameId, gameName: String): GameDetailShareResult {
         val transfer = documentTransfer ?: return GameDetailShareResult.Unavailable
         return try {
@@ -203,54 +140,11 @@ internal class LocalGameAdapter(
         }
     }
 
-    override suspend fun load(gameId: GameId, thingId: ThingId): LocalGameResult<PlayGameContent> {
-        return when (val result = gameLoop.loadSnapshot()) {
-            is LocalGameResult.Failure -> result
-            is LocalGameResult.Success -> {
-                val game = result.value.games.firstOrNull { it.id == gameId }
-                    ?: return LocalGameResult.Failure(LocalGameFailure(LocalGameFailureCode.GAME_NOT_FOUND))
-                val currentIndex = game.things.indexOfFirst { it.id == thingId }
-                if (currentIndex < 0) {
-                    return LocalGameResult.Failure(LocalGameFailure(LocalGameFailureCode.THING_NOT_FOUND))
-                }
-                val thing = game.things[currentIndex]
-                val nextUnmatched = game.things.firstOrNull { candidate ->
-                    candidate.id != thingId && candidate.progress?.matched != true
-                }
-                LocalGameResult.Success(
-                    PlayGameContent(
-                        gameName = game.name,
-                        clueText = thing.clue.clueText,
-                        matched = thing.progress?.matched ?: false,
-                        bestSimilarity = thing.progress?.bestSimilarity,
-                        clueNumber = currentIndex + 1,
-                        clueCount = game.things.size,
-                        matchedClueCount = game.things.count { it.progress?.matched == true },
-                        nextThingId = nextUnmatched?.id,
-                    ),
-                )
-            }
-        }
-    }
-
     override suspend fun guess(
         gameId: GameId,
         thingId: ThingId,
         guessImage: CapturedImage,
     ): LocalGameResult<GuessOutcome> = gameLoop.guess(gameId, thingId, guessImage)
-}
-
-internal class HomeBackedGameDetailLoader(
-    private val homeLoader: HomeLoader,
-) : GameDetailLoader {
-    override suspend fun load(gameId: GameId): LocalGameResult<GameDetailContent> = when (val result = homeLoader.load()) {
-        is LocalGameResult.Failure -> result
-        is LocalGameResult.Success -> {
-            val game = result.value.games.firstOrNull { it.id == gameId }
-                ?: return LocalGameResult.Failure(LocalGameFailure(LocalGameFailureCode.GAME_NOT_FOUND))
-            LocalGameResult.Success(game.toGameDetailContent())
-        }
-    }
 }
 
 internal object UnavailableGameSharer : GameSharer {
@@ -267,16 +161,3 @@ private fun GameBundleImportResult.toHomeImportResult(): HomeImportResult = when
 }
 
 private fun mapImportResult(result: GameBundleImportResult): HomeImportResult = result.toHomeImportResult()
-
-private fun HomeGame.toGameDetailContent(): GameDetailContent = GameDetailContent(
-    name = name,
-    things = things.map { thing ->
-        GameDetailThing(
-            id = thing.id,
-            clueText = thing.clueText,
-            matched = thing.matched,
-            bestSimilarity = thing.bestSimilarity,
-        )
-    },
-    localCreator = localCreator,
-)

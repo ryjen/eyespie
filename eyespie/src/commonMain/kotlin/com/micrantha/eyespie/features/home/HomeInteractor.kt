@@ -1,12 +1,13 @@
 package com.micrantha.eyespie.features.home
 
+import com.micrantha.eyespie.game.GameSnapshotLoader
 import com.micrantha.eyespie.game.LocalGameResult
 import com.micrantha.eyespie.mvi.BaseInteractor
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
 class HomeInteractor(
-    private val loader: HomeLoader,
+    private val snapshotLoader: GameSnapshotLoader,
     private val importPreparer: GameImportPreparer,
     private val importConfirmer: GameImportConfirmer,
     private val importCanceller: GameImportCanceller,
@@ -23,8 +24,10 @@ class HomeInteractor(
             HomeIntent.Refresh -> {
                 val generation = stateAfterReduce.refreshGeneration
                 scope.launch {
-                    when (val result = loader.load()) {
-                        is LocalGameResult.Success -> dispatch(HomeIntent.ContentLoaded(generation, result.value))
+                    when (val result = snapshotLoader.loadSnapshot()) {
+                        is LocalGameResult.Success -> dispatch(
+                            HomeIntent.ContentLoaded(generation, HomeMapper.map(result.value)),
+                        )
                         is LocalGameResult.Failure -> dispatch(HomeIntent.OperationFailed(result.failure, generation))
                     }
                 }

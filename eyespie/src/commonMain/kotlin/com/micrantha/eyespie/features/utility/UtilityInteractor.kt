@@ -1,12 +1,13 @@
 package com.micrantha.eyespie.features.utility
 
+import com.micrantha.eyespie.game.GameSnapshotLoader
 import com.micrantha.eyespie.game.LocalGameResult
 import com.micrantha.eyespie.mvi.BaseInteractor
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
 class UtilityInteractor(
-    private val loader: UtilityLoader,
+    private val snapshotLoader: GameSnapshotLoader,
     private val scope: CoroutineScope,
     private val output: (UtilityOutput) -> Unit,
     initialState: UtilityState = UtilityState(),
@@ -21,8 +22,10 @@ class UtilityInteractor(
             UtilityIntent.Retry -> {
                 val generation = stateAfterReduce.loadGeneration
                 scope.launch {
-                    when (val result = loader.loadUtility()) {
-                        is LocalGameResult.Success -> dispatch(UtilityIntent.ContentLoaded(generation, result.value))
+                    when (val result = snapshotLoader.loadSnapshot()) {
+                        is LocalGameResult.Success -> dispatch(
+                            UtilityIntent.ContentLoaded(generation, UtilityMapper.map(result.value)),
+                        )
                         is LocalGameResult.Failure -> dispatch(UtilityIntent.LoadFailed(generation, result.failure))
                     }
                 }
