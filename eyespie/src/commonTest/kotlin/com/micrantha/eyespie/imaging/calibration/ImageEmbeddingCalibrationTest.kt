@@ -5,7 +5,10 @@ import com.micrantha.eyespie.imaging.IMAGE_EMBEDDER_MODEL_ID
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
-import kotlin.test.assertTrue
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.jsonArray
+import kotlinx.serialization.json.jsonObject
+import kotlinx.serialization.json.jsonPrimitive
 
 class ImageEmbeddingCalibrationTest {
     @Test
@@ -63,7 +66,7 @@ class ImageEmbeddingCalibrationTest {
     }
 
     @Test
-    fun rendersStableSchemaAndEscapesPlatformStrings() {
+    fun rendersStableSchemaWithLibraryEscaping() {
         val fixture = summarizeImageEmbeddingCalibrationFixture(
             id = "burger",
             role = "reference",
@@ -84,15 +87,21 @@ class ImageEmbeddingCalibrationTest {
             fixtures = listOf(fixture),
         )
 
-        val json = report.toCalibrationJson()
+        val root = Json.parseToJsonElement(report.toCalibrationJson()).jsonObject
 
-        assertTrue(json.contains("\"report_schema_version\": 2"))
-        assertTrue(json.contains("\"version\": \"0.1.0\", \"build\": 1"))
-        assertTrue(json.contains("\"id\": \"$IMAGE_EMBEDDER_MODEL_ID\""))
-        assertTrue(json.contains("\"dimensions\": $IMAGE_EMBEDDING_DIMENSIONS"))
-        assertTrue(json.contains("test\\\"maker"))
-        assertTrue(json.contains("model\\\\one"))
-        assertTrue(json.contains("test\\nos"))
+        assertEquals(2, root.getValue("report_schema_version").jsonPrimitive.content.toInt())
+        assertEquals("android", root.getValue("platform").jsonPrimitive.content)
+        assertEquals("0.1.0", root.getValue("application").jsonObject.getValue("version").jsonPrimitive.content)
+        assertEquals(1, root.getValue("application").jsonObject.getValue("build").jsonPrimitive.content.toInt())
+        assertEquals("test\"maker", root.getValue("device").jsonObject.getValue("manufacturer").jsonPrimitive.content)
+        assertEquals("model\\one", root.getValue("device").jsonObject.getValue("model").jsonPrimitive.content)
+        assertEquals("test\nos", root.getValue("device").jsonObject.getValue("os").jsonPrimitive.content)
+        assertEquals(IMAGE_EMBEDDER_MODEL_ID, root.getValue("model").jsonObject.getValue("id").jsonPrimitive.content)
+        assertEquals(
+            IMAGE_EMBEDDING_DIMENSIONS,
+            root.getValue("embedding_contract").jsonObject.getValue("dimensions").jsonPrimitive.content.toInt(),
+        )
+        assertEquals(1, root.getValue("fixtures").jsonArray.size)
     }
 
     private fun vector(first: Float, second: Float): List<Float> =

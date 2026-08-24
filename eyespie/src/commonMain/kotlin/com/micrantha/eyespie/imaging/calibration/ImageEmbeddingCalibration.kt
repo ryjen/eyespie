@@ -6,6 +6,14 @@ import com.micrantha.eyespie.imaging.IMAGE_EMBEDDING_DIMENSIONS
 import com.micrantha.eyespie.imaging.IMAGE_EMBEDDER_MODEL_ID
 import com.micrantha.eyespie.imaging.canonicalImageEmbedding
 import kotlin.math.abs
+import kotlinx.serialization.json.Json
+import kotlinx.serialization.json.JsonElement
+import kotlinx.serialization.json.JsonPrimitive
+import kotlinx.serialization.json.buildJsonArray
+import kotlinx.serialization.json.buildJsonObject
+import kotlinx.serialization.json.put
+import kotlinx.serialization.json.putJsonArray
+import kotlinx.serialization.json.putJsonObject
 
 internal const val IMAGE_EMBEDDING_CALIBRATION_REPORT_SCHEMA_VERSION = 2
 internal const val IMAGE_EMBEDDING_CALIBRATION_REPEAT_COUNT = 5
@@ -148,91 +156,58 @@ internal fun summarizeImageEmbeddingCalibrationFixture(
     )
 }
 
-internal fun ImageEmbeddingCalibrationReport.toCalibrationJson(): String = buildString {
-    append("{\n")
-    append("  \"report_schema_version\": ")
-    append(IMAGE_EMBEDDING_CALIBRATION_REPORT_SCHEMA_VERSION)
-    append(",\n")
-    append("  \"platform\": ")
-    appendJsonString(platform)
-    append(",\n")
-    append("  \"application\": {\"version\": ")
-    appendJsonString(application.version)
-    append(", \"build\": ")
-    append(application.build)
-    append("},\n")
-    append("  \"device\": {\"manufacturer\": ")
-    appendJsonString(device.manufacturer)
-    append(", \"model\": ")
-    appendJsonString(device.model)
-    append(", \"os\": ")
-    appendJsonString(device.os)
-    append("},\n")
-    append("  \"runtime\": {\"name\": ")
-    appendJsonString(runtime.name)
-    append(", \"version\": ")
-    appendJsonString(runtime.version)
-    append("},\n")
-    append("  \"model\": {\"id\": ")
-    appendJsonString(model.id)
-    append(", \"sha256\": ")
-    appendJsonString(model.sha256)
-    append("},\n")
-    append("  \"match_policy\": {\"cosine_threshold\": ")
-    append(matchPolicy.cosineThreshold)
-    append("},\n")
-    append("  \"embedding_contract\": {\"schema_version\": ")
-    append(IMAGE_EMBEDDING_CONTRACT_VERSION)
-    append(", \"dimensions\": ")
-    append(IMAGE_EMBEDDING_DIMENSIONS)
-    append("},\n")
-    append("  \"fixtures\": [\n")
-    fixtures.forEachIndexed { fixtureIndex, fixture ->
-        append("    {\"id\": ")
-        appendJsonString(fixture.id)
-        append(", \"role\": ")
-        appendJsonString(fixture.role)
-        append(", \"source_sha256\": ")
-        appendJsonString(fixture.sourceSha256)
-        append(", \"embedding\": [")
-        fixture.embedding.forEachIndexed { index, value ->
-            if (index > 0) append(',')
-            append(value)
+internal fun ImageEmbeddingCalibrationReport.toCalibrationJson(): String {
+    val payload = buildJsonObject {
+        put("report_schema_version", IMAGE_EMBEDDING_CALIBRATION_REPORT_SCHEMA_VERSION)
+        put("platform", platform)
+        putJsonObject("application") {
+            put("version", application.version)
+            put("build", application.build)
         }
-        append("], \"repeat_count\": ")
-        append(fixture.repeatCount)
-        append(", \"repeat_cosine_min\": ")
-        append(fixture.repeatCosineMin)
-        append(", \"repeat_max_abs_delta\": ")
-        append(fixture.repeatMaxAbsDelta)
-        append('}')
-        if (fixtureIndex < fixtures.lastIndex) append(',')
-        append('\n')
-    }
-    append("  ]\n")
-    append("}\n")
-}
-
-private fun StringBuilder.appendJsonString(value: String) {
-    append('"')
-    value.forEach { character ->
-        when (character) {
-            '"' -> append("\\\"")
-            '\\' -> append("\\\\")
-            '\b' -> append("\\b")
-            '\u000C' -> append("\\f")
-            '\n' -> append("\\n")
-            '\r' -> append("\\r")
-            '\t' -> append("\\t")
-            else -> {
-                if (character.code < 0x20) {
-                    append("\\u")
-                    append(character.code.toString(16).padStart(4, '0'))
-                } else {
-                    append(character)
-                }
+        putJsonObject("device") {
+            put("manufacturer", device.manufacturer)
+            put("model", device.model)
+            put("os", device.os)
+        }
+        putJsonObject("runtime") {
+            put("name", runtime.name)
+            put("version", runtime.version)
+        }
+        putJsonObject("model") {
+            put("id", model.id)
+            put("sha256", model.sha256)
+        }
+        putJsonObject("match_policy") {
+            put("cosine_threshold", matchPolicy.cosineThreshold)
+        }
+        putJsonObject("embedding_contract") {
+            put("schema_version", IMAGE_EMBEDDING_CONTRACT_VERSION)
+            put("dimensions", IMAGE_EMBEDDING_DIMENSIONS)
+        }
+        putJsonArray("fixtures") {
+            fixtures.forEach { fixture ->
+                add(
+                    buildJsonObject {
+                        put("id", fixture.id)
+                        put("role", fixture.role)
+                        put("source_sha256", fixture.sourceSha256)
+                        put(
+                            "embedding",
+                            buildJsonArray {
+                                fixture.embedding.forEach { value -> add(JsonPrimitive(value)) }
+                            },
+                        )
+                        put("repeat_count", fixture.repeatCount)
+                        put("repeat_cosine_min", fixture.repeatCosineMin)
+                        put("repeat_max_abs_delta", fixture.repeatMaxAbsDelta)
+                    },
+                )
             }
         }
     }
-    append('"')
+    return CALIBRATION_JSON.encodeToString(JsonElement.serializer(), payload) + "\n"
+}
+
+private val CALIBRATION_JSON = Json {
+    prettyPrint = true
 }
