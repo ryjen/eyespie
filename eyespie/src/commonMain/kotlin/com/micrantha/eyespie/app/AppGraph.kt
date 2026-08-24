@@ -1,4 +1,4 @@
-package com.micrantha.eyespie.features.app
+package com.micrantha.eyespie.app
 
 import com.micrantha.eyespie.features.clueauthoring.ClueAuthoringFactory
 import com.micrantha.eyespie.features.create.CreateGameFactory

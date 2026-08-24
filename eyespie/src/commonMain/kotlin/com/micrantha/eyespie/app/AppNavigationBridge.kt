@@ -1,4 +1,4 @@
-package com.micrantha.eyespie.features.app
+package com.micrantha.eyespie.app
 
 internal class AppNavigationBridge : AppNavigation {
     private var delegate: AppNavigation? = null

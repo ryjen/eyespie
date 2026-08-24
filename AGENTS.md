@@ -4,17 +4,36 @@
 
 Eyespie is a backendless-first Kotlin Multiplatform game. Core gameplay must build and function without a hosted account, backend configuration, or network connection.
 
-Cloud and peer networking are optional capabilities behind domain interfaces. Do not make Supabase, Firebase, Appwrite, PocketBase, or any other hosted provider a prerequisite for core domain behavior.
+Cloud and peer networking are optional capabilities behind domain/application interfaces. Do not make Supabase, Firebase, Appwrite, PocketBase, or another hosted provider a prerequisite for core behavior.
 
-## Core boundaries
+## Package ownership
 
-- `eyespie/src/commonMain`: portable domain, local gameplay, matching, and UI.
-- `eyespie/src/androidMain`: Android platform entry points and device integrations.
-- `eyespie/src/iosMain`: Apple platform entry points and device integrations.
-- `calibration/`, `models/`, `model-pack/`: retained model provenance and packaging infrastructure.
-- `iosApp/MediaPipePodspecs`: retained Eyespie MediaPipe Apple artifacts.
+Within `eyespie/src/commonMain/kotlin/com/micrantha/eyespie`:
 
-Use interfaces for replaceable capabilities such as identity persistence, game persistence, game transport, and optional cloud sync.
+- `core` — domain kernel, value types, matching contracts and invariants;
+- `game` — local application/game orchestration;
+- `persistence` — SQLDelight-backed data implementations and mapping/codecs;
+- `features` — presentation features and their MVI state machines;
+- `presentation` — shared presentation mapping/resources;
+- `app` — application composition and navigation.
+
+Platform source sets own platform entry points and device integrations. `calibration/`, `models/`, `model-pack/`, and `iosApp/MediaPipePodspecs` retain model provenance/packaging infrastructure.
+
+Prefer package ownership as the layer signal; add `Data*`, `Domain*`, or `Presentation*` prefixes only where imports would otherwise be ambiguous. Do not use `Port`/`Adapter` as default architectural suffixes. Reserve `Adapter` for genuine external API/type translation.
+
+## Dependency rules
+
+- Reducers are pure synchronous deterministic `(State, Intent) -> State` functions.
+- Interactors orchestrate capability calls and effects; reducers do not perform I/O, launch coroutines, navigate, or resolve resources.
+- Features depend on narrow capability interfaces and domain/application results, not SQLDelight rows, platform implementations, app navigation, or other features.
+- Data/persistence representations stay below the data boundary.
+- Presentation models do not flow downward into runtime/data contracts.
+- Non-trivial data -> domain and domain -> presentation translations use explicit testable mappers.
+- Transient success/minor recoverable feedback uses typed one-shot effects and the shared snackbar host; persistent actionable conditions remain state.
+- Voyager owns the app back stack. Feature outputs remain semantic and never expose Voyager types.
+- A feature must not import `com.micrantha.eyespie.app...` or another feature package. `scripts/verify_feature_boundaries.py` enforces this subset in CI.
+
+Use narrow interfaces for replaceable capabilities such as identity persistence, game persistence/query, embedding, import/export, sharing, and optional transports. Consumers should depend on the smallest capability they use.
 
 ## Product rules
 
@@ -23,15 +42,15 @@ Use interfaces for replaceable capabilities such as identity persistence, game p
 - A hosted account is never required to create or play a local game.
 - Portable games may contain target embeddings; document the anti-cheat tradeoff rather than pretending device-local secrets are inaccessible to the device owner.
 - Stronger multiplayer authority belongs in an optional host-authoritative transport.
-- Cloud adapters must be removable without changing core domain entities.
+- Optional cloud/network implementations must remain removable without changing core domain entities.
 
 ## Preservation
 
 The pre-reboot application is preserved at `archive/pre-backendless-reboot-2026-08-15` from commit `50091a631d971c520e48884cfbd15cf15dd7251b`.
 
-Do not copy old backend assumptions back into the reboot merely because code exists on that branch.
+Do not copy old backend, DI, or feature-graph assumptions back into the reboot merely because code exists on that branch.
 
-Useful shared abstractions may be brought in deliberately from `hackelia-micrantha/bluebell` and `bluebell-community`; avoid restoring the previous vendored framework wholesale unless a concrete capability justifies it.
+Useful shared abstractions may be brought in deliberately from `hackelia-micrantha/bluebell` and `bluebell-community`; do not restore the previous vendored framework wholesale or extract speculative abstractions before Eyespie proves them locally.
 
 ## Build and test
 
@@ -50,4 +69,4 @@ Apple/MediaPipe integration is validated independently by `.github/workflows/ios
 
 ## Changes
 
-Use conventional commits. Keep reboot slices vertical and small: domain contract, local implementation, platform adapter, tests, then UI wiring. Optional network capability comes after the offline path works.
+Use conventional commits. Keep slices small and attributable. Prefer behavior-preserving decomposition/package moves before semantic changes. Preserve the backendless create/import/play/match path and all required CI gates.

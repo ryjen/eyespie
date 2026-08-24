@@ -35,6 +35,38 @@ class FeatureBoundaryVerifierTest(unittest.TestCase):
             MODULE.split_top_level_parameters(signature),
         )
 
+    def test_rejects_feature_import_of_app_composition(self):
+        violation = MODULE.forbidden_import(
+            "import com.micrantha.eyespie.app.AppGraph",
+            "home",
+            {"home", "play"},
+        )
+        self.assertEqual("imports application composition/navigation", violation)
+
+    def test_rejects_feature_import_of_app_navigation(self):
+        violation = MODULE.forbidden_import(
+            "import com.micrantha.eyespie.app.navigation.AppRoute",
+            "play",
+            {"home", "play"},
+        )
+        self.assertEqual("imports application composition/navigation", violation)
+
+    def test_allows_same_feature_import(self):
+        violation = MODULE.forbidden_import(
+            "import com.micrantha.eyespie.features.home.HomeState",
+            "home",
+            {"home", "play"},
+        )
+        self.assertIsNone(violation)
+
+    def test_rejects_cross_feature_import(self):
+        violation = MODULE.forbidden_import(
+            "import com.micrantha.eyespie.features.play.PlayGameState",
+            "home",
+            {"home", "play"},
+        )
+        self.assertEqual("imports feature 'play'", violation)
+
 
 if __name__ == "__main__":
     unittest.main()
