@@ -1,5 +1,6 @@
 package com.micrantha.eyespie.features.app
 
+import com.micrantha.eyespie.features.clueauthoring.ClueAuthoringOutput
 import com.micrantha.eyespie.features.create.CreateGameOutput
 import com.micrantha.eyespie.features.gamedetail.GameDetailOutput
 import com.micrantha.eyespie.features.home.HomeOutput
@@ -13,51 +14,79 @@ import kotlin.test.assertEquals
 
 class AppCoordinatorTest {
     @Test
-    fun product_outputs_map_to_product_routes() {
-        val navigator = StateFlowAppNavigator()
-        val coordinator = AppCoordinator(navigator)
+    fun forward_outputs_push_product_destinations() {
+        val navigation = RecordingNavigation()
+        val coordinator = AppCoordinator(navigation)
 
         coordinator.onHomeOutput(HomeOutput.CreateRequested)
-        assertEquals(AppRoute.Create, navigator.route.value)
-
         coordinator.onHomeOutput(HomeOutput.UtilityRequested)
-        assertEquals(AppRoute.Utility, navigator.route.value)
-
         coordinator.onUtilityOutput(UtilityOutput.OnboardingRequested)
-        assertEquals(AppRoute.Onboarding, navigator.route.value)
-
         coordinator.onHomeOutput(HomeOutput.GameRequested(testGameId))
-        assertEquals(AppRoute.GameDetail(testGameId), navigator.route.value)
-
         coordinator.onGameDetailOutput(GameDetailOutput.PlayRequested(testGameId, testThingId))
-        assertEquals(AppRoute.Play(testGameId, testThingId), navigator.route.value)
 
-        coordinator.onPlayGameOutput(PlayGameOutput.Advance(testGameId, testThingId))
-        assertEquals(AppRoute.Play(testGameId, testThingId), navigator.route.value)
+        assertEquals(
+            listOf(
+                NavigationCommand.Push(AppRoute.Create),
+                NavigationCommand.Push(AppRoute.Utility),
+                NavigationCommand.Push(AppRoute.Onboarding),
+                NavigationCommand.Push(AppRoute.GameDetail(testGameId)),
+                NavigationCommand.Push(AppRoute.Play(testGameId, testThingId)),
+            ),
+            navigation.commands,
+        )
     }
 
     @Test
-    fun terminal_outputs_return_to_the_owning_surface() {
-        val navigator = StateFlowAppNavigator(AppRoute.Create)
-        val coordinator = AppCoordinator(navigator)
+    fun terminal_outputs_use_stack_semantics() {
+        val navigation = RecordingNavigation()
+        val coordinator = AppCoordinator(navigation)
 
         coordinator.onCreateGameOutput(CreateGameOutput.Cancelled)
-        assertEquals(AppRoute.Home, navigator.route.value)
-
-        navigator.navigate(AppRoute.Utility)
         coordinator.onUtilityOutput(UtilityOutput.Closed)
-        assertEquals(AppRoute.Home, navigator.route.value)
-
-        navigator.navigate(AppRoute.Onboarding)
-        coordinator.onOnboardingOutput(OnboardingOutput.Completed)
-        assertEquals(AppRoute.Home, navigator.route.value)
-
-        navigator.navigate(AppRoute.GameDetail(testGameId))
         coordinator.onGameDetailOutput(GameDetailOutput.Closed)
-        assertEquals(AppRoute.Home, navigator.route.value)
-
-        navigator.navigate(AppRoute.Play(testGameId, testThingId))
+        coordinator.onClueAuthoringOutput(ClueAuthoringOutput.Closed(testGameId))
         coordinator.onPlayGameOutput(PlayGameOutput.Closed(testGameId))
-        assertEquals(AppRoute.GameDetail(testGameId), navigator.route.value)
+        coordinator.onOnboardingOutput(OnboardingOutput.Completed)
+        coordinator.onPlayGameOutput(PlayGameOutput.Advance(testGameId, testThingId))
+
+        assertEquals(
+            listOf(
+                NavigationCommand.Pop,
+                NavigationCommand.Pop,
+                NavigationCommand.Pop,
+                NavigationCommand.Pop,
+                NavigationCommand.Pop,
+                NavigationCommand.ReplaceAll(AppRoute.Home),
+                NavigationCommand.Replace(AppRoute.Play(testGameId, testThingId)),
+            ),
+            navigation.commands,
+        )
+    }
+}
+
+private sealed interface NavigationCommand {
+    data class Push(val route: AppRoute) : NavigationCommand
+    data class Replace(val route: AppRoute) : NavigationCommand
+    data class ReplaceAll(val route: AppRoute) : NavigationCommand
+    data object Pop : NavigationCommand
+}
+
+private class RecordingNavigation : AppNavigation {
+    val commands = mutableListOf<NavigationCommand>()
+
+    override fun push(route: AppRoute) {
+        commands += NavigationCommand.Push(route)
+    }
+
+    override fun replace(route: AppRoute) {
+        commands += NavigationCommand.Replace(route)
+    }
+
+    override fun replaceAll(route: AppRoute) {
+        commands += NavigationCommand.ReplaceAll(route)
+    }
+
+    override fun pop() {
+        commands += NavigationCommand.Pop
     }
 }
