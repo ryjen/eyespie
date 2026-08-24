@@ -22,7 +22,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.micrantha.eyespie.imaging.CameraAvailability
 import com.micrantha.eyespie.imaging.CameraCapture
+import com.micrantha.eyespie.presentation.cameraUnavailableMessage
 import com.micrantha.eyespie.presentation.localGameFailureMessage
+import com.micrantha.eyespie.presentation.targetCameraPermissionMessage
 
 @Composable
 fun CreateGameScreen(
@@ -61,7 +63,7 @@ fun CreateGameScreen(
                 ) {
                     Text(
                         when (failure) {
-                            CreateGameFailure.CameraUnavailable -> "No usable camera is available on this device."
+                            CreateGameFailure.CameraUnavailable -> cameraUnavailableMessage()
                             is CreateGameFailure.Game -> localGameFailureMessage(failure.failure)
                         },
                         modifier = Modifier.weight(1f),
@@ -140,7 +142,7 @@ fun CreateGameScreen(
                     },
                     recoveryButton = { openSettings ->
                         Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                            Text("Camera permission is turned off. Enable it in system settings to capture this target.")
+                            Text(targetCameraPermissionMessage())
                             OutlinedButton(
                                 modifier = Modifier.fillMaxWidth(),
                                 onClick = openSettings,

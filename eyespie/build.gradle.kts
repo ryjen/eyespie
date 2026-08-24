@@ -7,6 +7,10 @@ plugins {
     alias(libs.plugins.sqldelight)
 }
 
+compose.resources {
+    packageOfResClass = "com.micrantha.eyespie.generated.resources"
+}
+
 fun xcconfigValue(path: String, name: String): String {
     val configFile = rootProject.file(path)
     return configFile
@@ -128,6 +132,7 @@ kotlin {
             implementation(libs.compose.ui)
             implementation(libs.compose.foundation)
             implementation(libs.compose.material3)
+            implementation(libs.compose.components.resources)
             implementation(libs.kotlinx.coroutines.core)
             implementation(libs.kotlinx.serialization.json)
             implementation(libs.sqldelight.coroutines)
