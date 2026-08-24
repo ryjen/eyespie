@@ -1,6 +1,10 @@
 package com.micrantha.eyespie.features.home
 
+import com.micrantha.eyespie.core.PlayerId
+import com.micrantha.eyespie.core.PlayerIdentity
+import com.micrantha.eyespie.game.GameSnapshotLoader
 import com.micrantha.eyespie.game.LocalGameResult
+import com.micrantha.eyespie.game.LocalGameSnapshot
 import com.micrantha.eyespie.testsupport.testGameId
 import kotlin.test.Test
 import kotlin.test.assertEquals
@@ -28,9 +32,9 @@ class HomeFeatureTest {
 
     @OptIn(ExperimentalCoroutinesApi::class)
     @Test
-    fun factory_injects_capabilities_and_interactor_reduces_before_loading() = runTest {
+    fun factory_maps_domain_snapshot_and_reduces_before_loading() = runTest {
         val expected = HomeContent("Agent", "player-1", emptyList())
-        val capabilities = FakeHomeCapabilities(expected)
+        val capabilities = FakeHomeCapabilities(snapshot())
         val outputs = mutableListOf<HomeOutput>()
         val interactor = homeFactory(capabilities, outputs::add).create(
             scope = this,
@@ -52,7 +56,7 @@ class HomeFeatureTest {
         val expected = HomeContent("Agent", "player-1", emptyList())
         val preview = HomeImportPreview("Road Trip", 3, "creator-1234", "game-5678")
         val capabilities = FakeHomeCapabilities(
-            content = expected,
+            snapshot = snapshot(),
             preparation = HomeImportPreparationResult.Ready(preview),
             confirmResult = HomeImportResult.Imported,
         )
@@ -79,7 +83,7 @@ class HomeFeatureTest {
         val expected = HomeContent("Agent", "player-1", emptyList())
         val preview = HomeImportPreview("Road Trip", 1, "creator-1234", "game-5678")
         val capabilities = FakeHomeCapabilities(
-            content = expected,
+            snapshot = snapshot(),
             preparation = HomeImportPreparationResult.Ready(preview),
             confirmResult = HomeImportResult.Imported,
         )
@@ -108,7 +112,7 @@ class HomeFeatureTest {
         val expected = HomeContent("Agent", "player-1", emptyList())
         val preview = HomeImportPreview("Road Trip", 1, "creator-1234", "game-5678")
         val capabilities = FakeHomeCapabilities(
-            content = expected,
+            snapshot = snapshot(),
             preparation = HomeImportPreparationResult.Ready(preview),
         )
         val interactor = homeFactory(capabilities, {}).create(
@@ -133,7 +137,7 @@ class HomeFeatureTest {
         val expected = HomeContent("Agent", "player-1", emptyList())
         val preview = HomeImportPreview("Road Trip", 1, "creator-1234", "game-5678")
         val capabilities = FakeHomeCapabilities(
-            content = expected,
+            snapshot = snapshot(),
             preparation = HomeImportPreparationResult.Ready(preview),
         )
         val interactor = homeFactory(capabilities, {}).create(
@@ -156,7 +160,7 @@ class HomeFeatureTest {
     fun cancelled_document_selection_is_silent_and_does_not_refresh() = runTest {
         val expected = HomeContent("Agent", "player-1", emptyList())
         val capabilities = FakeHomeCapabilities(
-            content = expected,
+            snapshot = snapshot(),
             preparation = HomeImportPreparationResult.Terminal(HomeImportResult.Cancelled),
         )
         val interactor = homeFactory(capabilities, {}).create(
@@ -177,7 +181,7 @@ class HomeFeatureTest {
     @Test
     fun factory_wires_semantic_outputs_without_app_routes() = runTest {
         val outputs = mutableListOf<HomeOutput>()
-        val capabilities = FakeHomeCapabilities(HomeContent("Agent", "id", emptyList()))
+        val capabilities = FakeHomeCapabilities(snapshot())
         val interactor = homeFactory(capabilities, outputs::add).create(this)
 
         interactor.dispatch(HomeIntent.UtilitySelected)
@@ -199,27 +203,32 @@ private fun homeFactory(
     capabilities: FakeHomeCapabilities,
     output: (HomeOutput) -> Unit,
 ): HomeFactory = HomeFactory(
-    loader = capabilities,
+    snapshotLoader = capabilities,
     importPreparer = capabilities,
     importConfirmer = capabilities,
     importCanceller = capabilities,
     output = output,
 )
 
+private fun snapshot(): LocalGameSnapshot = LocalGameSnapshot(
+    identity = PlayerIdentity(PlayerId("player-1"), "Agent"),
+    games = emptyList(),
+)
+
 private class FakeHomeCapabilities(
-    private val content: HomeContent,
+    private val snapshot: LocalGameSnapshot,
     private val preparation: HomeImportPreparationResult =
         HomeImportPreparationResult.Terminal(HomeImportResult.Unavailable),
     private val confirmResult: HomeImportResult = HomeImportResult.Unavailable,
-) : HomeLoader, GameImportPreparer, GameImportConfirmer, GameImportCanceller {
+) : GameSnapshotLoader, GameImportPreparer, GameImportConfirmer, GameImportCanceller {
     var loads = 0
     var prepares = 0
     var confirms = 0
     var cancels = 0
 
-    override suspend fun load(): LocalGameResult<HomeContent> {
+    override suspend fun loadSnapshot(): LocalGameResult<LocalGameSnapshot> {
         loads += 1
-        return LocalGameResult.Success(content)
+        return LocalGameResult.Success(snapshot)
     }
 
     override suspend fun prepareImport(): HomeImportPreparationResult {

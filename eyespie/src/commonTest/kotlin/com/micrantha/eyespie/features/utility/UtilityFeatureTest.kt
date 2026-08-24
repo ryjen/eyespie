@@ -1,8 +1,12 @@
 package com.micrantha.eyespie.features.utility
 
+import com.micrantha.eyespie.core.PlayerId
+import com.micrantha.eyespie.core.PlayerIdentity
+import com.micrantha.eyespie.game.GameSnapshotLoader
 import com.micrantha.eyespie.game.LocalGameFailure
 import com.micrantha.eyespie.game.LocalGameFailureCode
 import com.micrantha.eyespie.game.LocalGameResult
+import com.micrantha.eyespie.game.LocalGameSnapshot
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertNull
@@ -28,15 +32,15 @@ class UtilityFeatureTest {
 
     @OptIn(ExperimentalCoroutinesApi::class)
     @Test
-    fun factory_loads_local_identity_and_emits_semantic_navigation() = runTest {
-        val loader = FakeUtilityLoader()
+    fun factory_maps_local_identity_and_emits_semantic_navigation() = runTest {
+        val loader = FakeSnapshotLoader()
         val outputs = mutableListOf<UtilityOutput>()
         val interactor = UtilityFactory(loader, outputs::add).create(this)
 
         interactor.dispatch(UtilityIntent.Load)
         advanceUntilIdle()
 
-        assertEquals(loader.content, interactor.state.value.content)
+        assertEquals(UtilityContent("Agent", "player-1"), interactor.state.value.content)
         assertNull(interactor.state.value.failure)
         assertEquals(1, loader.loads)
 
@@ -51,7 +55,7 @@ class UtilityFeatureTest {
     @OptIn(ExperimentalCoroutinesApi::class)
     @Test
     fun retry_recovers_from_local_identity_load_failure() = runTest {
-        val loader = FakeUtilityLoader(failFirst = true)
+        val loader = FakeSnapshotLoader(failFirst = true)
         val interactor = UtilityFactory(loader, {}).create(this)
 
         interactor.dispatch(UtilityIntent.Load)
@@ -60,22 +64,26 @@ class UtilityFeatureTest {
 
         interactor.dispatch(UtilityIntent.Retry)
         advanceUntilIdle()
-        assertEquals(loader.content, interactor.state.value.content)
+        assertEquals(UtilityContent("Agent", "player-1"), interactor.state.value.content)
         assertNull(interactor.state.value.failure)
     }
 }
 
-private class FakeUtilityLoader(
-    val content: UtilityContent = UtilityContent("Agent", "player-1"),
+private class FakeSnapshotLoader(
     private val failFirst: Boolean = false,
-) : UtilityLoader {
+) : GameSnapshotLoader {
     var loads = 0
 
-    override suspend fun loadUtility(): LocalGameResult<UtilityContent> {
+    override suspend fun loadSnapshot(): LocalGameResult<LocalGameSnapshot> {
         loads += 1
         if (failFirst && loads == 1) {
             return LocalGameResult.Failure(LocalGameFailure(LocalGameFailureCode.IDENTITY_UNAVAILABLE))
         }
-        return LocalGameResult.Success(content)
+        return LocalGameResult.Success(
+            LocalGameSnapshot(
+                identity = PlayerIdentity(PlayerId("player-1"), "Agent"),
+                games = emptyList(),
+            ),
+        )
     }
 }

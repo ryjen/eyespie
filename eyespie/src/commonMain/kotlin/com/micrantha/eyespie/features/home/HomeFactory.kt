@@ -1,9 +1,10 @@
 package com.micrantha.eyespie.features.home
 
+import com.micrantha.eyespie.game.GameSnapshotLoader
 import kotlinx.coroutines.CoroutineScope
 
 class HomeFactory(
-    private val loader: HomeLoader,
+    private val snapshotLoader: GameSnapshotLoader,
     private val importPreparer: GameImportPreparer,
     private val importConfirmer: GameImportConfirmer,
     private val importCanceller: GameImportCanceller,
@@ -13,7 +14,7 @@ class HomeFactory(
         scope: CoroutineScope,
         initialState: HomeState = HomeState(),
     ): HomeInteractor = HomeInteractor(
-        loader = loader,
+        snapshotLoader = snapshotLoader,
         importPreparer = importPreparer,
         importConfirmer = importConfirmer,
         importCanceller = importCanceller,

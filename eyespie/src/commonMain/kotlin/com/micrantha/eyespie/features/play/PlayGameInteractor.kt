@@ -1,12 +1,15 @@
 package com.micrantha.eyespie.features.play
 
+import com.micrantha.eyespie.game.GameSnapshotLoader
+import com.micrantha.eyespie.game.LocalGameFailure
+import com.micrantha.eyespie.game.LocalGameFailureCode
 import com.micrantha.eyespie.game.LocalGameResult
 import com.micrantha.eyespie.mvi.BaseInteractor
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
 class PlayGameInteractor(
-    private val loader: PlayGameLoader,
+    private val snapshotLoader: GameSnapshotLoader,
     private val guessSubmitter: GuessSubmitter,
     private val scope: CoroutineScope,
     private val output: (PlayGameOutput) -> Unit,
@@ -19,9 +22,28 @@ class PlayGameInteractor(
     ) {
         when (intent) {
             PlayGameIntent.Load -> scope.launch {
-                when (val result = loader.load(stateAfterReduce.gameId, stateAfterReduce.thingId)) {
-                    is LocalGameResult.Success -> dispatch(PlayGameIntent.ContentLoaded(result.value))
+                when (val result = snapshotLoader.loadSnapshot()) {
                     is LocalGameResult.Failure -> dispatch(PlayGameIntent.LoadFailed(result.failure))
+                    is LocalGameResult.Success -> {
+                        val content = PlayGameMapper.map(
+                            result.value,
+                            stateAfterReduce.gameId,
+                            stateAfterReduce.thingId,
+                        )
+                        if (content == null) {
+                            val gameExists = result.value.games.any { it.id == stateAfterReduce.gameId }
+                            dispatch(
+                                PlayGameIntent.LoadFailed(
+                                    LocalGameFailure(
+                                        if (gameExists) LocalGameFailureCode.THING_NOT_FOUND
+                                        else LocalGameFailureCode.GAME_NOT_FOUND,
+                                    ),
+                                ),
+                            )
+                        } else {
+                            dispatch(PlayGameIntent.ContentLoaded(content))
+                        }
+                    }
                 }
             }
             is PlayGameIntent.GuessCaptured -> if (!previousState.busy && !previousState.matched && stateAfterReduce.busy) {
