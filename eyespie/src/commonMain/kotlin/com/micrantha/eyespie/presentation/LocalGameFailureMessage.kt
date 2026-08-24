@@ -1,25 +1,31 @@
 package com.micrantha.eyespie.presentation
 
+import androidx.compose.runtime.Composable
 import com.micrantha.eyespie.clue.ClueValidationError
 import com.micrantha.eyespie.game.LocalGameFailure
 import com.micrantha.eyespie.game.LocalGameFailureCode
+import com.micrantha.eyespie.generated.resources.*
+import org.jetbrains.compose.resources.stringResource
 
-fun localGameFailureMessage(failure: LocalGameFailure): String = when (failure.code) {
-    LocalGameFailureCode.OPERATION_IN_PROGRESS -> "Another local capture or match operation is already running."
-    LocalGameFailureCode.INVALID_GAME_NAME -> "Enter a non-empty game name up to 80 characters."
-    LocalGameFailureCode.INVALID_CLUE -> when (failure.clueValidationError) {
-        ClueValidationError.BLANK_CLUE -> "Enter a clue before capturing the target."
-        ClueValidationError.CLUE_TOO_LONG -> "The clue is too long."
-        ClueValidationError.BLANK_EXPECTED_ANSWER -> "Enter the creator-only expected answer."
-        ClueValidationError.EXPECTED_ANSWER_TOO_LONG -> "The expected answer is too long."
-        null -> "The clue authority is invalid."
-    }
-    LocalGameFailureCode.IDENTITY_UNAVAILABLE -> "The device-local player identity is unavailable."
-    LocalGameFailureCode.NOT_LOCAL_CREATOR -> "Only the local creator of this game can add clues."
-    LocalGameFailureCode.TARGET_EMBEDDING_FAILED -> "The target image could not be embedded on this device."
-    LocalGameFailureCode.GUESS_EMBEDDING_FAILED -> "The guess image could not be embedded on this device."
-    LocalGameFailureCode.GAME_NOT_FOUND -> "The selected local game no longer exists."
-    LocalGameFailureCode.THING_NOT_FOUND -> "The selected target no longer exists."
-    LocalGameFailureCode.MATCH_POLICY_INVALID -> "The saved match policy is incompatible with this build."
-    LocalGameFailureCode.PERSISTENCE_FAILED -> "Local game state could not be saved or loaded."
-}
+@Composable
+fun localGameFailureMessage(failure: LocalGameFailure): String = stringResource(
+    when (failure.code) {
+        LocalGameFailureCode.OPERATION_IN_PROGRESS -> Res.string.failure_operation_in_progress
+        LocalGameFailureCode.INVALID_GAME_NAME -> Res.string.failure_invalid_game_name
+        LocalGameFailureCode.INVALID_CLUE -> when (failure.clueValidationError) {
+            ClueValidationError.BLANK_CLUE -> Res.string.failure_blank_clue
+            ClueValidationError.CLUE_TOO_LONG -> Res.string.failure_clue_too_long
+            ClueValidationError.BLANK_EXPECTED_ANSWER -> Res.string.failure_blank_expected_answer
+            ClueValidationError.EXPECTED_ANSWER_TOO_LONG -> Res.string.failure_expected_answer_too_long
+            null -> Res.string.failure_invalid_clue_authority
+        }
+        LocalGameFailureCode.IDENTITY_UNAVAILABLE -> Res.string.failure_identity_unavailable
+        LocalGameFailureCode.NOT_LOCAL_CREATOR -> Res.string.failure_not_local_creator
+        LocalGameFailureCode.TARGET_EMBEDDING_FAILED -> Res.string.failure_target_embedding_failed
+        LocalGameFailureCode.GUESS_EMBEDDING_FAILED -> Res.string.failure_guess_embedding_failed
+        LocalGameFailureCode.GAME_NOT_FOUND -> Res.string.failure_game_not_found
+        LocalGameFailureCode.THING_NOT_FOUND -> Res.string.failure_thing_not_found
+        LocalGameFailureCode.MATCH_POLICY_INVALID -> Res.string.failure_match_policy_invalid
+        LocalGameFailureCode.PERSISTENCE_FAILED -> Res.string.failure_persistence_failed
+    },
+)
