@@ -89,7 +89,7 @@ class PlayGameFeatureTest {
         interactor.dispatch(PlayGameIntent.NextClueSelected)
         assertTrue(outputs.isEmpty())
         interactor.dispatch(PlayGameIntent.Back)
-        assertEquals(listOf(PlayGameOutput.Closed(testGameId)), outputs)
+        assertEquals(listOf<PlayGameOutput>(PlayGameOutput.Closed(testGameId)), outputs)
     }
 
     @Test
