@@ -8,6 +8,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -44,61 +47,70 @@ fun App(
     }
 
     MaterialTheme {
-        Surface(modifier = Modifier.fillMaxSize()) {
-            val completed = onboardingCompleted
-            if (completed == null) {
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .safeDrawingPadding()
-                        .padding(20.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                ) {
-                    Text("Eyespie", style = MaterialTheme.typography.headlineLarge)
-                    Text("Loading local game…", style = MaterialTheme.typography.titleMedium)
-                    CircularProgressIndicator()
-                }
-            } else {
-                val graph = remember(runtime, documentTransfer, completed) {
-                    AppGraphFactory.fromRuntime(
-                        runtime = runtime,
-                        navigator = StateFlowAppNavigator(
-                            if (completed) AppRoute.Home else AppRoute.Onboarding,
-                        ),
-                        documentTransfer = documentTransfer,
-                    )
-                }
-                val route by graph.navigator.route.collectAsState()
+        val snackbarHostState = remember { SnackbarHostState() }
+        val showMessage: suspend (String) -> Unit = remember(snackbarHostState) {
+            { message -> snackbarHostState.showSnackbar(message) }
+        }
+        Scaffold(
+            snackbarHost = { SnackbarHost(snackbarHostState) },
+        ) { scaffoldPadding ->
+            Surface(modifier = Modifier.fillMaxSize().padding(scaffoldPadding)) {
+                val completed = onboardingCompleted
+                if (completed == null) {
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .safeDrawingPadding()
+                            .padding(20.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        Text("Eyespie", style = MaterialTheme.typography.headlineLarge)
+                        Text("Loading local game…", style = MaterialTheme.typography.titleMedium)
+                        CircularProgressIndicator()
+                    }
+                } else {
+                    val graph = remember(runtime, documentTransfer, completed) {
+                        AppGraphFactory.fromRuntime(
+                            runtime = runtime,
+                            navigator = StateFlowAppNavigator(
+                                if (completed) AppRoute.Home else AppRoute.Onboarding,
+                            ),
+                            documentTransfer = documentTransfer,
+                        )
+                    }
+                    val route by graph.navigator.route.collectAsState()
 
-                Column(
-                    modifier = Modifier
-                        .fillMaxSize()
-                        .safeDrawingPadding()
-                        .padding(20.dp),
-                    verticalArrangement = Arrangement.spacedBy(12.dp),
-                ) {
-                    Text("Eyespie", style = MaterialTheme.typography.headlineLarge)
-                    Text("Offline travel-spy game", style = MaterialTheme.typography.titleMedium)
+                    Column(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .safeDrawingPadding()
+                            .padding(20.dp),
+                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                    ) {
+                        Text("Eyespie", style = MaterialTheme.typography.headlineLarge)
+                        Text("Offline travel-spy game", style = MaterialTheme.typography.titleMedium)
 
-                    Column(modifier = Modifier.fillMaxWidth().weight(1f)) {
-                        when (val current = route) {
-                            AppRoute.Home -> HomeRoute(graph.homeFactory)
-                            AppRoute.Onboarding -> OnboardingRoute(graph.onboardingFactory)
-                            AppRoute.Utility -> UtilityRoute(graph.utilityFactory)
-                            AppRoute.Create -> CreateGameRoute(graph.createGameFactory)
-                            is AppRoute.GameDetail -> GameDetailRoute(
-                                factory = graph.gameDetailFactory,
-                                gameId = current.gameId,
-                            )
-                            is AppRoute.ClueAuthoring -> ClueAuthoringRoute(
-                                factory = graph.clueAuthoringFactory,
-                                gameId = current.gameId,
-                            )
-                            is AppRoute.Play -> PlayGameRoute(
-                                factory = graph.playGameFactory,
-                                gameId = current.gameId,
-                                thingId = current.thingId,
-                            )
+                        Column(modifier = Modifier.fillMaxWidth().weight(1f)) {
+                            when (val current = route) {
+                                AppRoute.Home -> HomeRoute(graph.homeFactory, showMessage)
+                                AppRoute.Onboarding -> OnboardingRoute(graph.onboardingFactory)
+                                AppRoute.Utility -> UtilityRoute(graph.utilityFactory)
+                                AppRoute.Create -> CreateGameRoute(graph.createGameFactory)
+                                is AppRoute.GameDetail -> GameDetailRoute(
+                                    factory = graph.gameDetailFactory,
+                                    gameId = current.gameId,
+                                    onMessage = showMessage,
+                                )
+                                is AppRoute.ClueAuthoring -> ClueAuthoringRoute(
+                                    factory = graph.clueAuthoringFactory,
+                                    gameId = current.gameId,
+                                )
+                                is AppRoute.Play -> PlayGameRoute(
+                                    factory = graph.playGameFactory,
+                                    gameId = current.gameId,
+                                    thingId = current.thingId,
+                                )
+                            }
                         }
                     }
                 }

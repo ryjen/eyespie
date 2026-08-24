@@ -24,9 +24,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.micrantha.eyespie.generated.resources.*
 import com.micrantha.eyespie.presentation.localGameFailureMessage
-import org.jetbrains.compose.resources.stringResource
 
 @Composable
 fun HomeScreen(
@@ -45,15 +43,6 @@ fun HomeScreen(
                 actionLabel = "Dismiss",
                 onAction = { dispatch(HomeIntent.DismissFailure) },
             )
-        }
-        state.importResult?.let { result ->
-            homeImportMessage(result).takeIf { it.isNotBlank() }?.let { message ->
-                MessageCard(
-                    message = message,
-                    actionLabel = "Dismiss",
-                    onAction = { dispatch(HomeIntent.DismissImportResult) },
-                )
-            }
         }
 
         if (state.loading && state.content == null) {
@@ -296,17 +285,4 @@ private fun MessageCard(
             OutlinedButton(onClick = onAction) { Text(actionLabel) }
         }
     }
-}
-
-@Composable
-private fun homeImportMessage(result: HomeImportResult): String = when (result) {
-    HomeImportResult.Imported -> stringResource(Res.string.feedback_game_imported)
-    HomeImportResult.AlreadyPresent -> stringResource(Res.string.feedback_game_already_present)
-    HomeImportResult.Conflict -> stringResource(Res.string.failure_import_conflict)
-    HomeImportResult.InvalidFile -> stringResource(Res.string.failure_import_invalid_file)
-    HomeImportResult.TooLarge -> stringResource(Res.string.failure_import_too_large)
-    HomeImportResult.Busy -> stringResource(Res.string.failure_document_busy)
-    HomeImportResult.Failed -> stringResource(Res.string.failure_import_failed)
-    HomeImportResult.Unavailable -> stringResource(Res.string.failure_import_unavailable)
-    HomeImportResult.Cancelled -> ""
 }

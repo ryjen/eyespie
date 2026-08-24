@@ -14,6 +14,7 @@ import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 
@@ -52,7 +53,7 @@ class GameDetailFeatureTest {
 
     @OptIn(ExperimentalCoroutinesApi::class)
     @Test
-    fun local_creator_can_share_through_feature_capability() = runTest {
+    fun local_creator_share_emits_feedback_effect() = runTest {
         val snapshot = testGameSnapshot(games = listOf(testGameSummary(name = "Lynn Valley", localCreator = true)))
         val capabilities = FakeGameDetailCapabilities(snapshot, GameDetailShareResult.Shared)
         val interactor = GameDetailFactory(capabilities, capabilities, {}).create(this, testGameId)
@@ -62,7 +63,7 @@ class GameDetailFeatureTest {
         assertTrue(interactor.state.value.shareInProgress)
         advanceUntilIdle()
         assertFalse(interactor.state.value.shareInProgress)
-        assertEquals(GameDetailShareResult.Shared, interactor.state.value.shareResult)
+        assertEquals(GameDetailEffect.ShareFinished(GameDetailShareResult.Shared), interactor.effects.first())
         assertEquals(listOf(testGameId to "Lynn Valley"), capabilities.shares)
     }
 

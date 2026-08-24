@@ -8,7 +8,6 @@ sealed interface GameDetailIntent {
     data object Back : GameDetailIntent
     data object AddClueSelected : GameDetailIntent
     data object DismissFailure : GameDetailIntent
-    data object DismissShareResult : GameDetailIntent
     data object ShareSelected : GameDetailIntent
     data class PlaySelected(val thingId: ThingId) : GameDetailIntent
     data class ContentLoaded(val generation: Long, val content: GameDetailContent) : GameDetailIntent

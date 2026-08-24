@@ -12,6 +12,7 @@ import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlinx.coroutines.ExperimentalCoroutinesApi
+import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.advanceUntilIdle
 import kotlinx.coroutines.test.runTest
 
@@ -71,7 +72,6 @@ class HomeFeatureTest {
 
         assertFalse(interactor.state.value.importInProgress)
         assertEquals(preview, interactor.state.value.importPreview)
-        assertNull(interactor.state.value.importResult)
         assertEquals(1, capabilities.prepares)
         assertEquals(0, capabilities.confirms)
         assertEquals(0, capabilities.loads)
@@ -79,7 +79,7 @@ class HomeFeatureTest {
 
     @OptIn(ExperimentalCoroutinesApi::class)
     @Test
-    fun confirmed_import_refreshes_library_and_records_result() = runTest {
+    fun confirmed_import_refreshes_library_and_emits_feedback() = runTest {
         val expected = HomeContent("Agent", "player-1", emptyList())
         val preview = HomeImportPreview("Road Trip", 1, "creator-1234", "game-5678")
         val capabilities = FakeHomeCapabilities(
@@ -100,7 +100,7 @@ class HomeFeatureTest {
 
         assertFalse(interactor.state.value.importInProgress)
         assertNull(interactor.state.value.importPreview)
-        assertEquals(HomeImportResult.Imported, interactor.state.value.importResult)
+        assertEquals(HomeEffect.ImportFinished(HomeImportResult.Imported), interactor.effects.first())
         assertEquals(1, capabilities.prepares)
         assertEquals(1, capabilities.confirms)
         assertEquals(1, capabilities.loads)
@@ -125,7 +125,6 @@ class HomeFeatureTest {
         interactor.dispatch(HomeIntent.ImportPreviewCancelled)
 
         assertNull(interactor.state.value.importPreview)
-        assertNull(interactor.state.value.importResult)
         assertEquals(1, capabilities.cancels)
         assertEquals(0, capabilities.confirms)
         assertEquals(0, capabilities.loads)
@@ -172,7 +171,6 @@ class HomeFeatureTest {
         advanceUntilIdle()
 
         assertNull(interactor.state.value.importPreview)
-        assertNull(interactor.state.value.importResult)
         assertEquals(1, capabilities.prepares)
         assertEquals(0, capabilities.confirms)
         assertEquals(0, capabilities.loads)
