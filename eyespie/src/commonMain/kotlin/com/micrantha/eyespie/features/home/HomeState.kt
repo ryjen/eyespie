@@ -38,5 +38,4 @@ data class HomeState(
     val refreshGeneration: Long = 0,
     val importInProgress: Boolean = false,
     val importPreview: HomeImportPreview? = null,
-    val importResult: HomeImportResult? = null,
 )

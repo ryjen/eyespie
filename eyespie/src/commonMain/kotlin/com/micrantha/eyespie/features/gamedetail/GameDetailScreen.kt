@@ -24,9 +24,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
-import com.micrantha.eyespie.generated.resources.*
 import com.micrantha.eyespie.presentation.localGameFailureMessage
-import org.jetbrains.compose.resources.stringResource
 
 @Composable
 fun GameDetailScreen(
@@ -44,14 +42,6 @@ fun GameDetailScreen(
                 message = localGameFailureMessage(failure),
                 onDismiss = { dispatch(GameDetailIntent.DismissFailure) },
             )
-        }
-        state.shareResult?.let { result ->
-            gameDetailShareMessage(result).takeIf { it.isNotBlank() }?.let { message ->
-                MessageCard(
-                    message = message,
-                    onDismiss = { dispatch(GameDetailIntent.DismissShareResult) },
-                )
-            }
         }
 
         if (state.loading && state.content == null) {
@@ -213,17 +203,6 @@ private fun MessageCard(
             OutlinedButton(onClick = onDismiss) { Text("Dismiss") }
         }
     }
-}
-
-@Composable
-private fun gameDetailShareMessage(result: GameDetailShareResult): String = when (result) {
-    GameDetailShareResult.Shared -> stringResource(Res.string.feedback_game_shared)
-    GameDetailShareResult.NotLocalCreator -> stringResource(Res.string.failure_share_not_local_creator)
-    GameDetailShareResult.TooLarge -> stringResource(Res.string.failure_share_too_large)
-    GameDetailShareResult.Busy -> stringResource(Res.string.failure_document_busy)
-    GameDetailShareResult.Failed -> stringResource(Res.string.failure_share_failed)
-    GameDetailShareResult.Unavailable -> stringResource(Res.string.failure_share_unavailable)
-    GameDetailShareResult.Cancelled -> ""
 }
 
 private fun formatSimilarity(value: Double): String {

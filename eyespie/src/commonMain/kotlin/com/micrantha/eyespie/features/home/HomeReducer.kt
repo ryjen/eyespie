@@ -9,21 +9,19 @@ object HomeReducer : Reducer<HomeState, HomeIntent> {
             refreshGeneration = state.refreshGeneration + 1,
         )
         HomeIntent.DismissFailure -> state.copy(failure = null)
-        HomeIntent.DismissImportResult -> state.copy(importResult = null)
         HomeIntent.ImportSelected -> if (state.importInProgress || state.importPreview != null) {
             state
         } else {
-            state.copy(importInProgress = true, importResult = null)
+            state.copy(importInProgress = true)
         }
         is HomeIntent.ImportPreviewReady -> state.copy(
             importInProgress = false,
             importPreview = intent.preview,
-            importResult = null,
         )
         HomeIntent.ImportConfirmed -> if (state.importPreview == null || state.importInProgress) {
             state
         } else {
-            state.copy(importInProgress = true, importResult = null)
+            state.copy(importInProgress = true)
         }
         HomeIntent.ImportPreviewCancelled -> if (state.importInProgress) {
             state
@@ -33,7 +31,6 @@ object HomeReducer : Reducer<HomeState, HomeIntent> {
         is HomeIntent.ImportFinished -> state.copy(
             importInProgress = false,
             importPreview = null,
-            importResult = if (intent.result == HomeImportResult.Cancelled) null else intent.result,
         )
         HomeIntent.OnboardingSelected,
         HomeIntent.UtilitySelected,

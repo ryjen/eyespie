@@ -6,7 +6,10 @@ import com.micrantha.eyespie.game.LocalGameFailure
 import com.micrantha.eyespie.game.LocalGameFailureCode
 import com.micrantha.eyespie.game.LocalGameResult
 import com.micrantha.eyespie.mvi.BaseInteractor
+import com.micrantha.eyespie.mvi.EffectEmitter
+import com.micrantha.eyespie.mvi.EffectSource
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.launch
 
 class GameDetailInteractor(
@@ -16,7 +19,10 @@ class GameDetailInteractor(
     private val gameId: GameId,
     private val output: (GameDetailOutput) -> Unit,
     initialState: GameDetailState = GameDetailState(),
-) : BaseInteractor<GameDetailState, GameDetailIntent>(initialState, GameDetailReducer) {
+) : BaseInteractor<GameDetailState, GameDetailIntent>(initialState, GameDetailReducer), EffectSource<GameDetailEffect> {
+    private val effectEmitter = EffectEmitter<GameDetailEffect>()
+    override val effects: Flow<GameDetailEffect> = effectEmitter.effects
+
     override fun afterReduce(
         intent: GameDetailIntent,
         previousState: GameDetailState,
@@ -56,6 +62,9 @@ class GameDetailInteractor(
                 scope.launch {
                     dispatch(GameDetailIntent.ShareFinished(sharer.share(gameId, gameName)))
                 }
+            }
+            is GameDetailIntent.ShareFinished -> if (intent.result != GameDetailShareResult.Cancelled) {
+                effectEmitter.emit(GameDetailEffect.ShareFinished(intent.result))
             }
             GameDetailIntent.Back -> output(GameDetailOutput.Closed)
             is GameDetailIntent.PlaySelected -> output(GameDetailOutput.PlayRequested(gameId, intent.thingId))

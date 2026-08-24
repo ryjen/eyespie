@@ -10,16 +10,12 @@ object GameDetailReducer : Reducer<GameDetailState, GameDetailIntent> {
             loadGeneration = state.loadGeneration + 1,
         )
         GameDetailIntent.DismissFailure -> state.copy(failure = null)
-        GameDetailIntent.DismissShareResult -> state.copy(shareResult = null)
         GameDetailIntent.ShareSelected -> if (state.shareInProgress || state.content?.localCreator != true) {
             state
         } else {
-            state.copy(shareInProgress = true, shareResult = null)
+            state.copy(shareInProgress = true)
         }
-        is GameDetailIntent.ShareFinished -> state.copy(
-            shareInProgress = false,
-            shareResult = if (intent.result == GameDetailShareResult.Cancelled) null else intent.result,
-        )
+        is GameDetailIntent.ShareFinished -> state.copy(shareInProgress = false)
         is GameDetailIntent.ContentLoaded -> if (intent.generation == state.loadGeneration) {
             state.copy(content = intent.content, loading = false, failure = null)
         } else {
