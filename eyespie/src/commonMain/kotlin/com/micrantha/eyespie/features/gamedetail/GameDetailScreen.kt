@@ -11,20 +11,31 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.size
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Place
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.micrantha.eyespie.presentation.ThumbnailOrAvatar
+import com.micrantha.eyespie.presentation.theme.extendedColors
 import com.micrantha.eyespie.presentation.localGameFailureMessage
+import com.micrantha.eyespie.presentation.theme.EyespieLogo
 
 @Composable
 fun GameDetailScreen(
@@ -35,7 +46,16 @@ fun GameDetailScreen(
         modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        OutlinedButton(onClick = { dispatch(GameDetailIntent.Back) }) { Text("Back to field desk") }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            IconButton(onClick = { dispatch(GameDetailIntent.Back) }) {
+                Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back to field desk")
+            }
+            EyespieLogo(size = 32.dp)
+        }
 
         state.failure?.let { failure ->
             MessageCard(
@@ -146,45 +166,93 @@ fun GameDetailScreen(
         }
 
         content.things.forEachIndexed { index, thing ->
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
-            ) {
-                Column(
-                    modifier = Modifier.fillMaxWidth().padding(16.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    Row(
-                        modifier = Modifier.fillMaxWidth(),
-                        horizontalArrangement = Arrangement.SpaceBetween,
-                        verticalAlignment = Alignment.CenterVertically,
-                    ) {
-                        Text("Clue ${index + 1}", style = MaterialTheme.typography.labelLarge)
-                        Text(
-                            if (thing.matched) "Found" else "In progress",
-                            style = MaterialTheme.typography.labelMedium,
-                            color = if (thing.matched) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                    Text(thing.clueText, style = MaterialTheme.typography.titleMedium)
-                    thing.bestSimilarity?.let { similarity ->
-                        Text(
-                            "Best match ${formatSimilarity(similarity)}",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
-                    Button(
-                        modifier = Modifier.fillMaxWidth(),
-                        onClick = { dispatch(GameDetailIntent.PlaySelected(thing.id)) },
-                    ) {
-                        Text(if (thing.matched) "Review clue" else "Start clue")
-                    }
-                }
-            }
+            ClueCard(
+                index = index,
+                thing = thing,
+                onPlay = { dispatch(GameDetailIntent.PlaySelected(thing.id)) },
+            )
         }
 
         Spacer(Modifier.height(4.dp))
+    }
+}
+
+@Composable
+private fun ClueCard(
+    index: Int,
+    thing: GameDetailThing,
+    onPlay: () -> Unit,
+) {
+    val colors = extendedColors
+    Card(
+        modifier = Modifier.fillMaxWidth(),
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text("Clue ${index + 1}", style = MaterialTheme.typography.labelLarge)
+                Surface(
+                    color = if (thing.matched) colors.successContainer else MaterialTheme.colorScheme.surfaceVariant,
+                    contentColor = if (thing.matched) colors.onSuccessContainer else MaterialTheme.colorScheme.onSurfaceVariant,
+                    shape = MaterialTheme.shapes.small,
+                ) {
+                    Row(
+                        modifier = Modifier.padding(horizontal = 10.dp, vertical = 4.dp),
+                        horizontalArrangement = Arrangement.spacedBy(4.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        if (thing.matched) {
+                            Icon(Icons.Default.CheckCircle, contentDescription = null, modifier = Modifier.size(14.dp))
+                        }
+                        Text(
+                            if (thing.matched) "Found" else "In progress",
+                            style = MaterialTheme.typography.labelMedium,
+                        )
+                    }
+                }
+            }
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(12.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Surface(
+                    color = MaterialTheme.colorScheme.primaryContainer,
+                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                    shape = MaterialTheme.shapes.medium,
+                    modifier = Modifier.size(56.dp),
+                ) {
+                    ThumbnailOrAvatar(
+                        thumbnail = thing.thumbnail,
+                        modifier = Modifier.fillMaxSize(),
+                        avatar = {
+                            Icon(Icons.Default.Place, contentDescription = null, modifier = Modifier.size(28.dp))
+                        },
+                    )
+                }
+                Text(thing.clueText, style = MaterialTheme.typography.titleMedium, modifier = Modifier.weight(1f))
+            }
+            thing.bestSimilarity?.let { similarity ->
+                Text(
+                    "Best match ${formatSimilarity(similarity)}",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
+            Button(
+                modifier = Modifier.fillMaxWidth(),
+                onClick = onPlay,
+            ) {
+                Text(if (thing.matched) "Review clue" else "Start clue")
+            }
+        }
     }
 }
 

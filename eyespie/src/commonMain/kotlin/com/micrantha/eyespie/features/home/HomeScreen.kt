@@ -9,22 +9,35 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
+import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.Place
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.HorizontalDivider
+import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import com.micrantha.eyespie.core.ThingId
+import com.micrantha.eyespie.presentation.theme.extendedColors
 import com.micrantha.eyespie.presentation.localGameFailureMessage
+import com.micrantha.eyespie.presentation.ThumbnailOrAvatar
 
 @Composable
 fun HomeScreen(
@@ -36,6 +49,8 @@ fun HomeScreen(
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
         HomeHeader(state)
+
+        LocalModeCard()
 
         state.failure?.let { failure ->
             MessageCard(
@@ -80,20 +95,29 @@ fun HomeScreen(
                 enabled = !state.importInProgress,
                 onClick = { dispatch(HomeIntent.ImportSelected) },
             ) {
-                Text(if (state.importInProgress) "Importing…" else "Join game")
+                Text(if (state.importInProgress) "Importing…" else "Import .eyespie")
             }
         }
 
         HorizontalDivider()
 
-        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
             Text("Your games", style = MaterialTheme.typography.headlineSmall)
-            Text(
-                "Stored on this device. Share or join with a signed .eyespie file.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
+            FilledIconButton(
+                onClick = { dispatch(HomeIntent.CreateSelected) },
+            ) {
+                Icon(Icons.Default.Add, contentDescription = "Create game")
+            }
         }
+        Text(
+            "Stored on this device. Share or join with a signed .eyespie file.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
 
         val games = state.content?.games.orEmpty()
         if (games.isEmpty()) {
@@ -103,8 +127,14 @@ fun HomeScreen(
                 importEnabled = !state.importInProgress,
             )
         } else {
-            games.forEach { game ->
-                GameCard(game = game, onOpen = { dispatch(HomeIntent.GameSelected(game.id)) })
+            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+                games.forEach { game ->
+                    GameCard(
+                        game = game,
+                        thumbnails = state.content?.thumbnails?.get(game.id.value),
+                        onOpen = { dispatch(HomeIntent.GameSelected(game.id)) },
+                    )
+                }
             }
         }
 
@@ -135,6 +165,49 @@ private fun HomeHeader(state: HomeState) {
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+        }
+    }
+}
+
+@Composable
+private fun LocalModeCard() {
+    val colors = extendedColors
+    Surface(
+        color = colors.successContainer,
+        contentColor = colors.onSuccessContainer,
+        shape = MaterialTheme.shapes.medium,
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(16.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            Surface(
+                color = colors.success,
+                contentColor = colors.onSuccess,
+                shape = CircleShape,
+                modifier = Modifier.size(36.dp),
+            ) {
+                Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+                    Icon(
+                        Icons.Default.CheckCircle,
+                        contentDescription = null,
+                        modifier = Modifier.size(22.dp),
+                    )
+                }
+            }
+            Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                Text(
+                    "Local Mode",
+                    style = MaterialTheme.typography.titleMedium,
+                    fontWeight = FontWeight.Bold,
+                )
+                Text(
+                    "You're playing locally",
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            }
         }
     }
 }
@@ -196,41 +269,60 @@ private fun ImportPreviewCard(
 @Composable
 private fun GameCard(
     game: HomeGame,
+    thumbnails: Map<ThingId, ByteArray>?,
     onOpen: () -> Unit,
 ) {
     val matched = game.things.count { it.matched }
     val total = game.things.size
     val progress = if (total == 0) "No clues yet" else "$matched of $total clues found"
     val role = if (game.localCreator) "Created here" else "Shared game"
+    val cover = game.things.firstOrNull()?.let { thumbnails?.get(it.id) }
 
     Card(
+        onClick = onOpen,
         modifier = Modifier.fillMaxWidth(),
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
     ) {
-        Column(
-            modifier = Modifier.fillMaxWidth().padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(12.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
+            Surface(
+                color = MaterialTheme.colorScheme.primaryContainer,
+                contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                shape = MaterialTheme.shapes.medium,
+                modifier = Modifier.size(48.dp),
             ) {
-                Text(game.name, style = MaterialTheme.typography.titleLarge, modifier = Modifier.weight(1f))
+                ThumbnailOrAvatar(
+                    thumbnail = cover,
+                    modifier = Modifier.fillMaxSize(),
+                    avatar = {
+                        Icon(Icons.Default.Place, contentDescription = null, modifier = Modifier.size(26.dp))
+                    },
+                )
+            }
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(2.dp),
+            ) {
+                Text(game.name, style = MaterialTheme.typography.titleMedium)
+                Text(
+                    progress,
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
                 Text(
                     role,
                     style = MaterialTheme.typography.labelMedium,
                     color = MaterialTheme.colorScheme.primary,
                 )
             }
-            Text(
-                progress,
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            Icon(
+                Icons.AutoMirrored.Filled.KeyboardArrowRight,
+                contentDescription = null,
+                tint = MaterialTheme.colorScheme.onSurfaceVariant,
             )
-            Button(modifier = Modifier.fillMaxWidth(), onClick = onOpen) {
-                Text(if (total > 0 && matched < total) "Continue" else "Open game")
-            }
         }
     }
 }

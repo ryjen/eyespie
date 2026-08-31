@@ -11,10 +11,17 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.layout.size
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
@@ -28,6 +35,8 @@ import com.micrantha.eyespie.imaging.CameraCapture
 import com.micrantha.eyespie.presentation.cameraUnavailableMessage
 import com.micrantha.eyespie.presentation.localGameFailureMessage
 import com.micrantha.eyespie.presentation.playCameraPermissionMessage
+import com.micrantha.eyespie.presentation.theme.EyespieLogo
+import com.micrantha.eyespie.presentation.theme.extendedColors
 
 @Composable
 fun PlayGameScreen(
@@ -38,10 +47,17 @@ fun PlayGameScreen(
         modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        OutlinedButton(
-            onClick = { dispatch(PlayGameIntent.Back) },
-            enabled = !state.busy,
-        ) { Text("Back to game") }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            IconButton(
+                onClick = { dispatch(PlayGameIntent.Back) },
+                enabled = !state.busy,
+            ) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back to game") }
+            EyespieLogo(size = 32.dp)
+        }
 
         state.failure?.let { failure ->
             Card(modifier = Modifier.fillMaxWidth()) {
@@ -98,6 +114,12 @@ fun PlayGameScreen(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
+
+        val progress = if (content.clueCount == 0) 0f else state.matchedClues.toFloat() / content.clueCount
+        LinearProgressIndicator(
+            progress = { progress },
+            modifier = Modifier.fillMaxWidth(),
+        )
 
         Card(
             modifier = Modifier.fillMaxWidth(),
@@ -196,15 +218,22 @@ private fun FoundCard(
     onNext: () -> Unit,
     onBack: () -> Unit,
 ) {
+    val colors = extendedColors
     Card(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+        colors = CardDefaults.cardColors(containerColor = colors.successContainer),
     ) {
         Column(
             modifier = Modifier.fillMaxWidth().padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text("Clue found", style = MaterialTheme.typography.headlineSmall)
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Icon(Icons.Default.CheckCircle, contentDescription = null, tint = colors.success, modifier = Modifier.size(28.dp))
+                Text("Clue found", style = MaterialTheme.typography.headlineSmall)
+            }
             Text("The match has been saved to this device.")
             if (hasNext) {
                 Button(modifier = Modifier.fillMaxWidth(), onClick = onNext) { Text("Next clue") }
@@ -217,15 +246,22 @@ private fun FoundCard(
 
 @Composable
 private fun CompletionCard(onBack: () -> Unit) {
+    val colors = extendedColors
     Card(
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.primaryContainer),
+        colors = CardDefaults.cardColors(containerColor = colors.successContainer),
     ) {
         Column(
             modifier = Modifier.fillMaxWidth().padding(20.dp),
             verticalArrangement = Arrangement.spacedBy(12.dp),
         ) {
-            Text("Case complete", style = MaterialTheme.typography.headlineSmall)
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Icon(Icons.Default.CheckCircle, contentDescription = null, tint = colors.success, modifier = Modifier.size(28.dp))
+                Text("Case complete", style = MaterialTheme.typography.headlineSmall)
+            }
             Text("Every clue in this game has been found. Progress is stored on this device.")
             Button(modifier = Modifier.fillMaxWidth(), onClick = onBack) { Text("Back to game") }
         }

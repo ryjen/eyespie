@@ -5,7 +5,7 @@ Pod::Spec.new do |spec|
     spec.source                   = { :http=> ''}
     spec.authors                  = ''
     spec.license                  = 'MPL-2.0'
-    spec.summary                  = 'Native dependencies for eyespie'
+    spec.summary                  = 'Eyespie backendless Kotlin Multiplatform core'
     spec.vendored_frameworks      = 'build/cocoapods/framework/eyespie.framework'
                 
     spec.ios.deployment_target    = '15.0'

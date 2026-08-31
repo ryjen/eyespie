@@ -9,14 +9,19 @@ import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
+import androidx.compose.material3.Icon
+import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
@@ -25,6 +30,7 @@ import com.micrantha.eyespie.imaging.CameraCapture
 import com.micrantha.eyespie.presentation.cameraUnavailableMessage
 import com.micrantha.eyespie.presentation.localGameFailureMessage
 import com.micrantha.eyespie.presentation.targetCameraPermissionMessage
+import com.micrantha.eyespie.presentation.theme.EyespieLogo
 
 @Composable
 fun CreateGameScreen(
@@ -35,10 +41,17 @@ fun CreateGameScreen(
         modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(16.dp),
     ) {
-        OutlinedButton(
-            onClick = { dispatch(CreateGameIntent.Back) },
-            enabled = !state.busy,
-        ) { Text("Back to field desk") }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            IconButton(
+                onClick = { dispatch(CreateGameIntent.Back) },
+                enabled = !state.busy,
+            ) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back to field desk") }
+            EyespieLogo(size = 32.dp)
+        }
 
         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
             Text(
@@ -60,6 +73,7 @@ fun CreateGameScreen(
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(12.dp),
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
                     Text(
                         when (failure) {
