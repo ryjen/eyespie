@@ -5,6 +5,8 @@ import com.micrantha.eyespie.core.ThingId
 import com.micrantha.eyespie.identity.LocalPlayerIdentityRepository
 import com.micrantha.eyespie.identity.PlatformSigningIdentity
 import com.micrantha.eyespie.imaging.MediaPipeImageEmbeddingGenerator
+import com.micrantha.eyespie.imaging.SkiaThumbnailCodec
+import com.micrantha.eyespie.imaging.IosImageRotator
 import com.micrantha.eyespie.persistence.IosEyespieDatabaseFactory
 import com.micrantha.eyespie.persistence.SqlGameRepository
 import com.micrantha.eyespie.persistence.SqlOnboardingPreferenceStore
@@ -25,6 +27,8 @@ fun createIosEyespieRuntime(): EyespieRuntime {
             progressRepository = SqlThingProgressRepository(database),
             embeddingGenerator = MediaPipeImageEmbeddingGenerator(),
             idGenerator = IosLocalGameIdGenerator(),
+            thumbnailCodec = SkiaThumbnailCodec,
+            imageRotator = IosImageRotator,
         ),
         bundleService = GameBundleService(
             identityRepository = identityRepository,
@@ -32,6 +36,7 @@ fun createIosEyespieRuntime(): EyespieRuntime {
             gameRepository = gameRepository,
         ),
         onboardingPreferences = SqlOnboardingPreferenceStore(database),
+        gameThumbnailCache = gameRepository,
     )
 }
 

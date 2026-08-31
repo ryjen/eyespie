@@ -1,9 +1,13 @@
 package com.micrantha.eyespie.features.home
 
+import com.micrantha.eyespie.core.ThingId
 import com.micrantha.eyespie.game.LocalGameSnapshot
 
 object HomeMapper {
-    fun map(snapshot: LocalGameSnapshot): HomeContent = HomeContent(
+    fun map(
+        snapshot: LocalGameSnapshot,
+        thumbnails: Map<String, Map<ThingId, ByteArray>> = emptyMap(),
+    ): HomeContent = HomeContent(
         identityDisplayName = snapshot.identity.displayName,
         identityIdSuffix = snapshot.identity.id.value.takeLast(12),
         games = snapshot.games.map { game ->
@@ -21,5 +25,6 @@ object HomeMapper {
                 localCreator = game.localCreator,
             )
         },
+        thumbnails = thumbnails,
     )
 }

@@ -14,6 +14,7 @@ data class GameDetailThing(
     val clueText: String,
     val matched: Boolean,
     val bestSimilarity: Double?,
+    val thumbnail: ByteArray? = null,
 )
 
 data class GameDetailState(

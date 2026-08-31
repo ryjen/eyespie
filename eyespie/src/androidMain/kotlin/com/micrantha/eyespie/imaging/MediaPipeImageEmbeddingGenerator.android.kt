@@ -30,7 +30,7 @@ class MediaPipeImageEmbeddingGenerator(
     }
 
     override suspend fun generate(image: CapturedImage): List<Float> {
-        val encoded = image.encodedBytes()
+        val encoded = normalizeToUpright(image.encodedBytes()) ?: image.encodedBytes()
         val bitmap = BitmapFactory.decodeByteArray(encoded, 0, encoded.size)
             ?: throw IllegalArgumentException("captured image bytes are not a supported Android image")
         val mpImage = BitmapImageBuilder(bitmap).build()

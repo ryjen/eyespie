@@ -23,6 +23,7 @@ class AppGraphFactoryTest {
             gameCreator = AppTestCapabilities,
             clueAuthor = AppTestCapabilities,
             guessSubmitter = AppTestCapabilities,
+            gameThumbnailCache = AppTestCapabilities,
             onboardingPreferences = onboardingPreferences,
             navigation = navigation,
         )

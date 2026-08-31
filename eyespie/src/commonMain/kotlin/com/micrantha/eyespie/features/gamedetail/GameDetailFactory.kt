@@ -2,11 +2,13 @@ package com.micrantha.eyespie.features.gamedetail
 
 import com.micrantha.eyespie.core.GameId
 import com.micrantha.eyespie.game.GameSnapshotLoader
+import com.micrantha.eyespie.game.GameThumbnailCache
 import kotlinx.coroutines.CoroutineScope
 
 class GameDetailFactory(
     private val snapshotLoader: GameSnapshotLoader,
     private val sharer: GameSharer,
+    private val thumbnailCache: GameThumbnailCache,
     private val output: (GameDetailOutput) -> Unit,
 ) {
     fun create(
@@ -16,6 +18,7 @@ class GameDetailFactory(
     ): GameDetailInteractor = GameDetailInteractor(
         snapshotLoader = snapshotLoader,
         sharer = sharer,
+        thumbnailCache = thumbnailCache,
         scope = scope,
         gameId = gameId,
         output = output,

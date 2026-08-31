@@ -2,6 +2,7 @@ package com.micrantha.eyespie.features.gamedetail
 
 import com.micrantha.eyespie.core.GameId
 import com.micrantha.eyespie.game.GameSnapshotLoader
+import com.micrantha.eyespie.game.GameThumbnailCache
 import com.micrantha.eyespie.game.LocalGameFailure
 import com.micrantha.eyespie.game.LocalGameFailureCode
 import com.micrantha.eyespie.game.LocalGameResult
@@ -15,6 +16,7 @@ import kotlinx.coroutines.launch
 class GameDetailInteractor(
     private val snapshotLoader: GameSnapshotLoader,
     private val sharer: GameSharer,
+    private val thumbnailCache: GameThumbnailCache,
     private val scope: CoroutineScope,
     private val gameId: GameId,
     private val output: (GameDetailOutput) -> Unit,
@@ -37,7 +39,8 @@ class GameDetailInteractor(
                             GameDetailIntent.OperationFailed(generation, result.failure),
                         )
                         is LocalGameResult.Success -> {
-                            val content = GameDetailMapper.map(result.value, gameId)
+                            val thumbnails = runCatching { thumbnailCache.thumbnailsForGame(gameId) }.getOrDefault(emptyMap())
+                            val content = GameDetailMapper.map(result.value, gameId, thumbnails)
                             if (content == null) {
                                 dispatch(
                                     GameDetailIntent.OperationFailed(

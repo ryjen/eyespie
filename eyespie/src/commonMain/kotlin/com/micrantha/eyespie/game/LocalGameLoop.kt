@@ -17,6 +17,9 @@ import com.micrantha.eyespie.core.ThingProgress
 import com.micrantha.eyespie.core.ThingProgressRepository
 import com.micrantha.eyespie.imaging.CapturedImage
 import com.micrantha.eyespie.imaging.ImageEmbeddingGenerator
+import com.micrantha.eyespie.imaging.ImageRotator
+import com.micrantha.eyespie.imaging.MATCH_ROTATIONS
+import com.micrantha.eyespie.imaging.ThumbnailCodec
 import com.micrantha.eyespie.imaging.canonicalImageEmbedding
 import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.sync.Mutex
@@ -95,6 +98,8 @@ class LocalGameLoop(
     private val progressRepository: ThingProgressRepository,
     private val embeddingGenerator: ImageEmbeddingGenerator,
     private val idGenerator: LocalGameIdGenerator,
+    private val thumbnailCodec: ThumbnailCodec? = null,
+    private val imageRotator: ImageRotator? = null,
 ) : GameSnapshotLoader {
     private val operationMutex = Mutex()
 
@@ -176,9 +181,15 @@ class LocalGameLoop(
             return@exclusiveOperation failure(LocalGameFailureCode.TARGET_EMBEDDING_FAILED)
         }
 
+        val thumbnail = thumbnailCodec?.encode(targetImage)
         val gameId = idGenerator.nextGameId()
         val thingId = idGenerator.nextThingId()
-        val thing = Thing(thingId, clueAuthority, targetEmbedding)
+        val thing = Thing(
+            id = thingId,
+            clueAuthority = clueAuthority,
+            targetEmbedding = targetEmbedding,
+            targetThumbnail = thumbnail,
+        )
         val game = Game(gameId, normalizedName, identity.id, listOf(thing))
 
         try {
@@ -230,8 +241,14 @@ class LocalGameLoop(
             return@exclusiveOperation failure(LocalGameFailureCode.TARGET_EMBEDDING_FAILED)
         }
 
+        val thumbnail = thumbnailCodec?.encode(targetImage)
         val thingId = idGenerator.nextThingId()
-        val thing = Thing(thingId, clueAuthority, targetEmbedding)
+        val thing = Thing(
+            id = thingId,
+            clueAuthority = clueAuthority,
+            targetEmbedding = targetEmbedding,
+            targetThumbnail = thumbnail,
+        )
         try {
             gameRepository.save(game.copy(things = game.things + thing))
         } catch (cancelled: CancellationException) {
@@ -267,16 +284,8 @@ class LocalGameLoop(
         val thing = game.things.firstOrNull { it.id == thingId }
             ?: return@exclusiveOperation failure(LocalGameFailureCode.THING_NOT_FOUND)
 
-        val guessEmbedding = try {
-            canonicalImageEmbedding(embeddingGenerator.generate(guessImage))
-        } catch (cancelled: CancellationException) {
-            throw cancelled
-        } catch (_: Exception) {
-            return@exclusiveOperation failure(LocalGameFailureCode.GUESS_EMBEDDING_FAILED)
-        }
-
         val match = try {
-            MatchEngine(thing.matchThreshold).compare(thing.targetEmbedding, guessEmbedding)
+            bestRotationMatch(thing.targetEmbedding, guessImage, thing.matchThreshold)
         } catch (cancelled: CancellationException) {
             throw cancelled
         } catch (_: Exception) {
@@ -313,6 +322,34 @@ class LocalGameLoop(
     private suspend fun <T> exclusiveOperation(operation: suspend () -> LocalGameResult<T>): LocalGameResult<T> {
         if (!operationMutex.tryLock()) return failure(LocalGameFailureCode.OPERATION_IN_PROGRESS)
         return try { operation() } finally { operationMutex.unlock() }
+    }
+
+    /**
+     * Compares the stored target embedding against the guess image embedded at
+     * each canonical rotation. A player may photograph the target at any angle,
+     * and a cosine-similarity embedding is not rotation invariant, so the best
+     * rotation's similarity is reported. When no [ImageRotator] is available the
+     * guess is embedded once at its captured orientation.
+     */
+    private suspend fun bestRotationMatch(
+        targetEmbedding: List<Float>,
+        guessImage: CapturedImage,
+        threshold: Double,
+    ): MatchResult {
+        val rotations = if (imageRotator != null) MATCH_ROTATIONS else listOf(0)
+        var best: MatchResult? = null
+        for (degrees in rotations) {
+            val rotated = if (degrees == 0) guessImage else imageRotator?.rotate(guessImage, degrees)
+                ?: continue
+            val embedding = runCatching { canonicalImageEmbedding(embeddingGenerator.generate(rotated)) }
+                .getOrElse { continue }
+            val result = MatchEngine(threshold).compare(targetEmbedding, embedding)
+            best = if (best == null || result.similarity > best!!.similarity) result else best
+        }
+        return best ?: MatchEngine(threshold).compare(
+            targetEmbedding,
+            canonicalImageEmbedding(embeddingGenerator.generate(guessImage)),
+        )
     }
 
     private fun <T> failure(code: LocalGameFailureCode): LocalGameResult<T> =

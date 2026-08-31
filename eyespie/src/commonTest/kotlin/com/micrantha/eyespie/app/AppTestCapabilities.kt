@@ -13,6 +13,7 @@ import com.micrantha.eyespie.features.play.GuessSubmitter
 import com.micrantha.eyespie.game.AuthoredThing
 import com.micrantha.eyespie.game.CreatedGame
 import com.micrantha.eyespie.game.GameSnapshotLoader
+import com.micrantha.eyespie.game.GameThumbnailCache
 import com.micrantha.eyespie.game.GuessOutcome
 import com.micrantha.eyespie.game.LocalGameResult
 import com.micrantha.eyespie.game.LocalGameSnapshot
@@ -26,9 +27,12 @@ internal object AppTestCapabilities :
     GameImportCanceller,
     GameCreator,
     ClueAuthor,
-    GuessSubmitter {
+    GuessSubmitter,
+    GameThumbnailCache {
     override suspend fun loadSnapshot(): LocalGameResult<LocalGameSnapshot> =
         LocalGameResult.Success(testGameSnapshot())
+
+    override suspend fun thumbnailsForGame(gameId: GameId): Map<ThingId, ByteArray> = emptyMap()
 
     override suspend fun prepareImport(): HomeImportPreparationResult =
         HomeImportPreparationResult.Terminal(HomeImportResult.Unavailable)

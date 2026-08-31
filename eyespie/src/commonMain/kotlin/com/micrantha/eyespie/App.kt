@@ -2,8 +2,10 @@ package com.micrantha.eyespie
 
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.material3.CircularProgressIndicator
@@ -19,6 +21,7 @@ import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
 import cafe.adriel.voyager.navigator.Navigator
@@ -30,8 +33,9 @@ import com.micrantha.eyespie.app.LocalAppMessageSink
 import com.micrantha.eyespie.app.VoyagerAppNavigation
 import com.micrantha.eyespie.app.toDestination
 import com.micrantha.eyespie.game.EyespieRuntime
+import com.micrantha.eyespie.presentation.theme.EyespieLogo
+import com.micrantha.eyespie.presentation.theme.EyespieTheme
 import com.micrantha.eyespie.sharing.GameDocumentTransfer
-import com.micrantha.eyespie.ui.EyespieTheme
 
 @Composable
 fun App(
@@ -77,16 +81,8 @@ fun App(
                         modifier = Modifier
                             .fillMaxSize()
                             .safeDrawingPadding()
-                            .padding(20.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp),
+                            .padding(horizontal = 16.dp),
                     ) {
-                        Text(
-                            "Eyespie",
-                            color = MaterialTheme.colorScheme.primary,
-                            style = MaterialTheme.typography.headlineLarge,
-                        )
-                        Text("Offline travel-spy game", style = MaterialTheme.typography.titleMedium)
-
                         Column(modifier = Modifier.fillMaxWidth().weight(1f)) {
                             Navigator(initialDestination) { navigator ->
                                 val voyagerNavigation = remember(navigator) {
@@ -121,9 +117,12 @@ private fun LoadingLocalGame() {
         modifier = Modifier
             .fillMaxSize()
             .safeDrawingPadding()
-            .padding(20.dp),
+            .padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
+        horizontalAlignment = Alignment.CenterHorizontally,
     ) {
+        EyespieLogo(size = 72.dp)
+        Spacer(Modifier.height(8.dp))
         Text(
             "Eyespie",
             color = MaterialTheme.colorScheme.primary,

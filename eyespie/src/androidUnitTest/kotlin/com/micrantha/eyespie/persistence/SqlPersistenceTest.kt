@@ -154,7 +154,7 @@ class SqlPersistenceTest {
                 binders = null,
             )
 
-            EyesPieDatabase.Schema.migrate(driver, 1L, 2L)
+            EyesPieDatabase.Schema.migrate(driver, 0L, 4L)
 
             val migrated = EyesPieDatabase(driver).eyesPieQueries.selectThingsByGame("game-legacy") {
                     _,
@@ -169,6 +169,7 @@ class SqlPersistenceTest {
                     providerId,
                     modelId,
                     confidence,
+                    _,
                 ->
                 MigratedClueRow(
                     clue = clue,

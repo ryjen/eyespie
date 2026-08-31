@@ -1,0 +1,1 @@
+ALTER TABLE ThingEntity ADD COLUMN target_thumbnail BLOB;

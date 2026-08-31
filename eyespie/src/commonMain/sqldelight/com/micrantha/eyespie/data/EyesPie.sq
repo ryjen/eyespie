@@ -17,6 +17,7 @@ CREATE TABLE ThingEntity (
     generated_provider_id TEXT,
     generated_model_id TEXT,
     generated_confidence REAL,
+    target_thumbnail BLOB,
     FOREIGN KEY (game_id) REFERENCES GameEntity(id) ON DELETE CASCADE
 );
 
@@ -64,6 +65,10 @@ selectThingIdsByGame:
 SELECT id FROM ThingEntity
 WHERE game_id = ?;
 
+selectThingThumbnailsByGame:
+SELECT id, target_thumbnail FROM ThingEntity
+WHERE game_id = ?;
+
 insertThing:
 INSERT OR IGNORE INTO ThingEntity(
     id,
@@ -77,9 +82,10 @@ INSERT OR IGNORE INTO ThingEntity(
     clue_authority_version,
     generated_provider_id,
     generated_model_id,
-    generated_confidence
+    generated_confidence,
+    target_thumbnail
 )
-VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
+VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);
 
 updateThing:
 UPDATE ThingEntity
@@ -93,7 +99,8 @@ SET game_id = ?,
     clue_authority_version = ?,
     generated_provider_id = ?,
     generated_model_id = ?,
-    generated_confidence = ?
+    generated_confidence = ?,
+    target_thumbnail = ?
 WHERE id = ?;
 
 deleteProgressForThing:

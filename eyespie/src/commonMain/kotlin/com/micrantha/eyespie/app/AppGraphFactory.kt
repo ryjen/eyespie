@@ -17,6 +17,7 @@ import com.micrantha.eyespie.features.play.PlayGameFactory
 import com.micrantha.eyespie.features.utility.UtilityFactory
 import com.micrantha.eyespie.game.EyespieRuntime
 import com.micrantha.eyespie.game.GameSnapshotLoader
+import com.micrantha.eyespie.game.GameThumbnailCache
 import com.micrantha.eyespie.sharing.GameDocumentTransfer
 
 object AppGraphFactory {
@@ -28,6 +29,7 @@ object AppGraphFactory {
         val capabilities = LocalGameAdapter(runtime, documentTransfer)
         return fromCapabilities(
             gameSnapshotLoader = runtime.gameLoop,
+            gameThumbnailCache = runtime.gameThumbnailCache,
             gameImportPreparer = capabilities,
             gameImportConfirmer = capabilities,
             gameImportCanceller = capabilities,
@@ -42,6 +44,7 @@ object AppGraphFactory {
 
     fun fromCapabilities(
         gameSnapshotLoader: GameSnapshotLoader,
+        gameThumbnailCache: GameThumbnailCache,
         gameImportPreparer: GameImportPreparer,
         gameImportConfirmer: GameImportConfirmer,
         gameImportCanceller: GameImportCanceller,
@@ -59,6 +62,7 @@ object AppGraphFactory {
                 importPreparer = gameImportPreparer,
                 importConfirmer = gameImportConfirmer,
                 importCanceller = gameImportCanceller,
+                thumbnailCache = gameThumbnailCache,
                 output = coordinator::onHomeOutput,
             ),
             onboardingFactory = OnboardingFactory(
@@ -70,6 +74,7 @@ object AppGraphFactory {
             gameDetailFactory = GameDetailFactory(
                 snapshotLoader = gameSnapshotLoader,
                 sharer = gameSharer,
+                thumbnailCache = gameThumbnailCache,
                 output = coordinator::onGameDetailOutput,
             ),
             clueAuthoringFactory = ClueAuthoringFactory(

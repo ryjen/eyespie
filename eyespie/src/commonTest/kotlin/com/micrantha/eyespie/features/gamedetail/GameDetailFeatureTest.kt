@@ -1,7 +1,9 @@
 package com.micrantha.eyespie.features.gamedetail
 
 import com.micrantha.eyespie.core.GameId
+import com.micrantha.eyespie.core.ThingId
 import com.micrantha.eyespie.game.GameSnapshotLoader
+import com.micrantha.eyespie.game.GameThumbnailCache
 import com.micrantha.eyespie.game.LocalGameResult
 import com.micrantha.eyespie.game.LocalGameSnapshot
 import com.micrantha.eyespie.testsupport.testGameId
@@ -38,7 +40,7 @@ class GameDetailFeatureTest {
         )
         val capabilities = FakeGameDetailCapabilities(snapshot)
         val outputs = mutableListOf<GameDetailOutput>()
-        val interactor = GameDetailFactory(capabilities, capabilities, outputs::add).create(this, testGameId)
+        val interactor = GameDetailFactory(capabilities, capabilities, capabilities, outputs::add).create(this, testGameId)
         interactor.dispatch(GameDetailIntent.Load)
         assertTrue(interactor.state.value.loading)
         advanceUntilIdle()
@@ -56,7 +58,7 @@ class GameDetailFeatureTest {
     fun local_creator_share_emits_feedback_effect() = runTest {
         val snapshot = testGameSnapshot(games = listOf(testGameSummary(name = "Lynn Valley", localCreator = true)))
         val capabilities = FakeGameDetailCapabilities(snapshot, GameDetailShareResult.Shared)
-        val interactor = GameDetailFactory(capabilities, capabilities, {}).create(this, testGameId)
+        val interactor = GameDetailFactory(capabilities, capabilities, capabilities, {}).create(this, testGameId)
         interactor.dispatch(GameDetailIntent.Load)
         advanceUntilIdle()
         interactor.dispatch(GameDetailIntent.ShareSelected)
@@ -71,7 +73,7 @@ class GameDetailFeatureTest {
     @Test
     fun imported_game_does_not_start_share_operation() = runTest {
         val capabilities = FakeGameDetailCapabilities(testGameSnapshot(games = listOf(testGameSummary(name = "Imported", localCreator = false))), GameDetailShareResult.Shared)
-        val interactor = GameDetailFactory(capabilities, capabilities, {}).create(this, testGameId)
+        val interactor = GameDetailFactory(capabilities, capabilities, capabilities, {}).create(this, testGameId)
         interactor.dispatch(GameDetailIntent.Load)
         advanceUntilIdle()
         interactor.dispatch(GameDetailIntent.ShareSelected)
@@ -84,7 +86,7 @@ class GameDetailFeatureTest {
 private class FakeGameDetailCapabilities(
     private val snapshot: LocalGameSnapshot,
     private val shareResult: GameDetailShareResult = GameDetailShareResult.Unavailable,
-) : GameSnapshotLoader, GameSharer {
+) : GameSnapshotLoader, GameSharer, GameThumbnailCache {
     var loads = 0
     val shares = mutableListOf<Pair<GameId, String>>()
     override suspend fun loadSnapshot(): LocalGameResult<LocalGameSnapshot> {
@@ -95,4 +97,5 @@ private class FakeGameDetailCapabilities(
         shares += gameId to gameName
         return shareResult
     }
+    override suspend fun thumbnailsForGame(gameId: GameId): Map<ThingId, ByteArray> = emptyMap()
 }

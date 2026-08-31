@@ -8,6 +8,11 @@ data class HomeContent(
     val identityDisplayName: String,
     val identityIdSuffix: String,
     val games: List<HomeGame>,
+    /**
+     * Local-only display thumbnails keyed by game id then thing id. Present only
+     * for locally-authored targets; imported games have no entries here.
+     */
+    val thumbnails: Map<String, Map<ThingId, ByteArray>> = emptyMap(),
 )
 
 data class HomeGame(

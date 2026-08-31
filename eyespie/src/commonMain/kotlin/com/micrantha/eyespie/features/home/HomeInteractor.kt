@@ -1,6 +1,7 @@
 package com.micrantha.eyespie.features.home
 
 import com.micrantha.eyespie.game.GameSnapshotLoader
+import com.micrantha.eyespie.game.GameThumbnailCache
 import com.micrantha.eyespie.game.LocalGameResult
 import com.micrantha.eyespie.mvi.BaseInteractor
 import com.micrantha.eyespie.mvi.EffectEmitter
@@ -14,6 +15,7 @@ class HomeInteractor(
     private val importPreparer: GameImportPreparer,
     private val importConfirmer: GameImportConfirmer,
     private val importCanceller: GameImportCanceller,
+    private val thumbnailCache: GameThumbnailCache,
     private val scope: CoroutineScope,
     private val output: (HomeOutput) -> Unit,
     initialState: HomeState = HomeState(),
@@ -31,9 +33,18 @@ class HomeInteractor(
                 val generation = stateAfterReduce.refreshGeneration
                 scope.launch {
                     when (val result = snapshotLoader.loadSnapshot()) {
-                        is LocalGameResult.Success -> dispatch(
-                            HomeIntent.ContentLoaded(generation, HomeMapper.map(result.value)),
-                        )
+                        is LocalGameResult.Success -> {
+                            val snapshot = result.value
+                            val thumbnails = snapshot.games.associate { game ->
+                                game.id.value to thumbnailCache.thumbnailsForGame(game.id)
+                            }
+                            dispatch(
+                                HomeIntent.ContentLoaded(
+                                    generation,
+                                    HomeMapper.map(snapshot, thumbnails),
+                                ),
+                            )
+                        }
                         is LocalGameResult.Failure -> dispatch(HomeIntent.OperationFailed(result.failure, generation))
                     }
                 }

@@ -8,10 +8,11 @@ import com.micrantha.eyespie.core.PlayerId
 import com.micrantha.eyespie.core.Thing
 import com.micrantha.eyespie.core.ThingId
 import com.micrantha.eyespie.data.EyesPieDatabase
+import com.micrantha.eyespie.game.GameThumbnailCache
 
 class SqlGameRepository(
     private val database: EyesPieDatabase,
-) : GameRepository {
+) : GameRepository, GameThumbnailCache {
     private val queries = database.eyesPieQueries
 
     override suspend fun list(): List<Game> = queries.selectAllGames { id, name, creatorId ->
@@ -41,6 +42,7 @@ class SqlGameRepository(
                 val sortOrder = index.toLong()
                 val clueAuthority = thing.clueAuthority
                 val generatedProvenance = clueAuthority.generatedProvenance
+                val thumbnail = thing.targetThumbnail
                 queries.insertThing(
                     thing.id.value,
                     game.id.value,
@@ -54,6 +56,7 @@ class SqlGameRepository(
                     generatedProvenance?.providerId,
                     generatedProvenance?.modelId,
                     generatedProvenance?.confidence,
+                    thumbnail,
                 )
                 queries.updateThing(
                     game.id.value,
@@ -67,11 +70,19 @@ class SqlGameRepository(
                     generatedProvenance?.providerId,
                     generatedProvenance?.modelId,
                     generatedProvenance?.confidence,
+                    thumbnail,
                     thing.id.value,
                 )
             }
         }
     }
+
+    override suspend fun thumbnailsForGame(gameId: GameId): Map<ThingId, ByteArray> =
+        queries.selectThingThumbnailsByGame(gameId.value) { thingId, thumbnail ->
+            ThingId(thingId) to (thumbnail?.copyOf() ?: byteArrayOf())
+        }.executeAsList()
+            .filter { (_, bytes) -> bytes.isNotEmpty() }
+            .toMap()
 
     private fun loadGame(row: GameRow): Game = Game(
         id = GameId(row.id),
@@ -90,6 +101,7 @@ class SqlGameRepository(
                 generatedProviderId,
                 generatedModelId,
                 generatedConfidence,
+                _,
             ->
             Thing(
                 id = ThingId(thingId),

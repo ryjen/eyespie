@@ -6,6 +6,8 @@ import com.micrantha.eyespie.core.ThingId
 import com.micrantha.eyespie.identity.LocalPlayerIdentityRepository
 import com.micrantha.eyespie.identity.PlatformSigningIdentity
 import com.micrantha.eyespie.imaging.MediaPipeImageEmbeddingGenerator
+import com.micrantha.eyespie.imaging.SkiaThumbnailCodec
+import com.micrantha.eyespie.imaging.AndroidImageRotator
 import com.micrantha.eyespie.imaging.loadAndroidImageEmbeddingModel
 import com.micrantha.eyespie.persistence.AndroidEyespieDatabaseFactory
 import com.micrantha.eyespie.persistence.SqlGameRepository
@@ -32,6 +34,8 @@ fun createAndroidEyespieRuntime(context: Context): EyespieRuntime {
                 modelBuffer = embeddingModel.directBuffer(),
             ),
             idGenerator = AndroidLocalGameIdGenerator(),
+            thumbnailCodec = SkiaThumbnailCodec,
+            imageRotator = AndroidImageRotator,
         ),
         bundleService = GameBundleService(
             identityRepository = identityRepository,
@@ -39,6 +43,7 @@ fun createAndroidEyespieRuntime(context: Context): EyespieRuntime {
             gameRepository = gameRepository,
         ),
         onboardingPreferences = SqlOnboardingPreferenceStore(database),
+        gameThumbnailCache = gameRepository,
     )
 }
 

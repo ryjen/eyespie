@@ -2,7 +2,10 @@ package com.micrantha.eyespie.features.home
 
 import com.micrantha.eyespie.core.PlayerId
 import com.micrantha.eyespie.core.PlayerIdentity
+import com.micrantha.eyespie.core.GameId
+import com.micrantha.eyespie.core.ThingId
 import com.micrantha.eyespie.game.GameSnapshotLoader
+import com.micrantha.eyespie.game.GameThumbnailCache
 import com.micrantha.eyespie.game.LocalGameResult
 import com.micrantha.eyespie.game.LocalGameSnapshot
 import com.micrantha.eyespie.testsupport.testGameId
@@ -205,6 +208,7 @@ private fun homeFactory(
     importPreparer = capabilities,
     importConfirmer = capabilities,
     importCanceller = capabilities,
+    thumbnailCache = capabilities,
     output = output,
 )
 
@@ -218,7 +222,7 @@ private class FakeHomeCapabilities(
     private val preparation: HomeImportPreparationResult =
         HomeImportPreparationResult.Terminal(HomeImportResult.Unavailable),
     private val confirmResult: HomeImportResult = HomeImportResult.Unavailable,
-) : GameSnapshotLoader, GameImportPreparer, GameImportConfirmer, GameImportCanceller {
+) : GameSnapshotLoader, GameImportPreparer, GameImportConfirmer, GameImportCanceller, GameThumbnailCache {
     var loads = 0
     var prepares = 0
     var confirms = 0
@@ -228,6 +232,8 @@ private class FakeHomeCapabilities(
         loads += 1
         return LocalGameResult.Success(snapshot)
     }
+
+    override suspend fun thumbnailsForGame(gameId: GameId): Map<ThingId, ByteArray> = emptyMap()
 
     override suspend fun prepareImport(): HomeImportPreparationResult {
         prepares += 1
