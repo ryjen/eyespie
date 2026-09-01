@@ -25,9 +25,14 @@ run = """
 ./gradlew :app:installDebug --no-daemon --stacktrace
 """
 
+[tasks.brand-verify]
+description = "Verify Micrantha Lens palette, launch surfaces, and platform icon wiring"
+run = "python3 scripts/validate_brand_assets.py"
+
 [tasks.ci]
 description = "Run release-evidence verification plus the Android offline-core gate"
 run = """
+python3 scripts/validate_brand_assets.py
 python3 scripts/release_candidate_identity.py verify
 python3 -m unittest discover -s scripts/tests -p 'test_*.py'
 ./gradlew :app:testDebugUnitTest :app:assembleDebug :app:assembleDebugAndroidTest --no-daemon --stacktrace

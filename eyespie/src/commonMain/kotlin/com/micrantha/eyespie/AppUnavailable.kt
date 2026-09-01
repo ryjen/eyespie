@@ -14,11 +14,15 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
+import com.micrantha.eyespie.ui.EyespieTheme
 
 @Composable
 fun AppUnavailable() {
-    MaterialTheme {
-        Surface(modifier = Modifier.fillMaxSize()) {
+    EyespieTheme {
+        Surface(
+            modifier = Modifier.fillMaxSize(),
+            color = MaterialTheme.colorScheme.background,
+        ) {
             Column(
                 modifier = Modifier
                     .fillMaxSize()
@@ -27,7 +31,11 @@ fun AppUnavailable() {
                 verticalArrangement = Arrangement.Center,
                 horizontalAlignment = Alignment.CenterHorizontally,
             ) {
-                Text("Eyespie", style = MaterialTheme.typography.headlineLarge)
+                Text(
+                    "Eyespie",
+                    color = MaterialTheme.colorScheme.primary,
+                    style = MaterialTheme.typography.headlineLarge,
+                )
                 Spacer(Modifier.height(12.dp))
                 Text("The local game runtime could not be initialized.")
                 Text(

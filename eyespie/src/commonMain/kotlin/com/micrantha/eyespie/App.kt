@@ -31,6 +31,7 @@ import com.micrantha.eyespie.app.VoyagerAppNavigation
 import com.micrantha.eyespie.app.toDestination
 import com.micrantha.eyespie.game.EyespieRuntime
 import com.micrantha.eyespie.sharing.GameDocumentTransfer
+import com.micrantha.eyespie.ui.EyespieTheme
 
 @Composable
 fun App(
@@ -45,12 +46,15 @@ fun App(
         }
     }
 
-    MaterialTheme {
+    EyespieTheme {
         val snackbarHostState = remember { SnackbarHostState() }
         Scaffold(
             snackbarHost = { SnackbarHost(snackbarHostState) },
         ) { scaffoldPadding ->
-            Surface(modifier = Modifier.fillMaxSize().padding(scaffoldPadding)) {
+            Surface(
+                modifier = Modifier.fillMaxSize().padding(scaffoldPadding),
+                color = MaterialTheme.colorScheme.background,
+            ) {
                 val completed = onboardingCompleted
                 if (completed == null) {
                     LoadingLocalGame()
@@ -76,7 +80,11 @@ fun App(
                             .padding(20.dp),
                         verticalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
-                        Text("Eyespie", style = MaterialTheme.typography.headlineLarge)
+                        Text(
+                            "Eyespie",
+                            color = MaterialTheme.colorScheme.primary,
+                            style = MaterialTheme.typography.headlineLarge,
+                        )
                         Text("Offline travel-spy game", style = MaterialTheme.typography.titleMedium)
 
                         Column(modifier = Modifier.fillMaxWidth().weight(1f)) {
@@ -116,7 +124,11 @@ private fun LoadingLocalGame() {
             .padding(20.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
     ) {
-        Text("Eyespie", style = MaterialTheme.typography.headlineLarge)
+        Text(
+            "Eyespie",
+            color = MaterialTheme.colorScheme.primary,
+            style = MaterialTheme.typography.headlineLarge,
+        )
         Text("Loading local game…", style = MaterialTheme.typography.titleMedium)
         CircularProgressIndicator()
     }

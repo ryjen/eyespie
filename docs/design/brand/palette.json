@@ -1,0 +1,20 @@
+{
+  "version": 1,
+  "colors": {
+    "field": "#D9E3DF",
+    "petal": "#829FC0",
+    "petal-inner": "#6F8CA8",
+    "throat": "#EEE7CD",
+    "iris": "#B59C69",
+    "pupil": "#263947",
+    "ink": "#314956",
+    "white": "#F5F5F0"
+  },
+  "roles": {
+    "launch-background": "field",
+    "app-background": "field",
+    "surface": "white",
+    "primary": "ink",
+    "accent": "petal-inner"
+  }
+}
