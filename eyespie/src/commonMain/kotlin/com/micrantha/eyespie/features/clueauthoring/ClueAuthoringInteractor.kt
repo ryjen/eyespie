@@ -19,13 +19,13 @@ class ClueAuthoringInteractor(
         stateAfterReduce: ClueAuthoringState,
     ) {
         when (intent) {
-            is ClueAuthoringIntent.TargetCaptured -> if (!previousState.busy) {
+            is ClueAuthoringIntent.TargetCaptured -> {
                 scope.launch {
                     when (
                         val result = author.addClue(
                             gameId = gameId,
-                            clueText = previousState.clue,
-                            expectedAnswer = previousState.expectedAnswer,
+                            clueText = stateAfterReduce.clue,
+                            expectedAnswer = stateAfterReduce.expectedAnswer,
                             targetImage = intent.image,
                         )
                     ) {

@@ -9,6 +9,7 @@ object ClueAuthoringReducer : Reducer<ClueAuthoringState, ClueAuthoringIntent> {
     ): ClueAuthoringState = when (intent) {
         is ClueAuthoringIntent.ClueChanged -> if (state.busy) state else state.copy(clue = intent.value)
         is ClueAuthoringIntent.ExpectedAnswerChanged -> if (state.busy) state else state.copy(expectedAnswer = intent.value)
+        ClueAuthoringIntent.CaptureStarted,
         is ClueAuthoringIntent.TargetCaptured -> if (state.busy) state else state.copy(busy = true, failure = null)
         ClueAuthoringIntent.CameraFailed -> if (state.busy) state else state.copy(failure = ClueAuthoringFailure.CameraUnavailable)
         ClueAuthoringIntent.DismissFailure -> state.copy(failure = null)

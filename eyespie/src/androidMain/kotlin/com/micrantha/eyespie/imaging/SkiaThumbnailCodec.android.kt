@@ -25,9 +25,10 @@ object SkiaThumbnailCodec : ThumbnailCodec {
         val fitted = Bitmap.createScaledBitmap(src, scaledW, scaledH, true)
         src.recycle()
 
-        val cropX = ((scaledW - side) / 2f).coerceAtLeast(0f).toInt()
-        val cropY = ((scaledH - side) / 2f).coerceAtLeast(0f).toInt()
-        val square = Bitmap.createBitmap(fitted, cropX, cropY, side, side)
+        val finalSide = minOf(side, scaledW, scaledH)
+        val cropX = ((scaledW - finalSide) / 2f).toInt()
+        val cropY = ((scaledH - finalSide) / 2f).toInt()
+        val square = Bitmap.createBitmap(fitted, cropX, cropY, finalSide, finalSide)
         if (fitted !== square) fitted.recycle()
 
         val out = ByteArrayOutputStream()

@@ -4,13 +4,10 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
-import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -31,7 +28,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.micrantha.eyespie.imaging.CameraAvailability
-import com.micrantha.eyespie.imaging.CameraCapture
+import com.micrantha.eyespie.presentation.CameraLayout
 import com.micrantha.eyespie.presentation.cameraUnavailableMessage
 import com.micrantha.eyespie.presentation.localGameFailureMessage
 import com.micrantha.eyespie.presentation.playCameraPermissionMessage
@@ -43,24 +40,69 @@ fun PlayGameScreen(
     state: PlayGameState,
     dispatch: (PlayGameIntent) -> Unit,
 ) {
-    Column(
-        modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
-    ) {
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            horizontalArrangement = Arrangement.SpaceBetween,
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            IconButton(
-                onClick = { dispatch(PlayGameIntent.Back) },
-                enabled = !state.busy,
-            ) { Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back to game") }
-            EyespieLogo(size = 32.dp)
-        }
+    if (state.loading && state.content == null) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.Center,
+        ) { CircularProgressIndicator() }
+        return
+    }
 
-        state.failure?.let { failure ->
+    val content = state.content
+    if (content == null) {
+        Column(
+            modifier = Modifier.fillMaxSize().padding(16.dp),
+            verticalArrangement = Arrangement.spacedBy(16.dp),
+        ) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                IconButton(onClick = { dispatch(PlayGameIntent.Back) }) {
+                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
+                }
+                EyespieLogo(size = 32.dp)
+            }
             Card(modifier = Modifier.fillMaxWidth()) {
+                Column(
+                    modifier = Modifier.fillMaxWidth().padding(20.dp),
+                    verticalArrangement = Arrangement.spacedBy(8.dp),
+                ) {
+                    Text("Case unavailable", style = MaterialTheme.typography.titleLarge)
+                    Text("This local game or clue is no longer available on this device.")
+                }
+            }
+        }
+        return
+    }
+
+    CameraLayout(
+        onBack = { dispatch(PlayGameIntent.Back) },
+        onCaptured = { dispatch(PlayGameIntent.GuessCaptured(it)) },
+        onCameraError = { dispatch(PlayGameIntent.CameraFailed) },
+        onAvailabilityChanged = { availability ->
+            if (availability == CameraAvailability.Unavailable) {
+                dispatch(PlayGameIntent.CameraFailed)
+            }
+        },
+        busy = state.busy,
+        recoveryMessage = playCameraPermissionMessage(),
+        captureButton = { capture ->
+            if (!state.completed && !state.matched) {
+                Button(
+                    modifier = Modifier.fillMaxWidth().height(56.dp),
+                    onClick = capture,
+                    enabled = !state.busy,
+                ) { Text(if (state.busy) "Checking…" else "Check this object") }
+            }
+        },
+    ) {
+        state.failure?.let { failure ->
+            Card(
+                modifier = Modifier.fillMaxWidth(),
+                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
+            ) {
                 Row(
                     modifier = Modifier.fillMaxWidth().padding(12.dp),
                     horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -72,61 +114,51 @@ fun PlayGameScreen(
                             is PlayGameFailure.Game -> localGameFailureMessage(failure.failure)
                         },
                         modifier = Modifier.weight(1f),
+                        color = MaterialTheme.colorScheme.onErrorContainer,
                     )
                     OutlinedButton(onClick = { dispatch(PlayGameIntent.DismissFailure) }) { Text("Dismiss") }
                 }
             }
         }
 
-        if (state.loading && state.content == null) {
-            Box(
-                modifier = Modifier.fillMaxWidth().padding(vertical = 48.dp),
-                contentAlignment = Alignment.Center,
-            ) { CircularProgressIndicator() }
-            return@Column
-        }
-
-        val content = state.content
-        if (content == null) {
-            Card(modifier = Modifier.fillMaxWidth()) {
-                Column(
-                    modifier = Modifier.fillMaxWidth().padding(20.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    Text("Case unavailable", style = MaterialTheme.typography.titleLarge)
-                    Text("This local game or clue is no longer available on this device.")
-                }
-            }
-            return@Column
-        }
-
-        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text(
-                "FIELD CASE",
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.primary,
-                fontWeight = FontWeight.Bold,
-            )
-            Text(content.gameName, style = MaterialTheme.typography.headlineLarge)
-            Text(
-                "Clue ${content.clueNumber} of ${content.clueCount} · ${state.matchedClues} found",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-        }
-
-        val progress = if (content.clueCount == 0) 0f else state.matchedClues.toFloat() / content.clueCount
-        LinearProgressIndicator(
-            progress = { progress },
+        Card(
             modifier = Modifier.fillMaxWidth(),
-        )
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.8f),
+            ),
+        ) {
+            Column(
+                modifier = Modifier.fillMaxWidth().padding(16.dp),
+                verticalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                Text(
+                    "FIELD CASE",
+                    style = MaterialTheme.typography.labelLarge,
+                    color = MaterialTheme.colorScheme.primary,
+                    fontWeight = FontWeight.Bold,
+                )
+                Text(content.gameName, style = MaterialTheme.typography.headlineSmall)
+                Text(
+                    "Clue ${content.clueNumber} of ${content.clueCount} · ${state.matchedClues} found",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                val progress = if (content.clueCount == 0) 0f else state.matchedClues.toFloat() / content.clueCount
+                LinearProgressIndicator(
+                    progress = { progress },
+                    modifier = Modifier.fillMaxWidth(),
+                )
+            }
+        }
 
         Card(
             modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+            colors = CardDefaults.cardColors(
+                containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f),
+            ),
         ) {
             Column(
-                modifier = Modifier.fillMaxWidth().padding(20.dp),
+                modifier = Modifier.fillMaxWidth().padding(16.dp),
                 verticalArrangement = Arrangement.spacedBy(8.dp),
             ) {
                 Text("Your clue", style = MaterialTheme.typography.labelLarge)
@@ -146,7 +178,9 @@ fun PlayGameScreen(
                     if (!outcome.match.matched) {
                         Card(
                             modifier = Modifier.fillMaxWidth(),
-                            colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+                            colors = CardDefaults.cardColors(
+                                containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.8f),
+                            ),
                         ) {
                             Column(
                                 modifier = Modifier.fillMaxWidth().padding(16.dp),
@@ -162,53 +196,8 @@ fun PlayGameScreen(
                         }
                     }
                 }
-
-                Card(
-                    modifier = Modifier.fillMaxWidth(),
-                    colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
-                ) {
-                    Column(
-                        modifier = Modifier.fillMaxWidth().padding(16.dp),
-                        verticalArrangement = Arrangement.spacedBy(12.dp),
-                    ) {
-                        Text("Scan your guess", style = MaterialTheme.typography.titleLarge)
-                        Text(
-                            "Frame the object clearly, then capture one still image to check it on this device.",
-                            style = MaterialTheme.typography.bodyMedium,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                        CameraCapture(
-                            modifier = Modifier.fillMaxWidth().height(300.dp),
-                            onAvailabilityChanged = { availability ->
-                                if (availability == CameraAvailability.Unavailable) {
-                                    dispatch(PlayGameIntent.CameraFailed)
-                                }
-                            },
-                            onCameraError = { dispatch(PlayGameIntent.CameraFailed) },
-                            onCaptured = { dispatch(PlayGameIntent.GuessCaptured(it)) },
-                            captureButton = { capture ->
-                                Button(
-                                    modifier = Modifier.fillMaxWidth(),
-                                    onClick = capture,
-                                    enabled = !state.busy,
-                                ) { Text(if (state.busy) "Checking…" else "Check this object") }
-                            },
-                            recoveryButton = { openSettings ->
-                                Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
-                                    Text(playCameraPermissionMessage())
-                                    OutlinedButton(
-                                        modifier = Modifier.fillMaxWidth(),
-                                        onClick = openSettings,
-                                    ) { Text("Open camera settings") }
-                                }
-                            },
-                        )
-                    }
-                }
             }
         }
-
-        Spacer(Modifier.height(4.dp))
     }
 }
 
