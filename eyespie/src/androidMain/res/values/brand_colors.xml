@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="brand_field">#D9E3DF</color>
+    <color name="brand_petal">#829FC0</color>
+    <color name="brand_petal_inner">#6F8CA8</color>
+    <color name="brand_throat">#EEE7CD</color>
+    <color name="brand_iris">#B59C69</color>
+    <color name="brand_pupil">#263947</color>
+    <color name="brand_ink">#314956</color>
+    <color name="brand_white">#F5F5F0</color>
+</resources>

@@ -2,5 +2,7 @@
     <style name="AppTheme" parent="@android:style/Theme.Material.Light.NoActionBar">
         <item name="android:windowBackground">@color/brand_field</item>
         <item name="android:colorAccent">@color/brand_petal_inner</item>
+        <item name="android:windowSplashScreenBackground">@color/brand_field</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/ic_launcher_foreground</item>
     </style>
 </resources>
