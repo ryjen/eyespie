@@ -59,7 +59,7 @@ fun EyespiePanel(
 fun EyespieEyebrow(
     text: String,
     modifier: Modifier = Modifier,
-    color: Color = MaterialTheme.colorScheme.secondary,
+    color: Color = MaterialTheme.colorScheme.onSurfaceVariant,
 ) {
     Text(
         text = text.uppercase(),
@@ -163,6 +163,7 @@ fun EyespieSecondaryAction(
 fun EyespieTopBar(
     onBack: (() -> Unit)? = null,
     backContentDescription: String = "Back",
+    backEnabled: Boolean = true,
     modifier: Modifier = Modifier,
 ) {
     Row(
@@ -173,6 +174,7 @@ fun EyespieTopBar(
         if (onBack != null) {
             OutlinedButton(
                 onClick = onBack,
+                enabled = backEnabled,
                 shape = MaterialTheme.shapes.medium,
                 border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
             ) {
