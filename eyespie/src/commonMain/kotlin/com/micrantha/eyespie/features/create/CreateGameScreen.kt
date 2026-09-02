@@ -32,6 +32,7 @@ fun CreateGameScreen(
         },
         busy = state.busy,
         recoveryMessage = targetCameraPermissionMessage(),
+        backLabel = "Back to field desk",
         captureButton = { capture ->
             EyespiePrimaryAction(
                 text = if (state.busy) "Creating…" else "Capture target & create game",
