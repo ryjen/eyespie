@@ -59,7 +59,8 @@ import org.robolectric.annotation.GraphicsMode
 @GraphicsMode(GraphicsMode.Mode.NATIVE)
 @Config(
     sdk = [35],
-    qualifiers = RobolectricDeviceQualifiers.Pixel5,
+    qualifiers = "en-rUS-" + RobolectricDeviceQualifiers.Pixel5,
+    fontScale = 1.0f,
 )
 class WayfinderGoldenTest {
     @get:Rule(order = 0)
