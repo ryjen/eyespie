@@ -1,5 +1,6 @@
 package com.micrantha.eyespie.features.home
 
+import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -18,15 +19,12 @@ import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.CheckCircle
 import androidx.compose.material.icons.filled.Place
-import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.FilledIconButton
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -35,9 +33,16 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import com.micrantha.eyespie.core.ThingId
-import com.micrantha.eyespie.presentation.theme.extendedColors
-import com.micrantha.eyespie.presentation.localGameFailureMessage
 import com.micrantha.eyespie.presentation.ThumbnailOrAvatar
+import com.micrantha.eyespie.presentation.localGameFailureMessage
+import com.micrantha.eyespie.presentation.theme.EyespieEyebrow
+import com.micrantha.eyespie.presentation.theme.EyespieLogo
+import com.micrantha.eyespie.presentation.theme.EyespiePanel
+import com.micrantha.eyespie.presentation.theme.EyespiePrimaryAction
+import com.micrantha.eyespie.presentation.theme.EyespieSecondaryAction
+import com.micrantha.eyespie.presentation.theme.EyespieSectionHeader
+import com.micrantha.eyespie.presentation.theme.EyespieStatusBadge
+import com.micrantha.eyespie.presentation.theme.extendedColors
 
 @Composable
 fun HomeScreen(
@@ -46,10 +51,9 @@ fun HomeScreen(
 ) {
     Column(
         modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
-        verticalArrangement = Arrangement.spacedBy(16.dp),
+        verticalArrangement = Arrangement.spacedBy(20.dp),
     ) {
         HomeHeader(state)
-
         LocalModeCard()
 
         state.failure?.let { failure ->
@@ -84,40 +88,35 @@ fun HomeScreen(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            Button(
+            EyespiePrimaryAction(
+                text = "Create game",
                 modifier = Modifier.weight(1f),
                 onClick = { dispatch(HomeIntent.CreateSelected) },
-            ) {
-                Text("Create game")
-            }
-            OutlinedButton(
+            )
+            EyespieSecondaryAction(
+                text = if (state.importInProgress) "Importing…" else "Import .eyespie",
                 modifier = Modifier.weight(1f),
                 enabled = !state.importInProgress,
                 onClick = { dispatch(HomeIntent.ImportSelected) },
-            ) {
-                Text(if (state.importInProgress) "Importing…" else "Import .eyespie")
-            }
+            )
         }
-
-        HorizontalDivider()
 
         Row(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.SpaceBetween,
             verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text("Your games", style = MaterialTheme.typography.headlineSmall)
+            EyespieSectionHeader(
+                title = "Your games",
+                supportingText = "Stored on this device. Share or join with a signed .eyespie file.",
+                modifier = Modifier.weight(1f),
+            )
             FilledIconButton(
                 onClick = { dispatch(HomeIntent.CreateSelected) },
             ) {
                 Icon(Icons.Default.Add, contentDescription = "Create game")
             }
         }
-        Text(
-            "Stored on this device. Share or join with a signed .eyespie file.",
-            style = MaterialTheme.typography.bodyMedium,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
 
         val games = state.content?.games.orEmpty()
         if (games.isEmpty()) {
@@ -127,7 +126,7 @@ fun HomeScreen(
                 importEnabled = !state.importInProgress,
             )
         } else {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Column(verticalArrangement = Arrangement.spacedBy(12.dp)) {
                 games.forEach { game ->
                     GameCard(
                         game = game,
@@ -138,34 +137,42 @@ fun HomeScreen(
             }
         }
 
-        OutlinedButton(
+        EyespieSecondaryAction(
+            text = "Profile, settings & help",
             modifier = Modifier.fillMaxWidth(),
             onClick = { dispatch(HomeIntent.UtilitySelected) },
-        ) {
-            Text("Profile, settings & help")
-        }
+        )
 
-        Spacer(Modifier.height(4.dp))
+        Spacer(Modifier.height(8.dp))
     }
 }
 
 @Composable
 private fun HomeHeader(state: HomeState) {
-    Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-        Text(
-            "EYESPIE",
-            style = MaterialTheme.typography.labelLarge,
-            color = MaterialTheme.colorScheme.primary,
-            fontWeight = FontWeight.Bold,
-        )
-        Text("Field desk", style = MaterialTheme.typography.headlineLarge)
-        state.content?.let { content ->
+    Row(
+        modifier = Modifier.fillMaxWidth(),
+        horizontalArrangement = Arrangement.spacedBy(16.dp),
+        verticalAlignment = Alignment.Top,
+    ) {
+        Column(
+            modifier = Modifier.weight(1f),
+            verticalArrangement = Arrangement.spacedBy(5.dp),
+        ) {
+            EyespieEyebrow("Eyespie · local field desk")
             Text(
-                "Agent ${content.identityDisplayName} · ${content.identityIdSuffix}",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                "Field desk",
+                style = MaterialTheme.typography.headlineLarge,
+                color = MaterialTheme.colorScheme.onBackground,
             )
+            state.content?.let { content ->
+                Text(
+                    "Agent ${content.identityDisplayName} · ${content.identityIdSuffix}",
+                    style = MaterialTheme.typography.bodyMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+            }
         }
+        EyespieLogo(size = 52.dp)
     }
 }
 
@@ -175,11 +182,12 @@ private fun LocalModeCard() {
     Surface(
         color = colors.successContainer,
         contentColor = colors.onSuccessContainer,
-        shape = MaterialTheme.shapes.medium,
+        shape = MaterialTheme.shapes.large,
+        border = BorderStroke(1.dp, colors.success.copy(alpha = 0.28f)),
         modifier = Modifier.fillMaxWidth(),
     ) {
         Row(
-            modifier = Modifier.fillMaxWidth().padding(16.dp),
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 18.dp, vertical = 16.dp),
             horizontalArrangement = Arrangement.spacedBy(12.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
@@ -187,7 +195,7 @@ private fun LocalModeCard() {
                 color = colors.success,
                 contentColor = colors.onSuccess,
                 shape = CircleShape,
-                modifier = Modifier.size(36.dp),
+                modifier = Modifier.size(38.dp),
             ) {
                 Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
                     Icon(
@@ -204,7 +212,7 @@ private fun LocalModeCard() {
                     fontWeight = FontWeight.Bold,
                 )
                 Text(
-                    "You're playing locally",
+                    "No hosted account required · game authority stays on this device",
                     style = MaterialTheme.typography.bodyMedium,
                 )
             }
@@ -219,50 +227,42 @@ private fun ImportPreviewCard(
     onConfirm: () -> Unit,
     onCancel: () -> Unit,
 ) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
-    ) {
-        Column(
-            modifier = Modifier.fillMaxWidth().padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+    EyespiePanel {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.SpaceBetween,
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Text(
-                "VERIFIED GAME FILE",
-                style = MaterialTheme.typography.labelLarge,
-                color = MaterialTheme.colorScheme.primary,
-                fontWeight = FontWeight.Bold,
-            )
-            Text(preview.gameName, style = MaterialTheme.typography.headlineSmall)
-            Text(
-                "${preview.clueCount} ${if (preview.clueCount == 1) "clue" else "clues"}",
-                style = MaterialTheme.typography.titleMedium,
-            )
-            Text(
-                "Creator …${preview.creatorIdSuffix} · Game …${preview.gameIdSuffix}",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Text(
-                "Eyespie verified the bundle format, creator identity, and signature. Adding it stores the playable game on this device; signed bundles provide integrity, not secrecy, and their gameplay data can be inspected by a device owner.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Button(
-                modifier = Modifier.fillMaxWidth(),
-                enabled = !adding,
-                onClick = onConfirm,
-            ) {
-                Text(if (adding) "Adding…" else "Add game")
-            }
-            OutlinedButton(
-                modifier = Modifier.fillMaxWidth(),
-                enabled = !adding,
-                onClick = onCancel,
-            ) {
-                Text("Cancel")
-            }
+            EyespieEyebrow("Verified game file")
+            EyespieStatusBadge("SIGNED")
         }
+        Text(preview.gameName, style = MaterialTheme.typography.headlineSmall)
+        Text(
+            "${preview.clueCount} ${if (preview.clueCount == 1) "clue" else "clues"}",
+            style = MaterialTheme.typography.titleMedium,
+        )
+        Text(
+            "Creator …${preview.creatorIdSuffix} · Game …${preview.gameIdSuffix}",
+            style = MaterialTheme.typography.bodySmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Text(
+            "Eyespie verified the bundle format, creator identity, and signature. Adding it stores the playable game on this device; signed bundles provide integrity, not secrecy, and their gameplay data can be inspected by a device owner.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        EyespiePrimaryAction(
+            text = if (adding) "Adding…" else "Add game",
+            modifier = Modifier.fillMaxWidth(),
+            enabled = !adding,
+            onClick = onConfirm,
+        )
+        EyespieSecondaryAction(
+            text = "Cancel",
+            modifier = Modifier.fillMaxWidth(),
+            enabled = !adding,
+            onClick = onCancel,
+        )
     }
 }
 
@@ -281,47 +281,46 @@ private fun GameCard(
     Card(
         onClick = onOpen,
         modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
+        shape = MaterialTheme.shapes.large,
+        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
+        elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
+        border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f)),
     ) {
         Row(
-            modifier = Modifier.fillMaxWidth().padding(12.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            modifier = Modifier.fillMaxWidth().padding(14.dp),
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
             verticalAlignment = Alignment.CenterVertically,
         ) {
             Surface(
                 color = MaterialTheme.colorScheme.primaryContainer,
                 contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
                 shape = MaterialTheme.shapes.medium,
-                modifier = Modifier.size(48.dp),
+                modifier = Modifier.size(56.dp),
             ) {
                 ThumbnailOrAvatar(
                     thumbnail = cover,
                     modifier = Modifier.fillMaxSize(),
                     avatar = {
-                        Icon(Icons.Default.Place, contentDescription = null, modifier = Modifier.size(26.dp))
+                        Icon(Icons.Default.Place, contentDescription = null, modifier = Modifier.size(28.dp))
                     },
                 )
             }
             Column(
                 modifier = Modifier.weight(1f),
-                verticalArrangement = Arrangement.spacedBy(2.dp),
+                verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
-                Text(game.name, style = MaterialTheme.typography.titleMedium)
+                Text(game.name, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                 Text(
                     progress,
                     style = MaterialTheme.typography.bodyMedium,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
-                Text(
-                    role,
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.primary,
-                )
+                EyespieStatusBadge(role)
             }
             Icon(
                 Icons.AutoMirrored.Filled.KeyboardArrowRight,
                 contentDescription = null,
-                tint = MaterialTheme.colorScheme.onSurfaceVariant,
+                tint = MaterialTheme.colorScheme.secondary,
             )
         }
     }
@@ -333,31 +332,25 @@ private fun EmptyGamesCard(
     onImport: () -> Unit,
     importEnabled: Boolean,
 ) {
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainer),
-    ) {
-        Column(
-            modifier = Modifier.fillMaxWidth().padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
-        ) {
-            Text("No field cases yet", style = MaterialTheme.typography.titleLarge)
-            Text(
-                "Create a game on this device, or join one another player shared with you.",
-                style = MaterialTheme.typography.bodyMedium,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
-            Button(modifier = Modifier.fillMaxWidth(), onClick = onCreate) {
-                Text("Create your first game")
-            }
-            OutlinedButton(
-                modifier = Modifier.fillMaxWidth(),
-                enabled = importEnabled,
-                onClick = onImport,
-            ) {
-                Text("Import .eyespie")
-            }
-        }
+    EyespiePanel {
+        EyespieEyebrow("Open a case")
+        Text("No field cases yet", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+        Text(
+            "Create a game on this device, or join one another player shared with you.",
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        EyespiePrimaryAction(
+            text = "Create your first game",
+            modifier = Modifier.fillMaxWidth(),
+            onClick = onCreate,
+        )
+        EyespieSecondaryAction(
+            text = "Import .eyespie",
+            modifier = Modifier.fillMaxWidth(),
+            enabled = importEnabled,
+            onClick = onImport,
+        )
     }
 }
 
@@ -367,14 +360,16 @@ private fun MessageCard(
     actionLabel: String,
     onAction: () -> Unit,
 ) {
-    Card(modifier = Modifier.fillMaxWidth()) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(12.dp),
-            horizontalArrangement = Arrangement.spacedBy(12.dp),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
-            Text(message, modifier = Modifier.weight(1f), style = MaterialTheme.typography.bodyMedium)
-            OutlinedButton(onClick = onAction) { Text(actionLabel) }
-        }
+    EyespiePanel(containerColor = MaterialTheme.colorScheme.errorContainer) {
+        Text(
+            message,
+            style = MaterialTheme.typography.bodyMedium,
+            color = MaterialTheme.colorScheme.onErrorContainer,
+        )
+        EyespieSecondaryAction(
+            text = actionLabel,
+            modifier = Modifier.fillMaxWidth(),
+            onClick = onAction,
+        )
     }
 }
