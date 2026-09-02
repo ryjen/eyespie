@@ -71,55 +71,66 @@ fun UtilityScreen(
                 CircularProgressIndicator()
             }
         } else {
-            state.content?.let { content ->
-                UtilitySection(eyebrow = "Agent identity", title = "Local identity") {
-                    Text(content.identityDisplayName, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                    Text(
-                        "Device identity · …${content.identityIdSuffix}",
-                        style = MaterialTheme.typography.bodySmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Text(
-                        "Signs locally authored game files. This is not an online account, login, or cloud profile.",
-                        style = MaterialTheme.typography.bodyMedium,
-                    )
+            Surface(
+                modifier = Modifier.fillMaxWidth(),
+                color = MaterialTheme.colorScheme.surface.copy(alpha = 0.78f),
+                shape = MaterialTheme.shapes.large,
+            ) {
+                Column(modifier = Modifier.fillMaxWidth()) {
+                    state.content?.let { content ->
+                        UtilitySection(eyebrow = "Agent identity", title = "Local identity") {
+                            Text(content.identityDisplayName, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+                            Text(
+                                "Device identity · …${content.identityIdSuffix}",
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            Text(
+                                "Signs locally authored game files. This is not an online account, login, or cloud profile.",
+                                style = MaterialTheme.typography.bodyMedium,
+                            )
+                        }
+                        UtilityDivider()
+                    }
+
+                    UtilitySection(eyebrow = "Data boundary", title = "Privacy & sharing") {
+                        Text(
+                            "Core play is backendless and local-authoritative. Game state and progress stay on this device.",
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                        Text(
+                            "Target photos are processed locally into embeddings. Signed .eyespie files contain inspectable gameplay data; signatures prove integrity and provenance, not secrecy.",
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                    }
+                    UtilityDivider()
+
+                    UtilitySection(eyebrow = "Field manual", title = "Help") {
+                        Text(
+                            "Create clues around real-world targets, share the signed .eyespie file, then players match each clue with their camera.",
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                        EyespieSecondaryAction(
+                            text = "Show how Eyespie works",
+                            modifier = Modifier.fillMaxWidth(),
+                            onClick = { dispatch(UtilityIntent.OnboardingSelected) },
+                        )
+                    }
+                    UtilityDivider()
+
+                    UtilitySection(eyebrow = "Capture permission", title = "Camera") {
+                        Text(
+                            "Camera access is requested only on capture screens and remains owned by the platform camera surface.",
+                            style = MaterialTheme.typography.bodyMedium,
+                        )
+                        Text(
+                            "When permission is denied, supported capture screens offer the platform Settings recovery action. This page does not duplicate system permission controls.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
                 }
             }
-        }
-
-        UtilitySection(eyebrow = "Data boundary", title = "Privacy & sharing") {
-            Text(
-                "Core play is backendless and local-authoritative. Game state and progress stay on this device.",
-                style = MaterialTheme.typography.bodyMedium,
-            )
-            Text(
-                "Target photos are processed locally into embeddings. Signed .eyespie files contain inspectable gameplay data; signatures prove integrity and provenance, not secrecy.",
-                style = MaterialTheme.typography.bodyMedium,
-            )
-        }
-
-        UtilitySection(eyebrow = "Field manual", title = "Help") {
-            Text(
-                "Create clues around real-world targets, share the signed .eyespie file, then players match each clue with their camera.",
-                style = MaterialTheme.typography.bodyMedium,
-            )
-            EyespieSecondaryAction(
-                text = "Show how Eyespie works",
-                modifier = Modifier.fillMaxWidth(),
-                onClick = { dispatch(UtilityIntent.OnboardingSelected) },
-            )
-        }
-
-        UtilitySection(eyebrow = "Capture permission", title = "Camera", showDivider = false) {
-            Text(
-                "Camera access is requested only on capture screens and remains owned by the platform camera surface.",
-                style = MaterialTheme.typography.bodyMedium,
-            )
-            Text(
-                "When permission is denied, supported capture screens offer the platform Settings recovery action. This page does not duplicate system permission controls.",
-                style = MaterialTheme.typography.bodySmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
         }
 
         Spacer(Modifier.height(8.dp))
@@ -130,27 +141,22 @@ fun UtilityScreen(
 private fun UtilitySection(
     eyebrow: String,
     title: String,
-    showDivider: Boolean = true,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    Surface(
-        modifier = Modifier.fillMaxWidth(),
-        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.72f),
-        shape = MaterialTheme.shapes.medium,
+    Column(
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 13.dp),
+        verticalArrangement = Arrangement.spacedBy(6.dp),
     ) {
-        Column(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 13.dp),
-            verticalArrangement = Arrangement.spacedBy(6.dp),
-        ) {
-            EyespieEyebrow(eyebrow)
-            Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-            content()
-            if (showDivider) {
-                HorizontalDivider(
-                    modifier = Modifier.padding(top = 2.dp),
-                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f),
-                )
-            }
-        }
+        EyespieEyebrow(eyebrow)
+        Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+        content()
     }
+}
+
+@Composable
+private fun UtilityDivider() {
+    HorizontalDivider(
+        modifier = Modifier.padding(horizontal = 16.dp),
+        color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f),
+    )
 }
