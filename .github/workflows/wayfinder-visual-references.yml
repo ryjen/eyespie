@@ -35,21 +35,17 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6
 
-      # Bootstrap mode for the first #287 reference set. This is switched to
-      # verifyRoborazziDebug after the generated references are reviewed and
-      # committed on this PR.
-      - name: Record deterministic Wayfinder references
-        run: ./gradlew :app:recordRoborazziDebug --no-daemon --stacktrace
+      - name: Verify deterministic Wayfinder references
+        run: ./gradlew :app:verifyRoborazziDebug --no-daemon --stacktrace
 
-      - name: Upload Wayfinder references
-        if: always()
+      - name: Upload visual diff diagnostics
+        if: failure()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: wayfinder-roborazzi-${{ github.run_id }}
+          name: wayfinder-roborazzi-diff-${{ github.run_id }}
           if-no-files-found: warn
           retention-days: 7
           path: |
-            eyespie/src/androidUnitTest/goldens/wayfinder/
             eyespie/build/reports/roborazzi/
             eyespie/build/outputs/roborazzi/
             eyespie/build/test-results/roborazzi/
