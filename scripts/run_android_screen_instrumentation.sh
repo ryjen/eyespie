@@ -2,6 +2,7 @@
 set -euo pipefail
 
 ARTIFACT_DIR="build/ci/android-screen-instrumentation"
+PACKAGE_ID="com.micrantha.eyespie.debug"
 mkdir -p "$ARTIFACT_DIR"
 
 adb wait-for-device
@@ -40,13 +41,13 @@ if [[ -z "$apk_path" ]]; then
   exit 1
 fi
 adb install -r "$apk_path" | tee "$ARTIFACT_DIR/installed-apk.txt"
-adb shell pm clear com.micrantha.eyespie | tee "$ARTIFACT_DIR/pm-clear.txt"
-adb shell monkey -p com.micrantha.eyespie -c android.intent.category.LAUNCHER 1 \
+adb shell pm clear "$PACKAGE_ID" | tee "$ARTIFACT_DIR/pm-clear.txt"
+adb shell monkey -p "$PACKAGE_ID" -c android.intent.category.LAUNCHER 1 \
   > "$ARTIFACT_DIR/installed-launch.txt" 2>&1
 sleep 3
 adb shell dumpsys window windows > "$ARTIFACT_DIR/installed-window.txt" 2>&1
-if ! grep -q 'com.micrantha.eyespie' "$ARTIFACT_DIR/installed-window.txt"; then
-  echo "Installed Eyespie app is not the active window" >&2
+if ! grep -q "$PACKAGE_ID" "$ARTIFACT_DIR/installed-window.txt"; then
+  echo "Installed Eyespie debug app is not the active window" >&2
   exit 1
 fi
 adb exec-out screencap -p > "$ARTIFACT_DIR/installed-onboarding.png"
