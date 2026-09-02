@@ -13,6 +13,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.unit.dp
@@ -23,6 +24,18 @@ import com.micrantha.eyespie.presentation.theme.EyespieEyebrow
 import com.micrantha.eyespie.presentation.theme.EyespiePanel
 import com.micrantha.eyespie.presentation.theme.EyespieSecondaryAction
 import com.micrantha.eyespie.presentation.theme.EyespieTopBar
+
+/**
+ * Presentation-only override used by deterministic visual tests. Production callers receive the
+ * real platform [CameraCapture] because the default value is null.
+ */
+internal typealias CameraCaptureSurfaceOverride = @Composable (
+    modifier: Modifier,
+    captureOverlay: @Composable ((capture: () -> Unit) -> Unit),
+) -> Unit
+
+internal val LocalCameraCaptureSurfaceOverride =
+    staticCompositionLocalOf<CameraCaptureSurfaceOverride?> { null }
 
 @Composable
 fun CameraLayout(
@@ -38,58 +51,65 @@ fun CameraLayout(
     content: @Composable ColumnScope.() -> Unit = {},
 ) {
     Box(modifier = modifier.fillMaxSize()) {
-        CameraCapture(
-            modifier = Modifier.fillMaxSize(),
-            onAvailabilityChanged = onAvailabilityChanged,
-            onCameraError = onCameraError,
-            onCaptured = onCaptured,
-            captureButton = { capture ->
-                Column(
-                    modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(vertical = 12.dp),
-                    verticalArrangement = Arrangement.spacedBy(14.dp),
-                ) {
-                    EyespieTopBar(
-                        onBack = onBack,
-                        backContentDescription = backLabel,
-                        backEnabled = !busy,
-                    )
+        val captureOverlay: @Composable ((capture: () -> Unit) -> Unit) = { capture ->
+            Column(
+                modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(vertical = 12.dp),
+                verticalArrangement = Arrangement.spacedBy(14.dp),
+            ) {
+                EyespieTopBar(
+                    onBack = onBack,
+                    backContentDescription = backLabel,
+                    backEnabled = !busy,
+                )
 
-                    content()
+                content()
 
-                    Spacer(modifier = Modifier.weight(1f))
+                Spacer(modifier = Modifier.weight(1f))
 
-                    captureButton(capture)
-                }
-            },
-            recoveryButton = { openSettings ->
-                Box(
-                    modifier = Modifier.fillMaxSize().padding(vertical = 16.dp),
-                    contentAlignment = Alignment.Center,
-                ) {
-                    EyespiePanel(
-                        containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.96f),
+                captureButton(capture)
+            }
+        }
+
+        val surfaceOverride = LocalCameraCaptureSurfaceOverride.current
+        if (surfaceOverride != null) {
+            surfaceOverride(Modifier.fillMaxSize(), captureOverlay)
+        } else {
+            CameraCapture(
+                modifier = Modifier.fillMaxSize(),
+                onAvailabilityChanged = onAvailabilityChanged,
+                onCameraError = onCameraError,
+                onCaptured = onCaptured,
+                captureButton = captureOverlay,
+                recoveryButton = { openSettings ->
+                    Box(
+                        modifier = Modifier.fillMaxSize().padding(vertical = 16.dp),
+                        contentAlignment = Alignment.Center,
                     ) {
-                        EyespieEyebrow("Camera access")
-                        Text(
-                            recoveryMessage,
-                            style = MaterialTheme.typography.bodyLarge,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                        EyespieSecondaryAction(
-                            text = "Open camera settings",
-                            modifier = Modifier.fillMaxWidth(),
-                            enabled = !busy,
-                            onClick = openSettings,
-                        )
-                        EyespieSecondaryAction(
-                            text = backLabel,
-                            modifier = Modifier.fillMaxWidth(),
-                            enabled = !busy,
-                            onClick = onBack,
-                        )
+                        EyespiePanel(
+                            containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.96f),
+                        ) {
+                            EyespieEyebrow("Camera access")
+                            Text(
+                                recoveryMessage,
+                                style = MaterialTheme.typography.bodyLarge,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            EyespieSecondaryAction(
+                                text = "Open camera settings",
+                                modifier = Modifier.fillMaxWidth(),
+                                enabled = !busy,
+                                onClick = openSettings,
+                            )
+                            EyespieSecondaryAction(
+                                text = backLabel,
+                                modifier = Modifier.fillMaxWidth(),
+                                enabled = !busy,
+                                onClick = onBack,
+                            )
+                        }
                     }
-                }
-            },
-        )
+                },
+            )
+        }
     }
 }
