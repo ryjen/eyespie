@@ -46,7 +46,7 @@ Reject the candidate as visually non-conformant if any representative state stil
 
 #286 makes the hosted feature-screen interaction suite render under the canonical `EyespieTheme` and extends brand verification to the actual runtime palette/artwork. #287 / PR #290 adds checked-in Roborazzi references for nine representative states. Golden verification catches unexpected visual drift, but it does not automatically declare the current image equivalent to the exploratory board.
 
-The hosted Android screen suite also captures one normal-font screenshot from the actually installed app after clearing app data and launching the production activity. This is review evidence, not a pixel-diff gate.
+The hosted Android screen suite also captures one normal-font screenshot from the actually installed app after explicitly staging and offline-verifying the pinned runtime model, reinstalling the debug APK, clearing app data, and launching the production activity. This is review evidence, not a pixel-diff gate.
 
 ## First exact board review — 2026-09-01
 
@@ -111,10 +111,25 @@ The convergence pass does **not** change:
 
 The signed import copy still describes integrity/provenance rather than secrecy, and no hosted-account, Gallery import, unsafe replace/keep-both conflict action, or warmer/colder AR promise was reintroduced.
 
+## Installed-build acceptance — 2026-09-02
+
+The first installed-build evidence attempt correctly exposed a fail-closed startup because the ordinary offline debug APK did not contain the explicitly provisioned image-embedder model. The evidence workflow was corrected to follow the documented runtime lifecycle rather than bypassing startup:
+
+1. stage the generation-pinned Android image-embedder model;
+2. verify the staged bytes offline against the pinned size and SHA-256 manifest;
+3. run the enlarged-font feature-screen interaction suite;
+4. reinstall the exact debug APK emitted by that build;
+5. clear the `com.micrantha.eyespie.debug` app state and launch the production activity at normal font scale;
+6. verify Eyespie is the active window and capture the installed application.
+
+Android screen instrumentation run `33608426665` passed that complete chain. The captured Pixel-5/API-35 installed application renders the real first onboarding state, not `AppUnavailable`: Micrantha mark/palette, top Skip, centered `1 / 4` progress and illustration, `LOCAL MODE` / `Play locally` hierarchy, local-authority copy, and bottom-anchored `Next` are all visible with no material clipping or safe-area regression.
+
+**Installed-build visual review: ACCEPTED.**
+
 ### Final acceptance boundary
 
-The updated deterministic references are approved. #291 and #285 can close only after:
+#291 / #285 are complete when the final PR head retains:
 
-1. verify-mode Roborazzi reproduces those approved images on the final head;
-2. core Android CI, enlarged-font screen instrumentation, workflow security, and the iOS simulator application build are green;
-3. the installed-app Pixel-5 onboarding screenshot is inspected and shows no material clipping, safe-area, or composition regression.
+1. verify-mode Roborazzi reproduction of the approved images;
+2. green core Android CI, enlarged-font screen instrumentation, workflow security, and iOS simulator application build;
+3. the accepted installed-app Pixel-5 onboarding evidence above.
