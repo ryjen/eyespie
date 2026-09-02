@@ -1,5 +1,6 @@
 package com.micrantha.eyespie.features
 
+import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -148,6 +149,20 @@ class FeatureScreenTest {
         compose.onNodeWithText("Back to field desk").performClick()
 
         assertEquals(listOf(CreateGameIntent.Back), intents)
+    }
+
+    @Test
+    fun create_screen_disables_back_navigation_while_busy() {
+        compose.setContent {
+            EyespieTheme {
+                CreateGameScreen(
+                    state = CreateGameState(busy = true),
+                    dispatch = {},
+                )
+            }
+        }
+
+        compose.onNodeWithText("Back to field desk").assertIsNotEnabled()
     }
 
     @Test
