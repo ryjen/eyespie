@@ -31,16 +31,29 @@ set +e
 status=$?
 set -e
 
-# Keep one representative screenshot from the actual installed application alongside
-# pure Compose interaction evidence. Clear app data so the launch is deterministic and
-# lands on onboarding, then restore normal font scale for the canonical visual review.
+# connectedDebugAndroidTest removes the tested application when it completes. Reinstall
+# the exact debug APK produced by that same build before collecting installed-app evidence.
 adb shell settings put system font_scale 1.0
-adb shell pm clear com.micrantha.eyespie > "$ARTIFACT_DIR/pm-clear.txt" || true
+apk_path="$(find eyespie/build/outputs/apk/debug -maxdepth 1 -type f -name '*.apk' | head -n 1)"
+if [[ -z "$apk_path" ]]; then
+  echo "Debug APK missing after instrumentation build" >&2
+  exit 1
+fi
+adb install -r "$apk_path" | tee "$ARTIFACT_DIR/installed-apk.txt"
+adb shell pm clear com.micrantha.eyespie | tee "$ARTIFACT_DIR/pm-clear.txt"
 adb shell monkey -p com.micrantha.eyespie -c android.intent.category.LAUNCHER 1 \
-  > "$ARTIFACT_DIR/installed-launch.txt" 2>&1 || true
+  > "$ARTIFACT_DIR/installed-launch.txt" 2>&1
 sleep 3
-adb exec-out screencap -p > "$ARTIFACT_DIR/installed-onboarding.png" || true
-adb shell dumpsys window windows > "$ARTIFACT_DIR/installed-window.txt" 2>&1 || true
+adb shell dumpsys window windows > "$ARTIFACT_DIR/installed-window.txt" 2>&1
+if ! grep -q 'com.micrantha.eyespie' "$ARTIFACT_DIR/installed-window.txt"; then
+  echo "Installed Eyespie app is not the active window" >&2
+  exit 1
+fi
+adb exec-out screencap -p > "$ARTIFACT_DIR/installed-onboarding.png"
+if [[ ! -s "$ARTIFACT_DIR/installed-onboarding.png" ]]; then
+  echo "Installed-build screenshot was not captured" >&2
+  exit 1
+fi
 
 adb logcat -d > "$ARTIFACT_DIR/logcat.txt" 2>&1 || true
 exit "$status"
