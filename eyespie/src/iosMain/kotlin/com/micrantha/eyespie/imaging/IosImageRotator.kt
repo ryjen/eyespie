@@ -4,16 +4,13 @@ package com.micrantha.eyespie.imaging
 
 import kotlinx.cinterop.BetaInteropApi
 import kotlinx.cinterop.ByteVar
-import kotlinx.cinterop.addressOf
 import kotlinx.cinterop.reinterpret
 import kotlinx.cinterop.useContents
-import kotlinx.cinterop.usePinned
 import platform.CoreGraphics.CGContextRotateCTM
 import platform.CoreGraphics.CGContextTranslateCTM
 import platform.CoreGraphics.CGRectMake
 import platform.CoreGraphics.CGSizeMake
 import platform.Foundation.NSData
-import platform.Foundation.create
 import platform.UIKit.UIImage
 import platform.UIKit.UIImagePNGRepresentation
 import platform.UIKit.UIGraphicsBeginImageContextWithOptions
@@ -65,12 +62,4 @@ object IosImageRotator : ImageRotator {
         val pointer = bytes?.reinterpret<ByteVar>() ?: return ByteArray(0)
         return ByteArray(byteCount) { index -> pointer[index] }
     }
-}
-
-private fun ByteArray.toUIImage(): UIImage {
-    val data: NSData = usePinned { pinned ->
-        NSData.create(bytes = pinned.addressOf(0), length = size.toULong())
-    }
-    return UIImage.imageWithData(data)
-        ?: throw IllegalArgumentException("captured image bytes are not a supported iOS image")
 }
