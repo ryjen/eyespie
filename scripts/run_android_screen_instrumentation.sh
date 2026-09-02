@@ -16,16 +16,18 @@ fi
 
 adb shell getprop | sort > "$ARTIFACT_DIR/emulator-getprop.txt"
 
-# Exercise the same interaction suite with enlarged system text. The app process is
-# launched after this setting is applied, so Compose reads the updated font scale.
+# Exercise the interaction suite with enlarged system text. The app process is launched
+# after this setting is applied, so Compose reads the updated font scale.
 adb shell settings put system font_scale 1.30
 adb shell settings get system font_scale | tee "$ARTIFACT_DIR/font-scale.txt"
 
-# The Gradle instrumentation install is fresh and does not grant CAMERA permission.
-# Keeping emulated camera hardware present exercises the requestable state without
-# opening a CameraX session or invoking MediaPipe during pure screen interactions.
+# Invoke the Gradle gate directly here. The mise task is useful for local ergonomics, but
+# this CI script must preserve the Gradle command's exit code exactly before collecting
+# installed-build evidence.
 set +e
-mise run screen-test
+./gradlew :app:connectedDebugAndroidTest \
+  -Pandroid.testInstrumentationRunnerArguments.package=com.micrantha.eyespie.features \
+  --no-daemon --stacktrace
 status=$?
 set -e
 
@@ -33,7 +35,7 @@ set -e
 # pure Compose interaction evidence. Clear app data so the launch is deterministic and
 # lands on onboarding, then restore normal font scale for the canonical visual review.
 adb shell settings put system font_scale 1.0
-adb shell pm clear com.micrantha.eyespie > "$ARTIFACT_DIR/pm-clear.txt"
+adb shell pm clear com.micrantha.eyespie > "$ARTIFACT_DIR/pm-clear.txt" || true
 adb shell monkey -p com.micrantha.eyespie -c android.intent.category.LAUNCHER 1 \
   > "$ARTIFACT_DIR/installed-launch.txt" 2>&1 || true
 sleep 3
