@@ -3,8 +3,7 @@
 package com.micrantha.eyespie.imaging
 
 import kotlinx.cinterop.BetaInteropApi
-import kotlinx.cinterop.ByteVar
-import kotlinx.cinterop.reinterpret
+import kotlinx.cinterop.readBytes
 import kotlinx.cinterop.useContents
 import platform.CoreGraphics.CGContextRotateCTM
 import platform.CoreGraphics.CGContextTranslateCTM
@@ -59,7 +58,6 @@ object IosImageRotator : ImageRotator {
 
     private fun NSData.toByteArray(): ByteArray {
         val byteCount = length.toULong().toInt()
-        val pointer = bytes?.reinterpret<ByteVar>() ?: return ByteArray(0)
-        return ByteArray(byteCount) { index -> pointer[index] }
+        return bytes?.readBytes(byteCount) ?: ByteArray(0)
     }
 }
