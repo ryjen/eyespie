@@ -51,6 +51,7 @@ fun CameraLayout(
                     EyespieTopBar(
                         onBack = onBack,
                         backContentDescription = backLabel,
+                        backEnabled = !busy,
                     )
 
                     content()
@@ -77,11 +78,13 @@ fun CameraLayout(
                         EyespieSecondaryAction(
                             text = "Open camera settings",
                             modifier = Modifier.fillMaxWidth(),
+                            enabled = !busy,
                             onClick = openSettings,
                         )
                         EyespieSecondaryAction(
                             text = backLabel,
                             modifier = Modifier.fillMaxWidth(),
+                            enabled = !busy,
                             onClick = onBack,
                         )
                     }
