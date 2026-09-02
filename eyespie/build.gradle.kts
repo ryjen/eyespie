@@ -163,6 +163,7 @@ kotlin {
             dependencies {
                 implementation(libs.kotlinx.coroutines.test)
                 implementation(libs.sqldelight.sqlite.driver)
+                implementation(libs.androidx.test.junit)
                 implementation(libs.androidx.ui.test.junit4)
                 implementation(libs.junit)
                 implementation(libs.robolectric)
