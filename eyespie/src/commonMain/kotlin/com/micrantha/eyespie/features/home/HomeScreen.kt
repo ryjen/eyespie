@@ -53,17 +53,6 @@ fun HomeScreen(
         modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
-        HomeHeader(state)
-        LocalModeRow()
-
-        state.failure?.let { failure ->
-            MessageCard(
-                message = localGameFailureMessage(failure),
-                actionLabel = "Dismiss",
-                onAction = { dispatch(HomeIntent.DismissFailure) },
-            )
-        }
-
         if (state.loading && state.content == null) {
             Box(
                 modifier = Modifier.fillMaxWidth().padding(vertical = 48.dp),
@@ -81,7 +70,25 @@ fun HomeScreen(
                 onConfirm = { dispatch(HomeIntent.ImportConfirmed) },
                 onCancel = { dispatch(HomeIntent.ImportPreviewCancelled) },
             )
+            state.failure?.let { failure ->
+                MessageCard(
+                    message = localGameFailureMessage(failure),
+                    actionLabel = "Dismiss",
+                    onAction = { dispatch(HomeIntent.DismissFailure) },
+                )
+            }
             return@Column
+        }
+
+        HomeHeader(state)
+        LocalModeRow()
+
+        state.failure?.let { failure ->
+            MessageCard(
+                message = localGameFailureMessage(failure),
+                actionLabel = "Dismiss",
+                onAction = { dispatch(HomeIntent.DismissFailure) },
+            )
         }
 
         Row(
@@ -216,6 +223,18 @@ private fun ImportPreviewCard(
         horizontalAlignment = Alignment.CenterHorizontally,
         verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
+            verticalAlignment = Alignment.CenterVertically,
+        ) {
+            EyespieLogo(size = 38.dp)
+            Column(verticalArrangement = Arrangement.spacedBy(1.dp)) {
+                EyespieEyebrow("Incoming case")
+                Text("Review game", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+            }
+        }
+
         Surface(
             color = MaterialTheme.colorScheme.primaryContainer,
             contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
