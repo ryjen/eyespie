@@ -101,6 +101,23 @@ def main() -> int:
         if kotlin_literal not in theme:
             fail(f"Compose theme is missing canonical color {value}")
 
+    brand_art = read_text("eyespie/src/commonMain/kotlin/com/micrantha/eyespie/presentation/theme/BrandArt.kt")
+    stale_brand_literals = ("0xFF5B3E8F", "0xFFB79BE6", "0xFF4F86C6", "0xFFE6A23C", "0xFF2B2440")
+    for literal in stale_brand_literals:
+        if literal in brand_art:
+            fail(f"Compose brand artwork still contains retired pre-Micrantha color {literal}")
+    required_brand_art_refs = (
+        "EyespieBrandColors.Field",
+        "EyespieBrandColors.Petal",
+        "EyespieBrandColors.PetalInner",
+        "EyespieBrandColors.Throat",
+        "EyespieBrandColors.Iris",
+        "EyespieBrandColors.Pupil",
+    )
+    for reference in required_brand_art_refs:
+        if reference not in brand_art:
+            fail(f"Compose brand artwork is not wired to canonical palette token {reference}")
+
     if asset_color("iosApp/iosApp/Assets.xcassets/BrandLaunchBackground.colorset/Contents.json") != expected["field"]:
         fail("iOS launch background drifted from brand field")
     if asset_color("iosApp/iosApp/Assets.xcassets/AccentColor.colorset/Contents.json") != expected["petal-inner"]:
