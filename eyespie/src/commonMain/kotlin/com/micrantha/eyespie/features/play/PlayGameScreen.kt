@@ -6,21 +6,14 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.CheckCircle
-import androidx.compose.material3.Button
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
-import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -32,7 +25,12 @@ import com.micrantha.eyespie.presentation.CameraLayout
 import com.micrantha.eyespie.presentation.cameraUnavailableMessage
 import com.micrantha.eyespie.presentation.localGameFailureMessage
 import com.micrantha.eyespie.presentation.playCameraPermissionMessage
-import com.micrantha.eyespie.presentation.theme.EyespieLogo
+import com.micrantha.eyespie.presentation.theme.EyespieEyebrow
+import com.micrantha.eyespie.presentation.theme.EyespiePanel
+import com.micrantha.eyespie.presentation.theme.EyespiePrimaryAction
+import com.micrantha.eyespie.presentation.theme.EyespieSecondaryAction
+import com.micrantha.eyespie.presentation.theme.EyespieStatusBadge
+import com.micrantha.eyespie.presentation.theme.EyespieTopBar
 import com.micrantha.eyespie.presentation.theme.extendedColors
 
 @Composable
@@ -51,27 +49,17 @@ fun PlayGameScreen(
     val content = state.content
     if (content == null) {
         Column(
-            modifier = Modifier.fillMaxSize().padding(16.dp),
+            modifier = Modifier.fillMaxSize().padding(vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
-            ) {
-                IconButton(onClick = { dispatch(PlayGameIntent.Back) }) {
-                    Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Back")
-                }
-                EyespieLogo(size = 32.dp)
-            }
-            Card(modifier = Modifier.fillMaxWidth()) {
-                Column(
-                    modifier = Modifier.fillMaxWidth().padding(20.dp),
-                    verticalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    Text("Case unavailable", style = MaterialTheme.typography.titleLarge)
-                    Text("This local game or clue is no longer available on this device.")
-                }
+            EyespieTopBar(
+                onBack = { dispatch(PlayGameIntent.Back) },
+                backContentDescription = "Back to game",
+            )
+            EyespiePanel {
+                EyespieEyebrow("Field case")
+                Text("Case unavailable", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                Text("This local game or clue is no longer available on this device.")
             }
         }
         return
@@ -88,82 +76,67 @@ fun PlayGameScreen(
         },
         busy = state.busy,
         recoveryMessage = playCameraPermissionMessage(),
+        backLabel = "Back to game",
         captureButton = { capture ->
             if (!state.completed && !state.matched) {
-                Button(
-                    modifier = Modifier.fillMaxWidth().height(56.dp),
+                EyespiePrimaryAction(
+                    text = if (state.busy) "Checking…" else "Check this object",
+                    modifier = Modifier.fillMaxWidth(),
                     onClick = capture,
                     enabled = !state.busy,
-                ) { Text(if (state.busy) "Checking…" else "Check this object") }
+                )
             }
         },
     ) {
         state.failure?.let { failure ->
-            Card(
-                modifier = Modifier.fillMaxWidth(),
-                colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.errorContainer),
-            ) {
-                Row(
-                    modifier = Modifier.fillMaxWidth().padding(12.dp),
-                    horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Text(
-                        when (failure) {
-                            PlayGameFailure.CameraUnavailable -> cameraUnavailableMessage()
-                            is PlayGameFailure.Game -> localGameFailureMessage(failure.failure)
-                        },
-                        modifier = Modifier.weight(1f),
-                        color = MaterialTheme.colorScheme.onErrorContainer,
-                    )
-                    OutlinedButton(onClick = { dispatch(PlayGameIntent.DismissFailure) }) { Text("Dismiss") }
-                }
-            }
-        }
-
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.8f),
-            ),
-        ) {
-            Column(
-                modifier = Modifier.fillMaxWidth().padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
+            EyespiePanel(containerColor = MaterialTheme.colorScheme.errorContainer) {
+                EyespieEyebrow("Capture problem", color = MaterialTheme.colorScheme.onErrorContainer)
                 Text(
-                    "FIELD CASE",
-                    style = MaterialTheme.typography.labelLarge,
-                    color = MaterialTheme.colorScheme.primary,
-                    fontWeight = FontWeight.Bold,
+                    when (failure) {
+                        PlayGameFailure.CameraUnavailable -> cameraUnavailableMessage()
+                        is PlayGameFailure.Game -> localGameFailureMessage(failure.failure)
+                    },
+                    color = MaterialTheme.colorScheme.onErrorContainer,
                 )
-                Text(content.gameName, style = MaterialTheme.typography.headlineSmall)
-                Text(
-                    "Clue ${content.clueNumber} of ${content.clueCount} · ${state.matchedClues} found",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                val progress = if (content.clueCount == 0) 0f else state.matchedClues.toFloat() / content.clueCount
-                LinearProgressIndicator(
-                    progress = { progress },
+                EyespieSecondaryAction(
+                    text = "Dismiss",
                     modifier = Modifier.fillMaxWidth(),
+                    onClick = { dispatch(PlayGameIntent.DismissFailure) },
                 )
             }
         }
 
-        Card(
-            modifier = Modifier.fillMaxWidth(),
-            colors = CardDefaults.cardColors(
-                containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.9f),
-            ),
+        EyespiePanel(
+            containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.94f),
         ) {
-            Column(
-                modifier = Modifier.fillMaxWidth().padding(16.dp),
-                verticalArrangement = Arrangement.spacedBy(8.dp),
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically,
             ) {
-                Text("Your clue", style = MaterialTheme.typography.labelLarge)
-                Text(content.clueText, style = MaterialTheme.typography.headlineSmall)
+                EyespieEyebrow("Field case")
+                EyespieStatusBadge("${state.matchedClues} / ${content.clueCount} found")
             }
+            Text(content.gameName, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+            Text(
+                "Clue ${content.clueNumber} of ${content.clueCount}",
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            val progress = if (content.clueCount == 0) 0f else state.matchedClues.toFloat() / content.clueCount
+            LinearProgressIndicator(
+                progress = { progress },
+                modifier = Modifier.fillMaxWidth(),
+                color = MaterialTheme.colorScheme.secondary,
+                trackColor = MaterialTheme.colorScheme.secondaryContainer,
+            )
+        }
+
+        EyespiePanel(
+            containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.96f),
+        ) {
+            EyespieEyebrow("Your clue")
+            Text(content.clueText, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
         }
 
         when {
@@ -176,23 +149,16 @@ fun PlayGameScreen(
             else -> {
                 state.latestOutcome?.let { outcome ->
                     if (!outcome.match.matched) {
-                        Card(
-                            modifier = Modifier.fillMaxWidth(),
-                            colors = CardDefaults.cardColors(
-                                containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.8f),
-                            ),
+                        EyespiePanel(
+                            containerColor = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.94f),
                         ) {
-                            Column(
-                                modifier = Modifier.fillMaxWidth().padding(16.dp),
-                                verticalArrangement = Arrangement.spacedBy(4.dp),
-                            ) {
-                                Text("Not it yet", style = MaterialTheme.typography.titleLarge)
-                                Text(
-                                    "Try another angle or move closer to the object described by the clue.",
-                                    style = MaterialTheme.typography.bodyMedium,
-                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                )
-                            }
+                            EyespieEyebrow("Keep searching", color = MaterialTheme.colorScheme.onTertiaryContainer)
+                            Text("Not it yet", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                            Text(
+                                "Try another angle or move closer to the object described by the clue.",
+                                style = MaterialTheme.typography.bodyMedium,
+                                color = MaterialTheme.colorScheme.onTertiaryContainer,
+                            )
                         }
                     }
                 }
@@ -208,27 +174,33 @@ private fun FoundCard(
     onBack: () -> Unit,
 ) {
     val colors = extendedColors
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = colors.successContainer),
+    EyespiePanel(
+        containerColor = colors.successContainer,
+        contentColor = colors.onSuccessContainer,
     ) {
-        Column(
-            modifier = Modifier.fillMaxWidth().padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                Icon(Icons.Default.CheckCircle, contentDescription = null, tint = colors.success, modifier = Modifier.size(28.dp))
-                Text("Clue found", style = MaterialTheme.typography.headlineSmall)
+            Icon(Icons.Default.CheckCircle, contentDescription = null, tint = colors.success, modifier = Modifier.size(30.dp))
+            Column {
+                EyespieEyebrow("Match confirmed", color = colors.success)
+                Text("Clue found", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
             }
-            Text("The match has been saved to this device.")
-            if (hasNext) {
-                Button(modifier = Modifier.fillMaxWidth(), onClick = onNext) { Text("Next clue") }
-            } else {
-                OutlinedButton(modifier = Modifier.fillMaxWidth(), onClick = onBack) { Text("Back to game") }
-            }
+        }
+        Text("The match has been saved to this device.")
+        if (hasNext) {
+            EyespiePrimaryAction(
+                text = "Next clue",
+                modifier = Modifier.fillMaxWidth(),
+                onClick = onNext,
+            )
+        } else {
+            EyespieSecondaryAction(
+                text = "Back to game",
+                modifier = Modifier.fillMaxWidth(),
+                onClick = onBack,
+            )
         }
     }
 }
@@ -236,23 +208,25 @@ private fun FoundCard(
 @Composable
 private fun CompletionCard(onBack: () -> Unit) {
     val colors = extendedColors
-    Card(
-        modifier = Modifier.fillMaxWidth(),
-        colors = CardDefaults.cardColors(containerColor = colors.successContainer),
+    EyespiePanel(
+        containerColor = colors.successContainer,
+        contentColor = colors.onSuccessContainer,
     ) {
-        Column(
-            modifier = Modifier.fillMaxWidth().padding(20.dp),
-            verticalArrangement = Arrangement.spacedBy(12.dp),
+        Row(
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(10.dp),
         ) {
-            Row(
-                verticalAlignment = Alignment.CenterVertically,
-                horizontalArrangement = Arrangement.spacedBy(8.dp),
-            ) {
-                Icon(Icons.Default.CheckCircle, contentDescription = null, tint = colors.success, modifier = Modifier.size(28.dp))
-                Text("Case complete", style = MaterialTheme.typography.headlineSmall)
+            Icon(Icons.Default.CheckCircle, contentDescription = null, tint = colors.success, modifier = Modifier.size(30.dp))
+            Column {
+                EyespieEyebrow("Mission resolved", color = colors.success)
+                Text("Case complete", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
             }
-            Text("Every clue in this game has been found. Progress is stored on this device.")
-            Button(modifier = Modifier.fillMaxWidth(), onClick = onBack) { Text("Back to game") }
         }
+        Text("Every clue in this game has been found. Progress is stored on this device.")
+        EyespiePrimaryAction(
+            text = "Back to game",
+            modifier = Modifier.fillMaxWidth(),
+            onClick = onBack,
+        )
     }
 }

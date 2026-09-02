@@ -1,20 +1,21 @@
+@file:OptIn(kotlinx.cinterop.ExperimentalForeignApi::class)
+
 package com.micrantha.eyespie.imaging
 
+import kotlinx.cinterop.BetaInteropApi
+import kotlinx.cinterop.readBytes
+import kotlinx.cinterop.useContents
 import platform.CoreGraphics.CGContextRotateCTM
 import platform.CoreGraphics.CGContextTranslateCTM
-import platform.CoreGraphics.CGSizeMake
 import platform.CoreGraphics.CGRectMake
+import platform.CoreGraphics.CGSizeMake
 import platform.Foundation.NSData
 import platform.UIKit.UIImage
 import platform.UIKit.UIImagePNGRepresentation
 import platform.UIKit.UIGraphicsBeginImageContextWithOptions
+import platform.UIKit.UIGraphicsEndImageContext
 import platform.UIKit.UIGraphicsGetCurrentContext
 import platform.UIKit.UIGraphicsGetImageFromCurrentImageContext
-import platform.UIKit.UIGraphicsEndImageContext
-import kotlinx.cinterop.BetaInteropApi
-import kotlinx.cinterop.ByteVar
-import kotlinx.cinterop.ExperimentalForeignApi
-import kotlinx.cinterop.usePinned
 
 /**
  * iOS [ImageRotator] using UIKit. Rotates by a multiple of 90 degrees and
@@ -30,24 +31,24 @@ object IosImageRotator : ImageRotator {
         return CapturedImage.fromEncoded(data.toByteArray())
     }
 
-    @OptIn(ExperimentalForeignApi::class, BetaInteropApi::class)
+    @OptIn(BetaInteropApi::class)
     private fun UIImage.rotate(degrees: Double): UIImage? {
         val radians = degrees * kotlin.math.PI / 180.0
-        val srcW = this.size.useContents { width }
-        val srcH = this.size.useContents { height }
+        val srcW = size.useContents { width }
+        val srcH = size.useContents { height }
         val swap = (normalizedDegrees(degrees.toInt()) % 180) != 0
         val dstW = if (swap) srcH else srcW
         val dstH = if (swap) srcW else srcH
         val dstSize = CGSizeMake(dstW, dstH)
 
-        UIGraphicsBeginImageContextWithOptions(dstSize, false, this.scale)
+        UIGraphicsBeginImageContextWithOptions(dstSize, false, scale)
         val context = UIGraphicsGetCurrentContext() ?: run {
             UIGraphicsEndImageContext()
             return null
         }
-        context.translateCTM(dstW / 2.0, dstH / 2.0)
-        context.rotateCTM(radians)
-        this.drawInRect(CGRectMake(-srcW / 2.0, -srcH / 2.0, srcW, srcH))
+        CGContextTranslateCTM(context, dstW / 2.0, dstH / 2.0)
+        CGContextRotateCTM(context, radians)
+        drawInRect(CGRectMake(-srcW / 2.0, -srcH / 2.0, srcW, srcH))
         val result = UIGraphicsGetImageFromCurrentImageContext()
         UIGraphicsEndImageContext()
         return result
@@ -56,8 +57,7 @@ object IosImageRotator : ImageRotator {
     private fun normalizedDegrees(degrees: Int): Int = ((degrees % 360) + 360) % 360
 
     private fun NSData.toByteArray(): ByteArray {
-        val length = this.length.toULong().toInt()
-        val pointer = this.bytes?.reinterpret<ByteVar>() ?: return ByteArray(0)
-        return ByteArray(length) { index -> pointer[index] }
+        val byteCount = length.toULong().toInt()
+        return bytes?.readBytes(byteCount) ?: ByteArray(0)
     }
 }
