@@ -10,7 +10,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.CheckCircle
+import androidx.compose.material.icons.filled.PhotoCamera
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.FilledIconButton
 import androidx.compose.material3.Icon
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -19,6 +21,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import com.micrantha.eyespie.imaging.CameraAvailability
 import com.micrantha.eyespie.presentation.CameraLayout
@@ -79,12 +82,35 @@ fun PlayGameScreen(
         backLabel = "Back to game",
         captureButton = { capture ->
             if (!state.completed && !state.matched) {
-                EyespiePrimaryAction(
-                    text = if (state.busy) "Checking…" else "Check this object",
+                Column(
                     modifier = Modifier.fillMaxWidth(),
-                    onClick = capture,
-                    enabled = !state.busy,
-                )
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    FilledIconButton(
+                        onClick = capture,
+                        enabled = !state.busy,
+                        modifier = Modifier.size(72.dp),
+                    ) {
+                        if (state.busy) {
+                            CircularProgressIndicator(
+                                modifier = Modifier.size(26.dp),
+                                strokeWidth = 3.dp,
+                            )
+                        } else {
+                            Icon(
+                                Icons.Default.PhotoCamera,
+                                contentDescription = "Check this object",
+                                modifier = Modifier.size(32.dp),
+                            )
+                        }
+                    }
+                    Text(
+                        if (state.busy) "Checking…" else "Check this object",
+                        style = MaterialTheme.typography.labelLarge,
+                        color = MaterialTheme.colorScheme.onSurface,
+                    )
+                }
             }
         },
     ) {
@@ -107,7 +133,7 @@ fun PlayGameScreen(
         }
 
         EyespiePanel(
-            containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.94f),
+            containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.88f),
         ) {
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -117,12 +143,13 @@ fun PlayGameScreen(
                 EyespieEyebrow("Field case")
                 EyespieStatusBadge("${state.matchedClues} / ${content.clueCount} found")
             }
-            Text(content.gameName, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
+            Text(content.gameName, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
             Text(
                 "Clue ${content.clueNumber} of ${content.clueCount}",
-                style = MaterialTheme.typography.bodyMedium,
+                style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
+            Text(content.clueText, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
             val progress = if (content.clueCount == 0) 0f else state.matchedClues.toFloat() / content.clueCount
             LinearProgressIndicator(
                 progress = { progress },
@@ -130,13 +157,6 @@ fun PlayGameScreen(
                 color = MaterialTheme.colorScheme.secondary,
                 trackColor = MaterialTheme.colorScheme.secondaryContainer,
             )
-        }
-
-        EyespiePanel(
-            containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.96f),
-        ) {
-            EyespieEyebrow("Your clue")
-            Text(content.clueText, style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
         }
 
         when {
@@ -150,7 +170,7 @@ fun PlayGameScreen(
                 state.latestOutcome?.let { outcome ->
                     if (!outcome.match.matched) {
                         EyespiePanel(
-                            containerColor = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.94f),
+                            containerColor = MaterialTheme.colorScheme.tertiaryContainer.copy(alpha = 0.90f),
                         ) {
                             EyespieEyebrow("Keep searching", color = MaterialTheme.colorScheme.onTertiaryContainer)
                             Text("Not it yet", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
@@ -175,20 +195,33 @@ private fun FoundCard(
 ) {
     val colors = extendedColors
     EyespiePanel(
-        containerColor = colors.successContainer,
+        containerColor = colors.successContainer.copy(alpha = 0.94f),
         contentColor = colors.onSuccessContainer,
     ) {
-        Row(
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.spacedBy(10.dp),
+        Column(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(8.dp),
         ) {
-            Icon(Icons.Default.CheckCircle, contentDescription = null, tint = colors.success, modifier = Modifier.size(30.dp))
-            Column {
-                EyespieEyebrow("Match confirmed", color = colors.success)
-                Text("Clue found", style = MaterialTheme.typography.headlineSmall, fontWeight = FontWeight.Bold)
-            }
+            Icon(
+                Icons.Default.CheckCircle,
+                contentDescription = null,
+                tint = colors.success,
+                modifier = Modifier.size(48.dp),
+            )
+            EyespieEyebrow("Match confirmed", color = colors.success)
+            Text(
+                "Clue found",
+                style = MaterialTheme.typography.headlineMedium,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center,
+            )
+            Text(
+                "The captured object matched this clue. Progress has been saved on this device.",
+                style = MaterialTheme.typography.bodyMedium,
+                textAlign = TextAlign.Center,
+            )
         }
-        Text("The match has been saved to this device.")
         if (hasNext) {
             EyespiePrimaryAction(
                 text = "Next clue",
