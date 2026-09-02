@@ -12,7 +12,9 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Alignment
@@ -33,7 +35,7 @@ fun UtilityScreen(
 ) {
     Column(
         modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
-        verticalArrangement = Arrangement.spacedBy(18.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         EyespieTopBar(
             onBack = { dispatch(UtilityIntent.Back) },
@@ -43,7 +45,7 @@ fun UtilityScreen(
         EyespieHeader(
             eyebrow = "Local field kit",
             title = "Profile & settings",
-            subtitle = "Everything here belongs to this device. Eyespie does not require a hosted account for core play.",
+            subtitle = "Local identity, privacy, sharing and capture guidance for this device.",
         )
 
         state.failure?.let { failure ->
@@ -70,39 +72,35 @@ fun UtilityScreen(
             }
         } else {
             state.content?.let { content ->
-                UtilityCard(eyebrow = "Agent identity", title = "Local identity") {
-                    Text(content.identityDisplayName, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
+                UtilitySection(eyebrow = "Agent identity", title = "Local identity") {
+                    Text(content.identityDisplayName, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
                     Text(
                         "Device identity · …${content.identityIdSuffix}",
-                        style = MaterialTheme.typography.bodyMedium,
+                        style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     Text(
-                        "This identity signs locally authored game files. It is not an online account, login, or cloud profile.",
+                        "Signs locally authored game files. This is not an online account, login, or cloud profile.",
                         style = MaterialTheme.typography.bodyMedium,
                     )
                 }
             }
         }
 
-        UtilityCard(eyebrow = "Data boundary", title = "Privacy & sharing") {
+        UtilitySection(eyebrow = "Data boundary", title = "Privacy & sharing") {
             Text(
-                "Core Eyespie play is backendless and local-authoritative. Game state and progress are stored on this device.",
+                "Core play is backendless and local-authoritative. Game state and progress stay on this device.",
                 style = MaterialTheme.typography.bodyMedium,
             )
             Text(
-                "The original target photo is used locally to derive a target embedding and is not exported as game authority.",
-                style = MaterialTheme.typography.bodyMedium,
-            )
-            Text(
-                "A signed .eyespie file contains inspectable gameplay data, including target embeddings. Its signature proves integrity and provenance; it does not provide confidentiality, DRM, or anti-cheat secrecy.",
+                "Target photos are processed locally into embeddings. Signed .eyespie files contain inspectable gameplay data; signatures prove integrity and provenance, not secrecy.",
                 style = MaterialTheme.typography.bodyMedium,
             )
         }
 
-        UtilityCard(eyebrow = "Field manual", title = "Help") {
+        UtilitySection(eyebrow = "Field manual", title = "Help") {
             Text(
-                "Create a field case by writing clues and capturing real-world targets. Share the signed .eyespie file, then players use their camera to match each clue on their own device.",
+                "Create clues around real-world targets, share the signed .eyespie file, then players match each clue with their camera.",
                 style = MaterialTheme.typography.bodyMedium,
             )
             EyespieSecondaryAction(
@@ -112,13 +110,13 @@ fun UtilityScreen(
             )
         }
 
-        UtilityCard(eyebrow = "Capture permission", title = "Camera") {
+        UtilitySection(eyebrow = "Capture permission", title = "Camera", showDivider = false) {
             Text(
-                "Camera permission and session lifecycle are owned by the platform camera surface. Eyespie only asks for camera access when capture is needed.",
+                "Camera access is requested only on capture screens and remains owned by the platform camera surface.",
                 style = MaterialTheme.typography.bodyMedium,
             )
             Text(
-                "If camera access is denied, supported capture screens offer the platform Settings recovery action when it is valid. This page does not duplicate system permission controls.",
+                "When permission is denied, supported capture screens offer the platform Settings recovery action. This page does not duplicate system permission controls.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -129,14 +127,30 @@ fun UtilityScreen(
 }
 
 @Composable
-private fun UtilityCard(
+private fun UtilitySection(
     eyebrow: String,
     title: String,
+    showDivider: Boolean = true,
     content: @Composable ColumnScope.() -> Unit,
 ) {
-    EyespiePanel {
-        EyespieEyebrow(eyebrow)
-        Text(title, style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-        content()
+    Surface(
+        modifier = Modifier.fillMaxWidth(),
+        color = MaterialTheme.colorScheme.surface.copy(alpha = 0.72f),
+        shape = MaterialTheme.shapes.medium,
+    ) {
+        Column(
+            modifier = Modifier.fillMaxWidth().padding(horizontal = 16.dp, vertical = 13.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            EyespieEyebrow(eyebrow)
+            Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
+            content()
+            if (showDivider) {
+                HorizontalDivider(
+                    modifier = Modifier.padding(top = 2.dp),
+                    color = MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.55f),
+                )
+            }
+        }
     }
 }
