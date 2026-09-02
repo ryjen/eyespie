@@ -4,6 +4,7 @@ plugins {
     alias(libs.plugins.kotlinMultiplatform)
     alias(libs.plugins.jetbrainsCompose)
     alias(libs.plugins.compose.compiler)
+    alias(libs.plugins.roborazzi)
     alias(libs.plugins.sqldelight)
 }
 
@@ -162,6 +163,13 @@ kotlin {
             dependencies {
                 implementation(libs.kotlinx.coroutines.test)
                 implementation(libs.sqldelight.sqlite.driver)
+                implementation(libs.androidx.test.junit)
+                implementation(libs.androidx.ui.test.junit4)
+                implementation(libs.junit)
+                implementation(libs.robolectric)
+                implementation(libs.roborazzi)
+                implementation(libs.roborazzi.compose)
+                implementation(libs.roborazzi.junit)
             }
         }
         val androidInstrumentedTest by getting {
@@ -176,6 +184,13 @@ kotlin {
 
 dependencies {
     debugImplementation(libs.androidx.ui.test.manifest)
+}
+
+roborazzi {
+    outputDir.set(file("src/androidUnitTest/goldens/wayfinder"))
+    compare {
+        outputDir.set(file("build/outputs/roborazzi/wayfinder-diff"))
+    }
 }
 
 sqldelight {
@@ -261,6 +276,10 @@ android {
     buildFeatures {
         compose = true
         buildConfig = true
+    }
+
+    testOptions {
+        unitTests.isIncludeAndroidResources = true
     }
 
     compileOptions {
