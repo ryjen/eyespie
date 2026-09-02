@@ -3,10 +3,12 @@ name: Wayfinder visual references
 on:
   pull_request:
     branches: [main]
+  push:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
-  contents: write
+  contents: read
 
 concurrency:
   group: eyespie-wayfinder-goldens-${{ github.event.pull_request.number || github.ref }}
@@ -15,15 +17,13 @@ concurrency:
 jobs:
   visual-references:
     name: wayfinder-roborazzi
-    if: github.event.pull_request.head.repo.full_name == github.repository
     runs-on: ubuntu-latest
     timeout-minutes: 20
     steps:
       - name: Checkout
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
-          ref: ${{ github.event.pull_request.head.ref }}
-          persist-credentials: true
+          persist-credentials: false
 
       - name: Install tools with mise
         uses: jdx/mise-action@3c2e0cf82a5b2e5249f0d3635a4d83d0ae861518
@@ -35,32 +35,17 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6
 
-      - name: Record deterministic Wayfinder references
-        run: ./gradlew :app:recordRoborazziDebug --no-daemon --stacktrace
+      - name: Verify deterministic Wayfinder references
+        run: ./gradlew :app:verifyRoborazziDebug --no-daemon --stacktrace
 
-      - name: Commit initial references
-        shell: bash
-        run: |
-          set -euo pipefail
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add eyespie/src/androidUnitTest/goldens/wayfinder/*.png
-          if git diff --cached --quiet; then
-            echo "Reference images already committed."
-            exit 0
-          fi
-          git commit -m "test(ui): record Wayfinder golden references"
-          git push origin HEAD:${{ github.event.pull_request.head.ref }}
-
-      - name: Upload Wayfinder references
-        if: always()
+      - name: Upload visual diff diagnostics
+        if: failure()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
-          name: wayfinder-roborazzi-${{ github.run_id }}
+          name: wayfinder-roborazzi-diff-${{ github.run_id }}
           if-no-files-found: warn
           retention-days: 7
           path: |
-            eyespie/src/androidUnitTest/goldens/wayfinder/
             eyespie/build/reports/roborazzi/
             eyespie/build/outputs/roborazzi/
             eyespie/build/test-results/roborazzi/
