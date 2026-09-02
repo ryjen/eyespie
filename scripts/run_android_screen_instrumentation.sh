@@ -29,5 +29,16 @@ mise run screen-test
 status=$?
 set -e
 
+# Keep one representative screenshot from the actual installed application alongside
+# pure Compose interaction evidence. Clear app data so the launch is deterministic and
+# lands on onboarding, then restore normal font scale for the canonical visual review.
+adb shell settings put system font_scale 1.0
+adb shell pm clear com.micrantha.eyespie > "$ARTIFACT_DIR/pm-clear.txt"
+adb shell monkey -p com.micrantha.eyespie -c android.intent.category.LAUNCHER 1 \
+  > "$ARTIFACT_DIR/installed-launch.txt" 2>&1 || true
+sleep 3
+adb exec-out screencap -p > "$ARTIFACT_DIR/installed-onboarding.png" || true
+adb shell dumpsys window windows > "$ARTIFACT_DIR/installed-window.txt" 2>&1 || true
+
 adb logcat -d > "$ARTIFACT_DIR/logcat.txt" 2>&1 || true
 exit "$status"
