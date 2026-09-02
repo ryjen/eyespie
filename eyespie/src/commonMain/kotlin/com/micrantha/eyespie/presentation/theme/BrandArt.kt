@@ -12,6 +12,7 @@ import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.drawscope.rotate
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
+import kotlin.math.PI
 import kotlin.math.cos
 import kotlin.math.sin
 
@@ -240,8 +241,8 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawArrow(
     drawLine(color, from, to, strokeWidth = width, cap = StrokeCap.Round)
     val angle = kotlin.math.atan2(to.y - from.y, to.x - from.x)
     val len = width * 4f
-    val left = angle + Math.PI.toFloat() * 0.85f
-    val right = angle - Math.PI.toFloat() * 0.85f
+    val left = angle + PI.toFloat() * 0.85f
+    val right = angle - PI.toFloat() * 0.85f
     drawLine(
         color,
         to,
