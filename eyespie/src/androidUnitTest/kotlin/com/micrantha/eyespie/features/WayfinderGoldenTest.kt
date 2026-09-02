@@ -68,7 +68,7 @@ class WayfinderGoldenTest {
         options = RoborazziRule.Options(
             roborazziOptions = RoborazziOptions(
                 compareOptions = RoborazziOptions.CompareOptions(
-                    changeThreshold = 0.002,
+                    changeThreshold = 0.002f,
                 ),
             ),
         ),
