@@ -1,6 +1,5 @@
 package com.micrantha.eyespie.features
 
-import androidx.compose.material3.MaterialTheme
 import androidx.compose.ui.test.junit4.createComposeRule
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -34,6 +33,7 @@ import com.micrantha.eyespie.features.utility.UtilityContent
 import com.micrantha.eyespie.features.utility.UtilityIntent
 import com.micrantha.eyespie.features.utility.UtilityScreen
 import com.micrantha.eyespie.features.utility.UtilityState
+import com.micrantha.eyespie.presentation.theme.EyespieTheme
 import org.junit.Assert.assertEquals
 import org.junit.Rule
 import org.junit.Test
@@ -48,7 +48,7 @@ class FeatureScreenTest {
     fun home_screen_dispatches_create_intent() {
         val intents = mutableListOf<HomeIntent>()
         compose.setContent {
-            MaterialTheme {
+            EyespieTheme {
                 HomeScreen(
                     state = HomeState(
                         content = HomeContent("Agent", "player-1", emptyList()),
@@ -68,7 +68,7 @@ class FeatureScreenTest {
     fun home_import_preview_dispatches_confirm_intent() {
         val intents = mutableListOf<HomeIntent>()
         compose.setContent {
-            MaterialTheme {
+            EyespieTheme {
                 HomeScreen(
                     state = HomeState(
                         content = HomeContent("Agent", "player-1", emptyList()),
@@ -94,7 +94,7 @@ class FeatureScreenTest {
     fun home_import_preview_dispatches_cancel_intent() {
         val intents = mutableListOf<HomeIntent>()
         compose.setContent {
-            MaterialTheme {
+            EyespieTheme {
                 HomeScreen(
                     state = HomeState(
                         content = HomeContent("Agent", "player-1", emptyList()),
@@ -120,7 +120,7 @@ class FeatureScreenTest {
     fun onboarding_screen_dispatches_next_intent() {
         val intents = mutableListOf<OnboardingIntent>()
         compose.setContent {
-            MaterialTheme {
+            EyespieTheme {
                 OnboardingScreen(
                     state = OnboardingState(),
                     dispatch = intents::add,
@@ -137,7 +137,7 @@ class FeatureScreenTest {
     fun create_screen_dispatches_back_intent_without_resolving_dependencies() {
         val intents = mutableListOf<CreateGameIntent>()
         compose.setContent {
-            MaterialTheme {
+            EyespieTheme {
                 CreateGameScreen(
                     state = CreateGameState(),
                     dispatch = intents::add,
@@ -154,7 +154,7 @@ class FeatureScreenTest {
     fun game_detail_screen_dispatches_add_clue_intent() {
         val intents = mutableListOf<GameDetailIntent>()
         compose.setContent {
-            MaterialTheme {
+            EyespieTheme {
                 GameDetailScreen(
                     state = GameDetailState(
                         content = GameDetailContent(
@@ -178,7 +178,7 @@ class FeatureScreenTest {
     fun clue_authoring_screen_dispatches_back_intent_without_capturing() {
         val intents = mutableListOf<ClueAuthoringIntent>()
         compose.setContent {
-            MaterialTheme {
+            EyespieTheme {
                 ClueAuthoringScreen(
                     state = ClueAuthoringState(),
                     dispatch = intents::add,
@@ -195,7 +195,7 @@ class FeatureScreenTest {
     fun play_screen_dispatches_back_intent_without_resolving_dependencies() {
         val intents = mutableListOf<PlayGameIntent>()
         compose.setContent {
-            MaterialTheme {
+            EyespieTheme {
                 PlayGameScreen(
                     state = PlayGameState(
                         gameId = GameId("game-1"),
@@ -222,7 +222,7 @@ class FeatureScreenTest {
     fun utility_screen_reopens_onboarding_after_scrolling_long_copy() {
         val intents = mutableListOf<UtilityIntent>()
         compose.setContent {
-            MaterialTheme {
+            EyespieTheme {
                 UtilityScreen(
                     state = UtilityState(
                         content = UtilityContent("Agent", "player-1"),
