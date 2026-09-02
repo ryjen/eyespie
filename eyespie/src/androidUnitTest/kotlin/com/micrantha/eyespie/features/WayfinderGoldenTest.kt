@@ -16,6 +16,8 @@ import androidx.compose.ui.test.onRoot
 import androidx.compose.ui.unit.dp
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.github.takahirom.roborazzi.RobolectricDeviceQualifiers
+import com.github.takahirom.roborazzi.RoborazziOptions
+import com.github.takahirom.roborazzi.RoborazziRule
 import com.github.takahirom.roborazzi.captureRoboImage
 import com.micrantha.eyespie.core.GameId
 import com.micrantha.eyespie.core.ThingId
@@ -60,7 +62,18 @@ import org.robolectric.annotation.GraphicsMode
     qualifiers = RobolectricDeviceQualifiers.Pixel5,
 )
 class WayfinderGoldenTest {
-    @get:Rule
+    @get:Rule(order = 0)
+    val roborazzi = RoborazziRule(
+        options = RoborazziRule.Options(
+            roborazziOptions = RoborazziOptions(
+                compareOptions = RoborazziOptions.CompareOptions(
+                    changeThreshold = 0.002,
+                ),
+            ),
+        ),
+    )
+
+    @get:Rule(order = 1)
     val compose = createComposeRule()
 
     @Test
