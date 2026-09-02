@@ -41,6 +41,7 @@ fun ClueAuthoringScreen(
         },
         busy = state.busy,
         recoveryMessage = clueTargetCameraPermissionMessage(),
+        backLabel = "Back to game",
         captureButton = { capture ->
             EyespiePrimaryAction(
                 text = if (state.busy) "Processing…" else "Capture target & add clue",
