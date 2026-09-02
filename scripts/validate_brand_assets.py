@@ -95,7 +95,7 @@ def main() -> int:
         if fragment not in v31_styles:
             fail(f"Android 12+ splash contract missing: {fragment}")
 
-    theme = read_text("eyespie/src/commonMain/kotlin/com/micrantha/eyespie/ui/EyespieTheme.kt")
+    theme = read_text("eyespie/src/commonMain/kotlin/com/micrantha/eyespie/presentation/theme/EyespieColors.kt")
     for value in expected.values():
         kotlin_literal = "0xFF" + value.removeprefix("#")
         if kotlin_literal not in theme:
