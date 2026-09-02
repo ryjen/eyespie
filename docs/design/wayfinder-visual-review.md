@@ -1,6 +1,6 @@
 # Wayfinder visual review checklist
 
-Parent: #285. Runtime implementation: #286. Deterministic references: #287 / PR #290. Remaining convergence: #291.
+Parent: #285. Runtime implementation: #286. Deterministic references: #287 / PR #290. Composition convergence: #291 / PR #292.
 
 This is the bounded human-review companion to the automated interaction, brand-contract, and Roborazzi gates. It records what must be compared against the eight canonical board tiles before #285 closes.
 
@@ -46,15 +46,15 @@ Reject the candidate as visually non-conformant if any representative state stil
 
 #286 makes the hosted feature-screen interaction suite render under the canonical `EyespieTheme` and extends brand verification to the actual runtime palette/artwork. #287 / PR #290 adds checked-in Roborazzi references for nine representative states. Golden verification catches unexpected visual drift, but it does not automatically declare the current image equivalent to the exploratory board.
 
-A representative installed-build visual review remains required before #285 closes.
+The hosted Android screen suite also captures one normal-font screenshot from the actually installed app after clearing app data and launching the production activity. This is review evidence, not a pixel-diff gate.
 
 ## First exact board review — 2026-09-01
 
 PR #290's first Pixel-5 references were rendered and inspected as a contact sheet, then compared directly with all eight canonical board tiles (`01.webp`–`08.webp`).
 
-### What now matches the intended direction
+### What matched the intended direction
 
-Across the reviewed states, the app consistently has:
+Across the reviewed states, the app consistently had:
 
 - a deliberate Micrantha palette rather than stale violet/default Material roles;
 - recognizable field/case hierarchy;
@@ -65,28 +65,56 @@ Across the reviewed states, the app consistently has:
 - a camera field that remains visually dominant;
 - signed import provenance without unsupported secrecy or conflict actions.
 
-The references are therefore accepted as a deterministic **current-state baseline**.
+The references were accepted as a deterministic **current-state baseline**, while #291 retained the remaining composition gaps.
 
-### Remaining material composition gaps
+### Material composition gaps identified by that review
 
 | Reference/state | Review result | Remaining delta |
 | --- | --- | --- |
-| Onboarding / Local | **PARTIAL — CONVERGENCE REQUIRED** | Canonical composition is compact and screen-native with top Skip and bottom-anchored Next. Current large dossier panel plus high actions leaves too much unused lower space. |
-| Home / empty | **PARTIAL — CONVERGENCE REQUIRED** | Board uses a compact app header/Local Mode row and keeps create/import near the lower game-list action area. Current Field Desk heading/local card are oversized and create/import sit above the list. |
-| Home / populated | **PARTIAL — CONVERGENCE REQUIRED** | Rows are recognizably aligned with the board, but overall header/card density and action placement remain materially different. |
-| Verified import preview | **PARTIAL — CONVERGENCE REQUIRED** | Provenance/metadata/actions are correct, but the board gives preview its own stronger focal composition with target thumbnail; current preview remains embedded in Field Desk. |
-| Game detail / creator | **PARTIAL — CONVERGENCE REQUIRED** | Board prioritizes case/target identity, metadata and compact clues. Current builder/share dossiers consume most of the first viewport and only one clue row is initially visible. |
-| Play / searching | **PARTIAL — CONVERGENCE REQUIRED** | Camera dominance is correct; overlays are heavier than the board and the full-width CTA is less camera-native than the board's capture treatment. |
-| Play / clue found | **PARTIAL — CONVERGENCE REQUIRED** | Explicit success semantics are good, but the board uses a more focused confirmation treatment with target imagery; current success panel is top-weighted and text-only. |
-| Play / case complete | **MATCHES DIRECTION, REVIEW WITH #291** | Terminal success hierarchy is clear and bounded; re-review after play/found composition changes for consistency. |
-| Utility / profile & privacy | **PARTIAL — CONVERGENCE REQUIRED** | Content truth is stronger than the generated board, but the current stacked dossier treatment is substantially denser than the compact settings list direction. |
+| Onboarding / Local | **PARTIAL — CONVERGENCE REQUIRED** | Canonical composition is compact and screen-native with top Skip and bottom-anchored Next. Large dossier composition left excessive unused lower space. |
+| Home / empty | **PARTIAL — CONVERGENCE REQUIRED** | Board uses a compact app header/Local Mode row and keeps create/import near the lower game-list action area. |
+| Home / populated | **PARTIAL — CONVERGENCE REQUIRED** | Rows aligned directionally, but header/card density and action placement remained materially different. |
+| Verified import preview | **PARTIAL — CONVERGENCE REQUIRED** | Provenance/metadata/actions were correct, but preview lacked the board's dedicated focal composition. |
+| Game detail / creator | **PARTIAL — CONVERGENCE REQUIRED** | Builder/share dossiers consumed most of the first viewport instead of prioritizing case identity/progress/clues. |
+| Play / searching | **PARTIAL — CONVERGENCE REQUIRED** | Camera dominance was correct; overlays were heavy and full-width CTA was less camera-native. |
+| Play / clue found | **PARTIAL — CONVERGENCE REQUIRED** | Explicit success semantics were good, but confirmation lacked the board's focused treatment. |
+| Play / case complete | **MATCHES DIRECTION, REVIEW WITH #291** | Terminal success hierarchy was clear and bounded. |
+| Utility / profile & privacy | **PARTIAL — CONVERGENCE REQUIRED** | Truthful content was substantially denser and more card-heavy than the compact settings direction. |
 
-### Decision
+## Composition convergence review — PR #292
 
-Do **not** close #285 on the strength of the first golden set.
+PR #292 changed only presentation composition plus its visual/installed-build evidence. The nine updated Roborazzi `actual` images were generated at the same Pixel-5/API-35 contract, inspected together, and accepted before being recorded as the replacement reference set. The comparator threshold remains `0.002` (0.2%); no tolerance was loosened to approve the change.
 
-- #287 is satisfied by deterministic checked-in references plus verify-mode CI.
-- #291 owns the remaining screen-composition convergence exposed by this review.
-- #285 closes only after #291 is accepted and one representative installed-build visual review finds no remaining material divergence.
+| Reference/state | Review result | Resolution / intentional divergence |
+| --- | --- | --- |
+| Onboarding / Local | **MATCHES DIRECTION** | Compact screen-native composition now has top Skip, central illustration/content, progress, and bottom-anchored primary action. Micrantha mark/palette intentionally replace generated violet branding. |
+| Home / empty | **MATCHES DIRECTION** | Compact header and Local Mode row now lead into the game section; create/import sit after the case content rather than above it. |
+| Home / populated | **MATCHES DIRECTION** | Thumbnail-led compact rows and game-first hierarchy materially match the board direction while preserving created/shared role badges. |
+| Verified import preview | **MATCHES DIRECTION WITH INTENTIONAL DIVERGENCE** | Preview is now a dedicated incoming-case surface with strong signed-state focus and dominant Add action. The preview model has no trusted cover-photo field, so it uses a target/place placeholder rather than inventing image authority. |
+| Game detail / creator | **MATCHES DIRECTION** | Case identity and progress lead directly into compact clue rows; creator authoring/share tools move below clue content. |
+| Play / searching | **MATCHES DIRECTION** | Camera remains dominant; case/clue information is one compact translucent overlay and capture uses a centered camera-like shutter control with explicit accessibility text. |
+| Play / clue found | **MATCHES DIRECTION WITH INTENTIONAL DIVERGENCE** | Confirmation is now focused and centered with explicit semantic success and next action. The play state does not retain a captured-photo field, so the result does not fabricate or persist an image solely for mockup parity. |
+| Play / case complete | **MATCHES DIRECTION** | Existing terminal success composition remains clear after overlay compaction. |
+| Utility / profile & privacy | **MATCHES DIRECTION** | Separate dossier cards are consolidated into one compact grouped settings surface with dividers. Truthful local identity/privacy/camera copy remains somewhat more explicit than the exploratory board. |
 
-The board remains directional, not a pixel-exact contract. #291 should move composition materially closer without reintroducing unsupported hosted accounts, Gallery import, unsafe conflict actions, secrecy claims, or non-semantic camera controls.
+### Security and architecture review
+
+The convergence pass does **not** change:
+
+- route-scoped MVI or domain behavior;
+- `.eyespie` schema/signature/conflict authority;
+- SQLDelight/local-authoritative state;
+- platform signing identity;
+- MediaPipe model, embedding, or match policy;
+- camera permission/native ownership or busy-state lifecycle guards;
+- creator-only expected-answer boundaries.
+
+The signed import copy still describes integrity/provenance rather than secrecy, and no hosted-account, Gallery import, unsafe replace/keep-both conflict action, or warmer/colder AR promise was reintroduced.
+
+### Final acceptance boundary
+
+The updated deterministic references are approved. #291 and #285 can close only after:
+
+1. verify-mode Roborazzi reproduces those approved images on the final head;
+2. core Android CI, enlarged-font screen instrumentation, workflow security, and the iOS simulator application build are green;
+3. the installed-app Pixel-5 onboarding screenshot is inspected and shows no material clipping, safe-area, or composition regression.
