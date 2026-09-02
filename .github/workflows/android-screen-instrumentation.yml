@@ -35,6 +35,12 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6
 
+      - name: Stage pinned Android runtime model
+        run: ./gradlew :app:stageAndroidImageEmbedderModel --no-daemon --stacktrace
+
+      - name: Verify staged Android runtime offline
+        run: ./gradlew :app:verifyAndroidRuntime --offline --no-daemon --stacktrace
+
       - name: Enable KVM acceleration
         shell: bash
         run: |
