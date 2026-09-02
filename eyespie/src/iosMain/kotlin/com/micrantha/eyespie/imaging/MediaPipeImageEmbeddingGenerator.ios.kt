@@ -80,7 +80,7 @@ class MediaPipeImageEmbeddingGenerator(
     }
 }
 
-private fun ByteArray.toUIImage(): UIImage {
+internal fun ByteArray.toUIImage(): UIImage {
     val data: NSData = usePinned { pinned ->
         NSData.create(bytes = pinned.addressOf(0), length = size.toULong())
     }
