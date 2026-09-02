@@ -33,6 +33,7 @@ fun CameraLayout(
     busy: Boolean,
     captureButton: @Composable ColumnScope.(capture: () -> Unit) -> Unit,
     recoveryMessage: String,
+    backLabel: String = "Back",
     modifier: Modifier = Modifier,
     content: @Composable ColumnScope.() -> Unit = {},
 ) {
@@ -49,7 +50,7 @@ fun CameraLayout(
                 ) {
                     EyespieTopBar(
                         onBack = onBack,
-                        backContentDescription = "Back",
+                        backContentDescription = backLabel,
                     )
 
                     content()
@@ -79,7 +80,7 @@ fun CameraLayout(
                             onClick = openSettings,
                         )
                         EyespieSecondaryAction(
-                            text = "Back",
+                            text = backLabel,
                             modifier = Modifier.fillMaxWidth(),
                             onClick = onBack,
                         )
