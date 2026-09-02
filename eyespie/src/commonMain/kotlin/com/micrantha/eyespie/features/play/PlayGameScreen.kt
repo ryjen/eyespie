@@ -52,7 +52,10 @@ fun PlayGameScreen(
             modifier = Modifier.fillMaxSize().padding(vertical = 12.dp),
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
-            EyespieTopBar(onBack = { dispatch(PlayGameIntent.Back) })
+            EyespieTopBar(
+                onBack = { dispatch(PlayGameIntent.Back) },
+                backContentDescription = "Back to game",
+            )
             EyespiePanel {
                 EyespieEyebrow("Field case")
                 Text("Case unavailable", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
@@ -73,6 +76,7 @@ fun PlayGameScreen(
         },
         busy = state.busy,
         recoveryMessage = playCameraPermissionMessage(),
+        backLabel = "Back to game",
         captureButton = { capture ->
             if (!state.completed && !state.matched) {
                 EyespiePrimaryAction(
