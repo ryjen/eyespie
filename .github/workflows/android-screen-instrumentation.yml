@@ -35,6 +35,12 @@ jobs:
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6
 
+      - name: Stage pinned Android runtime model
+        run: ./gradlew :app:stageAndroidImageEmbedderModel --no-daemon --stacktrace
+
+      - name: Verify staged Android runtime offline
+        run: ./gradlew :app:verifyAndroidRuntime --offline --no-daemon --stacktrace
+
       - name: Enable KVM acceleration
         shell: bash
         run: |
@@ -65,8 +71,8 @@ jobs:
             -camera-front none
           script: bash scripts/run_android_screen_instrumentation.sh
 
-      - name: Upload screen-test diagnostics
-        if: failure()
+      - name: Upload installed-build visual evidence
+        if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: android-screen-instrumentation-${{ github.run_id }}

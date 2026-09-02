@@ -19,6 +19,7 @@ import androidx.compose.material3.Card
 import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.Icon
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -46,7 +47,7 @@ fun GameDetailScreen(
 ) {
     Column(
         modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
-        verticalArrangement = Arrangement.spacedBy(18.dp),
+        verticalArrangement = Arrangement.spacedBy(14.dp),
     ) {
         EyespieTopBar(
             onBack = { dispatch(GameDetailIntent.Back) },
@@ -64,9 +65,7 @@ fun GameDetailScreen(
             Box(
                 modifier = Modifier.fillMaxWidth().padding(vertical = 48.dp),
                 contentAlignment = Alignment.Center,
-            ) {
-                CircularProgressIndicator()
-            }
+            ) { CircularProgressIndicator() }
             return@Column
         }
 
@@ -79,47 +78,18 @@ fun GameDetailScreen(
             title = content.name,
             subtitle = if (total == 0) "No playable clues yet" else "$found of $total clues found",
         )
-
-        if (content.localCreator) {
-            EyespiePanel {
-                EyespieEyebrow("Case builder")
-                Text("Build this case", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                Text(
-                    "Add another clue and capture its real-world target on this device.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-                EyespiePrimaryAction(
-                    text = "Add clue",
-                    modifier = Modifier.fillMaxWidth(),
-                    onClick = { dispatch(GameDetailIntent.AddClueSelected) },
-                )
-            }
-
-            EyespiePanel(containerColor = MaterialTheme.colorScheme.secondaryContainer) {
-                EyespieEyebrow("Signed handoff")
-                Text("Share this game", style = MaterialTheme.typography.titleLarge, fontWeight = FontWeight.Bold)
-                Text(
-                    "Export a signed .eyespie game file and hand it off with the platform share flow.",
-                    style = MaterialTheme.typography.bodyMedium,
-                    color = MaterialTheme.colorScheme.onSecondaryContainer,
-                )
-                EyespieSecondaryAction(
-                    text = if (state.shareInProgress) "Preparing…" else "Share game",
-                    modifier = Modifier.fillMaxWidth(),
-                    enabled = !state.shareInProgress,
-                    onClick = { dispatch(GameDetailIntent.ShareSelected) },
-                )
-            }
+        if (total > 0) {
+            LinearProgressIndicator(
+                progress = { found.toFloat() / total },
+                modifier = Modifier.fillMaxWidth(),
+                color = MaterialTheme.colorScheme.secondary,
+                trackColor = MaterialTheme.colorScheme.secondaryContainer,
+            )
         }
 
         EyespieSectionHeader(
             title = "Clues",
-            supportingText = if (content.localCreator) {
-                "Review your case or continue testing clues."
-            } else {
-                "Work through the case one clue at a time."
-            },
+            supportingText = if (content.localCreator) "Review and test this case." else "Work through the case one clue at a time.",
         )
 
         if (content.things.isEmpty()) {
@@ -129,13 +99,41 @@ fun GameDetailScreen(
                     style = MaterialTheme.typography.bodyLarge,
                 )
             }
+        } else {
+            content.things.forEachIndexed { index, thing ->
+                ClueCard(
+                    index = index,
+                    thing = thing,
+                    onPlay = { dispatch(GameDetailIntent.PlaySelected(thing.id)) },
+                )
+            }
         }
 
-        content.things.forEachIndexed { index, thing ->
-            ClueCard(
-                index = index,
-                thing = thing,
-                onPlay = { dispatch(GameDetailIntent.PlaySelected(thing.id)) },
+        if (content.localCreator) {
+            EyespieSectionHeader(
+                title = "Case tools",
+                supportingText = "Author locally or export a signed handoff.",
+            )
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.spacedBy(8.dp),
+            ) {
+                EyespiePrimaryAction(
+                    text = "Add clue",
+                    modifier = Modifier.weight(1f),
+                    onClick = { dispatch(GameDetailIntent.AddClueSelected) },
+                )
+                EyespieSecondaryAction(
+                    text = if (state.shareInProgress) "Preparing…" else "Share game",
+                    modifier = Modifier.weight(1f),
+                    enabled = !state.shareInProgress,
+                    onClick = { dispatch(GameDetailIntent.ShareSelected) },
+                )
+            }
+            Text(
+                "Share exports a signed .eyespie file through the platform handoff flow.",
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
         }
 
@@ -151,66 +149,55 @@ private fun ClueCard(
 ) {
     val colors = extendedColors
     Card(
+        onClick = onPlay,
         modifier = Modifier.fillMaxWidth(),
         shape = MaterialTheme.shapes.large,
         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surface),
         elevation = CardDefaults.cardElevation(defaultElevation = 0.dp),
         border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant.copy(alpha = 0.65f)),
     ) {
-        Column(
-            modifier = Modifier.fillMaxWidth().padding(16.dp),
-            verticalArrangement = Arrangement.spacedBy(10.dp),
+        Row(
+            modifier = Modifier.fillMaxWidth().padding(12.dp),
+            horizontalArrangement = Arrangement.spacedBy(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
         ) {
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.SpaceBetween,
-                verticalAlignment = Alignment.CenterVertically,
+            Surface(
+                color = MaterialTheme.colorScheme.primaryContainer,
+                contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
+                shape = MaterialTheme.shapes.medium,
+                modifier = Modifier.size(58.dp),
             ) {
-                EyespieEyebrow("Clue ${index + 1}")
-                EyespieStatusBadge(
-                    text = if (thing.matched) "Found" else "In progress",
-                    containerColor = if (thing.matched) colors.successContainer else MaterialTheme.colorScheme.secondaryContainer,
-                    contentColor = if (thing.matched) colors.onSuccessContainer else MaterialTheme.colorScheme.onSecondaryContainer,
+                ThumbnailOrAvatar(
+                    thumbnail = thing.thumbnail,
+                    modifier = Modifier.fillMaxSize(),
+                    avatar = { Icon(Icons.Default.Place, contentDescription = null, modifier = Modifier.size(28.dp)) },
                 )
             }
-            Row(
-                modifier = Modifier.fillMaxWidth(),
-                horizontalArrangement = Arrangement.spacedBy(14.dp),
-                verticalAlignment = Alignment.CenterVertically,
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(3.dp),
             ) {
-                Surface(
-                    color = MaterialTheme.colorScheme.primaryContainer,
-                    contentColor = MaterialTheme.colorScheme.onPrimaryContainer,
-                    shape = MaterialTheme.shapes.medium,
-                    modifier = Modifier.size(60.dp),
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    verticalAlignment = Alignment.CenterVertically,
                 ) {
-                    ThumbnailOrAvatar(
-                        thumbnail = thing.thumbnail,
-                        modifier = Modifier.fillMaxSize(),
-                        avatar = {
-                            Icon(Icons.Default.Place, contentDescription = null, modifier = Modifier.size(28.dp))
-                        },
+                    EyespieEyebrow("Clue ${index + 1}")
+                    EyespieStatusBadge(
+                        text = if (thing.matched) "Found" else "In progress",
+                        containerColor = if (thing.matched) colors.successContainer else MaterialTheme.colorScheme.secondaryContainer,
+                        contentColor = if (thing.matched) colors.onSuccessContainer else MaterialTheme.colorScheme.onSecondaryContainer,
                     )
                 }
-                Column(
-                    modifier = Modifier.weight(1f),
-                    verticalArrangement = Arrangement.spacedBy(4.dp),
-                ) {
-                    Text(thing.clueText, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.Bold)
-                    thing.bestSimilarity?.let { similarity ->
-                        Text(
-                            "Best match ${formatSimilarity(similarity)}",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                    }
+                Text(thing.clueText, style = MaterialTheme.typography.titleSmall, fontWeight = FontWeight.Bold)
+                thing.bestSimilarity?.let { similarity ->
+                    Text(
+                        "Best match ${formatSimilarity(similarity)}",
+                        style = MaterialTheme.typography.bodySmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                 }
             }
-            EyespiePrimaryAction(
-                text = if (thing.matched) "Review clue" else "Start clue",
-                modifier = Modifier.fillMaxWidth(),
-                onClick = onPlay,
-            )
         }
     }
 }
