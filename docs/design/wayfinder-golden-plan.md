@@ -1,54 +1,91 @@
-# Wayfinder deterministic visual-reference plan
+# Wayfinder deterministic visual-reference contract
 
-Parent: #285.
+Parent: #285. Implementation: #287 / PR #290. Remaining visual convergence: #291.
 
-The runtime restyle in #286 deliberately does not introduce a screenshot library or image-diff dependency into the release candidate without first defining a stable evidence contract. This note bounds the follow-up implementation.
+The Wayfinder alpha surface now has checked-in deterministic Android references backed by Roborazzi. These references make visual changes reviewable and prevent silent regressions, but they do **not** by themselves prove that the current composition fully matches the exploratory canonical board. The first exact side-by-side review identified remaining convergence work in #291.
 
-## Required reference states
+## Toolchain
 
-Capture deterministic Android references for at least:
+- Roborazzi `1.72.0` (already pinned in the repository version catalog);
+- Robolectric `4.14.1`;
+- Android API 35;
+- Compose UI test rule rendering the real common `EyespieTheme` and feature composables;
+- reference files under `eyespie/src/androidUnitTest/goldens/wayfinder/`.
 
-- Home / empty;
-- Home / populated game list;
-- Home / verified import preview;
-- Onboarding / Local;
-- Game detail / creator with clues;
-- Play / searching;
-- Play / clue found;
-- Play / case complete;
-- Utility / profile and privacy.
-
-Camera-backed states must use a deterministic fake/static preview surface. Do not require physical camera access or MediaPipe execution merely to render presentation references.
+No custom image comparator was introduced.
 
 ## Determinism contract
 
-Reference rendering must pin:
+The primary reference environment is pinned to:
 
-- viewport/device dimensions;
-- density;
-- light theme for the first baseline;
-- locale (`en` initially);
-- font scale (`1.0` baseline plus existing enlarged-font interaction coverage separately);
-- fake state/data and target thumbnails;
-- animation clock or disabled animations;
-- no wall-clock, random, network, filesystem, keychain, camera, or model dependencies.
+- Pixel 5 resource dimensions: `393dp × 851dp`;
+- `440dpi` density through `RobolectricDeviceQualifiers.Pixel5`;
+- Android API 35;
+- locale `en-US`;
+- font scale `1.0`;
+- canonical light `EyespieTheme`;
+- fixed fake game/identity/clue/progress values;
+- no wall clock or random values;
+- no network, filesystem, SQLDelight, keychain, physical camera, model staging, or MediaPipe execution.
+
+Camera-backed states use `LocalCameraCaptureSurfaceOverride`, a presentation-only `CompositionLocal` whose production default remains the real platform `CameraCapture`. The fake surface supplies only a fixed field background/focus mark and invokes the same production overlay content.
+
+The existing hosted enlarged-font interaction suite remains separate. Golden references must not be made stable by disabling the app's production dynamic-type behavior.
+
+## Checked-in reference states
+
+| Reference | Contract exercised |
+| --- | --- |
+| `home_empty.png` | field-desk identity, Local Mode, create/import, empty games state |
+| `home_populated.png` | local/shared game rows, progress/badges, game-list hierarchy |
+| `verified_import_preview.png` | verified signed-file preview and confirm/cancel hierarchy |
+| `onboarding_local.png` | Local onboarding content, illustration, progress/actions |
+| `game_detail_creator.png` | creator case detail, progress, authoring/share/clue hierarchy |
+| `play_searching.png` | camera field, case/clue overlay, primary capture action |
+| `play_clue_found.png` | explicit successful-match feedback and next-clue action |
+| `play_case_complete.png` | terminal completion hierarchy |
+| `utility_profile_privacy.png` | local identity, privacy/sharing and help/settings treatment |
 
 ## Comparison policy
 
-Prefer a maintained Compose screenshot/golden mechanism compatible with the current KMP/Android toolchain. Do not write a custom image comparator unless existing tooling cannot satisfy the contract.
+`WayfinderGoldenTest` uses a Roborazzi comparison threshold of `0.002` (0.2% changed pixels). This allows a very small bounded amount of host rasterization variation while still rejecting material changes in:
 
-Start with representative screens and reusable visual primitives. Use bounded tolerance for platform text rasterization, but fail obvious changes to:
+- Micrantha palette roles;
+- screen hierarchy;
+- panel/action geometry;
+- spacing and content placement;
+- progress/status treatment;
+- missing or additional major elements.
 
-- palette roles;
-- spacing and panel geometry;
-- hierarchy/visibility;
-- status/action treatment;
-- missing/extra major visual elements.
+Reference recording is an explicit maintenance operation:
 
-Do not make screenshot approval capable of weakening interaction, accessibility, authority, privacy, or camera lifecycle tests.
+```text
+./gradlew :app:recordRoborazziDebug
+```
 
-## CI boundary
+Normal validation is verification-only:
 
-Golden/reference validation belongs beside hosted presentation CI, not physical MediaPipe calibration. A presentation-only reference failure must not require staging the image-embedder model.
+```text
+./gradlew :app:verifyRoborazziDebug
+```
 
-Reference-update changes must be reviewable as explicit image diffs and should identify the mockup/visual-contract reason for the change.
+The permanent `Wayfinder visual references` GitHub Actions workflow has read-only repository permissions and runs verification. On failure it uploads Roborazzi reports/diff outputs for review. It does not stage the image-embedder model or require camera/MediaPipe evidence.
+
+## Reference update policy
+
+A golden update is not a substitute for review. Any changed reference must:
+
+1. be inspected as an image diff;
+2. identify the visual-contract or canonical-board reason for the change;
+3. preserve semantic interaction/accessibility tests;
+4. preserve `.eyespie`, local authority, privacy, creator-only and camera lifecycle contracts;
+5. avoid approving an unexpected diff merely to make CI green.
+
+## First board comparison
+
+The first checked-in reference set was compared directly with all eight tiles under `docs/design/eyespie-app-mockups/`. It is a valid deterministic **current-state baseline** and clearly reflects the Micrantha/travel-spy language introduced in #286. It also makes several remaining composition gaps obvious; those are recorded in `wayfinder-visual-review.md` and tracked by #291.
+
+Therefore:
+
+- #287 can close when PR #290's verify-mode CI is accepted;
+- #285 remains open through #291 and the final representative installed-build visual review.
