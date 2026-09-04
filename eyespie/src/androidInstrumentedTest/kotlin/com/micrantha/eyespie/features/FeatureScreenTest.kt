@@ -1,7 +1,13 @@
 package com.micrantha.eyespie.features
 
+import androidx.compose.foundation.layout.Box
+import androidx.compose.runtime.Composable
+import androidx.compose.runtime.CompositionLocalProvider
+import androidx.compose.ui.test.assertDoesNotExist
+import androidx.compose.ui.test.assertExists
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
 import androidx.compose.ui.test.performScrollTo
@@ -34,8 +40,11 @@ import com.micrantha.eyespie.features.utility.UtilityContent
 import com.micrantha.eyespie.features.utility.UtilityIntent
 import com.micrantha.eyespie.features.utility.UtilityScreen
 import com.micrantha.eyespie.features.utility.UtilityState
+import com.micrantha.eyespie.imaging.CapturedImage
+import com.micrantha.eyespie.presentation.LocalCameraCaptureSurfaceOverride
 import com.micrantha.eyespie.presentation.theme.EyespieTheme
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.runner.RunWith
@@ -166,6 +175,36 @@ class FeatureScreenTest {
     }
 
     @Test
+    fun create_screen_hides_form_until_capture_and_commits_reviewed_image() {
+        val intents = mutableListOf<CreateGameIntent>()
+        compose.setContent {
+            EyespieTheme {
+                FakeCameraCaptureSurface {
+                    CreateGameScreen(
+                        state = CreateGameState(
+                            name = "Road Trip",
+                            clue = "Find the marker",
+                            expectedAnswer = "Marker",
+                        ),
+                        dispatch = intents::add,
+                    )
+                }
+            }
+        }
+
+        compose.onNodeWithText("Game name").assertDoesNotExist()
+        compose.onNodeWithContentDescription("Capture target").performClick()
+        compose.waitForIdle()
+
+        compose.onNodeWithText("Game name").assertExists()
+        assertTrue(intents.isEmpty())
+
+        compose.onNodeWithText("Create game").performScrollTo().performClick()
+        assertEquals(1, intents.size)
+        assertTrue(intents.single() is CreateGameIntent.TargetCaptured)
+    }
+
+    @Test
     fun game_detail_screen_dispatches_add_clue_intent() {
         val intents = mutableListOf<GameDetailIntent>()
         compose.setContent {
@@ -204,6 +243,36 @@ class FeatureScreenTest {
         compose.onNodeWithText("Back to game").performScrollTo().performClick()
 
         assertEquals(listOf(ClueAuthoringIntent.Back), intents)
+    }
+
+    @Test
+    fun clue_authoring_screen_retake_returns_to_live_camera_without_submitting() {
+        val intents = mutableListOf<ClueAuthoringIntent>()
+        compose.setContent {
+            EyespieTheme {
+                FakeCameraCaptureSurface {
+                    ClueAuthoringScreen(
+                        state = ClueAuthoringState(
+                            clue = "Find the lighthouse",
+                            expectedAnswer = "Lighthouse",
+                        ),
+                        dispatch = intents::add,
+                    )
+                }
+            }
+        }
+
+        compose.onNodeWithText("Expected answer (creator-only)").assertDoesNotExist()
+        compose.onNodeWithContentDescription("Capture clue target").performClick()
+        compose.waitForIdle()
+        compose.onNodeWithText("Expected answer (creator-only)").assertExists()
+
+        compose.onNodeWithText("Retake target").performScrollTo().performClick()
+        compose.waitForIdle()
+
+        compose.onNodeWithText("Expected answer (creator-only)").assertDoesNotExist()
+        compose.onNodeWithContentDescription("Capture clue target").assertExists()
+        assertEquals(listOf(ClueAuthoringIntent.DismissFailure), intents)
     }
 
     @Test
@@ -252,4 +321,18 @@ class FeatureScreenTest {
 
         assertEquals(listOf(UtilityIntent.OnboardingSelected), intents)
     }
+}
+
+@Composable
+private fun FakeCameraCaptureSurface(content: @Composable () -> Unit) {
+    CompositionLocalProvider(
+        LocalCameraCaptureSurfaceOverride provides { modifier, onCaptured, captureOverlay ->
+            Box(modifier = modifier) {
+                captureOverlay {
+                    onCaptured(CapturedImage.fromEncoded(byteArrayOf(1)))
+                }
+            }
+        },
+        content = content,
+    )
 }
