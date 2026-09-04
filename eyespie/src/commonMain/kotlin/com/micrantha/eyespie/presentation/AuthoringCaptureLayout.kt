@@ -74,6 +74,7 @@ fun AuthoringCaptureLayout(
             recoveryMessage = recoveryMessage,
             backLabel = backLabel,
             modifier = modifier,
+            edgeToEdgeControls = true,
             captureButton = { capture ->
                 Column(
                     modifier = Modifier.fillMaxWidth(),
