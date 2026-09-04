@@ -32,6 +32,7 @@ import com.micrantha.eyespie.presentation.theme.EyespieTopBar
  */
 internal typealias CameraCaptureSurfaceOverride = @Composable (
     modifier: Modifier,
+    onCaptured: (CapturedImage) -> Unit,
     captureOverlay: @Composable ((capture: () -> Unit) -> Unit),
 ) -> Unit
 
@@ -77,7 +78,7 @@ fun CameraLayout(
 
         val surfaceOverride = LocalCameraCaptureSurfaceOverride.current
         if (surfaceOverride != null) {
-            surfaceOverride(Modifier.fillMaxSize(), captureOverlay)
+            surfaceOverride(Modifier.fillMaxSize(), onCaptured, captureOverlay)
         } else {
             CameraCapture(
                 modifier = Modifier.fillMaxSize(),
