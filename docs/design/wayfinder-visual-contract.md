@@ -35,7 +35,7 @@ There must not be a second violet/default Material palette in the app runtime.
 ## Geometry and density
 
 - Standard app content keeps platform safe drawing insets.
-- Camera-led destinations render the camera/still visual field edge-to-edge; interactive chrome remains inside safe drawing insets.
+- Authoring capture/review destinations render the camera/still visual field edge-to-edge; their interactive chrome remains inside safe drawing insets.
 - Primary vertical rhythm: 18–20 dp between major sections; 10–12 dp inside grouped content.
 - Dossier/panel shape: large rounded rectangle, approximately 24 dp radius through `MaterialTheme.shapes.large`.
 - Panel treatment: paper-like surface, low/no elevation, subtle brand-outline border.
@@ -104,7 +104,7 @@ Case title and progress lead. Creator actions are grouped as case-building and s
 
 ### Play
 
-Camera remains the visual field. Current case progress and clue appear as compact overlays. Match feedback has three deliberately different states:
+Camera remains the visual field using the previously accepted Play shell/composition. Current case progress and clue appear as compact overlays. Match feedback has three deliberately different states:
 
 - searching / mismatch — warm neutral guidance;
 - clue found — semantic success;
@@ -118,7 +118,7 @@ Use field-kit cards with explicit eyebrows (`Agent identity`, `Data boundary`, `
 
 Visual conformance must preserve:
 
-- safe drawing insets for controls while allowing camera pixels to extend edge-to-edge;
+- safe drawing insets for controls, including authoring chrome while its camera/still field extends edge-to-edge;
 - dynamic type / enlarged text with scrolling rather than clipping;
 - semantic text/action labels used by screen interaction tests;
 - camera permission recovery behavior;
