@@ -1,10 +1,10 @@
 package com.micrantha.eyespie
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
@@ -28,6 +28,7 @@ import cafe.adriel.voyager.navigator.Navigator
 import com.micrantha.eyespie.app.AppGraphFactory
 import com.micrantha.eyespie.app.AppNavigationBridge
 import com.micrantha.eyespie.app.AppRoute
+import com.micrantha.eyespie.app.FullBleedDestination
 import com.micrantha.eyespie.app.LocalAppGraph
 import com.micrantha.eyespie.app.LocalAppMessageSink
 import com.micrantha.eyespie.app.VoyagerAppNavigation
@@ -77,23 +78,27 @@ fun App(
                     val initialRoute = if (completed) AppRoute.Home else AppRoute.Onboarding
                     val initialDestination = remember(initialRoute) { initialRoute.toDestination() }
 
-                    Column(
-                        modifier = Modifier
-                            .fillMaxSize()
-                            .safeDrawingPadding()
-                            .padding(horizontal = 16.dp),
-                    ) {
-                        Column(modifier = Modifier.fillMaxWidth().weight(1f)) {
-                            Navigator(initialDestination) { navigator ->
-                                val voyagerNavigation = remember(navigator) {
-                                    VoyagerAppNavigation(navigator)
-                                }
-                                DisposableEffect(navigation, voyagerNavigation) {
-                                    navigation.attach(voyagerNavigation)
-                                    onDispose { navigation.detach(voyagerNavigation) }
-                                }
+                    Box(modifier = Modifier.fillMaxSize()) {
+                        Navigator(initialDestination) { navigator ->
+                            val voyagerNavigation = remember(navigator) {
+                                VoyagerAppNavigation(navigator)
+                            }
+                            DisposableEffect(navigation, voyagerNavigation) {
+                                navigation.attach(voyagerNavigation)
+                                onDispose { navigation.detach(voyagerNavigation) }
+                            }
 
-                                val currentScreen = navigator.lastItem
+                            val currentScreen = navigator.lastItem
+                            val destinationModifier = if (currentScreen is FullBleedDestination) {
+                                Modifier.fillMaxSize()
+                            } else {
+                                Modifier
+                                    .fillMaxSize()
+                                    .safeDrawingPadding()
+                                    .padding(horizontal = 16.dp)
+                            }
+
+                            Box(modifier = destinationModifier) {
                                 navigator.saveableState("currentScreen", currentScreen) {
                                     CompositionLocalProvider(
                                         LocalAppGraph provides graph,
