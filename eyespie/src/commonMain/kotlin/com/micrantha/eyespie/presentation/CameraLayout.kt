@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
@@ -53,7 +54,11 @@ fun CameraLayout(
     Box(modifier = modifier.fillMaxSize()) {
         val captureOverlay: @Composable ((capture: () -> Unit) -> Unit) = { capture ->
             Column(
-                modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(vertical = 12.dp),
+                modifier = Modifier
+                    .fillMaxSize()
+                    .safeDrawingPadding()
+                    .verticalScroll(rememberScrollState())
+                    .padding(horizontal = 16.dp, vertical = 12.dp),
                 verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {
                 EyespieTopBar(
@@ -82,7 +87,10 @@ fun CameraLayout(
                 captureButton = captureOverlay,
                 recoveryButton = { openSettings ->
                     Box(
-                        modifier = Modifier.fillMaxSize().padding(vertical = 16.dp),
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .safeDrawingPadding()
+                            .padding(16.dp),
                         contentAlignment = Alignment.Center,
                     ) {
                         EyespiePanel(
