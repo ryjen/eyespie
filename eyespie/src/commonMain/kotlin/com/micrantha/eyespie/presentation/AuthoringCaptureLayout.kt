@@ -17,6 +17,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.weight
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
@@ -158,10 +159,10 @@ fun AuthoringCaptureLayout(
                     verticalArrangement = Arrangement.spacedBy(14.dp),
                 ) {
                     reviewContent(
-                        onRetake = {
+                        {
                             if (!busy) capturedImage = null
                         },
-                        onCommit = {
+                        {
                             if (!busy) onCommit(captured)
                         },
                     )
