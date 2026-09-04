@@ -50,16 +50,23 @@ fun CameraLayout(
     recoveryMessage: String,
     backLabel: String = "Back",
     modifier: Modifier = Modifier,
+    edgeToEdgeControls: Boolean = false,
     content: @Composable ColumnScope.() -> Unit = {},
 ) {
     Box(modifier = modifier.fillMaxSize()) {
         val captureOverlay: @Composable ((capture: () -> Unit) -> Unit) = { capture ->
-            Column(
-                modifier = Modifier
-                    .fillMaxSize()
+            var overlayModifier = Modifier.fillMaxSize()
+            if (edgeToEdgeControls) {
+                overlayModifier = overlayModifier
                     .safeDrawingPadding()
-                    .verticalScroll(rememberScrollState())
-                    .padding(horizontal = 16.dp, vertical = 12.dp),
+                    .padding(horizontal = 16.dp)
+            }
+            overlayModifier = overlayModifier
+                .verticalScroll(rememberScrollState())
+                .padding(vertical = 12.dp)
+
+            Column(
+                modifier = overlayModifier,
                 verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {
                 EyespieTopBar(
@@ -87,11 +94,17 @@ fun CameraLayout(
                 onCaptured = onCaptured,
                 captureButton = captureOverlay,
                 recoveryButton = { openSettings ->
-                    Box(
-                        modifier = Modifier
+                    var recoveryModifier = Modifier
+                        .fillMaxSize()
+                        .padding(16.dp)
+                    if (edgeToEdgeControls) {
+                        recoveryModifier = Modifier
                             .fillMaxSize()
                             .safeDrawingPadding()
-                            .padding(16.dp),
+                            .padding(16.dp)
+                    }
+                    Box(
+                        modifier = recoveryModifier,
                         contentAlignment = Alignment.Center,
                     ) {
                         EyespiePanel(
