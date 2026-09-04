@@ -3,10 +3,10 @@ package com.micrantha.eyespie.features
 import androidx.compose.foundation.layout.Box
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
-import androidx.compose.ui.test.assertDoesNotExist
-import androidx.compose.ui.test.assertExists
 import androidx.compose.ui.test.assertIsNotEnabled
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onAllNodesWithContentDescription
+import androidx.compose.ui.test.onAllNodesWithText
 import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onNodeWithText
 import androidx.compose.ui.test.performClick
@@ -192,11 +192,11 @@ class FeatureScreenTest {
             }
         }
 
-        compose.onNodeWithText("Game name").assertDoesNotExist()
+        assertTrue(compose.onAllNodesWithText("Game name").fetchSemanticsNodes().isEmpty())
         compose.onNodeWithContentDescription("Capture target").performClick()
         compose.waitForIdle()
 
-        compose.onNodeWithText("Game name").assertExists()
+        assertTrue(compose.onAllNodesWithText("Game name").fetchSemanticsNodes().isNotEmpty())
         assertTrue(intents.isEmpty())
 
         compose.onNodeWithText("Create game").performScrollTo().performClick()
@@ -262,16 +262,16 @@ class FeatureScreenTest {
             }
         }
 
-        compose.onNodeWithText("Expected answer (creator-only)").assertDoesNotExist()
+        assertTrue(compose.onAllNodesWithText("Expected answer (creator-only)").fetchSemanticsNodes().isEmpty())
         compose.onNodeWithContentDescription("Capture clue target").performClick()
         compose.waitForIdle()
-        compose.onNodeWithText("Expected answer (creator-only)").assertExists()
+        assertTrue(compose.onAllNodesWithText("Expected answer (creator-only)").fetchSemanticsNodes().isNotEmpty())
 
         compose.onNodeWithText("Retake target").performScrollTo().performClick()
         compose.waitForIdle()
 
-        compose.onNodeWithText("Expected answer (creator-only)").assertDoesNotExist()
-        compose.onNodeWithContentDescription("Capture clue target").assertExists()
+        assertTrue(compose.onAllNodesWithText("Expected answer (creator-only)").fetchSemanticsNodes().isEmpty())
+        assertTrue(compose.onAllNodesWithContentDescription("Capture clue target").fetchSemanticsNodes().isNotEmpty())
         assertEquals(listOf(ClueAuthoringIntent.DismissFailure), intents)
     }
 
