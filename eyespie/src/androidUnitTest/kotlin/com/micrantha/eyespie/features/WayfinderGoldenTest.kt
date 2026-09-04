@@ -308,7 +308,7 @@ class WayfinderGoldenTest {
     ) {
         capture(name) {
             CompositionLocalProvider(
-                LocalCameraCaptureSurfaceOverride provides { modifier, captureOverlay ->
+                LocalCameraCaptureSurfaceOverride provides { modifier, _, captureOverlay ->
                     StaticFieldCamera(modifier, captureOverlay)
                 },
                 content = content,
