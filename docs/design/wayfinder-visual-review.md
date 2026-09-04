@@ -130,7 +130,7 @@ captured still
 
 The correction deliberately stays on the same route. `CapturedImage` is retained only in bounded route-local Compose memory while the still is reviewed; it is dispatched into MVI only on the final commit action. Retake discards the transient capture while preserving the feature's lightweight draft text. The live platform camera leaves composition during review, so the native session can release instead of continuing behind the form.
 
-Play is unaffected except that the app shell now allows camera-led destinations to own edge-to-edge rendering while `CameraLayout` keeps interactive chrome inside safe drawing insets.
+Create Game and Clue Authoring opt into edge-to-edge app rendering and own their safe-area camera/review chrome. Play remains on the previously accepted shell/composition; the shared `CameraLayout` defaults preserve that contract and authoring opts into edge-to-edge controls explicitly.
 
 Acceptance evidence for #293 must include deterministic screen interaction proving:
 
@@ -139,7 +139,8 @@ Acceptance evidence for #293 must include deterministic screen interaction provi
 - capture alone does not emit `TargetCaptured`;
 - final commit emits `TargetCaptured` exactly once;
 - retake returns to live capture without submitting;
-- existing Play visual references remain stable except for an explicitly reviewed safe-area/full-bleed delta if one occurs.
+- existing Play visual references remain stable;
+- deterministic visual references include representative live-authoring and captured-review states.
 
 ## Installed-build acceptance — 2026-09-02
 
@@ -160,7 +161,7 @@ Android screen instrumentation run `33608426665` passed that complete chain. The
 
 #285 remains presentation-complete only when #293 is merged and its final PR head retains:
 
-1. green deterministic Wayfinder reference verification (with any full-bleed deltas explicitly reviewed);
+1. green deterministic Wayfinder reference verification with representative authoring live/review states;
 2. green core Android CI, enlarged-font screen instrumentation, workflow security, and iOS simulator application build;
 3. deterministic authoring capture/review interaction coverage;
 4. installed-app evidence consistent with the corrected authoring camera contract.
