@@ -6,7 +6,6 @@ import com.micrantha.eyespie.imaging.CapturedImage
 sealed interface ClueAuthoringIntent {
     data class ClueChanged(val value: String) : ClueAuthoringIntent
     data class ExpectedAnswerChanged(val value: String) : ClueAuthoringIntent
-    data object CaptureStarted : ClueAuthoringIntent
     data class TargetCaptured(val image: CapturedImage) : ClueAuthoringIntent
     data object CameraFailed : ClueAuthoringIntent
     data object DismissFailure : ClueAuthoringIntent
