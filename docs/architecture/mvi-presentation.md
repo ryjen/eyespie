@@ -219,3 +219,25 @@ Application tests cover:
 - `AppNavigationBridge` delegation;
 - `AppGraphFactory` composition from narrow capabilities;
 - production runtime capability wiring where useful.
+
+Feature tests do not depend on the global `AppGraph` or Voyager.
+
+## Architecture enforcement
+
+The following are architectural failures:
+
+- a feature source importing `com.micrantha.eyespie.app...`;
+- a feature importing another feature;
+- a pure screen with parameters other than `state` and `dispatch`;
+- a screen resolving DI/navigation/services;
+- a feature interactor depending on `AppRoute`, Voyager, SQLDelight rows, or platform implementations;
+- a reducer performing side effects or external mutation;
+- presentation models flowing down into data/runtime contracts;
+- heavy/native capture/model values stored in long-lived state;
+- route-scoped work launched into an application-lifetime scope.
+
+`scripts/verify_feature_boundaries.py` enforces the import and screen-signature subset in CI; tests cover the verifier itself.
+
+## Non-goals
+
+This architecture does not restore the old Supabase/backend graph, old Kodein feature graph, or vendored Bluebell runtime. It does not make Voyager the application/domain architecture, and it does not require speculative abstraction extraction into Bluebell/community before an Eyespie abstraction proves reusable.
