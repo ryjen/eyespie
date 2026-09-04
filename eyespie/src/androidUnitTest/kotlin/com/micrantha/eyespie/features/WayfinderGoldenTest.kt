@@ -1,5 +1,6 @@
 package com.micrantha.eyespie.features
 
+import android.util.Base64
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.layout.Box
@@ -12,7 +13,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.test.junit4.createComposeRule
+import androidx.compose.ui.test.onNodeWithContentDescription
 import androidx.compose.ui.test.onRoot
+import androidx.compose.ui.test.performClick
 import androidx.compose.ui.unit.dp
 import androidx.test.ext.junit.runners.AndroidJUnit4
 import com.github.takahirom.roborazzi.RobolectricDeviceQualifiers
@@ -21,6 +24,10 @@ import com.github.takahirom.roborazzi.RoborazziRule
 import com.github.takahirom.roborazzi.captureRoboImage
 import com.micrantha.eyespie.core.GameId
 import com.micrantha.eyespie.core.ThingId
+import com.micrantha.eyespie.features.clueauthoring.ClueAuthoringScreen
+import com.micrantha.eyespie.features.clueauthoring.ClueAuthoringState
+import com.micrantha.eyespie.features.create.CreateGameScreen
+import com.micrantha.eyespie.features.create.CreateGameState
 import com.micrantha.eyespie.features.gamedetail.GameDetailContent
 import com.micrantha.eyespie.features.gamedetail.GameDetailScreen
 import com.micrantha.eyespie.features.gamedetail.GameDetailState
@@ -40,6 +47,7 @@ import com.micrantha.eyespie.features.play.PlayGameState
 import com.micrantha.eyespie.features.utility.UtilityContent
 import com.micrantha.eyespie.features.utility.UtilityScreen
 import com.micrantha.eyespie.features.utility.UtilityState
+import com.micrantha.eyespie.imaging.CapturedImage
 import com.micrantha.eyespie.presentation.LocalCameraCaptureSurfaceOverride
 import com.micrantha.eyespie.presentation.theme.EyespieTheme
 import org.junit.Rule
@@ -167,6 +175,53 @@ class WayfinderGoldenTest {
             state = OnboardingState(page = OnboardingPage.Local),
             dispatch = {},
         )
+    }
+
+    @Test
+    fun create_live_capture() = captureCamera("create_live_capture") {
+        CreateGameScreen(
+            state = CreateGameState(
+                name = "Stanley Park Field Case",
+                clue = "Find the watchful face carved in cedar",
+                expectedAnswer = "Totem pole",
+            ),
+            dispatch = {},
+        )
+    }
+
+    @Test
+    fun clue_authoring_review() {
+        compose.setContent {
+            EyespieTheme(darkTheme = false) {
+                Box(
+                    modifier = Modifier
+                        .fillMaxSize()
+                        .background(MaterialTheme.colorScheme.background),
+                ) {
+                    CompositionLocalProvider(
+                        LocalCameraCaptureSurfaceOverride provides { modifier, onCaptured, captureOverlay ->
+                            StaticFieldCamera(
+                                modifier = modifier,
+                                capture = { onCaptured(reviewCapturedImage()) },
+                                captureOverlay = captureOverlay,
+                            )
+                        },
+                    ) {
+                        ClueAuthoringScreen(
+                            state = ClueAuthoringState(
+                                clue = "Find the light that guards the harbour",
+                                expectedAnswer = "Lighthouse",
+                            ),
+                            dispatch = {},
+                        )
+                    }
+                }
+            }
+        }
+        compose.waitForIdle()
+        compose.onNodeWithContentDescription("Capture clue target").performClick()
+        compose.waitForIdle()
+        compose.onRoot().captureRoboImage("clue_authoring_review.png")
     }
 
     @Test
@@ -309,7 +364,10 @@ class WayfinderGoldenTest {
         capture(name) {
             CompositionLocalProvider(
                 LocalCameraCaptureSurfaceOverride provides { modifier, _, captureOverlay ->
-                    StaticFieldCamera(modifier, captureOverlay)
+                    StaticFieldCamera(
+                        modifier = modifier,
+                        captureOverlay = captureOverlay,
+                    )
                 },
                 content = content,
             )
@@ -320,6 +378,7 @@ class WayfinderGoldenTest {
 @Composable
 private fun StaticFieldCamera(
     modifier: Modifier,
+    capture: () -> Unit = {},
     captureOverlay: @Composable ((capture: () -> Unit) -> Unit),
 ) {
     Box(
@@ -336,6 +395,13 @@ private fun StaticFieldCamera(
                 .size(10.dp)
                 .background(Color(0xCCF5F5F0), MaterialTheme.shapes.small),
         )
-        captureOverlay({})
+        captureOverlay(capture)
     }
 }
+
+private fun reviewCapturedImage(): CapturedImage = CapturedImage.fromEncoded(
+    Base64.decode(
+        "iVBORw0KGgoAAAANSUhEUgAAAAgAAAAICAIAAABLbSncAAAAFElEQVR4nGNMK8tlwAaYsIoOWgkABYYBWcLSjSUAAAAASUVORK5CYII=",
+        Base64.DEFAULT,
+    ),
+)
