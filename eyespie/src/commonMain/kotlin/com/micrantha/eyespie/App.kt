@@ -57,12 +57,18 @@ fun App(
             snackbarHost = { SnackbarHost(snackbarHostState) },
         ) { scaffoldPadding ->
             Surface(
-                modifier = Modifier.fillMaxSize().padding(scaffoldPadding),
+                modifier = Modifier.fillMaxSize(),
                 color = MaterialTheme.colorScheme.background,
             ) {
                 val completed = onboardingCompleted
                 if (completed == null) {
-                    LoadingLocalGame()
+                    Box(
+                        modifier = Modifier
+                            .fillMaxSize()
+                            .padding(scaffoldPadding),
+                    ) {
+                        LoadingLocalGame()
+                    }
                 } else {
                     val navigation = remember(runtime, documentTransfer) { AppNavigationBridge() }
                     val graph = remember(runtime, documentTransfer, navigation) {
@@ -94,6 +100,7 @@ fun App(
                             } else {
                                 Modifier
                                     .fillMaxSize()
+                                    .padding(scaffoldPadding)
                                     .safeDrawingPadding()
                                     .padding(horizontal = 16.dp)
                             }
