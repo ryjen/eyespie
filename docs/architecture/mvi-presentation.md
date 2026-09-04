@@ -185,7 +185,9 @@ The mockups are UX direction, not authority/security overrides.
 
 Application lifetime may retain navigation, coordinator, runtime capability implementations, and feature factories. Route lifetime owns feature interactors, feature state flows, route coroutine jobs, and transient operation closures.
 
-Camera frames, decoded images, `CapturedImage`, embeddings, model/session handles, and other large/native values must not be retained in long-lived presentation state. A capture may enter as an intent and be retained only by the induced operation while it runs.
+Camera frames, decoded images, `CapturedImage`, embeddings, model/session handles, and other large/native values must not be retained in feature `StateFlow`, navigation arguments/saved state, application-lifetime stores, or persistence.
+
+A bounded route-local presentation surface may temporarily retain **one user-initiated captured still** when the UX explicitly requires review before commit. That exception is presentation-only: the live camera leaves composition during review; the capture is discarded on retake or route disposal; it is dispatched into MVI only by the final commit action; and the induced operation may retain it only while that operation runs. Do not extend this exception to video/frame streams, embeddings, model/session handles, or cross-route handoff.
 
 Prefer IDs and small presentation models over domain aggregates or duplicate whole-app snapshots. If data volume grows, prefer narrow queries/events rather than cross-feature presentation synchronization.
 
@@ -217,25 +219,3 @@ Application tests cover:
 - `AppNavigationBridge` delegation;
 - `AppGraphFactory` composition from narrow capabilities;
 - production runtime capability wiring where useful.
-
-Feature tests do not depend on the global `AppGraph` or Voyager.
-
-## Architecture enforcement
-
-The following are architectural failures:
-
-- a feature source importing `com.micrantha.eyespie.app...`;
-- a feature importing another feature;
-- a pure screen with parameters other than `state` and `dispatch`;
-- a screen resolving DI/navigation/services;
-- a feature interactor depending on `AppRoute`, Voyager, SQLDelight rows, or platform implementations;
-- a reducer performing side effects or external mutation;
-- presentation models flowing down into data/runtime contracts;
-- heavy/native capture/model values stored in long-lived state;
-- route-scoped work launched into an application-lifetime scope.
-
-`scripts/verify_feature_boundaries.py` enforces the import and screen-signature subset in CI; tests cover the verifier itself.
-
-## Non-goals
-
-This architecture does not restore the old Supabase/backend graph, old Kodein feature graph, or vendored Bluebell runtime. It does not make Voyager the application/domain architecture, and it does not require speculative abstraction extraction into Bluebell/community before an Eyespie abstraction proves reusable.
