@@ -7,7 +7,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
 import com.micrantha.eyespie.imaging.CameraAvailability
-import com.micrantha.eyespie.presentation.CameraLayout
+import com.micrantha.eyespie.presentation.AuthoringCaptureLayout
 import com.micrantha.eyespie.presentation.cameraUnavailableMessage
 import com.micrantha.eyespie.presentation.localGameFailureMessage
 import com.micrantha.eyespie.presentation.targetCameraPermissionMessage
@@ -21,9 +21,9 @@ fun CreateGameScreen(
     state: CreateGameState,
     dispatch: (CreateGameIntent) -> Unit,
 ) {
-    CameraLayout(
+    AuthoringCaptureLayout(
         onBack = { dispatch(CreateGameIntent.Back) },
-        onCaptured = { dispatch(CreateGameIntent.TargetCaptured(it)) },
+        onCommit = { dispatch(CreateGameIntent.TargetCaptured(it)) },
         onCameraError = { dispatch(CreateGameIntent.CameraFailed) },
         onAvailabilityChanged = { availability ->
             if (availability == CameraAvailability.Unavailable) {
@@ -33,23 +33,29 @@ fun CreateGameScreen(
         busy = state.busy,
         recoveryMessage = targetCameraPermissionMessage(),
         backLabel = "Back to field desk",
-        captureButton = { capture ->
-            EyespiePrimaryAction(
-                text = if (state.busy) "Creating…" else "Capture target & create game",
-                modifier = Modifier.fillMaxWidth(),
-                onClick = capture,
-                enabled = !state.busy && state.name.isNotBlank() && state.clue.isNotBlank() && state.expectedAnswer.isNotBlank(),
-            )
+        captureLabel = "Capture target",
+        liveContent = {
+            if (state.failure == CreateGameFailure.CameraUnavailable) {
+                EyespiePanel(containerColor = MaterialTheme.colorScheme.errorContainer) {
+                    EyespieEyebrow("Camera unavailable", color = MaterialTheme.colorScheme.onErrorContainer)
+                    Text(
+                        cameraUnavailableMessage(),
+                        color = MaterialTheme.colorScheme.onErrorContainer,
+                    )
+                    EyespieSecondaryAction(
+                        text = "Dismiss",
+                        modifier = Modifier.fillMaxWidth(),
+                        onClick = { dispatch(CreateGameIntent.DismissFailure) },
+                    )
+                }
+            }
         },
-    ) {
-        state.failure?.let { failure ->
+    ) { onRetake, onCommit ->
+        (state.failure as? CreateGameFailure.Game)?.let { failure ->
             EyespiePanel(containerColor = MaterialTheme.colorScheme.errorContainer) {
                 EyespieEyebrow("Could not create case", color = MaterialTheme.colorScheme.onErrorContainer)
                 Text(
-                    when (failure) {
-                        CreateGameFailure.CameraUnavailable -> cameraUnavailableMessage()
-                        is CreateGameFailure.Game -> localGameFailureMessage(failure.failure)
-                    },
+                    localGameFailureMessage(failure.failure),
                     color = MaterialTheme.colorScheme.onErrorContainer,
                 )
                 EyespieSecondaryAction(
@@ -69,7 +75,7 @@ fun CreateGameScreen(
                 style = MaterialTheme.typography.headlineSmall,
             )
             Text(
-                "Write the briefing first, then frame the real-world target in the camera.",
+                "Use the captured target as context, then write the briefing the player will receive.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -100,6 +106,24 @@ fun CreateGameScreen(
                 enabled = !state.busy,
                 singleLine = true,
                 shape = MaterialTheme.shapes.medium,
+            )
+            EyespiePrimaryAction(
+                text = if (state.busy) "Creating…" else "Create game",
+                modifier = Modifier.fillMaxWidth(),
+                onClick = onCommit,
+                enabled = !state.busy &&
+                    state.name.isNotBlank() &&
+                    state.clue.isNotBlank() &&
+                    state.expectedAnswer.isNotBlank(),
+            )
+            EyespieSecondaryAction(
+                text = "Retake target",
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !state.busy,
+                onClick = {
+                    dispatch(CreateGameIntent.DismissFailure)
+                    onRetake()
+                },
             )
         }
     }
