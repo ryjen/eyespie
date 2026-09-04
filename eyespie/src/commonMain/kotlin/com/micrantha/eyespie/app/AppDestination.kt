@@ -19,7 +19,7 @@ internal val LocalAppMessageSink = staticCompositionLocalOf<suspend (String) -> 
     error("App message sink is not provided")
 }
 
-/** Camera-led destinations own their own safe-area chrome so the visual field can be edge-to-edge. */
+/** Authoring capture/review destinations own safe-area chrome so their visual field can be edge-to-edge. */
 internal interface FullBleedDestination
 
 internal fun AppRoute.toDestination(): Screen = when (this) {
@@ -100,7 +100,7 @@ private data class ClueAuthoringDestination(
 private data class PlayDestination(
     private val gameIdValue: String,
     private val thingIdValue: String,
-) : Screen, FullBleedDestination {
+) : Screen {
     override val key: ScreenKey = "play:$gameIdValue:$thingIdValue"
 
     @Composable
