@@ -1,0 +1,76 @@
+name: Record reviewed authoring goldens
+
+on:
+  push:
+    branches:
+      - fix/293-authoring-capture-review
+
+permissions:
+  contents: write
+
+concurrency:
+  group: eyespie-record-authoring-goldens-temp
+  cancel-in-progress: true
+
+jobs:
+  record-reviewed-authoring-goldens:
+    name: record-reviewed-authoring-goldens
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Checkout branch
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: fix/293-authoring-capture-review
+          persist-credentials: true
+
+      - name: Install tools with mise
+        uses: jdx/mise-action@3c2e0cf82a5b2e5249f0d3635a4d83d0ae861518
+        with:
+          version: 2026.7.13
+          install: true
+          cache: true
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@9c971963bec38e04b3d30dcc455b5382be2fdbfb # v6
+
+      - name: Record deterministic references
+        run: ./gradlew :app:recordRoborazziDebug --no-daemon --stacktrace
+
+      - name: Commit only reviewed authoring references and remove recorder
+        shell: bash
+        run: |
+          set -euo pipefail
+          goldens=eyespie/src/androidUnitTest/goldens/wayfinder
+          test -f "$goldens/create_live_capture.png"
+          test -f "$goldens/clue_authoring_review.png"
+
+          # Do not accept incidental rewrites of the already-reviewed baseline.
+          git restore --worktree -- \
+            "$goldens/home_empty.png" \
+            "$goldens/home_populated.png" \
+            "$goldens/verified_import_preview.png" \
+            "$goldens/onboarding_local.png" \
+            "$goldens/game_detail_creator.png" \
+            "$goldens/play_searching.png" \
+            "$goldens/play_clue_found.png" \
+            "$goldens/play_case_complete.png" \
+            "$goldens/utility_profile_privacy.png"
+
+          rm .github/workflows/record-authoring-goldens-temp.yml
+          git add \
+            "$goldens/create_live_capture.png" \
+            "$goldens/clue_authoring_review.png" \
+            .github/workflows/record-authoring-goldens-temp.yml
+
+          unexpected="$(git status --porcelain | grep -vE '^(A  |D  )(.github/workflows/record-authoring-goldens-temp.yml|eyespie/src/androidUnitTest/goldens/wayfinder/(create_live_capture|clue_authoring_review).png)$' || true)"
+          if [[ -n "$unexpected" ]]; then
+            echo "Unexpected generated changes:" >&2
+            echo "$unexpected" >&2
+            exit 1
+          fi
+
+          git config user.name github-actions[bot]
+          git config user.email 41898282+github-actions[bot]@users.noreply.github.com
+          git commit -m "test: record reviewed authoring visual references"
+          git push origin HEAD:fix/293-authoring-capture-review
