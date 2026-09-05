@@ -13,7 +13,7 @@ import androidx.compose.ui.platform.LocalFocusManager
 import androidx.compose.ui.platform.LocalSoftwareKeyboardController
 import androidx.compose.ui.text.input.ImeAction
 import com.micrantha.eyespie.imaging.CameraAvailability
-import com.micrantha.eyespie.presentation.CameraLayout
+import com.micrantha.eyespie.presentation.AuthoringCaptureLayout
 import com.micrantha.eyespie.presentation.cameraUnavailableMessage
 import com.micrantha.eyespie.presentation.clueTargetCameraPermissionMessage
 import com.micrantha.eyespie.presentation.localGameFailureMessage
@@ -30,9 +30,9 @@ fun ClueAuthoringScreen(
     val keyboardController = LocalSoftwareKeyboardController.current
     val focusManager = LocalFocusManager.current
 
-    CameraLayout(
+    AuthoringCaptureLayout(
         onBack = { dispatch(ClueAuthoringIntent.Back) },
-        onCaptured = { dispatch(ClueAuthoringIntent.TargetCaptured(it)) },
+        onCommit = { dispatch(ClueAuthoringIntent.TargetCaptured(it)) },
         onCameraError = { dispatch(ClueAuthoringIntent.CameraFailed) },
         onAvailabilityChanged = { availability ->
             if (availability == CameraAvailability.Unavailable) {
@@ -42,26 +42,29 @@ fun ClueAuthoringScreen(
         busy = state.busy,
         recoveryMessage = clueTargetCameraPermissionMessage(),
         backLabel = "Back to game",
-        captureButton = { capture ->
-            EyespiePrimaryAction(
-                text = if (state.busy) "Processing…" else "Capture target & add clue",
-                modifier = Modifier.fillMaxWidth(),
-                onClick = {
-                    dispatch(ClueAuthoringIntent.CaptureStarted)
-                    capture()
-                },
-                enabled = !state.busy && state.clue.isNotBlank(),
-            )
+        captureLabel = "Capture clue target",
+        liveContent = {
+            if (state.failure == ClueAuthoringFailure.CameraUnavailable) {
+                EyespiePanel(containerColor = MaterialTheme.colorScheme.errorContainer) {
+                    EyespieEyebrow("Camera unavailable", color = MaterialTheme.colorScheme.onErrorContainer)
+                    Text(
+                        cameraUnavailableMessage(),
+                        color = MaterialTheme.colorScheme.onErrorContainer,
+                    )
+                    EyespieSecondaryAction(
+                        text = "Dismiss",
+                        modifier = Modifier.fillMaxWidth(),
+                        onClick = { dispatch(ClueAuthoringIntent.DismissFailure) },
+                    )
+                }
+            }
         },
-    ) {
-        state.failure?.let { failure ->
+    ) { onRetake, onCommit ->
+        (state.failure as? ClueAuthoringFailure.Game)?.let { failure ->
             EyespiePanel(containerColor = MaterialTheme.colorScheme.errorContainer) {
                 EyespieEyebrow("Could not add clue", color = MaterialTheme.colorScheme.onErrorContainer)
                 Text(
-                    when (failure) {
-                        ClueAuthoringFailure.CameraUnavailable -> cameraUnavailableMessage()
-                        is ClueAuthoringFailure.Game -> localGameFailureMessage(failure.failure)
-                    },
+                    localGameFailureMessage(failure.failure),
                     color = MaterialTheme.colorScheme.onErrorContainer,
                 )
                 EyespieSecondaryAction(
@@ -81,7 +84,7 @@ fun ClueAuthoringScreen(
                 style = MaterialTheme.typography.headlineSmall,
             )
             Text(
-                "The player receives the clue. The expected answer remains creator-only authority.",
+                "Use the captured target as context. The player receives the clue; the expected answer remains creator-only authority.",
                 style = MaterialTheme.typography.bodyMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -107,6 +110,21 @@ fun ClueAuthoringScreen(
                 shape = MaterialTheme.shapes.medium,
                 keyboardOptions = KeyboardOptions(imeAction = ImeAction.Done),
                 keyboardActions = KeyboardActions(onDone = { keyboardController?.hide() }),
+            )
+            EyespiePrimaryAction(
+                text = if (state.busy) "Adding clue…" else "Add clue",
+                modifier = Modifier.fillMaxWidth(),
+                onClick = onCommit,
+                enabled = !state.busy && state.clue.isNotBlank() && state.expectedAnswer.isNotBlank(),
+            )
+            EyespieSecondaryAction(
+                text = "Retake target",
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !state.busy,
+                onClick = {
+                    dispatch(ClueAuthoringIntent.DismissFailure)
+                    onRetake()
+                },
             )
         }
     }

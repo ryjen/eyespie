@@ -8,6 +8,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
@@ -31,6 +32,7 @@ import com.micrantha.eyespie.presentation.theme.EyespieTopBar
  */
 internal typealias CameraCaptureSurfaceOverride = @Composable (
     modifier: Modifier,
+    onCaptured: (CapturedImage) -> Unit,
     captureOverlay: @Composable ((capture: () -> Unit) -> Unit),
 ) -> Unit
 
@@ -48,12 +50,23 @@ fun CameraLayout(
     recoveryMessage: String,
     backLabel: String = "Back",
     modifier: Modifier = Modifier,
+    edgeToEdgeControls: Boolean = false,
     content: @Composable ColumnScope.() -> Unit = {},
 ) {
     Box(modifier = modifier.fillMaxSize()) {
         val captureOverlay: @Composable ((capture: () -> Unit) -> Unit) = { capture ->
+            var overlayModifier = Modifier.fillMaxSize()
+            if (edgeToEdgeControls) {
+                overlayModifier = overlayModifier
+                    .safeDrawingPadding()
+                    .padding(horizontal = 16.dp)
+            }
+            overlayModifier = overlayModifier
+                .verticalScroll(rememberScrollState())
+                .padding(vertical = 12.dp)
+
             Column(
-                modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(vertical = 12.dp),
+                modifier = overlayModifier,
                 verticalArrangement = Arrangement.spacedBy(14.dp),
             ) {
                 EyespieTopBar(
@@ -72,7 +85,7 @@ fun CameraLayout(
 
         val surfaceOverride = LocalCameraCaptureSurfaceOverride.current
         if (surfaceOverride != null) {
-            surfaceOverride(Modifier.fillMaxSize(), captureOverlay)
+            surfaceOverride(Modifier.fillMaxSize(), onCaptured, captureOverlay)
         } else {
             CameraCapture(
                 modifier = Modifier.fillMaxSize(),
@@ -81,8 +94,17 @@ fun CameraLayout(
                 onCaptured = onCaptured,
                 captureButton = captureOverlay,
                 recoveryButton = { openSettings ->
+                    var recoveryModifier = Modifier
+                        .fillMaxSize()
+                        .padding(16.dp)
+                    if (edgeToEdgeControls) {
+                        recoveryModifier = Modifier
+                            .fillMaxSize()
+                            .safeDrawingPadding()
+                            .padding(16.dp)
+                    }
                     Box(
-                        modifier = Modifier.fillMaxSize().padding(vertical = 16.dp),
+                        modifier = recoveryModifier,
                         contentAlignment = Alignment.Center,
                     ) {
                         EyespiePanel(

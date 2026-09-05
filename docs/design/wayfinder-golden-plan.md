@@ -1,8 +1,8 @@
 # Wayfinder deterministic visual-reference contract
 
-Parent: #285. Implementation: #287 / PR #290. Remaining visual convergence: #291.
+Parent: #285. Initial implementation: #287 / PR #290. Composition convergence: #291 / PR #292. Authoring capture/review correction: #293 / PR #294.
 
-The Wayfinder alpha surface now has checked-in deterministic Android references backed by Roborazzi. These references make visual changes reviewable and prevent silent regressions, but they do **not** by themselves prove that the current composition fully matches the exploratory canonical board. The first exact side-by-side review identified remaining convergence work in #291.
+The Wayfinder alpha surface has checked-in deterministic Android references backed by Roborazzi. These references make visual changes reviewable and prevent silent regressions, but they do **not** by themselves prove that the current composition fully matches the exploratory canonical board. Human comparison against the board and the documented authority/accessibility contracts remains required.
 
 ## Toolchain
 
@@ -28,7 +28,7 @@ The primary reference environment is pinned to:
 - no wall clock or random values;
 - no network, filesystem, SQLDelight, keychain, physical camera, model staging, or MediaPipe execution.
 
-Camera-backed states use `LocalCameraCaptureSurfaceOverride`, a presentation-only `CompositionLocal` whose production default remains the real platform `CameraCapture`. The fake surface supplies only a fixed field background/focus mark and invokes the same production overlay content.
+Camera-backed states use `LocalCameraCaptureSurfaceOverride`, a presentation-only `CompositionLocal` whose production default remains the real platform `CameraCapture`. The fake surface supplies only a fixed field background/focus mark and invokes the same production overlay content. Authoring review references use a deterministic encoded still so the captured-image phase can be exercised without camera or model authority.
 
 The existing hosted enlarged-font interaction suite remains separate. Golden references must not be made stable by disabling the app's production dynamic-type behavior.
 
@@ -41,10 +41,14 @@ The existing hosted enlarged-font interaction suite remains separate. Golden ref
 | `verified_import_preview.png` | verified signed-file preview and confirm/cancel hierarchy |
 | `onboarding_local.png` | Local onboarding content, illustration, progress/actions |
 | `game_detail_creator.png` | creator case detail, progress, authoring/share/clue hierarchy |
+| `create_live_capture.png` | full camera field, minimal safe-area chrome, shutter, and no pre-capture form |
+| `clue_authoring_review.png` | captured-still field with creator form plus retake/commit hierarchy |
 | `play_searching.png` | camera field, case/clue overlay, primary capture action |
 | `play_clue_found.png` | explicit successful-match feedback and next-clue action |
 | `play_case_complete.png` | terminal completion hierarchy |
 | `utility_profile_privacy.png` | local identity, privacy/sharing and help/settings treatment |
+
+The two #293 authoring references were generated on the PR head, inspected before recording, and accepted because they encode the intended phase boundary: no form over a live camera; the form appears only over the captured still. Existing Play references were deliberately left unchanged.
 
 ## Comparison policy
 
@@ -81,11 +85,16 @@ A golden update is not a substitute for review. Any changed reference must:
 4. preserve `.eyespie`, local authority, privacy, creator-only and camera lifecycle contracts;
 5. avoid approving an unexpected diff merely to make CI green.
 
-## First board comparison
+## Board comparison and convergence
 
-The first checked-in reference set was compared directly with all eight tiles under `docs/design/eyespie-app-mockups/`. It is a valid deterministic **current-state baseline** and clearly reflects the Micrantha/travel-spy language introduced in #286. It also makes several remaining composition gaps obvious; those are recorded in `wayfinder-visual-review.md` and tracked by #291.
+The first checked-in reference set was compared directly with all eight tiles under `docs/design/eyespie-app-mockups/`. It established a deterministic current-state baseline and exposed the composition gaps subsequently addressed by #291 / PR #292.
 
-Therefore:
+#293 / PR #294 supersedes one assumption from that convergence pass for Create Game and Clue Authoring. Those surfaces are now explicitly two-phase:
 
-- #287 can close when PR #290's verify-mode CI is accepted;
-- #285 remains open through #291 and the final representative installed-build visual review.
+```text
+live camera -> capture -> captured still + authoring form -> retake or commit
+```
+
+The captured image remains route-local/transient until commit. The visual reference suite tests the presentation boundary only; interaction tests separately prove that capture does not submit creator authority and that retake/commit dispatch correctly.
+
+Therefore #285 remains presentation-complete only when PR #294's final head is green across deterministic references, Android core, hosted screen instrumentation, and iOS application/runtime validation.

@@ -19,6 +19,9 @@ internal val LocalAppMessageSink = staticCompositionLocalOf<suspend (String) -> 
     error("App message sink is not provided")
 }
 
+/** Authoring capture/review destinations own safe-area chrome so their visual field can be edge-to-edge. */
+internal interface FullBleedDestination
+
 internal fun AppRoute.toDestination(): Screen = when (this) {
     AppRoute.Home -> HomeDestination
     AppRoute.Onboarding -> OnboardingDestination
@@ -56,7 +59,7 @@ private data object UtilityDestination : Screen {
     }
 }
 
-private data object CreateDestination : Screen {
+private data object CreateDestination : Screen, FullBleedDestination {
     override val key: ScreenKey = "create"
 
     @Composable
@@ -82,7 +85,7 @@ private data class GameDetailDestination(
 
 private data class ClueAuthoringDestination(
     private val gameIdValue: String,
-) : Screen {
+) : Screen, FullBleedDestination {
     override val key: ScreenKey = "clue-authoring:$gameIdValue"
 
     @Composable

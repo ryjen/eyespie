@@ -185,7 +185,9 @@ The mockups are UX direction, not authority/security overrides.
 
 Application lifetime may retain navigation, coordinator, runtime capability implementations, and feature factories. Route lifetime owns feature interactors, feature state flows, route coroutine jobs, and transient operation closures.
 
-Camera frames, decoded images, `CapturedImage`, embeddings, model/session handles, and other large/native values must not be retained in long-lived presentation state. A capture may enter as an intent and be retained only by the induced operation while it runs.
+Camera frames, decoded images, `CapturedImage`, embeddings, model/session handles, and other large/native values must not be retained in feature `StateFlow`, navigation arguments/saved state, application-lifetime stores, or persistence.
+
+A bounded route-local presentation surface may temporarily retain **one user-initiated captured still** when the UX explicitly requires review before commit. That exception is presentation-only: the live camera leaves composition during review; the capture is discarded on retake or route disposal; it is dispatched into MVI only by the final commit action; and the induced operation may retain it only while that operation runs. Do not extend this exception to video/frame streams, embeddings, model/session handles, or cross-route handoff.
 
 Prefer IDs and small presentation models over domain aggregates or duplicate whole-app snapshots. If data volume grows, prefer narrow queries/events rather than cross-feature presentation synchronization.
 

@@ -1,6 +1,6 @@
 # Wayfinder visual review checklist
 
-Parent: #285. Runtime implementation: #286. Deterministic references: #287 / PR #290. Composition convergence: #291 / PR #292.
+Parent: #285. Runtime implementation: #286. Deterministic references: #287 / PR #290. Composition convergence: #291 / PR #292. Authoring camera correction: #293.
 
 This is the bounded human-review companion to the automated interaction, brand-contract, and Roborazzi gates. It records what must be compared against the eight canonical board tiles before #285 closes.
 
@@ -19,9 +19,11 @@ For each state below, compare the rendered app against the corresponding area of
 | Home / empty | identity; Local Mode; create/import; `YOUR GAMES` hierarchy; empty state | local authority/privacy wording follows current contract |
 | Home / game rows | target tile; progress; created/shared badge; row affordance | none beyond current domain data |
 | Import preview | verified-file hierarchy; signed status; Add/Cancel actions | no replace/keep-both conflict behavior |
-| Create game | camera as field; authoring composition; dominant capture/create action | platform camera ownership/permission semantics retained |
+| Create game / live | edge-to-edge camera field; minimal safe-area chrome; camera-like shutter; **no form fields** | platform camera ownership/permission semantics retained |
+| Create game / review | captured still as field; animated dossier form; `Retake target` + `Create game` | raw captured image remains transient until commit |
 | Game detail / creator | case title/progress; authoring/share; clue rows | share uses native platform handoff |
-| Clue authoring | camera field; field-note composition; creator-only answer explanation | creator-only authority remains absent from playable bundle |
+| Clue authoring / live | edge-to-edge camera field; minimal safe-area chrome; camera-like shutter; **no form fields** | creator-only authority is not collected until review |
+| Clue authoring / review | captured still as field; animated clue/answer form; `Retake target` + `Add clue` | creator-only authority remains absent from playable bundle |
 | Play / searching | camera field; compact case progress; prominent clue; capture action | no unsupported warmer/colder AR promise |
 | Play / mismatch | warm bounded guidance distinct from error/success | deterministic current match policy retained |
 | Play / found | semantic-green confirmation; next-clue hierarchy | color is accompanied by explicit text/icon |
@@ -37,6 +39,7 @@ Reject the candidate as visually non-conformant if any representative state stil
 - generic elevated cards where a deliberate product treatment is expected;
 - primary and secondary actions with indistinguishable hierarchy;
 - stale pre-Micrantha violet or crossed-spyglass branding;
+- authoring fields obscuring or competing with the live camera preview;
 - camera UI obscuring the field with unnecessary opaque chrome;
 - progress/result state that relies only on color;
 - layout that clips or creates inaccessible actions under enlarged text;
@@ -111,6 +114,34 @@ The convergence pass does **not** change:
 
 The signed import copy still describes integrity/provenance rather than secrecy, and no hosted-account, Gallery import, unsafe replace/keep-both conflict action, or warmer/colder AR promise was reintroduced.
 
+## Post-convergence authoring correction — #293
+
+A subsequent installed/compositional review identified one incorrect assumption in the #292 acceptance: Create Game and Clue Authoring were still treating the live camera as a background behind their forms. That is not the intended interaction contract.
+
+#293 supersedes that authoring composition only:
+
+```text
+live edge-to-edge camera
+  -> capture
+captured still
+  -> animate authoring form over still
+  -> retake or commit
+```
+
+The correction deliberately stays on the same route. `CapturedImage` is retained only in bounded route-local Compose memory while the still is reviewed; it is dispatched into MVI only on the final commit action. Retake discards the transient capture while preserving the feature's lightweight draft text. The live platform camera leaves composition during review, so the native session can release instead of continuing behind the form.
+
+Create Game and Clue Authoring opt into edge-to-edge app rendering and own their safe-area camera/review chrome. Play remains on the previously accepted shell/composition; the shared `CameraLayout` defaults preserve that contract and authoring opts into edge-to-edge controls explicitly.
+
+Acceptance evidence for #293 must include deterministic screen interaction proving:
+
+- authoring fields do not exist before capture;
+- fields appear only after a synthetic capture callback;
+- capture alone does not emit `TargetCaptured`;
+- final commit emits `TargetCaptured` exactly once;
+- retake returns to live capture without submitting;
+- existing Play visual references remain stable;
+- deterministic visual references include representative live-authoring and captured-review states.
+
 ## Installed-build acceptance — 2026-09-02
 
 The first installed-build evidence attempt correctly exposed a fail-closed startup because the ordinary offline debug APK did not contain the explicitly provisioned image-embedder model. The evidence workflow was corrected to follow the documented runtime lifecycle rather than bypassing startup:
@@ -124,12 +155,13 @@ The first installed-build evidence attempt correctly exposed a fail-closed start
 
 Android screen instrumentation run `33608426665` passed that complete chain. The captured Pixel-5/API-35 installed application renders the real first onboarding state, not `AppUnavailable`: Micrantha mark/palette, top Skip, centered `1 / 4` progress and illustration, `LOCAL MODE` / `Play locally` hierarchy, local-authority copy, and bottom-anchored `Next` are all visible with no material clipping or safe-area regression.
 
-**Installed-build visual review: ACCEPTED.**
+**Installed-build visual review: ACCEPTED for the 2026-09-02 composition. #293 is a later authoring correction and must be revalidated before the next candidate freeze.**
 
 ### Final acceptance boundary
 
-#291 / #285 are complete when the final PR head retains:
+#285 remains presentation-complete only when #293 is merged and its final PR head retains:
 
-1. verify-mode Roborazzi reproduction of the approved images;
+1. green deterministic Wayfinder reference verification with representative authoring live/review states;
 2. green core Android CI, enlarged-font screen instrumentation, workflow security, and iOS simulator application build;
-3. the accepted installed-app Pixel-5 onboarding evidence above.
+3. deterministic authoring capture/review interaction coverage;
+4. installed-app evidence consistent with the corrected authoring camera contract.
