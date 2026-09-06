@@ -139,6 +139,40 @@ fun PlayGameScreen(
             }
         }
 
+        if (state.busy) {
+            EyespiePanel(
+                containerColor = MaterialTheme.colorScheme.secondaryContainer.copy(alpha = 0.94f),
+                contentColor = MaterialTheme.colorScheme.onSecondaryContainer,
+            ) {
+                Row(
+                    modifier = Modifier.fillMaxWidth(),
+                    horizontalArrangement = Arrangement.spacedBy(12.dp),
+                    verticalAlignment = Alignment.CenterVertically,
+                ) {
+                    CircularProgressIndicator(
+                        modifier = Modifier
+                            .size(30.dp)
+                            .semantics { contentDescription = "Checking clue progress" },
+                        strokeWidth = 3.dp,
+                        color = MaterialTheme.colorScheme.secondary,
+                    )
+                    Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                        EyespieEyebrow("Matching", color = MaterialTheme.colorScheme.onSecondaryContainer)
+                        Text(
+                            "Checking clue…",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontWeight = FontWeight.Bold,
+                        )
+                        Text(
+                            "Comparing this photo on your device.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSecondaryContainer,
+                        )
+                    }
+                }
+            }
+        }
+
         EyespiePanel(
             containerColor = MaterialTheme.colorScheme.surface.copy(alpha = 0.88f),
         ) {
