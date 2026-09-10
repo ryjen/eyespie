@@ -22,8 +22,8 @@ class ExternalAppIntentHandler(
             return ExternalAppIntentResult.NotFound
         }
 
-        // An external navigation request must not leave unconfirmed import authority hanging around.
-        importCanceller.cancelImport()
+        // A user-requested external navigation intentionally abandons any unconfirmed import.
+        importCanceller.discardImport()
         navigation.replaceAll(AppRoute.Home)
         navigation.push(AppRoute.GameDetail(intent.gameId))
         return ExternalAppIntentResult.Opened
