@@ -184,7 +184,7 @@ class DiagnosticExportTest {
     }
 
     @Test
-    fun portableJsonHasNoGenericMessageAttributeOrPayloadChannel() {
+    fun portableJsonHasNoGenericMessageAttributePayloadOrExceptionChannel() {
         val service = DiagnosticExportService(
             history = BoundedDiagnosticSink(),
             identityProvider = DiagnosticIdentityProvider {
@@ -200,7 +200,18 @@ class DiagnosticExportTest {
         )
         val encoded = service.encodeJson().decodeToString()
 
-        listOf("message", "attributes", "payload", "path", "image", "embedding").forEach { field ->
+        listOf(
+            "message",
+            "attributes",
+            "payload",
+            "path",
+            "image",
+            "embedding",
+            "cause",
+            "exception",
+            "stack_trace",
+            "stacktrace",
+        ).forEach { field ->
             assertFalse("\"$field\"" in encoded)
         }
     }

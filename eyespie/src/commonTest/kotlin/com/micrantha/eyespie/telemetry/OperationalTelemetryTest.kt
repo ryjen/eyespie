@@ -62,6 +62,60 @@ class OperationalTelemetryTest {
     }
 
     @Test
+    fun synchronousBootstrapStagesShareTraceAndLinkToParentSpan() {
+        val sink = FakeDiagnosticSink()
+        val telemetry = OperationalTelemetry(sink)
+
+        val value = telemetry.observeSync(DiagnosticOperation.RUNTIME_INITIALIZE) { root ->
+            val database = telemetry.observeSync(
+                operation = DiagnosticOperation.DATABASE_OPEN,
+                parent = root,
+            ) { "database" }
+            assertEquals("database", database)
+            "runtime"
+        }
+
+        assertEquals("runtime", value)
+        assertEquals(2, sink.records.size)
+        val child = sink.records[0]
+        val parent = sink.records[1]
+        assertEquals(DiagnosticOperation.DATABASE_OPEN, child.operation)
+        assertEquals(DiagnosticOperation.RUNTIME_INITIALIZE, parent.operation)
+        assertEquals(parent.correlation.traceId, child.correlation.traceId)
+        assertEquals(parent.correlation.spanId, child.correlation.parentSpanId)
+        assertEquals(null, parent.correlation.parentSpanId)
+    }
+
+    @Test
+    fun synchronousBootstrapFailureUsesStableStageAndParentCodes() {
+        val sink = FakeDiagnosticSink()
+        val telemetry = OperationalTelemetry(sink)
+
+        assertFailsWith<IllegalStateException> {
+            telemetry.observeSync(DiagnosticOperation.RUNTIME_INITIALIZE) { root ->
+                telemetry.observeSync(
+                    operation = DiagnosticOperation.EMBEDDING_MODEL_LOAD,
+                    parent = root,
+                ) {
+                    throw IllegalStateException("private model implementation detail")
+                }
+            }
+        }
+
+        assertEquals(2, sink.records.size)
+        val stage = sink.records[0]
+        val parent = sink.records[1]
+        assertEquals(DiagnosticOperation.EMBEDDING_MODEL_LOAD, stage.operation)
+        assertEquals(DiagnosticResult.FAILED, stage.result)
+        assertEquals(DiagnosticCode.EMBEDDING_MODEL_LOAD_FAILED, stage.code)
+        assertEquals(DiagnosticOperation.RUNTIME_INITIALIZE, parent.operation)
+        assertEquals(DiagnosticResult.FAILED, parent.result)
+        assertEquals(DiagnosticCode.RUNTIME_INITIALIZATION_FAILED, parent.code)
+        assertEquals(parent.correlation.traceId, stage.correlation.traceId)
+        assertEquals(parent.correlation.spanId, stage.correlation.parentSpanId)
+    }
+
+    @Test
     fun typedFailureRetainsStableDiagnosticCode() = runTest {
         val sink = FakeDiagnosticSink()
         val telemetry = OperationalTelemetry(sink)

@@ -19,6 +19,11 @@ import kotlin.time.TimeSource
  * high-cardinality values to this vocabulary.
  */
 enum class DiagnosticOperation {
+    RUNTIME_INITIALIZE,
+    DATABASE_OPEN,
+    EMBEDDING_MODEL_LOAD,
+    IDENTITY_PROVIDER_INITIALIZE,
+    IDENTITY_RESOLVE,
     GAME_SNAPSHOT_LOAD,
     GAME_CREATE,
     CLUE_ADD,
@@ -51,6 +56,9 @@ enum class DiagnosticResult {
  * or secret exfiltration channel.
  */
 enum class DiagnosticCode {
+    RUNTIME_INITIALIZATION_FAILED,
+    DATABASE_OPEN_FAILED,
+    EMBEDDING_MODEL_LOAD_FAILED,
     GAME_OPERATION_IN_PROGRESS,
     GAME_INVALID_NAME,
     GAME_INVALID_CLUE,
@@ -207,12 +215,12 @@ data class DiagnosticSnapshot(
 /**
  * Small in-memory ring buffer for local diagnostics.
  *
- * The mutex is deliberately non-suspending at the write boundary: contention
- * drops observational telemetry rather than delaying gameplay. Both capacity
- * evictions and contention drops are counted so an exported snapshot can expose
- * that its retained timeline is incomplete without retaining any dropped payload.
- * Snapshot lock contention also returns an explicitly incomplete view rather than
- * silently presenting an empty history as authoritative.
+ * Retention is intentionally process-lifetime only: records live only in this
+ * in-memory ring, are never canonical state, and disappear when the process ends
+ * or [clear] succeeds. The mutex is deliberately non-suspending at the write
+ * boundary: contention drops observational telemetry rather than delaying gameplay.
+ * Both capacity evictions and contention drops are counted so an exported snapshot
+ * can expose that its retained timeline is incomplete without retaining dropped payload.
  */
 @OptIn(ExperimentalAtomicApi::class)
 class BoundedDiagnosticSink(
@@ -281,6 +289,12 @@ class BoundedDiagnosticSink(
 }
 
 private fun DiagnosticOperation.defaultFailureCode(): DiagnosticCode = when (this) {
+    DiagnosticOperation.RUNTIME_INITIALIZE -> DiagnosticCode.RUNTIME_INITIALIZATION_FAILED
+    DiagnosticOperation.DATABASE_OPEN -> DiagnosticCode.DATABASE_OPEN_FAILED
+    DiagnosticOperation.EMBEDDING_MODEL_LOAD -> DiagnosticCode.EMBEDDING_MODEL_LOAD_FAILED
+    DiagnosticOperation.IDENTITY_PROVIDER_INITIALIZE,
+    DiagnosticOperation.IDENTITY_RESOLVE,
+    -> DiagnosticCode.IDENTITY_UNAVAILABLE
     DiagnosticOperation.TARGET_EMBEDDING_GENERATE -> DiagnosticCode.TARGET_EMBEDDING_FAILED
     DiagnosticOperation.GUESS_EMBEDDING_GENERATE -> DiagnosticCode.GUESS_EMBEDDING_FAILED
     DiagnosticOperation.MATCH_EVALUATE -> DiagnosticCode.MATCH_POLICY_INVALID
@@ -317,7 +331,7 @@ class OperationalTelemetry(
         block: suspend () -> T,
     ): T {
         val parent = currentCoroutineContext()[DiagnosticSpanContext]
-        val correlation = nextCorrelation(parent)
+        val correlation = nextCorrelation(parent?.traceId, parent?.spanId)
         val started = TimeSource.Monotonic.markNow()
         return try {
             val value = withContext(
@@ -325,11 +339,46 @@ class OperationalTelemetry(
             ) {
                 block()
             }
-            val outcome = try {
-                classify(value)
-            } catch (_: Exception) {
-                DiagnosticOutcome.ClassificationDegraded
-            }
+            val outcome = classifySafely(value, classify)
+            emit(operation, outcome, started.elapsedNow().inWholeMilliseconds, correlation)
+            value
+        } catch (cancelled: kotlinx.coroutines.CancellationException) {
+            emit(
+                operation,
+                DiagnosticOutcome.Cancelled,
+                started.elapsedNow().inWholeMilliseconds,
+                correlation,
+            )
+            throw cancelled
+        } catch (throwable: Throwable) {
+            emit(
+                operation,
+                DiagnosticOutcome.failed(failureCode),
+                started.elapsedNow().inWholeMilliseconds,
+                correlation,
+            )
+            throw throwable
+        }
+    }
+
+    /**
+     * Observes startup/bootstrap work that is already synchronous without using
+     * runBlocking or changing dispatcher/thread semantics. The returned correlation
+     * is passed to [block] only so bootstrap code can explicitly parent nested
+     * synchronous stages; it is generated locally and carries no product identity.
+     */
+    internal fun <T> observeSync(
+        operation: DiagnosticOperation,
+        parent: DiagnosticCorrelation? = null,
+        failureCode: DiagnosticCode = operation.defaultFailureCode(),
+        classify: (T) -> DiagnosticOutcome = { DiagnosticOutcome.Success },
+        block: (DiagnosticCorrelation) -> T,
+    ): T {
+        val correlation = nextCorrelation(parent?.traceId, parent?.spanId)
+        val started = TimeSource.Monotonic.markNow()
+        return try {
+            val value = block(correlation)
+            val outcome = classifySafely(value, classify)
             emit(operation, outcome, started.elapsedNow().inWholeMilliseconds, correlation)
             value
         } catch (cancelled: kotlinx.coroutines.CancellationException) {
@@ -364,16 +413,27 @@ class OperationalTelemetry(
             operation = operation,
             outcome = outcome,
             durationMillis = 0,
-            correlation = nextCorrelation(parent = null),
+            correlation = nextCorrelation(parentTraceId = null, parentSpanId = null),
         )
     }
 
-    private fun nextCorrelation(parent: DiagnosticSpanContext?): DiagnosticCorrelation =
-        DiagnosticCorrelation(
-            traceId = parent?.traceId ?: randomHexId(byteCount = TRACE_ID_BYTES),
-            spanId = randomHexId(byteCount = SPAN_ID_BYTES),
-            parentSpanId = parent?.spanId,
-        )
+    private fun <T> classifySafely(
+        value: T,
+        classify: (T) -> DiagnosticOutcome,
+    ): DiagnosticOutcome = try {
+        classify(value)
+    } catch (_: Exception) {
+        DiagnosticOutcome.ClassificationDegraded
+    }
+
+    private fun nextCorrelation(
+        parentTraceId: String?,
+        parentSpanId: String?,
+    ): DiagnosticCorrelation = DiagnosticCorrelation(
+        traceId = parentTraceId ?: randomHexId(byteCount = TRACE_ID_BYTES),
+        spanId = randomHexId(byteCount = SPAN_ID_BYTES),
+        parentSpanId = parentSpanId,
+    )
 
     private fun randomHexId(byteCount: Int): String {
         var value: String

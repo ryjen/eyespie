@@ -31,6 +31,7 @@ import com.micrantha.eyespie.sharing.TelemetryGameSharePresenter
 import com.micrantha.eyespie.telemetry.DIAGNOSTIC_ARTIFACT_FILE_NAME
 import com.micrantha.eyespie.telemetry.DiagnosticArtifactWriteResult
 import com.micrantha.eyespie.telemetry.DiagnosticArtifactWriter
+import com.micrantha.eyespie.telemetry.DiagnosticExportService
 import kotlin.coroutines.cancellation.CancellationException
 
 object AppGraphFactory {
@@ -69,7 +70,10 @@ object AppGraphFactory {
             gameSaver = capabilities,
             externalDocumentSource = externalDocumentSource,
             separateSaveAction = sharePresenter != null && documentTransfer != null,
-            diagnosticsExporter = RuntimeDiagnosticsExporter(runtime, diagnosticArtifactWriter),
+            diagnosticsExporter = ScopedDiagnosticsExporter(
+                diagnosticExport = runtime.diagnosticExport,
+                writer = diagnosticArtifactWriter,
+            ),
         )
     }
 
@@ -137,14 +141,14 @@ object AppGraphFactory {
     }
 }
 
-private class RuntimeDiagnosticsExporter(
-    private val runtime: EyespieRuntime,
+internal class ScopedDiagnosticsExporter(
+    private val diagnosticExport: DiagnosticExportService,
     private val writer: DiagnosticArtifactWriter?,
 ) : DiagnosticsExporter {
     override suspend fun export(): DiagnosticExportResult {
         val writer = writer ?: return DiagnosticExportResult.Unavailable
         val bytes = try {
-            runtime.diagnosticExport.encodeJson()
+            diagnosticExport.encodeJson()
         } catch (_: Exception) {
             return DiagnosticExportResult.Failed
         }

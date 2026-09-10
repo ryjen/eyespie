@@ -3,7 +3,9 @@ import androidx.compose.ui.window.ComposeUIViewController
 import com.micrantha.eyespie.App
 import com.micrantha.eyespie.AppUnavailable
 import com.micrantha.eyespie.app.IosExternalIngress
-import com.micrantha.eyespie.game.createIosEyespieRuntime
+import com.micrantha.eyespie.app.ScopedDiagnosticsExporter
+import com.micrantha.eyespie.game.EyespieRuntimeBootstrapResult
+import com.micrantha.eyespie.game.bootstrapIosEyespieRuntime
 import com.micrantha.eyespie.sharing.IosGameDocumentTransfer
 import com.micrantha.eyespie.sharing.IosGameSharePresenter
 import com.micrantha.eyespie.telemetry.IosDiagnosticArtifactWriter
@@ -13,37 +15,46 @@ import platform.UIKit.UIViewController
 fun MainViewController(): UIViewController {
     lateinit var controller: UIViewController
     controller = ComposeUIViewController {
-        val runtime = remember {
-            try {
-                createIosEyespieRuntime()
-            } catch (exception: Exception) {
-                NSLog("Eyespie runtime initialization failed: ${exception.stackTraceToString()}")
-                null
+        val bootstrap = remember {
+            bootstrapIosEyespieRuntime().also { result ->
+                if (result is EyespieRuntimeBootstrapResult.Failed) {
+                    NSLog("Eyespie runtime initialization failed: ${result.cause.stackTraceToString()}")
+                }
             }
         }
-        if (runtime == null) {
-            AppUnavailable()
-        } else {
-            val documentTransfer = remember {
-                IosGameDocumentTransfer(
-                    presenter = { controller },
+        val diagnosticsWriter = remember {
+            IosDiagnosticArtifactWriter { controller }
+        }
+
+        when (bootstrap) {
+            is EyespieRuntimeBootstrapResult.Failed -> {
+                val diagnosticsExporter = remember(bootstrap, diagnosticsWriter) {
+                    ScopedDiagnosticsExporter(
+                        diagnosticExport = bootstrap.diagnostics.export,
+                        writer = diagnosticsWriter,
+                    )
+                }
+                AppUnavailable(diagnosticsExporter = diagnosticsExporter)
+            }
+            is EyespieRuntimeBootstrapResult.Ready -> {
+                val documentTransfer = remember {
+                    IosGameDocumentTransfer(
+                        presenter = { controller },
+                        externalDocumentSource = IosExternalIngress,
+                    )
+                }
+                val sharePresenter = remember {
+                    IosGameSharePresenter { controller }
+                }
+                App(
+                    runtime = bootstrap.runtime,
+                    documentTransfer = documentTransfer,
                     externalDocumentSource = IosExternalIngress,
+                    sharePresenter = sharePresenter,
+                    externalAppIntentSource = IosExternalIngress,
+                    diagnosticArtifactWriter = diagnosticsWriter,
                 )
             }
-            val sharePresenter = remember {
-                IosGameSharePresenter { controller }
-            }
-            val diagnosticsWriter = remember {
-                IosDiagnosticArtifactWriter { controller }
-            }
-            App(
-                runtime = runtime,
-                documentTransfer = documentTransfer,
-                externalDocumentSource = IosExternalIngress,
-                sharePresenter = sharePresenter,
-                externalAppIntentSource = IosExternalIngress,
-                diagnosticArtifactWriter = diagnosticsWriter,
-            )
         }
     }
     return controller
