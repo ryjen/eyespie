@@ -26,6 +26,8 @@ import com.micrantha.eyespie.game.GameThumbnailCache
 import com.micrantha.eyespie.sharing.ExternalGameDocumentSource
 import com.micrantha.eyespie.sharing.GameDocumentTransfer
 import com.micrantha.eyespie.sharing.GameSharePresenter
+import com.micrantha.eyespie.sharing.TelemetryGameDocumentTransfer
+import com.micrantha.eyespie.sharing.TelemetryGameSharePresenter
 import com.micrantha.eyespie.telemetry.DIAGNOSTIC_ARTIFACT_FILE_NAME
 import com.micrantha.eyespie.telemetry.DiagnosticArtifactWriteResult
 import com.micrantha.eyespie.telemetry.DiagnosticArtifactWriter
@@ -40,10 +42,16 @@ object AppGraphFactory {
         sharePresenter: GameSharePresenter? = null,
         diagnosticArtifactWriter: DiagnosticArtifactWriter? = null,
     ): AppGraph {
+        val observedDocumentTransfer = documentTransfer?.let {
+            TelemetryGameDocumentTransfer(it, runtime.telemetry)
+        }
+        val observedSharePresenter = sharePresenter?.let {
+            TelemetryGameSharePresenter(it, runtime.telemetry)
+        }
         val capabilities = LocalGameAdapter(
             runtime = runtime,
-            documentTransfer = documentTransfer,
-            sharePresenter = sharePresenter,
+            documentTransfer = observedDocumentTransfer,
+            sharePresenter = observedSharePresenter,
             externalDocumentSource = externalDocumentSource,
         )
         return fromCapabilities(
