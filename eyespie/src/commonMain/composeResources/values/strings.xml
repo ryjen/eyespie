@@ -31,4 +31,6 @@
     <string name="failure_share_too_large">The Eyespie game is too large to share.</string>
     <string name="failure_share_failed">This local game could not be shared.</string>
     <string name="failure_share_unavailable">Game sharing is unavailable on this platform.</string>
+    <string name="failure_deep_link_game_not_found">That game is not on this device yet. Open or import the shared .eyespie file first.</string>
+    <string name="failure_deep_link_failed">The Eyespie link could not be opened.</string>
 </resources>
