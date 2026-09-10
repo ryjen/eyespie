@@ -24,4 +24,5 @@ data class GameDetailState(
     val loadGeneration: Long = 0,
     val shareInProgress: Boolean = false,
     val saveInProgress: Boolean = false,
+    val separateSaveAction: Boolean = false,
 )
