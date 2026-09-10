@@ -19,6 +19,7 @@ enum class DiagnosticOperation {
     GUESS_EMBEDDING_GENERATE,
     GAME_PERSIST,
     PROGRESS_PERSIST,
+    CAMERA_CAPTURE,
 }
 
 enum class DiagnosticResult {
@@ -45,6 +46,7 @@ enum class DiagnosticCode {
     THING_NOT_FOUND,
     MATCH_POLICY_INVALID,
     PERSISTENCE_FAILED,
+    CAMERA_CAPTURE_FAILED,
     TELEMETRY_CLASSIFICATION_FAILED,
     UNEXPECTED_FAILURE,
 }
@@ -195,6 +197,7 @@ private fun DiagnosticOperation.defaultFailureCode(): DiagnosticCode = when (thi
     DiagnosticOperation.GAME_PERSIST,
     DiagnosticOperation.PROGRESS_PERSIST,
     -> DiagnosticCode.PERSISTENCE_FAILED
+    DiagnosticOperation.CAMERA_CAPTURE -> DiagnosticCode.CAMERA_CAPTURE_FAILED
     else -> DiagnosticCode.UNEXPECTED_FAILURE
 }
 

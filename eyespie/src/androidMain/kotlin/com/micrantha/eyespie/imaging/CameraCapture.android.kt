@@ -30,6 +30,7 @@ import androidx.core.content.ContextCompat
 import androidx.lifecycle.Lifecycle
 import androidx.lifecycle.LifecycleEventObserver
 import androidx.lifecycle.compose.LocalLifecycleOwner
+import com.micrantha.eyespie.telemetry.LocalOperationalTelemetry
 import java.io.File
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
@@ -64,6 +65,7 @@ actual fun CameraCapture(
     val context = LocalContext.current
     val lifecycleOwner = LocalLifecycleOwner.current
     val compositionScope = rememberCoroutineScope()
+    val telemetry = LocalOperationalTelemetry.current
     val preferences = remember(context) {
         context.getSharedPreferences(CAMERA_PREFS, Context.MODE_PRIVATE)
     }
@@ -144,9 +146,12 @@ actual fun CameraCapture(
     val preview = remember(previewView) {
         Preview.Builder().build().also { it.surfaceProvider = previewView.surfaceProvider }
     }
-    val imageCapture: ImageCapture = remember(context, cameraXImageCapture) {
+    val imageCapture: ImageCapture = remember(context, cameraXImageCapture, telemetry) {
         pruneStaleCaptureFiles(context.applicationContext)
-        AndroidImageCapture(context.applicationContext, cameraXImageCapture)
+        TelemetryImageCapture(
+            delegate = AndroidImageCapture(context.applicationContext, cameraXImageCapture),
+            telemetry = telemetry,
+        )
     }
     var cameraProvider by remember { mutableStateOf<ProcessCameraProvider?>(null) }
 

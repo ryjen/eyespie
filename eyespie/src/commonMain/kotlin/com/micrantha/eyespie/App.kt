@@ -47,6 +47,7 @@ import com.micrantha.eyespie.presentation.theme.EyespieTheme
 import com.micrantha.eyespie.sharing.ExternalGameDocumentSource
 import com.micrantha.eyespie.sharing.GameDocumentTransfer
 import com.micrantha.eyespie.sharing.GameSharePresenter
+import com.micrantha.eyespie.telemetry.LocalOperationalTelemetry
 import kotlinx.coroutines.flow.filter
 import org.jetbrains.compose.resources.getString
 
@@ -175,6 +176,7 @@ fun App(
                                     CompositionLocalProvider(
                                         LocalAppGraph provides graph,
                                         LocalAppMessageSink provides showMessage,
+                                        LocalOperationalTelemetry provides runtime.telemetry,
                                     ) {
                                         currentScreen.Content()
                                     }
