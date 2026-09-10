@@ -77,7 +77,7 @@ class LocalGameLoopTelemetryTest {
             ),
             sink.records.map { it.operation },
         )
-        assertEquals(DiagnosticCode.UNEXPECTED_FAILURE, sink.records[0].code)
+        assertEquals(DiagnosticCode.TARGET_EMBEDDING_FAILED, sink.records[0].code)
         assertEquals(DiagnosticCode.TARGET_EMBEDDING_FAILED, sink.records[1].code)
     }
 
@@ -138,7 +138,7 @@ class LocalGameLoopTelemetryTest {
         val failure = assertIs<LocalGameResult.Failure>(result)
         assertEquals(LocalGameFailureCode.GUESS_EMBEDDING_FAILED, failure.failure.code)
         assertEquals(DiagnosticOperation.GUESS_EMBEDDING_GENERATE, sink.records[sink.records.lastIndex - 1].operation)
-        assertEquals(DiagnosticCode.UNEXPECTED_FAILURE, sink.records[sink.records.lastIndex - 1].code)
+        assertEquals(DiagnosticCode.GUESS_EMBEDDING_FAILED, sink.records[sink.records.lastIndex - 1].code)
         assertEquals(DiagnosticOperation.GAME_GUESS, sink.records.last().operation)
         assertEquals(DiagnosticCode.GUESS_EMBEDDING_FAILED, sink.records.last().code)
     }
