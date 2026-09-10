@@ -11,6 +11,7 @@ import com.micrantha.eyespie.App
 import com.micrantha.eyespie.AppUnavailable
 import com.micrantha.eyespie.game.createAndroidEyespieRuntime
 import com.micrantha.eyespie.sharing.AndroidGameDocumentTransfer
+import com.micrantha.eyespie.sharing.AndroidGameSharePresenter
 import com.micrantha.eyespie.sharing.externalEyespieDocumentUri
 import com.micrantha.eyespie.sharing.rememberAndroidGameDocumentTransfer
 
@@ -35,10 +36,12 @@ class MainActivity : ComponentActivity() {
                 AppUnavailable()
             } else {
                 val transfer = rememberAndroidGameDocumentTransfer(documentTransfer)
+                val sharePresenter = remember { AndroidGameSharePresenter(this) }
                 App(
                     runtime = runtime,
                     documentTransfer = transfer,
                     externalDocumentSource = documentTransfer,
+                    sharePresenter = sharePresenter,
                 )
             }
         }
