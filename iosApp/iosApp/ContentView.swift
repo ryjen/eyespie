@@ -43,6 +43,7 @@ struct ContentView: View {
         _ = IosExternalIngressKt.offerIosDeepLink(
             scheme: components.scheme,
             host: components.host,
+            percentEncodedPath: components.percentEncodedPath,
             pathSegments: pathSegments,
             hasQuery: components.query != nil,
             hasFragment: components.fragment != nil,
