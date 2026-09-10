@@ -102,24 +102,6 @@ fun UtilityScreen(
                             "Target photos are processed locally into embeddings. Signed .eyespie files contain inspectable gameplay data; signatures prove integrity and provenance, not secrecy.",
                             style = MaterialTheme.typography.bodyMedium,
                         )
-                        Text(
-                            "Support diagnostics contain bounded release/runtime identity and recent stable operation results. They do not include game images, embeddings, clue or answer text, bundle contents, keys, contacts, exact location, or private paths.",
-                            style = MaterialTheme.typography.bodySmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        )
-                        EyespieSecondaryAction(
-                            text = if (state.exportingDiagnostics) "Exporting diagnostics…" else "Export diagnostics",
-                            modifier = Modifier.fillMaxWidth(),
-                            enabled = !state.exportingDiagnostics,
-                            onClick = { dispatch(UtilityIntent.ExportDiagnostics) },
-                        )
-                        state.diagnosticExportResult?.let { result ->
-                            Text(
-                                diagnosticExportMessage(result),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
                     }
                     UtilityDivider()
 
@@ -146,6 +128,28 @@ fun UtilityScreen(
                             style = MaterialTheme.typography.bodySmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
+                    }
+                    UtilityDivider()
+
+                    UtilitySection(eyebrow = "Support", title = "Diagnostics") {
+                        Text(
+                            "Support diagnostics contain bounded release/runtime identity and recent stable operation results. They do not include game images, embeddings, clue or answer text, bundle contents, keys, contacts, exact location, or private paths.",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                        EyespieSecondaryAction(
+                            text = if (state.exportingDiagnostics) "Exporting diagnostics…" else "Export diagnostics",
+                            modifier = Modifier.fillMaxWidth(),
+                            enabled = !state.exportingDiagnostics,
+                            onClick = { dispatch(UtilityIntent.ExportDiagnostics) },
+                        )
+                        state.diagnosticExportResult?.let { result ->
+                            Text(
+                                diagnosticExportMessage(result),
+                                style = MaterialTheme.typography.bodySmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
                     }
                 }
             }
