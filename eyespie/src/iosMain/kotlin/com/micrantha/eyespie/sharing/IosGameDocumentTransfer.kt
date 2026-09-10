@@ -1,5 +1,6 @@
 package com.micrantha.eyespie.sharing
 
+import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
@@ -23,6 +24,7 @@ import platform.darwin.NSObject
 private const val IOS_DOCUMENT_READ_CHUNK_BYTES = 8 * 1024L
 private const val IOS_EYESPIE_UTI = "com.micrantha.eyespie.game"
 
+@OptIn(ExperimentalForeignApi::class)
 class IosGameDocumentTransfer(
     private val presenter: () -> UIViewController?,
     private val externalDocumentSource: IosExternalGameDocumentSource? = null,
@@ -163,7 +165,7 @@ class IosGameDocumentTransfer(
                 options = 0uL,
                 error = null,
             ) { coordinatedUrl ->
-                result = readCoordinatedBounded(coordinatedUrl)
+                coordinatedUrl?.let { result = readCoordinatedBounded(it) }
             }
             return result
         } catch (_: Exception) {
