@@ -20,6 +20,8 @@
 	<string>$(APP_BUILD)</string>
 	<key>EyespieMediaPipeTasksVersion</key>
 	<string>$(IOS_MEDIAPIPE_TASKS_VERSION)</string>
+	<key>EyespieSourceRevision</key>
+	<string>$(EYESPIE_SOURCE_REVISION)</string>
 	<key>LSRequiresIPhoneOS</key>
 	<true/>
 	<key>NSCameraUsageDescription</key>

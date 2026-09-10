@@ -53,6 +53,7 @@ def ios_metadata(**overrides) -> dict:
         "bundle_id": "com.micrantha.eyespie",
         "version": "0.1.0",
         "build": "1",
+        "source_revision": SOURCE_SHA,
         "mediapipe_version": "0.10.26.2",
         "signing_team_id": IOS_TEAM_ID,
         "application_identifier": IOS_APPLICATION_ID,
@@ -127,7 +128,7 @@ class InternalReleaseEvidenceTest(unittest.TestCase):
             with self.assertRaisesRegex(ReleaseEvidenceError, "signer certificate"):
                 validate_android(candidate, bad_signer, apk, aab)
 
-    def test_ios_binds_bundle_version_build_runtime_and_signing_identity(self) -> None:
+    def test_ios_binds_bundle_version_build_runtime_source_and_signing_identity(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             candidate = self.write_json(root, "candidate.json", candidate_payload())
@@ -139,10 +140,11 @@ class InternalReleaseEvidenceTest(unittest.TestCase):
             self.assertEqual("ios", evidence["platform"])
             self.assertEqual("testflight-internal", evidence["channel"])
             self.assertEqual("com.micrantha.eyespie", evidence["bundle_id"])
+            self.assertEqual(SOURCE_SHA, evidence["embedded_source_revision"])
             self.assertEqual(IOS_TEAM_ID, evidence["signing"]["team_id"])
             self.assertEqual(IOS_APPLICATION_ID, evidence["signing"]["application_identifier"])
 
-    def test_ios_rejects_bundle_runtime_or_signing_drift(self) -> None:
+    def test_ios_rejects_bundle_runtime_source_or_signing_drift(self) -> None:
         with tempfile.TemporaryDirectory() as directory:
             root = Path(directory)
             candidate = self.write_json(root, "candidate.json", candidate_payload())
@@ -152,6 +154,14 @@ class InternalReleaseEvidenceTest(unittest.TestCase):
             wrong_bundle = self.write_json(root, "wrong-bundle.json", ios_metadata(bundle_id="com.invalid"))
             with self.assertRaisesRegex(ReleaseEvidenceError, "bundle id"):
                 validate_ios(candidate, wrong_bundle, ipa)
+
+            wrong_source = self.write_json(root, "wrong-source.json", ios_metadata(source_revision="d" * 40))
+            with self.assertRaisesRegex(ReleaseEvidenceError, "source revision"):
+                validate_ios(candidate, wrong_source, ipa)
+
+            missing_source = self.write_json(root, "missing-source.json", ios_metadata(source_revision=None))
+            with self.assertRaisesRegex(ReleaseEvidenceError, "source revision"):
+                validate_ios(candidate, missing_source, ipa)
 
             wrong_runtime = self.write_json(root, "wrong-runtime.json", ios_metadata(mediapipe_version="9.9.9"))
             with self.assertRaisesRegex(ReleaseEvidenceError, "MediaPipe"):
