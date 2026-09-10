@@ -44,12 +44,55 @@ class HomeExternalDocumentTest {
         assertEquals(1, capabilities.prepares)
         assertEquals(preview, interactor.state.value.importPreview)
     }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun pending_external_document_waits_for_existing_preview_then_retries() = runTest {
+        val existingPreview = HomeImportPreview("Current mission", 1, "creator-old", "game-old")
+        val externalPreview = HomeImportPreview("Incoming mission", 3, "creator-new", "game-new")
+        val capabilities = ExternalImportCapabilities(
+            HomeImportPreparationResult.Ready(externalPreview),
+        )
+        val source = FakeExternalGameDocumentSource(pending = false)
+        val interactor = HomeFactory(
+            snapshotLoader = capabilities,
+            importPreparer = capabilities,
+            importConfirmer = capabilities,
+            importCanceller = capabilities,
+            thumbnailCache = capabilities,
+            output = {},
+            externalDocumentSource = source,
+        ).create(
+            scope = this,
+            initialState = HomeState(
+                loading = false,
+                importPreview = existingPreview,
+            ),
+        )
+
+        source.offer()
+        advanceUntilIdle()
+
+        assertEquals(0, capabilities.prepares)
+        assertEquals(existingPreview, interactor.state.value.importPreview)
+
+        interactor.dispatch(HomeIntent.ImportPreviewCancelled)
+        advanceUntilIdle()
+
+        assertEquals(1, capabilities.prepares)
+        assertEquals(externalPreview, interactor.state.value.importPreview)
+    }
 }
 
 private class FakeExternalGameDocumentSource(
     pending: Boolean,
 ) : ExternalGameDocumentSource {
-    override val pending: StateFlow<Boolean> = MutableStateFlow(pending)
+    private val mutablePending = MutableStateFlow(pending)
+    override val pending: StateFlow<Boolean> = mutablePending
+
+    fun offer() {
+        mutablePending.value = true
+    }
 }
 
 private class ExternalImportCapabilities(
