@@ -20,6 +20,7 @@ import com.micrantha.eyespie.game.GameSnapshotLoader
 import com.micrantha.eyespie.game.GameThumbnailCache
 import com.micrantha.eyespie.sharing.ExternalGameDocumentSource
 import com.micrantha.eyespie.sharing.GameDocumentTransfer
+import com.micrantha.eyespie.sharing.GameSharePresenter
 
 object AppGraphFactory {
     fun fromRuntime(
@@ -27,8 +28,13 @@ object AppGraphFactory {
         navigation: AppNavigation,
         documentTransfer: GameDocumentTransfer? = null,
         externalDocumentSource: ExternalGameDocumentSource? = null,
+        sharePresenter: GameSharePresenter? = null,
     ): AppGraph {
-        val capabilities = LocalGameAdapter(runtime, documentTransfer)
+        val capabilities = LocalGameAdapter(
+            runtime = runtime,
+            documentTransfer = documentTransfer,
+            sharePresenter = sharePresenter,
+        )
         return fromCapabilities(
             gameSnapshotLoader = runtime.gameLoop,
             gameThumbnailCache = runtime.gameThumbnailCache,
