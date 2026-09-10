@@ -18,7 +18,7 @@ internal object IosExternalIngress : IosExternalGameDocumentSource, ExternalAppI
     override val intents: Flow<ExternalAppIntent> = pendingIntentState.filterNotNull()
 
     fun offerDocument(url: NSURL): Boolean {
-        if (!url.isFileURL) return false
+        if (!url.isFileURL()) return false
         if (!url.pathExtension.equals(EYESPIE_FILE_EXTENSION, ignoreCase = true)) return false
         if (pendingDocument != null) return false
 
