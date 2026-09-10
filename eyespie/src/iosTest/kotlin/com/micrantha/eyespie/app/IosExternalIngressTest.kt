@@ -73,9 +73,31 @@ class IosExternalIngressTest {
                 host = "game",
                 pathSegments = listOf("game:1234"),
                 hasQuery = false,
+                hasFragment = true,
+                hasUserInfo = false,
+                hasPort = false,
+            ),
+        )
+        assertFalse(
+            IosExternalIngress.offerDeepLink(
+                scheme = "eyespie",
+                host = "game",
+                pathSegments = listOf("game:1234"),
+                hasQuery = false,
                 hasFragment = false,
                 hasUserInfo = true,
                 hasPort = false,
+            ),
+        )
+        assertFalse(
+            IosExternalIngress.offerDeepLink(
+                scheme = "eyespie",
+                host = "game",
+                pathSegments = listOf("game:1234"),
+                hasQuery = false,
+                hasFragment = false,
+                hasUserInfo = false,
+                hasPort = true,
             ),
         )
     }
