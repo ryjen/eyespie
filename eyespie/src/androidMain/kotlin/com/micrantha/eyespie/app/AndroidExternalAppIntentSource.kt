@@ -1,14 +1,13 @@
 package com.micrantha.eyespie.app
 
 import android.content.Intent
-import kotlinx.coroutines.channels.Channel
 import kotlinx.coroutines.flow.Flow
-import kotlinx.coroutines.flow.receiveAsFlow
+import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.filterNotNull
 
 class AndroidExternalAppIntentSource : ExternalAppIntentSource {
-    private val channel = Channel<ExternalAppIntent>(capacity = Channel.CONFLATED)
-    override val intents: Flow<ExternalAppIntent> = channel.receiveAsFlow()
-    private var pendingIntent: ExternalAppIntent? = null
+    private val pendingState = MutableStateFlow<ExternalAppIntent?>(null)
+    override val intents: Flow<ExternalAppIntent> = pendingState.filterNotNull()
 
     fun offer(intent: Intent?): Boolean {
         if (intent?.action != Intent.ACTION_VIEW) return false
@@ -20,7 +19,8 @@ class AndroidExternalAppIntentSource : ExternalAppIntentSource {
             host = uri.host,
             pathSegments = uri.pathSegments,
         ) ?: return false
-        return enqueue(parsed)
+        pendingState.value = parsed
+        return true
     }
 
     /** Restore only a previously parsed canonical local-game id from Android saved state. */
@@ -30,24 +30,16 @@ class AndroidExternalAppIntentSource : ExternalAppIntentSource {
             host = "game",
             pathSegments = listOf(gameId),
         ) ?: return false
-        return enqueue(parsed)
+        pendingState.value = parsed
+        return true
     }
 
     fun pendingGameIdState(): String? =
-        (pendingIntent as? ExternalAppIntent.OpenLocalGame)?.gameId?.value
+        (pendingState.value as? ExternalAppIntent.OpenLocalGame)?.gameId?.value
 
     override fun acknowledge(intent: ExternalAppIntent) {
-        if (pendingIntent == intent) {
-            pendingIntent = null
+        if (pendingState.value == intent) {
+            pendingState.value = null
         }
-    }
-
-    private fun enqueue(intent: ExternalAppIntent): Boolean {
-        pendingIntent = intent
-        val result = channel.trySend(intent)
-        if (result.isFailure && pendingIntent == intent) {
-            pendingIntent = null
-        }
-        return result.isSuccess
     }
 }
