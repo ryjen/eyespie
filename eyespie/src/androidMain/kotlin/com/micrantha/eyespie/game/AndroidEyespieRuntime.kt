@@ -29,6 +29,7 @@ fun createAndroidEyespieRuntime(context: Context): EyespieRuntime {
     val gameRepository = SqlGameRepository(database)
     val embeddingModel = loadAndroidImageEmbeddingModel(applicationContext)
     val diagnosticSink = BoundedDiagnosticSink()
+    val telemetry = OperationalTelemetry(diagnosticSink)
     val diagnosticExport = DiagnosticExportService(
         history = diagnosticSink,
         identityProvider = DiagnosticIdentityProvider { androidDiagnosticIdentity() },
@@ -46,7 +47,7 @@ fun createAndroidEyespieRuntime(context: Context): EyespieRuntime {
             idGenerator = AndroidLocalGameIdGenerator(),
             thumbnailCodec = SkiaThumbnailCodec,
             imageRotator = AndroidImageRotator,
-            telemetry = OperationalTelemetry(diagnosticSink),
+            telemetry = telemetry,
         ),
         bundleService = GameBundleService(
             identityRepository = identityRepository,
@@ -57,6 +58,7 @@ fun createAndroidEyespieRuntime(context: Context): EyespieRuntime {
         gameThumbnailCache = gameRepository,
         diagnostics = diagnosticSink,
         diagnosticExport = diagnosticExport,
+        telemetry = telemetry,
     )
 }
 

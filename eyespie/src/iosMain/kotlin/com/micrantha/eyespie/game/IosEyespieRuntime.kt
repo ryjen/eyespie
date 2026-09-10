@@ -25,6 +25,7 @@ fun createIosEyespieRuntime(): EyespieRuntime {
     val identityRepository = LocalPlayerIdentityRepository(signingIdentity)
     val gameRepository = SqlGameRepository(database)
     val diagnosticSink = BoundedDiagnosticSink()
+    val telemetry = OperationalTelemetry(diagnosticSink)
     val diagnosticExport = DiagnosticExportService(
         history = diagnosticSink,
         identityProvider = DiagnosticIdentityProvider { iosDiagnosticIdentity() },
@@ -39,7 +40,7 @@ fun createIosEyespieRuntime(): EyespieRuntime {
             idGenerator = IosLocalGameIdGenerator(),
             thumbnailCodec = SkiaThumbnailCodec,
             imageRotator = IosImageRotator,
-            telemetry = OperationalTelemetry(diagnosticSink),
+            telemetry = telemetry,
         ),
         bundleService = GameBundleService(
             identityRepository = identityRepository,
@@ -50,6 +51,7 @@ fun createIosEyespieRuntime(): EyespieRuntime {
         gameThumbnailCache = gameRepository,
         diagnostics = diagnosticSink,
         diagnosticExport = diagnosticExport,
+        telemetry = telemetry,
     )
 }
 

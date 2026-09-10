@@ -4,6 +4,7 @@ import com.micrantha.eyespie.features.onboarding.OnboardingPreferenceStore
 import com.micrantha.eyespie.sharing.GameBundleService
 import com.micrantha.eyespie.telemetry.DiagnosticExportService
 import com.micrantha.eyespie.telemetry.DiagnosticHistory
+import com.micrantha.eyespie.telemetry.OperationalTelemetry
 
 class EyespieRuntime(
     val gameLoop: LocalGameLoop,
@@ -12,4 +13,5 @@ class EyespieRuntime(
     val gameThumbnailCache: GameThumbnailCache,
     val diagnostics: DiagnosticHistory,
     val diagnosticExport: DiagnosticExportService,
+    val telemetry: OperationalTelemetry,
 )
