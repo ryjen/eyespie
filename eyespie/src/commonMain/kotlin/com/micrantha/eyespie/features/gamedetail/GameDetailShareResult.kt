@@ -1,6 +1,7 @@
 package com.micrantha.eyespie.features.gamedetail
 
 sealed interface GameDetailShareResult {
+    data object Presented : GameDetailShareResult
     data object Shared : GameDetailShareResult
     data object NotLocalCreator : GameDetailShareResult
     data object TooLarge : GameDetailShareResult
