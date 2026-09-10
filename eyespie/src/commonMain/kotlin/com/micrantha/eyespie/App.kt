@@ -39,6 +39,7 @@ import com.micrantha.eyespie.presentation.theme.EyespieLogo
 import com.micrantha.eyespie.presentation.theme.EyespieTheme
 import com.micrantha.eyespie.sharing.ExternalGameDocumentSource
 import com.micrantha.eyespie.sharing.GameDocumentTransfer
+import com.micrantha.eyespie.sharing.GameSharePresenter
 import kotlinx.coroutines.flow.filter
 
 @Composable
@@ -46,6 +47,7 @@ fun App(
     runtime: EyespieRuntime,
     documentTransfer: GameDocumentTransfer? = null,
     externalDocumentSource: ExternalGameDocumentSource? = null,
+    sharePresenter: GameSharePresenter? = null,
 ) {
     val onboardingCompleted by produceState<Boolean?>(null, runtime) {
         value = try {
@@ -74,13 +76,25 @@ fun App(
                         LoadingLocalGame()
                     }
                 } else {
-                    val navigation = remember(runtime, documentTransfer, externalDocumentSource) { AppNavigationBridge() }
-                    val graph = remember(runtime, documentTransfer, externalDocumentSource, navigation) {
+                    val navigation = remember(
+                        runtime,
+                        documentTransfer,
+                        externalDocumentSource,
+                        sharePresenter,
+                    ) { AppNavigationBridge() }
+                    val graph = remember(
+                        runtime,
+                        documentTransfer,
+                        externalDocumentSource,
+                        sharePresenter,
+                        navigation,
+                    ) {
                         AppGraphFactory.fromRuntime(
                             runtime = runtime,
                             navigation = navigation,
                             documentTransfer = documentTransfer,
                             externalDocumentSource = externalDocumentSource,
+                            sharePresenter = sharePresenter,
                         )
                     }
                     val showMessage: suspend (String) -> Unit = remember(snackbarHostState) {
