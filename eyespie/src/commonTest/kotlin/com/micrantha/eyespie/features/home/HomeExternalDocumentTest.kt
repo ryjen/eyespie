@@ -39,10 +39,14 @@ class HomeExternalDocumentTest {
             initialState = HomeState(loading = false),
         )
 
-        advanceUntilIdle()
+        try {
+            advanceUntilIdle()
 
-        assertEquals(1, capabilities.prepares)
-        assertEquals(preview, interactor.state.value.importPreview)
+            assertEquals(1, capabilities.prepares)
+            assertEquals(preview, interactor.state.value.importPreview)
+        } finally {
+            interactor.dispose()
+        }
     }
 
     @OptIn(ExperimentalCoroutinesApi::class)
@@ -70,17 +74,21 @@ class HomeExternalDocumentTest {
             ),
         )
 
-        source.offer()
-        advanceUntilIdle()
+        try {
+            source.offer()
+            advanceUntilIdle()
 
-        assertEquals(0, capabilities.prepares)
-        assertEquals(existingPreview, interactor.state.value.importPreview)
+            assertEquals(0, capabilities.prepares)
+            assertEquals(existingPreview, interactor.state.value.importPreview)
 
-        interactor.dispatch(HomeIntent.ImportPreviewCancelled)
-        advanceUntilIdle()
+            interactor.dispatch(HomeIntent.ImportPreviewCancelled)
+            advanceUntilIdle()
 
-        assertEquals(1, capabilities.prepares)
-        assertEquals(externalPreview, interactor.state.value.importPreview)
+            assertEquals(1, capabilities.prepares)
+            assertEquals(externalPreview, interactor.state.value.importPreview)
+        } finally {
+            interactor.dispose()
+        }
     }
 }
 
