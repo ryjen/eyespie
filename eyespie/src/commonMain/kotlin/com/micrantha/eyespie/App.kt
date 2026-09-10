@@ -142,7 +142,8 @@ fun App(
 
                             LaunchedEffect(externalAppIntentSource, currentScreen, graph) {
                                 if (currentScreen !is ExternalIngressGateDestination) {
-                                    externalAppIntentSource?.intents?.collect { intent ->
+                                    val source = externalAppIntentSource ?: return@LaunchedEffect
+                                    source.intents.collect { intent ->
                                         when (graph.externalAppIntentHandler.handle(intent)) {
                                             ExternalAppIntentResult.Opened -> Unit
                                             ExternalAppIntentResult.NotFound -> showMessage(
@@ -154,7 +155,7 @@ fun App(
                                         }
                                         // Reaching here means handling (including any user-visible
                                         // failure message) completed without lifecycle cancellation.
-                                        externalAppIntentSource.acknowledge(intent)
+                                        source.acknowledge(intent)
                                     }
                                 }
                             }
