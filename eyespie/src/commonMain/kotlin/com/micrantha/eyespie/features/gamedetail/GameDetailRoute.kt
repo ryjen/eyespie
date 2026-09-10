@@ -26,11 +26,11 @@ fun GameDetailRoute(
     }
     LaunchedEffect(interactor, onMessage) {
         interactor.effects.collect { effect ->
-            when (effect) {
-                is GameDetailEffect.ShareFinished -> gameDetailShareMessageResource(effect.result)?.let { resource ->
-                    onMessage(getString(resource))
-                }
+            val resource = when (effect) {
+                is GameDetailEffect.ShareFinished -> gameDetailShareMessageResource(effect.result)
+                is GameDetailEffect.SaveFinished -> gameDetailSaveMessageResource(effect.result)
             }
+            resource?.let { onMessage(getString(it)) }
         }
     }
 
