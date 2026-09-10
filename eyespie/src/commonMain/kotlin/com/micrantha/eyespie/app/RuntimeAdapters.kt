@@ -21,6 +21,7 @@ import com.micrantha.eyespie.game.EyespieRuntime
 import com.micrantha.eyespie.game.GuessOutcome
 import com.micrantha.eyespie.game.LocalGameResult
 import com.micrantha.eyespie.imaging.CapturedImage
+import com.micrantha.eyespie.sharing.ExternalGameDocumentSource
 import com.micrantha.eyespie.sharing.GameBundleExportFailureCode
 import com.micrantha.eyespie.sharing.GameBundleExportResult
 import com.micrantha.eyespie.sharing.GameBundleImportPreviewResult
@@ -37,6 +38,7 @@ internal class LocalGameAdapter(
     runtime: EyespieRuntime,
     private val documentTransfer: GameDocumentTransfer? = null,
     private val sharePresenter: GameSharePresenter? = null,
+    private val externalDocumentSource: ExternalGameDocumentSource? = null,
 ) : GameImportPreparer,
     GameImportConfirmer,
     GameImportCanceller,
@@ -53,8 +55,16 @@ internal class LocalGameAdapter(
         cancelImport()
         val transfer = documentTransfer
             ?: return HomeImportPreparationResult.Terminal(HomeImportResult.Unavailable)
+        val externalDocumentWasPending = externalDocumentSource?.pending?.value == true
+        var acknowledgeExternalDocument = false
         return try {
-            when (val read = transfer.read()) {
+            val read = transfer.read()
+            if (externalDocumentWasPending && read != GameDocumentReadResult.Busy) {
+                // The platform read completed. Commit the handoff only after preview verification
+                // below reaches a stable result; cancellation resets this flag in the catch path.
+                acknowledgeExternalDocument = true
+            }
+            when (read) {
                 is GameDocumentReadResult.Success -> when (val preview = bundleService.previewImport(read.bytes)) {
                     is GameBundleImportPreviewResult.Ready -> {
                         pendingImportBytes = read.bytes.copyOf()
@@ -78,10 +88,17 @@ internal class LocalGameAdapter(
                 GameDocumentReadResult.Failed -> HomeImportPreparationResult.Terminal(HomeImportResult.Failed)
             }
         } catch (cancelled: CancellationException) {
+            // A cancelled preparation has not committed consumption. Keeping the external handoff
+            // pending lets the next Home instance retry the same OS-owned URI.
+            acknowledgeExternalDocument = false
             throw cancelled
         } catch (_: Exception) {
             cancelImport()
             HomeImportPreparationResult.Terminal(HomeImportResult.Failed)
+        } finally {
+            if (acknowledgeExternalDocument) {
+                externalDocumentSource?.acknowledgePendingDocument()
+            }
         }
     }
 
