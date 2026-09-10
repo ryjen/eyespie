@@ -1,6 +1,7 @@
 package com.micrantha.eyespie.android
 
 import android.content.Intent
+import android.net.Uri
 import android.os.Bundle
 import android.util.Log
 import androidx.activity.ComponentActivity
@@ -23,9 +24,17 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         documentTransfer = AndroidGameDocumentTransfer(contentResolver)
-        if (savedInstanceState == null) {
+
+        val restoredExternalDocument = savedInstanceState?.getString(STATE_PENDING_EXTERNAL_DOCUMENT)
+        if (restoredExternalDocument != null) {
+            val restoredUri = Uri.parse(restoredExternalDocument)
+            if (!documentTransfer.offerExternalDocument(restoredUri)) {
+                Log.w(TAG, "Pending Eyespie document could not be restored")
+            }
+        } else if (savedInstanceState == null) {
             offerExternalInput(intent)
         }
+
         enableEdgeToEdge()
         setContent {
             val runtime = remember {
@@ -58,6 +67,13 @@ class MainActivity : ComponentActivity() {
         offerExternalInput(intent)
     }
 
+    override fun onSaveInstanceState(outState: Bundle) {
+        documentTransfer.pendingExternalDocumentState()?.let { pendingUri ->
+            outState.putString(STATE_PENDING_EXTERNAL_DOCUMENT, pendingUri)
+        }
+        super.onSaveInstanceState(outState)
+    }
+
     private fun offerExternalInput(intent: Intent?) {
         if (externalAppIntents.offer(intent)) return
 
@@ -69,5 +85,6 @@ class MainActivity : ComponentActivity() {
 
     private companion object {
         const val TAG = "Eyespie"
+        const val STATE_PENDING_EXTERNAL_DOCUMENT = "pending_external_document"
     }
 }
