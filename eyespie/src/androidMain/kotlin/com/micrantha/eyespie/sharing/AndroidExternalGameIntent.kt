@@ -21,7 +21,7 @@ fun externalEyespieDocumentUri(intent: Intent?): Uri? {
         else -> null
     } ?: return null
 
-    if (uri.scheme != ContentResolverScheme) return null
+    if (uri.scheme != CONTENT_URI_SCHEME) return null
 
     val declaredEyespieType = intent.type.equals(EYESPIE_ANDROID_MIME_TYPE, ignoreCase = true)
     val eyespieExtension = uri.lastPathSegment
@@ -36,4 +36,4 @@ fun externalEyespieDocumentUri(intent: Intent?): Uri? {
 private fun legacyStreamUri(intent: Intent): Uri? =
     intent.getParcelableExtra(Intent.EXTRA_STREAM) as? Uri
 
-private const val ContentResolverScheme = "content"
+private const val CONTENT_URI_SCHEME = "content"
