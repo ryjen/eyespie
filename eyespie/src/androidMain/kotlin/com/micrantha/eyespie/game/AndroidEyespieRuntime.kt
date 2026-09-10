@@ -53,6 +53,7 @@ fun createAndroidEyespieRuntime(context: Context): EyespieRuntime {
             identityRepository = identityRepository,
             signingIdentity = signingIdentity,
             gameRepository = gameRepository,
+            telemetry = telemetry,
         ),
         onboardingPreferences = SqlOnboardingPreferenceStore(database),
         gameThumbnailCache = gameRepository,

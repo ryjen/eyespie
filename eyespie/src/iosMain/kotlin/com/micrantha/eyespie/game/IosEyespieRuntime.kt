@@ -46,6 +46,7 @@ fun createIosEyespieRuntime(): EyespieRuntime {
             identityRepository = identityRepository,
             signingIdentity = signingIdentity,
             gameRepository = gameRepository,
+            telemetry = telemetry,
         ),
         onboardingPreferences = SqlOnboardingPreferenceStore(database),
         gameThumbnailCache = gameRepository,
