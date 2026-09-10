@@ -6,6 +6,7 @@ import com.micrantha.eyespie.core.GameRepository
 import com.micrantha.eyespie.core.PlayerId
 import com.micrantha.eyespie.core.PlayerIdentity
 import com.micrantha.eyespie.core.PlayerIdentityRepository
+import com.micrantha.eyespie.core.Thing
 import com.micrantha.eyespie.core.ThingId
 import com.micrantha.eyespie.core.ThingProgress
 import com.micrantha.eyespie.core.ThingProgressRepository
@@ -112,6 +113,97 @@ class LocalGameLoopTelemetryTest {
     }
 
     @Test
+    fun successfulGuessEmitsMatchEvaluationStage() = runTest {
+        val sink = FakeDiagnosticSink()
+        val loop = loop(telemetry = OperationalTelemetry(sink))
+        val created = assertIs<LocalGameResult.Success<CreatedGame>>(
+            loop.createGame(
+                name = "Trip",
+                clueText = "Striped",
+                expectedAnswer = "crosswalk",
+                targetImage = image(),
+            ),
+        ).value
+        val recordsBeforeGuess = sink.records.size
+
+        val result = loop.guess(
+            gameId = created.gameId,
+            thingId = created.thingId,
+            guessImage = image(),
+        )
+
+        assertIs<LocalGameResult.Success<GuessOutcome>>(result)
+        val guessRecords = sink.records.drop(recordsBeforeGuess)
+        assertEquals(
+            listOf(
+                DiagnosticOperation.GUESS_EMBEDDING_GENERATE,
+                DiagnosticOperation.MATCH_EVALUATE,
+                DiagnosticOperation.PROGRESS_PERSIST,
+                DiagnosticOperation.GAME_GUESS,
+            ),
+            guessRecords.map { it.operation },
+        )
+        assertEquals(
+            listOf(
+                DiagnosticResult.SUCCESS,
+                DiagnosticResult.SUCCESS,
+                DiagnosticResult.SUCCESS,
+                DiagnosticResult.SUCCESS,
+            ),
+            guessRecords.map { it.result },
+        )
+        assertEquals(listOf(null, null, null, null), guessRecords.map { it.code })
+    }
+
+    @Test
+    fun malformedTargetEmbeddingMapsMatchStageAndParentToStableDiagnostics() = runTest {
+        val sink = FakeDiagnosticSink()
+        val gameId = GameId("game-test")
+        val thingId = ThingId("thing-test")
+        val gameRepository = TelemetryGameRepository(
+            initialGames = listOf(
+                Game(
+                    id = gameId,
+                    name = "Trip",
+                    creator = PlayerId("player-test"),
+                    things = listOf(
+                        Thing(
+                            id = thingId,
+                            clue = "Striped",
+                            targetEmbedding = listOf(1f),
+                        ),
+                    ),
+                ),
+            ),
+        )
+        val loop = loop(
+            gameRepository = gameRepository,
+            telemetry = OperationalTelemetry(sink),
+        )
+
+        val result = loop.guess(
+            gameId = gameId,
+            thingId = thingId,
+            guessImage = image(),
+        )
+
+        val failure = assertIs<LocalGameResult.Failure>(result)
+        assertEquals(LocalGameFailureCode.MATCH_POLICY_INVALID, failure.failure.code)
+        assertEquals(
+            listOf(
+                DiagnosticOperation.GUESS_EMBEDDING_GENERATE,
+                DiagnosticOperation.MATCH_EVALUATE,
+                DiagnosticOperation.GAME_GUESS,
+            ),
+            sink.records.map { it.operation },
+        )
+        assertEquals(DiagnosticResult.FAILED, sink.records[1].result)
+        assertEquals(DiagnosticCode.MATCH_POLICY_INVALID, sink.records[1].code)
+        assertEquals(DiagnosticResult.FAILED, sink.records[2].result)
+        assertEquals(DiagnosticCode.MATCH_POLICY_INVALID, sink.records[2].code)
+    }
+
+    @Test
     fun guessEmbeddingFailureIsNotMisclassifiedAsMatchPolicyFailure() = runTest {
         val sink = FakeDiagnosticSink()
         val generator = FailAfterFirstEmbeddingGenerator()
@@ -163,10 +255,11 @@ class LocalGameLoopTelemetryTest {
 
     private fun loop(
         embeddingGenerator: ImageEmbeddingGenerator = TelemetryEmbeddingGenerator(),
+        gameRepository: GameRepository = TelemetryGameRepository(),
         telemetry: OperationalTelemetry,
     ): LocalGameLoop = LocalGameLoop(
         identityRepository = TelemetryIdentityRepository(),
-        gameRepository = TelemetryGameRepository(),
+        gameRepository = gameRepository,
         progressRepository = TelemetryProgressRepository(),
         embeddingGenerator = embeddingGenerator,
         idGenerator = TelemetryIdGenerator(),
@@ -180,8 +273,12 @@ private class TelemetryIdentityRepository : PlayerIdentityRepository {
     override suspend fun current(): PlayerIdentity = PlayerIdentity(PlayerId("player-test"), "Agent")
 }
 
-private class TelemetryGameRepository : GameRepository {
-    private val games = linkedMapOf<GameId, Game>()
+private class TelemetryGameRepository(
+    initialGames: List<Game> = emptyList(),
+) : GameRepository {
+    private val games = linkedMapOf<GameId, Game>().apply {
+        initialGames.forEach { game -> put(game.id, game) }
+    }
 
     override suspend fun list(): List<Game> = games.values.toList()
 

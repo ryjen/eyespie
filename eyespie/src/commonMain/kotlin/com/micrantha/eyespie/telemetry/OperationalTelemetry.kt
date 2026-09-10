@@ -17,6 +17,7 @@ enum class DiagnosticOperation {
     GAME_GUESS,
     TARGET_EMBEDDING_GENERATE,
     GUESS_EMBEDDING_GENERATE,
+    MATCH_EVALUATE,
     GAME_PERSIST,
     PROGRESS_PERSIST,
     CAMERA_CAPTURE,
@@ -215,6 +216,7 @@ class BoundedDiagnosticSink(
 private fun DiagnosticOperation.defaultFailureCode(): DiagnosticCode = when (this) {
     DiagnosticOperation.TARGET_EMBEDDING_GENERATE -> DiagnosticCode.TARGET_EMBEDDING_FAILED
     DiagnosticOperation.GUESS_EMBEDDING_GENERATE -> DiagnosticCode.GUESS_EMBEDDING_FAILED
+    DiagnosticOperation.MATCH_EVALUATE -> DiagnosticCode.MATCH_POLICY_INVALID
     DiagnosticOperation.GAME_PERSIST,
     DiagnosticOperation.PROGRESS_PERSIST,
     -> DiagnosticCode.PERSISTENCE_FAILED
