@@ -47,6 +47,7 @@ import com.micrantha.eyespie.presentation.theme.EyespieTheme
 import com.micrantha.eyespie.sharing.ExternalGameDocumentSource
 import com.micrantha.eyespie.sharing.GameDocumentTransfer
 import com.micrantha.eyespie.sharing.GameSharePresenter
+import com.micrantha.eyespie.telemetry.DiagnosticArtifactWriter
 import com.micrantha.eyespie.telemetry.LocalOperationalTelemetry
 import kotlinx.coroutines.flow.filter
 import org.jetbrains.compose.resources.getString
@@ -58,6 +59,7 @@ fun App(
     externalDocumentSource: ExternalGameDocumentSource? = null,
     sharePresenter: GameSharePresenter? = null,
     externalAppIntentSource: ExternalAppIntentSource? = null,
+    diagnosticArtifactWriter: DiagnosticArtifactWriter? = null,
 ) {
     val onboardingCompleted by produceState<Boolean?>(null, runtime) {
         value = try {
@@ -99,6 +101,7 @@ fun App(
                         externalDocumentSource,
                         sharePresenter,
                         externalAppIntentSource,
+                        diagnosticArtifactWriter,
                         navigation,
                     ) {
                         AppGraphFactory.fromRuntime(
@@ -107,6 +110,7 @@ fun App(
                             documentTransfer = documentTransfer,
                             externalDocumentSource = externalDocumentSource,
                             sharePresenter = sharePresenter,
+                            diagnosticArtifactWriter = diagnosticArtifactWriter,
                         )
                     }
                     val showMessage: suspend (String) -> Unit = remember(snackbarHostState) {
