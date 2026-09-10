@@ -4,14 +4,16 @@ import com.micrantha.eyespie.core.GameId
 import com.micrantha.eyespie.core.ThingId
 import com.micrantha.eyespie.identity.LocalPlayerIdentityRepository
 import com.micrantha.eyespie.identity.PlatformSigningIdentity
+import com.micrantha.eyespie.imaging.IosImageRotator
 import com.micrantha.eyespie.imaging.MediaPipeImageEmbeddingGenerator
 import com.micrantha.eyespie.imaging.SkiaThumbnailCodec
-import com.micrantha.eyespie.imaging.IosImageRotator
 import com.micrantha.eyespie.persistence.IosEyespieDatabaseFactory
 import com.micrantha.eyespie.persistence.SqlGameRepository
 import com.micrantha.eyespie.persistence.SqlOnboardingPreferenceStore
 import com.micrantha.eyespie.persistence.SqlThingProgressRepository
 import com.micrantha.eyespie.sharing.GameBundleService
+import com.micrantha.eyespie.telemetry.BoundedDiagnosticSink
+import com.micrantha.eyespie.telemetry.OperationalTelemetry
 import platform.Foundation.NSUUID
 
 fun createIosEyespieRuntime(): EyespieRuntime {
@@ -19,6 +21,7 @@ fun createIosEyespieRuntime(): EyespieRuntime {
     val signingIdentity = PlatformSigningIdentity()
     val identityRepository = LocalPlayerIdentityRepository(signingIdentity)
     val gameRepository = SqlGameRepository(database)
+    val diagnosticSink = BoundedDiagnosticSink()
 
     return EyespieRuntime(
         gameLoop = LocalGameLoop(
@@ -29,6 +32,7 @@ fun createIosEyespieRuntime(): EyespieRuntime {
             idGenerator = IosLocalGameIdGenerator(),
             thumbnailCodec = SkiaThumbnailCodec,
             imageRotator = IosImageRotator,
+            telemetry = OperationalTelemetry(diagnosticSink),
         ),
         bundleService = GameBundleService(
             identityRepository = identityRepository,
@@ -37,6 +41,7 @@ fun createIosEyespieRuntime(): EyespieRuntime {
         ),
         onboardingPreferences = SqlOnboardingPreferenceStore(database),
         gameThumbnailCache = gameRepository,
+        diagnostics = diagnosticSink,
     )
 }
 
