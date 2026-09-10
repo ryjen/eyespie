@@ -35,6 +35,9 @@ fun parseEyespieDeepLink(
 }
 
 private fun isSafeGameIdCharacter(character: Char): Boolean =
-    character.isLetterOrDigit() || character in "-._~:"
+    character in 'a'..'z' ||
+        character in 'A'..'Z' ||
+        character in '0'..'9' ||
+        character in "-._~:"
 
 private const val MAX_DEEP_LINK_GAME_ID_LENGTH = 128
