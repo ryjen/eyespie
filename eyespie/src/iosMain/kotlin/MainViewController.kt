@@ -6,6 +6,7 @@ import com.micrantha.eyespie.app.IosExternalIngress
 import com.micrantha.eyespie.game.createIosEyespieRuntime
 import com.micrantha.eyespie.sharing.IosGameDocumentTransfer
 import com.micrantha.eyespie.sharing.IosGameSharePresenter
+import com.micrantha.eyespie.telemetry.IosDiagnosticArtifactWriter
 import platform.Foundation.NSLog
 import platform.UIKit.UIViewController
 
@@ -32,12 +33,16 @@ fun MainViewController(): UIViewController {
             val sharePresenter = remember {
                 IosGameSharePresenter { controller }
             }
+            val diagnosticsWriter = remember {
+                IosDiagnosticArtifactWriter { controller }
+            }
             App(
                 runtime = runtime,
                 documentTransfer = documentTransfer,
                 externalDocumentSource = IosExternalIngress,
                 sharePresenter = sharePresenter,
                 externalAppIntentSource = IosExternalIngress,
+                diagnosticArtifactWriter = diagnosticsWriter,
             )
         }
     }
