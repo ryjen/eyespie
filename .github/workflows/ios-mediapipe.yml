@@ -53,6 +53,8 @@ jobs:
         run: pod install --repo-update
       - name: Compile Kotlin for iOS simulator
         run: ./gradlew :app:compileKotlinIosSimulatorArm64 --no-daemon --stacktrace
+      - name: Run iOS simulator tests
+        run: ./gradlew :app:iosSimulatorArm64Test --no-daemon --stacktrace
       - name: Build iOS simulator application
         run: |
           xcodebuild \
