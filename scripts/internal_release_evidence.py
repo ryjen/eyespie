@@ -165,6 +165,9 @@ def validate_ios(candidate_path: Path, metadata_path: Path, ipa: Path) -> dict[s
     expected_build = str(candidate["application"]["build"])
     if str(metadata.get("build")) != expected_build:
         raise ReleaseEvidenceError("iOS build number does not match candidate identity")
+    source_revision = metadata.get("source_revision")
+    if source_revision != candidate["source"]["commit_sha"]:
+        raise ReleaseEvidenceError("iOS embedded source revision does not match candidate identity")
     ios_runtime = candidate.get("mediapipe", {}).get("ios", {})
     if metadata.get("mediapipe_version") != ios_runtime.get("project_artifact_version"):
         raise ReleaseEvidenceError("iOS MediaPipe artifact identity does not match candidate identity")
@@ -178,6 +181,7 @@ def validate_ios(candidate_path: Path, metadata_path: Path, ipa: Path) -> dict[s
     evidence.update(
         {
             "bundle_id": EXPECTED_IOS_BUNDLE_ID,
+            "embedded_source_revision": source_revision,
             "mediapipe_version": metadata["mediapipe_version"],
             "signing": {
                 "team_id": EXPECTED_IOS_TEAM_ID,

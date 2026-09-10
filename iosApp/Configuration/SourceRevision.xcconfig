@@ -1,0 +1,3 @@
+// Local/dev builds intentionally omit exact source identity.
+// Protected internal distribution overrides this with the validated SOURCE_SHA.
+EYESPIE_SOURCE_REVISION=
