@@ -20,10 +20,11 @@ import platform.UIKit.UIViewController
 import platform.darwin.NSObject
 
 private const val IOS_DOCUMENT_READ_CHUNK_BYTES = 8 * 1024L
-private const val IOS_DATA_UTI = "public.data"
+private const val IOS_EYESPIE_UTI = "com.micrantha.eyespie.game"
 
 class IosGameDocumentTransfer(
     private val presenter: () -> UIViewController?,
+    private val externalDocumentSource: IosExternalGameDocumentSource? = null,
 ) : GameDocumentTransfer {
     private val operationMutex = Mutex()
     private var pendingSelection: CompletableDeferred<NSURL?>? = null
@@ -31,6 +32,19 @@ class IosGameDocumentTransfer(
     private val pickerDelegate = IosDocumentPickerDelegate(::completeSelection)
 
     override suspend fun read(): GameDocumentReadResult {
+        val externalUrl = externalDocumentSource?.pendingDocumentUrl()
+        if (externalUrl != null) {
+            if (pendingSelection != null) return GameDocumentReadResult.Busy
+            if (!operationMutex.tryLock()) return GameDocumentReadResult.Busy
+            return try {
+                withContext(Dispatchers.Default) { readBounded(externalUrl) }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } finally {
+                operationMutex.unlock()
+            }
+        }
+
         if (pendingSelection != null) return GameDocumentReadResult.Busy
         if (!operationMutex.tryLock()) return GameDocumentReadResult.Busy
 
@@ -38,7 +52,7 @@ class IosGameDocumentTransfer(
         return try {
             val presenter = presenter() ?: return GameDocumentReadResult.Failed
             val picker = UIDocumentPickerViewController(
-                documentTypes = listOf(IOS_DATA_UTI),
+                documentTypes = listOf(IOS_EYESPIE_UTI),
                 inMode = UIDocumentPickerMode.UIDocumentPickerModeOpen,
             )
             picker.delegate = pickerDelegate
@@ -62,7 +76,9 @@ class IosGameDocumentTransfer(
         bytes: ByteArray,
     ): GameDocumentWriteResult {
         if (bytes.size > GAME_BUNDLE_MAX_BYTES) return GameDocumentWriteResult.TooLarge
-        if (pendingSelection != null) return GameDocumentWriteResult.Busy
+        if (pendingSelection != null || externalDocumentSource?.pending?.value == true) {
+            return GameDocumentWriteResult.Busy
+        }
         if (!operationMutex.tryLock()) return GameDocumentWriteResult.Busy
 
         val selection = CompletableDeferred<NSURL?>()
