@@ -51,6 +51,7 @@ object AppGraphFactory {
             gameSharer = capabilities,
             gameSaver = capabilities,
             externalDocumentSource = externalDocumentSource,
+            separateSaveAction = sharePresenter != null && documentTransfer != null,
         )
     }
 
@@ -68,6 +69,7 @@ object AppGraphFactory {
         gameSharer: GameSharer = UnavailableGameSharer,
         gameSaver: GameSaver = UnavailableGameSaver,
         externalDocumentSource: ExternalGameDocumentSource? = null,
+        separateSaveAction: Boolean = false,
     ): AppGraph {
         val coordinator = AppCoordinator(navigation)
         return AppGraph(
@@ -92,6 +94,7 @@ object AppGraphFactory {
                 thumbnailCache = gameThumbnailCache,
                 output = coordinator::onGameDetailOutput,
                 saver = gameSaver,
+                separateSaveAction = separateSaveAction,
             ),
             clueAuthoringFactory = ClueAuthoringFactory(
                 clueAuthor,
