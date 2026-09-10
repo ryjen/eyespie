@@ -14,7 +14,6 @@ import kotlinx.serialization.json.put
 
 private val DIAGNOSTIC_JSON = Json {
     prettyPrint = true
-    prettyPrintIndent = "  "
 }
 
 private val SOURCE_REVISION_REGEX = Regex("[0-9a-f]{40,64}")
