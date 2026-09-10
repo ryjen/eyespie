@@ -11,6 +11,10 @@ import com.micrantha.eyespie.core.ThingId
 import com.micrantha.eyespie.identity.SigningIdentity
 import com.micrantha.eyespie.identity.playerIdFor
 import com.micrantha.eyespie.imaging.canonicalImageEmbedding
+import com.micrantha.eyespie.telemetry.DiagnosticCode
+import com.micrantha.eyespie.telemetry.DiagnosticOperation
+import com.micrantha.eyespie.telemetry.DiagnosticOutcome
+import com.micrantha.eyespie.telemetry.OperationalTelemetry
 import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.sync.withLock
@@ -72,16 +76,41 @@ sealed interface GameBundleImportResult {
  * before the import mutex enters the local-authority decision, so preview is never authorization.
  * The mutex serializes the check/save pair within one application process so a conflicting same-ID
  * import cannot race an otherwise valid import into the repository.
+ *
+ * Operational telemetry observes only the closed operation/result taxonomy. Portable bytes, game
+ * identifiers, clue content, embeddings, keys, signatures, and exception prose never enter records.
  */
 class GameBundleService(
     private val identityRepository: PlayerIdentityRepository,
     private val signingIdentity: SigningIdentity,
     private val gameRepository: GameRepository,
     private val codec: GameBundleCodec = GameBundleCodec(),
+    private val telemetry: OperationalTelemetry = OperationalTelemetry(),
 ) {
     private val importMutex = Mutex()
 
-    suspend fun export(gameId: GameId): GameBundleExportResult {
+    suspend fun export(gameId: GameId): GameBundleExportResult = telemetry.observe(
+        operation = DiagnosticOperation.BUNDLE_EXPORT,
+        classify = GameBundleExportResult::toDiagnosticOutcome,
+    ) {
+        exportUnobserved(gameId)
+    }
+
+    suspend fun previewImport(bytes: ByteArray): GameBundleImportPreviewResult = telemetry.observe(
+        operation = DiagnosticOperation.BUNDLE_IMPORT_PREVIEW,
+        classify = GameBundleImportPreviewResult::toDiagnosticOutcome,
+    ) {
+        previewImportUnobserved(bytes)
+    }
+
+    suspend fun import(bytes: ByteArray): GameBundleImportResult = telemetry.observe(
+        operation = DiagnosticOperation.BUNDLE_IMPORT,
+        classify = GameBundleImportResult::toDiagnosticOutcome,
+    ) {
+        importUnobserved(bytes)
+    }
+
+    private suspend fun exportUnobserved(gameId: GameId): GameBundleExportResult {
         val identity = try {
             identityRepository.current()
         } catch (cancelled: CancellationException) {
@@ -156,7 +185,7 @@ class GameBundleService(
         return GameBundleExportResult.Success(game.id, bytes)
     }
 
-    suspend fun previewImport(bytes: ByteArray): GameBundleImportPreviewResult {
+    private suspend fun previewImportUnobserved(bytes: ByteArray): GameBundleImportPreviewResult {
         val decoded = when (val result = codec.decode(bytes)) {
             is GameBundleDecodeResult.Success -> result.bundle
             is GameBundleDecodeResult.Failure -> return GameBundleImportPreviewResult.InvalidFormat(result.code)
@@ -204,7 +233,7 @@ class GameBundleService(
         )
     }
 
-    suspend fun import(bytes: ByteArray): GameBundleImportResult {
+    private suspend fun importUnobserved(bytes: ByteArray): GameBundleImportResult {
         val decoded = when (val result = codec.decode(bytes)) {
             is GameBundleDecodeResult.Success -> result.bundle
             is GameBundleDecodeResult.Failure -> return GameBundleImportResult.InvalidFormat(result.code)
@@ -273,6 +302,47 @@ class GameBundleService(
             GameBundleImportResult.Imported(importedGame.id)
         }
     }
+}
+
+private fun GameBundleExportResult.toDiagnosticOutcome(): DiagnosticOutcome = when (this) {
+    is GameBundleExportResult.Success -> DiagnosticOutcome.Success
+    is GameBundleExportResult.Failure -> DiagnosticOutcome.failed(
+        when (code) {
+            GameBundleExportFailureCode.GAME_NOT_FOUND -> DiagnosticCode.GAME_NOT_FOUND
+            GameBundleExportFailureCode.IDENTITY_UNAVAILABLE -> DiagnosticCode.IDENTITY_UNAVAILABLE
+            GameBundleExportFailureCode.SIGNING_IDENTITY_MISMATCH -> DiagnosticCode.SIGNING_IDENTITY_MISMATCH
+            GameBundleExportFailureCode.NOT_LOCAL_CREATOR -> DiagnosticCode.NOT_LOCAL_CREATOR
+            GameBundleExportFailureCode.INVALID_GAME -> DiagnosticCode.BUNDLE_INVALID_GAME
+            GameBundleExportFailureCode.SIGNING_FAILED -> DiagnosticCode.BUNDLE_SIGNING_FAILED
+            GameBundleExportFailureCode.SIGNATURE_SELF_CHECK_FAILED ->
+                DiagnosticCode.BUNDLE_SIGNATURE_SELF_CHECK_FAILED
+        },
+    )
+}
+
+private fun GameBundleImportPreviewResult.toDiagnosticOutcome(): DiagnosticOutcome = when (this) {
+    is GameBundleImportPreviewResult.Ready -> DiagnosticOutcome.Success
+    is GameBundleImportPreviewResult.InvalidFormat ->
+        DiagnosticOutcome.failed(DiagnosticCode.BUNDLE_INVALID_FORMAT)
+    is GameBundleImportPreviewResult.Failure -> DiagnosticOutcome.failed(code.toDiagnosticCode())
+}
+
+private fun GameBundleImportResult.toDiagnosticOutcome(): DiagnosticOutcome = when (this) {
+    is GameBundleImportResult.Imported,
+    is GameBundleImportResult.AlreadyPresent,
+    -> DiagnosticOutcome.Success
+    is GameBundleImportResult.Conflict -> DiagnosticOutcome.failed(DiagnosticCode.BUNDLE_CONFLICT)
+    is GameBundleImportResult.InvalidFormat -> DiagnosticOutcome.failed(DiagnosticCode.BUNDLE_INVALID_FORMAT)
+    is GameBundleImportResult.Failure -> DiagnosticOutcome.failed(code.toDiagnosticCode())
+}
+
+private fun GameBundleImportFailureCode.toDiagnosticCode(): DiagnosticCode = when (this) {
+    GameBundleImportFailureCode.CREATOR_ID_MISMATCH -> DiagnosticCode.BUNDLE_CREATOR_ID_MISMATCH
+    GameBundleImportFailureCode.INVALID_SIGNATURE -> DiagnosticCode.BUNDLE_INVALID_SIGNATURE
+    GameBundleImportFailureCode.SIGNATURE_VERIFICATION_FAILED ->
+        DiagnosticCode.BUNDLE_SIGNATURE_VERIFICATION_FAILED
+    GameBundleImportFailureCode.INVALID_GAME -> DiagnosticCode.BUNDLE_INVALID_GAME
+    GameBundleImportFailureCode.PERSISTENCE_FAILED -> DiagnosticCode.PERSISTENCE_FAILED
 }
 
 private fun Game.toPortable(publicKey: ByteArray): PortableGame = PortableGame(
