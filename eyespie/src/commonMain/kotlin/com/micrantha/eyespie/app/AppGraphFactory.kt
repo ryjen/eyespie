@@ -36,6 +36,7 @@ object AppGraphFactory {
             runtime = runtime,
             documentTransfer = documentTransfer,
             sharePresenter = sharePresenter,
+            externalDocumentSource = externalDocumentSource,
         )
         return fromCapabilities(
             gameSnapshotLoader = runtime.gameLoop,
