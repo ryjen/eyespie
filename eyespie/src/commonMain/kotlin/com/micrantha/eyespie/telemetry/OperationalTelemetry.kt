@@ -15,6 +15,10 @@ enum class DiagnosticOperation {
     GAME_CREATE,
     CLUE_ADD,
     GAME_GUESS,
+    TARGET_EMBEDDING_GENERATE,
+    GUESS_EMBEDDING_GENERATE,
+    GAME_PERSIST,
+    PROGRESS_PERSIST,
 }
 
 enum class DiagnosticResult {
