@@ -9,6 +9,7 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.remember
 import com.micrantha.eyespie.App
 import com.micrantha.eyespie.AppUnavailable
+import com.micrantha.eyespie.app.AndroidExternalAppIntentSource
 import com.micrantha.eyespie.game.createAndroidEyespieRuntime
 import com.micrantha.eyespie.sharing.AndroidGameDocumentTransfer
 import com.micrantha.eyespie.sharing.AndroidGameSharePresenter
@@ -17,11 +18,12 @@ import com.micrantha.eyespie.sharing.rememberAndroidGameDocumentTransfer
 
 class MainActivity : ComponentActivity() {
     private lateinit var documentTransfer: AndroidGameDocumentTransfer
+    private val externalAppIntents = AndroidExternalAppIntentSource()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         documentTransfer = AndroidGameDocumentTransfer(contentResolver)
-        offerExternalGameDocument(intent)
+        offerExternalInput(intent)
         enableEdgeToEdge()
         setContent {
             val runtime = remember {
@@ -42,6 +44,7 @@ class MainActivity : ComponentActivity() {
                     documentTransfer = transfer,
                     externalDocumentSource = documentTransfer,
                     sharePresenter = sharePresenter,
+                    externalAppIntentSource = externalAppIntents,
                 )
             }
         }
@@ -50,10 +53,12 @@ class MainActivity : ComponentActivity() {
     override fun onNewIntent(intent: Intent) {
         super.onNewIntent(intent)
         setIntent(intent)
-        offerExternalGameDocument(intent)
+        offerExternalInput(intent)
     }
 
-    private fun offerExternalGameDocument(intent: Intent?) {
+    private fun offerExternalInput(intent: Intent?) {
+        if (externalAppIntents.offer(intent)) return
+
         val uri = externalEyespieDocumentUri(intent) ?: return
         if (!documentTransfer.offerExternalDocument(uri)) {
             Log.w(TAG, "External Eyespie document ignored while another document operation is active")
