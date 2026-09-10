@@ -21,10 +21,11 @@ class HomeInteractor(
     private val scope: CoroutineScope,
     private val output: (HomeOutput) -> Unit,
     initialState: HomeState = HomeState(),
-    externalDocumentSource: ExternalGameDocumentSource? = null,
+    private val externalDocumentSource: ExternalGameDocumentSource? = null,
 ) : BaseInteractor<HomeState, HomeIntent>(initialState, HomeReducer), EffectSource<HomeEffect> {
     private val effectEmitter = EffectEmitter<HomeEffect>()
     override val effects: Flow<HomeEffect> = effectEmitter.effects
+    private var deferredExternalImport = false
 
     init {
         externalDocumentSource?.let { source ->
@@ -32,7 +33,12 @@ class HomeInteractor(
                 source.pending
                     .filter { it }
                     .collect {
-                        dispatch(HomeIntent.ImportSelected)
+                        val currentState = state.value
+                        if (currentState.importInProgress || currentState.importPreview != null) {
+                            deferredExternalImport = true
+                        } else {
+                            dispatch(HomeIntent.ImportSelected)
+                        }
                     }
             }
         }
@@ -81,11 +87,15 @@ class HomeInteractor(
                     }
                 }
             }
-            is HomeIntent.ImportFinished -> if (intent.result != HomeImportResult.Cancelled) {
-                effectEmitter.emit(HomeEffect.ImportFinished(intent.result))
+            is HomeIntent.ImportFinished -> {
+                if (intent.result != HomeImportResult.Cancelled) {
+                    effectEmitter.emit(HomeEffect.ImportFinished(intent.result))
+                }
+                retryDeferredExternalImport(stateAfterReduce)
             }
             HomeIntent.ImportPreviewCancelled -> if (!previousState.importInProgress && previousState.importPreview != null) {
                 importCanceller.cancelImport()
+                retryDeferredExternalImport(stateAfterReduce)
             }
             HomeIntent.OnboardingSelected -> output(HomeOutput.OnboardingRequested)
             HomeIntent.UtilitySelected -> output(HomeOutput.UtilityRequested)
@@ -93,6 +103,19 @@ class HomeInteractor(
             is HomeIntent.GameSelected -> output(HomeOutput.GameRequested(intent.gameId))
             else -> Unit
         }
+    }
+
+    private fun retryDeferredExternalImport(stateAfterReduce: HomeState) {
+        if (!deferredExternalImport) return
+        val source = externalDocumentSource ?: return
+        if (!source.pending.value) {
+            deferredExternalImport = false
+            return
+        }
+        if (stateAfterReduce.importInProgress || stateAfterReduce.importPreview != null) return
+
+        deferredExternalImport = false
+        dispatch(HomeIntent.ImportSelected)
     }
 
     fun dispose() {
