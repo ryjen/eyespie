@@ -25,14 +25,20 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         documentTransfer = AndroidGameDocumentTransfer(contentResolver)
 
-        val restoredExternalDocument = savedInstanceState?.getString(STATE_PENDING_EXTERNAL_DOCUMENT)
-        if (restoredExternalDocument != null) {
-            val restoredUri = Uri.parse(restoredExternalDocument)
-            if (!documentTransfer.offerExternalDocument(restoredUri)) {
-                Log.w(TAG, "Pending Eyespie document could not be restored")
-            }
-        } else if (savedInstanceState == null) {
+        if (savedInstanceState == null) {
             offerExternalInput(intent)
+        } else {
+            savedInstanceState.getString(STATE_PENDING_EXTERNAL_DOCUMENT)?.let { pendingDocument ->
+                val restoredUri = Uri.parse(pendingDocument)
+                if (!documentTransfer.offerExternalDocument(restoredUri)) {
+                    Log.w(TAG, "Pending Eyespie document could not be restored")
+                }
+            }
+            savedInstanceState.getString(STATE_PENDING_DEEP_LINK_GAME)?.let { gameId ->
+                if (!externalAppIntents.restorePendingGameId(gameId)) {
+                    Log.w(TAG, "Pending Eyespie deep link could not be restored")
+                }
+            }
         }
 
         enableEdgeToEdge()
@@ -71,6 +77,9 @@ class MainActivity : ComponentActivity() {
         documentTransfer.pendingExternalDocumentState()?.let { pendingUri ->
             outState.putString(STATE_PENDING_EXTERNAL_DOCUMENT, pendingUri)
         }
+        externalAppIntents.pendingGameIdState()?.let { gameId ->
+            outState.putString(STATE_PENDING_DEEP_LINK_GAME, gameId)
+        }
         super.onSaveInstanceState(outState)
     }
 
@@ -86,5 +95,6 @@ class MainActivity : ComponentActivity() {
     private companion object {
         const val TAG = "Eyespie"
         const val STATE_PENDING_EXTERNAL_DOCUMENT = "pending_external_document"
+        const val STATE_PENDING_DEEP_LINK_GAME = "pending_deep_link_game"
     }
 }
