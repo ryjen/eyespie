@@ -37,5 +37,6 @@ fun GameDetailRoute(
     GameDetailScreen(
         state = state,
         dispatch = interactor::dispatch,
+        separateSaveAction = factory.separateSaveAction,
     )
 }
