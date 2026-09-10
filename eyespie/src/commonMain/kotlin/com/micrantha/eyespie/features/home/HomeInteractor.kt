@@ -6,8 +6,10 @@ import com.micrantha.eyespie.game.LocalGameResult
 import com.micrantha.eyespie.mvi.BaseInteractor
 import com.micrantha.eyespie.mvi.EffectEmitter
 import com.micrantha.eyespie.mvi.EffectSource
+import com.micrantha.eyespie.sharing.ExternalGameDocumentSource
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.launch
 
 class HomeInteractor(
@@ -19,9 +21,22 @@ class HomeInteractor(
     private val scope: CoroutineScope,
     private val output: (HomeOutput) -> Unit,
     initialState: HomeState = HomeState(),
+    externalDocumentSource: ExternalGameDocumentSource? = null,
 ) : BaseInteractor<HomeState, HomeIntent>(initialState, HomeReducer), EffectSource<HomeEffect> {
     private val effectEmitter = EffectEmitter<HomeEffect>()
     override val effects: Flow<HomeEffect> = effectEmitter.effects
+
+    init {
+        externalDocumentSource?.let { source ->
+            scope.launch {
+                source.pending
+                    .filter { it }
+                    .collect {
+                        dispatch(HomeIntent.ImportSelected)
+                    }
+            }
+        }
+    }
 
     override fun afterReduce(
         intent: HomeIntent,
