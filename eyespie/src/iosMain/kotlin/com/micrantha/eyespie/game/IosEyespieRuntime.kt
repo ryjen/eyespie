@@ -13,7 +13,10 @@ import com.micrantha.eyespie.persistence.SqlOnboardingPreferenceStore
 import com.micrantha.eyespie.persistence.SqlThingProgressRepository
 import com.micrantha.eyespie.sharing.GameBundleService
 import com.micrantha.eyespie.telemetry.BoundedDiagnosticSink
+import com.micrantha.eyespie.telemetry.DiagnosticExportService
+import com.micrantha.eyespie.telemetry.DiagnosticIdentityProvider
 import com.micrantha.eyespie.telemetry.OperationalTelemetry
+import com.micrantha.eyespie.telemetry.iosDiagnosticIdentity
 import platform.Foundation.NSUUID
 
 fun createIosEyespieRuntime(): EyespieRuntime {
@@ -22,6 +25,10 @@ fun createIosEyespieRuntime(): EyespieRuntime {
     val identityRepository = LocalPlayerIdentityRepository(signingIdentity)
     val gameRepository = SqlGameRepository(database)
     val diagnosticSink = BoundedDiagnosticSink()
+    val diagnosticExport = DiagnosticExportService(
+        history = diagnosticSink,
+        identityProvider = DiagnosticIdentityProvider { iosDiagnosticIdentity() },
+    )
 
     return EyespieRuntime(
         gameLoop = LocalGameLoop(
@@ -42,6 +49,7 @@ fun createIosEyespieRuntime(): EyespieRuntime {
         onboardingPreferences = SqlOnboardingPreferenceStore(database),
         gameThumbnailCache = gameRepository,
         diagnostics = diagnosticSink,
+        diagnosticExport = diagnosticExport,
     )
 }
 

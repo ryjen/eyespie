@@ -15,7 +15,10 @@ import com.micrantha.eyespie.persistence.SqlOnboardingPreferenceStore
 import com.micrantha.eyespie.persistence.SqlThingProgressRepository
 import com.micrantha.eyespie.sharing.GameBundleService
 import com.micrantha.eyespie.telemetry.BoundedDiagnosticSink
+import com.micrantha.eyespie.telemetry.DiagnosticExportService
+import com.micrantha.eyespie.telemetry.DiagnosticIdentityProvider
 import com.micrantha.eyespie.telemetry.OperationalTelemetry
+import com.micrantha.eyespie.telemetry.androidDiagnosticIdentity
 import java.util.UUID
 
 fun createAndroidEyespieRuntime(context: Context): EyespieRuntime {
@@ -26,6 +29,10 @@ fun createAndroidEyespieRuntime(context: Context): EyespieRuntime {
     val gameRepository = SqlGameRepository(database)
     val embeddingModel = loadAndroidImageEmbeddingModel(applicationContext)
     val diagnosticSink = BoundedDiagnosticSink()
+    val diagnosticExport = DiagnosticExportService(
+        history = diagnosticSink,
+        identityProvider = DiagnosticIdentityProvider { androidDiagnosticIdentity() },
+    )
 
     return EyespieRuntime(
         gameLoop = LocalGameLoop(
@@ -49,6 +56,7 @@ fun createAndroidEyespieRuntime(context: Context): EyespieRuntime {
         onboardingPreferences = SqlOnboardingPreferenceStore(database),
         gameThumbnailCache = gameRepository,
         diagnostics = diagnosticSink,
+        diagnosticExport = diagnosticExport,
     )
 }
 
