@@ -7,6 +7,7 @@ internal fun androidDiagnosticIdentity(): DiagnosticIdentity = DiagnosticIdentit
     release = DiagnosticReleaseIdentity(
         appVersion = BuildConfig.VERSION_NAME,
         appBuild = BuildConfig.VERSION_CODE,
+        sourceRevision = BuildConfig.SOURCE_REVISION.takeIf(String::isNotBlank),
     ),
     runtime = DiagnosticRuntimeIdentity(
         platform = DiagnosticPlatform.ANDROID,

@@ -12,6 +12,7 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.interop.UIKitView
+import com.micrantha.eyespie.telemetry.LocalOperationalTelemetry
 import kotlinx.cinterop.BetaInteropApi
 import kotlinx.cinterop.CValue
 import kotlinx.cinterop.ObjCObjectVar
@@ -68,7 +69,11 @@ actual fun CameraCapture(
     captureButton: @Composable ((capture: () -> Unit) -> Unit),
     recoveryButton: @Composable ((openSettings: () -> Unit) -> Unit),
 ) {
-    val controller: ImageCapture = remember { IosCameraCaptureController() }
+    val controller = remember { IosCameraCaptureController() }
+    val telemetry = LocalOperationalTelemetry.current
+    val imageCapture: ImageCapture = remember(controller, telemetry) {
+        TelemetryImageCapture(delegate = controller, telemetry = telemetry)
+    }
     val compositionScope = rememberCoroutineScope()
     var authorization by remember { mutableStateOf(currentCameraAvailability()) }
 
@@ -102,7 +107,7 @@ actual fun CameraCapture(
                 onCameraError = { error ->
                     compositionScope.launch { onCameraError(error) }
                 },
-                onCameraFrame = (controller as IosCameraCaptureController)::updateFrame,
+                onCameraFrame = controller::updateFrame,
             )
         }
     }
@@ -140,7 +145,7 @@ actual fun CameraCapture(
         CameraAvailability.Ready -> captureButton {
             compositionScope.launch {
                 try {
-                    onCaptured(controller.capture())
+                    onCaptured(imageCapture.capture())
                 } catch (cancelled: CancellationException) {
                     throw cancelled
                 } catch (error: Throwable) {

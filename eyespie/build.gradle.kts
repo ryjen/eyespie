@@ -31,6 +31,14 @@ val appBuild = xcconfigValue("iosApp/Configuration/Version.xcconfig", "APP_BUILD
     ?: error("APP_BUILD must be an integer")
 require(appBuild > 0) { "APP_BUILD must be positive" }
 
+val sourceRevision = providers.environmentVariable("SOURCE_SHA")
+    .orNull
+    ?.trim()
+    .orEmpty()
+require(sourceRevision.isEmpty() || Regex("[0-9a-f]{40}").matches(sourceRevision)) {
+    "SOURCE_SHA must be empty or a full lowercase Git SHA"
+}
+
 val iosMediaPipeTasksVersion = xcconfigValue(
     "iosApp/Configuration/MediaPipe.xcconfig",
     "IOS_MEDIAPIPE_TASKS_VERSION",
@@ -266,6 +274,11 @@ android {
             "String",
             "MEDIAPIPE_TASKS_VISION_VERSION",
             "\"${libs.versions.mediapipe.get()}\"",
+        )
+        buildConfigField(
+            "String",
+            "SOURCE_REVISION",
+            "\"$sourceRevision\"",
         )
     }
 

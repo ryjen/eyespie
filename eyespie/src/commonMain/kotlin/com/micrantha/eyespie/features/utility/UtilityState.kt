@@ -12,4 +12,6 @@ data class UtilityState(
     val loading: Boolean = true,
     val failure: LocalGameFailure? = null,
     val loadGeneration: Long = 0,
+    val exportingDiagnostics: Boolean = false,
+    val diagnosticExportResult: DiagnosticExportResult? = null,
 )
