@@ -4,7 +4,9 @@ import com.micrantha.eyespie.core.GameId
 import com.micrantha.eyespie.core.ThingId
 import com.micrantha.eyespie.features.clueauthoring.ClueAuthor
 import com.micrantha.eyespie.features.create.GameCreator
+import com.micrantha.eyespie.features.gamedetail.GameDetailSaveResult
 import com.micrantha.eyespie.features.gamedetail.GameDetailShareResult
+import com.micrantha.eyespie.features.gamedetail.GameSaver
 import com.micrantha.eyespie.features.gamedetail.GameSharer
 import com.micrantha.eyespie.features.home.GameImportCanceller
 import com.micrantha.eyespie.features.home.GameImportConfirmer
@@ -41,6 +43,7 @@ internal class LocalGameAdapter(
     GameCreator,
     ClueAuthor,
     GameSharer,
+    GameSaver,
     GuessSubmitter {
     private val gameLoop = runtime.gameLoop
     private val bundleService = runtime.bundleService
@@ -121,22 +124,16 @@ internal class LocalGameAdapter(
             when (val exported = bundleService.export(gameId)) {
                 is GameBundleExportResult.Success -> try {
                     val fileName = suggestedGameBundleFileName(gameName, gameId.value)
-                    sharePresenter?.let { presenter ->
-                        return when (presenter.present(fileName, exported.bytes)) {
+                    val presenter = sharePresenter
+                    if (presenter != null) {
+                        when (presenter.present(fileName, exported.bytes)) {
                             GameSharePresentationResult.Presented -> GameDetailShareResult.Presented
                             GameSharePresentationResult.Busy -> GameDetailShareResult.Busy
                             GameSharePresentationResult.TooLarge -> GameDetailShareResult.TooLarge
                             GameSharePresentationResult.Failed -> GameDetailShareResult.Failed
                         }
-                    }
-
-                    when (documentTransfer?.write(fileName, exported.bytes)) {
-                        GameDocumentWriteResult.Success -> GameDetailShareResult.Shared
-                        GameDocumentWriteResult.Cancelled -> GameDetailShareResult.Cancelled
-                        GameDocumentWriteResult.Busy -> GameDetailShareResult.Busy
-                        GameDocumentWriteResult.TooLarge -> GameDetailShareResult.TooLarge
-                        GameDocumentWriteResult.Failed -> GameDetailShareResult.Failed
-                        null -> GameDetailShareResult.Unavailable
+                    } else {
+                        mapLegacyShareWrite(documentTransfer?.write(fileName, exported.bytes))
                     }
                 } finally {
                     exported.bytes.fill(0)
@@ -153,6 +150,38 @@ internal class LocalGameAdapter(
         }
     }
 
+    override suspend fun save(gameId: GameId, gameName: String): GameDetailSaveResult {
+        val transfer = documentTransfer ?: return GameDetailSaveResult.Unavailable
+        return try {
+            when (val exported = bundleService.export(gameId)) {
+                is GameBundleExportResult.Success -> try {
+                    when (
+                        transfer.write(
+                            suggestedGameBundleFileName(gameName, gameId.value),
+                            exported.bytes,
+                        )
+                    ) {
+                        GameDocumentWriteResult.Success -> GameDetailSaveResult.Saved
+                        GameDocumentWriteResult.Cancelled -> GameDetailSaveResult.Cancelled
+                        GameDocumentWriteResult.Busy -> GameDetailSaveResult.Busy
+                        GameDocumentWriteResult.TooLarge -> GameDetailSaveResult.TooLarge
+                        GameDocumentWriteResult.Failed -> GameDetailSaveResult.Failed
+                    }
+                } finally {
+                    exported.bytes.fill(0)
+                }
+                is GameBundleExportResult.Failure -> when (exported.code) {
+                    GameBundleExportFailureCode.NOT_LOCAL_CREATOR -> GameDetailSaveResult.NotLocalCreator
+                    else -> GameDetailSaveResult.Failed
+                }
+            }
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            GameDetailSaveResult.Failed
+        }
+    }
+
     override suspend fun guess(
         gameId: GameId,
         thingId: ThingId,
@@ -163,6 +192,15 @@ internal class LocalGameAdapter(
 internal object UnavailableGameSharer : GameSharer {
     override suspend fun share(gameId: GameId, gameName: String): GameDetailShareResult =
         GameDetailShareResult.Unavailable
+}
+
+private fun mapLegacyShareWrite(result: GameDocumentWriteResult?): GameDetailShareResult = when (result) {
+    GameDocumentWriteResult.Success -> GameDetailShareResult.Shared
+    GameDocumentWriteResult.Cancelled -> GameDetailShareResult.Cancelled
+    GameDocumentWriteResult.Busy -> GameDetailShareResult.Busy
+    GameDocumentWriteResult.TooLarge -> GameDetailShareResult.TooLarge
+    GameDocumentWriteResult.Failed -> GameDetailShareResult.Failed
+    null -> GameDetailShareResult.Unavailable
 }
 
 private fun GameBundleImportResult.toHomeImportResult(): HomeImportResult = when (this) {
