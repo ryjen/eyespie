@@ -96,7 +96,7 @@ data class DiagnosticExportEnvelope(
     }
 
     companion object {
-        const val SCHEMA_VERSION: Int = 2
+        const val SCHEMA_VERSION: Int = 3
         const val MAX_RECORDS: Int = BoundedDiagnosticSink.DEFAULT_CAPACITY
         const val MAX_BYTES: Int = 128 * 1024
     }
@@ -167,6 +167,11 @@ private fun DiagnosticExportEnvelope.toJson(): JsonElement = buildJsonObject {
                 put("result", record.result.name.lowercase())
                 record.code?.let { put("code", it.name.lowercase()) }
                 put("duration_ms", record.durationMillis)
+                put("correlation", buildJsonObject {
+                    put("trace_id", record.correlation.traceId)
+                    put("span_id", record.correlation.spanId)
+                    record.correlation.parentSpanId?.let { put("parent_span_id", it) }
+                })
             })
         }
     })

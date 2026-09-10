@@ -19,6 +19,7 @@ class DiagnosticExportTest {
                 operation = DiagnosticOperation.GAME_CREATE,
                 result = DiagnosticResult.SUCCESS,
                 durationMillis = 12,
+                correlation = correlation(traceId = 11, spanId = 11),
             ),
         )
         history.record(
@@ -27,6 +28,7 @@ class DiagnosticExportTest {
                 result = DiagnosticResult.FAILED,
                 code = DiagnosticCode.PERSISTENCE_FAILED,
                 durationMillis = 34,
+                correlation = correlation(traceId = 11, spanId = 12, parentSpanId = 11),
             ),
         )
         val service = DiagnosticExportService(
@@ -52,7 +54,7 @@ class DiagnosticExportTest {
 
         val root = Json.parseToJsonElement(encoded.decodeToString()).jsonObject
         assertEquals("ryjen/eyespie", root.getValue("repository").jsonPrimitive.content)
-        assertEquals(2, root.getValue("schema_version").jsonPrimitive.content.toInt())
+        assertEquals(3, root.getValue("schema_version").jsonPrimitive.content.toInt())
         assertEquals(0, root.getValue("evicted_records").jsonPrimitive.content.toLong())
         assertEquals(0, root.getValue("dropped_records").jsonPrimitive.content.toLong())
         assertFalse(root.getValue("snapshot_incomplete").jsonPrimitive.content.toBoolean())
@@ -72,10 +74,20 @@ class DiagnosticExportTest {
 
         val records = root.getValue("records").jsonArray
         assertEquals(2, records.size)
+        assertEquals(2, records[0].jsonObject.getValue("schema_version").jsonPrimitive.content.toInt())
         assertEquals("game_create", records[0].jsonObject.getValue("operation").jsonPrimitive.content)
         assertEquals("success", records[0].jsonObject.getValue("result").jsonPrimitive.content)
+        val rootCorrelation = records[0].jsonObject.getValue("correlation").jsonObject
+        assertEquals(traceId(11), rootCorrelation.getValue("trace_id").jsonPrimitive.content)
+        assertEquals(spanId(11), rootCorrelation.getValue("span_id").jsonPrimitive.content)
+        assertFalse("parent_span_id" in rootCorrelation)
+
         assertEquals("game_guess", records[1].jsonObject.getValue("operation").jsonPrimitive.content)
         assertEquals("persistence_failed", records[1].jsonObject.getValue("code").jsonPrimitive.content)
+        val childCorrelation = records[1].jsonObject.getValue("correlation").jsonObject
+        assertEquals(traceId(11), childCorrelation.getValue("trace_id").jsonPrimitive.content)
+        assertEquals(spanId(12), childCorrelation.getValue("span_id").jsonPrimitive.content)
+        assertEquals(spanId(11), childCorrelation.getValue("parent_span_id").jsonPrimitive.content)
     }
 
     @Test
@@ -87,6 +99,7 @@ class DiagnosticExportTest {
                         operation = DiagnosticOperation.GAME_CREATE,
                         result = DiagnosticResult.SUCCESS,
                         durationMillis = 7,
+                        correlation = correlation(traceId = 21, spanId = 21),
                     ),
                 ),
                 evictedRecords = 2,
@@ -144,6 +157,7 @@ class DiagnosticExportTest {
                         operation = DiagnosticOperation.GAME_SNAPSHOT_LOAD,
                         result = DiagnosticResult.SUCCESS,
                         durationMillis = 0,
+                        correlation = correlation(traceId = 31, spanId = 31),
                     )
                 },
                 evictedRecords = 0,
@@ -190,4 +204,17 @@ class DiagnosticExportTest {
             assertFalse("\"$field\"" in encoded)
         }
     }
+
+    private fun correlation(
+        traceId: Int,
+        spanId: Int,
+        parentSpanId: Int? = null,
+    ): DiagnosticCorrelation = DiagnosticCorrelation(
+        traceId = traceId(traceId),
+        spanId = spanId(spanId),
+        parentSpanId = parentSpanId?.let(::spanId),
+    )
+
+    private fun traceId(value: Int): String = value.toString(16).padStart(32, '0')
+    private fun spanId(value: Int): String = value.toString(16).padStart(16, '0')
 }

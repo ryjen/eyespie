@@ -4,6 +4,7 @@ import kotlin.coroutines.cancellation.CancellationException
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFailsWith
+import kotlin.test.assertNotEquals
 import kotlin.test.assertTrue
 import kotlinx.coroutines.test.runTest
 
@@ -22,6 +23,42 @@ class OperationalTelemetryTest {
         assertEquals(DiagnosticResult.SUCCESS, record.result)
         assertEquals(null, record.code)
         assertTrue(record.durationMillis >= 0)
+        assertW3cTraceId(record.correlation.traceId)
+        assertW3cSpanId(record.correlation.spanId)
+        assertEquals(null, record.correlation.parentSpanId)
+    }
+
+    @Test
+    fun nestedOperationsShareTraceAndLinkToParentSpan() = runTest {
+        val sink = FakeDiagnosticSink()
+        val telemetry = OperationalTelemetry(sink)
+
+        telemetry.observe(DiagnosticOperation.GAME_CREATE) {
+            telemetry.observe(DiagnosticOperation.TARGET_EMBEDDING_GENERATE) { Unit }
+        }
+
+        assertEquals(2, sink.records.size)
+        val child = sink.records[0]
+        val parent = sink.records[1]
+        assertEquals(DiagnosticOperation.TARGET_EMBEDDING_GENERATE, child.operation)
+        assertEquals(DiagnosticOperation.GAME_CREATE, parent.operation)
+        assertEquals(parent.correlation.traceId, child.correlation.traceId)
+        assertEquals(parent.correlation.spanId, child.correlation.parentSpanId)
+        assertEquals(null, parent.correlation.parentSpanId)
+        assertNotEquals(parent.correlation.spanId, child.correlation.spanId)
+        assertW3cTraceId(child.correlation.traceId)
+        assertW3cSpanId(child.correlation.spanId)
+    }
+
+    @Test
+    fun separateTopLevelOperationsReceiveSeparateTraces() = runTest {
+        val sink = FakeDiagnosticSink()
+        val telemetry = OperationalTelemetry(sink)
+
+        telemetry.observe(DiagnosticOperation.GAME_CREATE) { Unit }
+        telemetry.observe(DiagnosticOperation.GAME_GUESS) { Unit }
+
+        assertNotEquals(sink.records[0].correlation.traceId, sink.records[1].correlation.traceId)
     }
 
     @Test
@@ -104,6 +141,22 @@ class OperationalTelemetryTest {
     }
 
     @Test
+    fun diagnosticCorrelationRequiresW3cShapedNonZeroIds() {
+        assertFailsWith<IllegalArgumentException> {
+            DiagnosticCorrelation(traceId = "1", spanId = spanId(1))
+        }
+        assertFailsWith<IllegalArgumentException> {
+            DiagnosticCorrelation(traceId = "0".repeat(32), spanId = spanId(1))
+        }
+        assertFailsWith<IllegalArgumentException> {
+            DiagnosticCorrelation(traceId = traceId(1), spanId = "0".repeat(16))
+        }
+        assertFailsWith<IllegalArgumentException> {
+            DiagnosticCorrelation(traceId = traceId(1), spanId = spanId(1), parentSpanId = spanId(1))
+        }
+    }
+
+    @Test
     fun successfulRecordCannotCarryFailureCode() {
         assertFailsWith<IllegalArgumentException> {
             DiagnosticRecord(
@@ -111,13 +164,31 @@ class OperationalTelemetryTest {
                 result = DiagnosticResult.SUCCESS,
                 code = DiagnosticCode.PERSISTENCE_FAILED,
                 durationMillis = 1,
+                correlation = DiagnosticCorrelation(traceId = traceId(1), spanId = spanId(1)),
             )
         }
+    }
+
+    private fun assertW3cTraceId(value: String) {
+        assertTrue(Regex("[0-9a-f]{32}").matches(value))
+        assertTrue(value.any { it != '0' })
+    }
+
+    private fun assertW3cSpanId(value: String) {
+        assertTrue(Regex("[0-9a-f]{16}").matches(value))
+        assertTrue(value.any { it != '0' })
     }
 
     private fun record(operation: DiagnosticOperation): DiagnosticRecord = DiagnosticRecord(
         operation = operation,
         result = DiagnosticResult.SUCCESS,
         durationMillis = 0,
+        correlation = DiagnosticCorrelation(
+            traceId = traceId(1),
+            spanId = spanId(operation.ordinal + 1),
+        ),
     )
+
+    private fun traceId(value: Int): String = value.toString(16).padStart(32, '0')
+    private fun spanId(value: Int): String = value.toString(16).padStart(16, '0')
 }
