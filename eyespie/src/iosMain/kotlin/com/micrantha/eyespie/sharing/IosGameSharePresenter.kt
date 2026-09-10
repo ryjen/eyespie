@@ -2,6 +2,7 @@ package com.micrantha.eyespie.sharing
 
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.NonCancellable
 import kotlinx.coroutines.withContext
 import okio.FileSystem
 import okio.Path
@@ -28,34 +29,44 @@ class IosGameSharePresenter(
         if (host.presentedViewController != null) return GameSharePresentationResult.Busy
 
         val path = temporaryExportPath(suggestedFileName)
-        val wrote = try {
-            withContext(Dispatchers.Default) {
-                FileSystem.SYSTEM.write(path) { write(bytes) }
+        var cleanupOwnedByShareSheet = false
+        return try {
+            val wrote = try {
+                withContext(Dispatchers.Default) {
+                    FileSystem.SYSTEM.write(path) { write(bytes) }
+                }
+                true
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                false
             }
-            true
-        } catch (cancelled: CancellationException) {
-            throw cancelled
-        } catch (_: Exception) {
-            false
-        }
-        if (!wrote) return GameSharePresentationResult.Failed
+            if (!wrote) return GameSharePresentationResult.Failed
 
-        val fileUrl = NSURL.fileURLWithPath(path.toString())
-        val controller = UIActivityViewController(
-            activityItems = listOf(fileUrl),
-            applicationActivities = null,
-        )
-        controller.popoverPresentationController?.let { popover ->
-            popover.sourceView = host.view
-            popover.sourceRect = host.view.bounds
-        }
-        controller.completionWithItemsHandler = { _, _, _, _ ->
-            complete(controller, path)
-        }
+            val fileUrl = NSURL.fileURLWithPath(path.toString())
+            val controller = UIActivityViewController(
+                activityItems = listOf(fileUrl),
+                applicationActivities = null,
+            )
+            controller.popoverPresentationController?.let { popover ->
+                popover.sourceView = host.view
+                popover.sourceRect = host.view.bounds
+            }
+            controller.completionWithItemsHandler = { _, _, _, _ ->
+                complete(controller, path)
+            }
 
-        activeController = controller
-        host.presentViewController(controller, animated = true, completion = null)
-        return GameSharePresentationResult.Presented
+            activeController = controller
+            host.presentViewController(controller, animated = true, completion = null)
+            cleanupOwnedByShareSheet = true
+            GameSharePresentationResult.Presented
+        } finally {
+            if (!cleanupOwnedByShareSheet) {
+                withContext(NonCancellable + Dispatchers.Default) {
+                    deleteBestEffort(path)
+                }
+            }
+        }
     }
 
     private fun complete(
@@ -65,10 +76,14 @@ class IosGameSharePresenter(
         if (activeController !== controller) return
         controller.completionWithItemsHandler = null
         activeController = null
+        deleteBestEffort(path)
+    }
+
+    private fun deleteBestEffort(path: Path) {
         try {
             FileSystem.SYSTEM.delete(path, mustExist = false)
         } catch (_: Exception) {
-            // Best-effort cleanup after UIKit has finished using the app-private artifact.
+            // Temporary share material is cleanup-only and must not affect application authority.
         }
     }
 
