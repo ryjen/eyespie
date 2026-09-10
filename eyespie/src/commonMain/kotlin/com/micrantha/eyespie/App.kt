@@ -29,18 +29,26 @@ import cafe.adriel.voyager.navigator.Navigator
 import com.micrantha.eyespie.app.AppGraphFactory
 import com.micrantha.eyespie.app.AppNavigationBridge
 import com.micrantha.eyespie.app.AppRoute
+import com.micrantha.eyespie.app.ExternalAppIntentResult
+import com.micrantha.eyespie.app.ExternalAppIntentSource
+import com.micrantha.eyespie.app.ExternalDocumentLandingDestination
+import com.micrantha.eyespie.app.ExternalIngressGateDestination
 import com.micrantha.eyespie.app.FullBleedDestination
 import com.micrantha.eyespie.app.LocalAppGraph
 import com.micrantha.eyespie.app.LocalAppMessageSink
 import com.micrantha.eyespie.app.VoyagerAppNavigation
 import com.micrantha.eyespie.app.toDestination
 import com.micrantha.eyespie.game.EyespieRuntime
+import com.micrantha.eyespie.generated.resources.Res
+import com.micrantha.eyespie.generated.resources.failure_deep_link_failed
+import com.micrantha.eyespie.generated.resources.failure_deep_link_game_not_found
 import com.micrantha.eyespie.presentation.theme.EyespieLogo
 import com.micrantha.eyespie.presentation.theme.EyespieTheme
 import com.micrantha.eyespie.sharing.ExternalGameDocumentSource
 import com.micrantha.eyespie.sharing.GameDocumentTransfer
 import com.micrantha.eyespie.sharing.GameSharePresenter
 import kotlinx.coroutines.flow.filter
+import org.jetbrains.compose.resources.getString
 
 @Composable
 fun App(
@@ -48,6 +56,7 @@ fun App(
     documentTransfer: GameDocumentTransfer? = null,
     externalDocumentSource: ExternalGameDocumentSource? = null,
     sharePresenter: GameSharePresenter? = null,
+    externalAppIntentSource: ExternalAppIntentSource? = null,
 ) {
     val onboardingCompleted by produceState<Boolean?>(null, runtime) {
         value = try {
@@ -81,12 +90,14 @@ fun App(
                         documentTransfer,
                         externalDocumentSource,
                         sharePresenter,
+                        externalAppIntentSource,
                     ) { AppNavigationBridge() }
                     val graph = remember(
                         runtime,
                         documentTransfer,
                         externalDocumentSource,
                         sharePresenter,
+                        externalAppIntentSource,
                         navigation,
                     ) {
                         AppGraphFactory.fromRuntime(
@@ -112,8 +123,14 @@ fun App(
                                 navigation.attach(voyagerNavigation)
                                 onDispose { navigation.detach(voyagerNavigation) }
                             }
-                            LaunchedEffect(externalDocumentSource, completed, voyagerNavigation) {
-                                if (completed) {
+
+                            val currentScreen = navigator.lastItem
+
+                            LaunchedEffect(externalDocumentSource, currentScreen, voyagerNavigation) {
+                                if (
+                                    currentScreen !is ExternalIngressGateDestination &&
+                                    currentScreen !is ExternalDocumentLandingDestination
+                                ) {
                                     externalDocumentSource
                                         ?.pending
                                         ?.filter { it }
@@ -123,7 +140,22 @@ fun App(
                                 }
                             }
 
-                            val currentScreen = navigator.lastItem
+                            LaunchedEffect(externalAppIntentSource, currentScreen, graph) {
+                                if (currentScreen !is ExternalIngressGateDestination) {
+                                    externalAppIntentSource?.intents?.collect { intent ->
+                                        when (graph.externalAppIntentHandler.handle(intent)) {
+                                            ExternalAppIntentResult.Opened -> Unit
+                                            ExternalAppIntentResult.NotFound -> showMessage(
+                                                getString(Res.string.failure_deep_link_game_not_found),
+                                            )
+                                            ExternalAppIntentResult.Failed -> showMessage(
+                                                getString(Res.string.failure_deep_link_failed),
+                                            )
+                                        }
+                                    }
+                                }
+                            }
+
                             val destinationModifier = if (currentScreen is FullBleedDestination) {
                                 Modifier.fillMaxSize()
                             } else {
