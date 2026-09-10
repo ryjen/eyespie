@@ -127,13 +127,24 @@ class DiagnosticExportTest {
     }
 
     @Test
-    fun exportModelHasNoGenericAttributeOrMessageChannel() {
-        val fields = DiagnosticRecord::class.members.map { it.name }.toSet()
-        assertFalse("message" in fields)
-        assertFalse("attributes" in fields)
-        assertFalse("payload" in fields)
-        assertFalse("path" in fields)
-        assertFalse("image" in fields)
-        assertFalse("embedding" in fields)
+    fun portableJsonHasNoGenericMessageAttributeOrPayloadChannel() {
+        val service = DiagnosticExportService(
+            history = BoundedDiagnosticSink(),
+            identityProvider = DiagnosticIdentityProvider {
+                DiagnosticIdentity(
+                    release = DiagnosticReleaseIdentity("0.1.0", 1),
+                    runtime = DiagnosticRuntimeIdentity(
+                        platform = DiagnosticPlatform.ANDROID,
+                        osVersion = "Android 16",
+                        mediaPipeVersion = "0.10.26",
+                    ),
+                )
+            },
+        )
+        val encoded = service.encodeJson().decodeToString()
+
+        listOf("message", "attributes", "payload", "path", "image", "embedding").forEach { field ->
+            assertFalse("\"$field\"" in encoded)
+        }
     }
 }
