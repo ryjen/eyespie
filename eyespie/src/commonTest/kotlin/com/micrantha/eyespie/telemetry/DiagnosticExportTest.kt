@@ -54,7 +54,7 @@ class DiagnosticExportTest {
 
         val root = Json.parseToJsonElement(encoded.decodeToString()).jsonObject
         assertEquals("ryjen/eyespie", root.getValue("repository").jsonPrimitive.content)
-        assertEquals(3, root.getValue("schema_version").jsonPrimitive.content.toInt())
+        assertEquals(4, root.getValue("schema_version").jsonPrimitive.content.toInt())
         assertEquals(0, root.getValue("evicted_records").jsonPrimitive.content.toLong())
         assertEquals(0, root.getValue("dropped_records").jsonPrimitive.content.toLong())
         assertFalse(root.getValue("snapshot_incomplete").jsonPrimitive.content.toBoolean())
@@ -71,6 +71,7 @@ class DiagnosticExportTest {
         assertEquals("Android 16", runtime.getValue("os_version").jsonPrimitive.content)
         assertEquals("0.10.26", runtime.getValue("mediapipe_version").jsonPrimitive.content)
         assertEquals("1024", runtime.getValue("embedding_dimensions").jsonPrimitive.content)
+        assertEquals("1", runtime.getValue("match_policy_version").jsonPrimitive.content)
 
         val records = root.getValue("records").jsonArray
         assertEquals(2, records.size)
@@ -144,6 +145,18 @@ class DiagnosticExportTest {
                 appVersion = "0.1.0",
                 appBuild = 1,
                 sourceRevision = "main",
+            )
+        }
+    }
+
+    @Test
+    fun runtimeIdentityRejectsInvalidMatchPolicyVersion() {
+        assertFailsWith<IllegalArgumentException> {
+            DiagnosticRuntimeIdentity(
+                platform = DiagnosticPlatform.ANDROID,
+                osVersion = "Android 16",
+                mediaPipeVersion = "0.10.26",
+                matchPolicyVersion = 0,
             )
         }
     }

@@ -5,6 +5,7 @@ import com.micrantha.eyespie.imaging.IMAGE_EMBEDDER_MODEL_SHA256
 import com.micrantha.eyespie.imaging.IMAGE_EMBEDDING_CONTRACT_VERSION
 import com.micrantha.eyespie.imaging.IMAGE_EMBEDDING_DIMENSIONS
 import com.micrantha.eyespie.persistence.EYESPIE_DATABASE_SCHEMA_VERSION
+import com.micrantha.eyespie.sharing.GAME_BUNDLE_MATCH_POLICY_VERSION
 import com.micrantha.eyespie.sharing.GAME_BUNDLE_SCHEMA_VERSION
 import kotlinx.serialization.json.Json
 import kotlinx.serialization.json.JsonElement
@@ -51,6 +52,7 @@ data class DiagnosticRuntimeIdentity(
     val embeddingDimensions: Int = IMAGE_EMBEDDING_DIMENSIONS,
     val imageEmbedderModelId: String = IMAGE_EMBEDDER_MODEL_ID,
     val imageEmbedderModelSha256: String = IMAGE_EMBEDDER_MODEL_SHA256,
+    val matchPolicyVersion: Int = GAME_BUNDLE_MATCH_POLICY_VERSION,
 ) {
     init {
         require(osVersion.isNotBlank() && osVersion.length <= 64) {
@@ -67,6 +69,7 @@ data class DiagnosticRuntimeIdentity(
         require(Regex("[0-9a-f]{64}").matches(imageEmbedderModelSha256)) {
             "diagnostic model SHA-256 is invalid"
         }
+        require(matchPolicyVersion > 0) { "diagnostic match policy version must be positive" }
     }
 }
 
@@ -96,7 +99,7 @@ data class DiagnosticExportEnvelope(
     }
 
     companion object {
-        const val SCHEMA_VERSION: Int = 3
+        const val SCHEMA_VERSION: Int = 4
         const val MAX_RECORDS: Int = BoundedDiagnosticSink.DEFAULT_CAPACITY
         const val MAX_BYTES: Int = 128 * 1024
     }
@@ -155,6 +158,7 @@ private fun DiagnosticExportEnvelope.toJson(): JsonElement = buildJsonObject {
         put("embedding_dimensions", runtime.embeddingDimensions)
         put("model_id", runtime.imageEmbedderModelId)
         put("model_sha256", runtime.imageEmbedderModelSha256)
+        put("match_policy_version", runtime.matchPolicyVersion)
     })
     put("evicted_records", evictedRecords)
     put("dropped_records", droppedRecords)
