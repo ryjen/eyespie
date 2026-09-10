@@ -11,7 +11,9 @@ import androidx.compose.runtime.remember
 import com.micrantha.eyespie.App
 import com.micrantha.eyespie.AppUnavailable
 import com.micrantha.eyespie.app.AndroidExternalAppIntentSource
-import com.micrantha.eyespie.game.createAndroidEyespieRuntime
+import com.micrantha.eyespie.app.ScopedDiagnosticsExporter
+import com.micrantha.eyespie.game.EyespieRuntimeBootstrapResult
+import com.micrantha.eyespie.game.bootstrapAndroidEyespieRuntime
 import com.micrantha.eyespie.sharing.AndroidGameDocumentTransfer
 import com.micrantha.eyespie.sharing.AndroidGameSharePresenter
 import com.micrantha.eyespie.sharing.externalEyespieDocumentUri
@@ -47,28 +49,38 @@ class MainActivity : ComponentActivity() {
 
         enableEdgeToEdge()
         setContent {
-            val runtime = remember {
-                try {
-                    createAndroidEyespieRuntime(this)
-                } catch (exception: Exception) {
-                    Log.e(TAG, "Eyespie runtime initialization failed", exception)
-                    null
+            val bootstrap = remember {
+                bootstrapAndroidEyespieRuntime(this).also { result ->
+                    if (result is EyespieRuntimeBootstrapResult.Failed) {
+                        Log.e(TAG, "Eyespie runtime initialization failed", result.cause)
+                    }
                 }
             }
-            if (runtime == null) {
-                AppUnavailable()
-            } else {
-                val transfer = rememberAndroidGameDocumentTransfer(documentTransfer)
-                val sharePresenter = remember { AndroidGameSharePresenter(this) }
-                val diagnosticsWriter = rememberAndroidDiagnosticArtifactWriter(diagnosticArtifactWriter)
-                App(
-                    runtime = runtime,
-                    documentTransfer = transfer,
-                    externalDocumentSource = documentTransfer,
-                    sharePresenter = sharePresenter,
-                    externalAppIntentSource = externalAppIntents,
-                    diagnosticArtifactWriter = diagnosticsWriter,
-                )
+            val diagnosticsWriter = rememberAndroidDiagnosticArtifactWriter(diagnosticArtifactWriter)
+
+            when (bootstrap) {
+                is EyespieRuntimeBootstrapResult.Failed -> {
+                    val diagnosticsExporter = remember(bootstrap, diagnosticsWriter) {
+                        ScopedDiagnosticsExporter(
+                            diagnosticExport = bootstrap.diagnostics.export,
+                            writer = diagnosticsWriter,
+                        )
+                    }
+                    AppUnavailable(diagnosticsExporter = diagnosticsExporter)
+                }
+                is EyespieRuntimeBootstrapResult.Ready -> {
+                    val runtime = bootstrap.runtime
+                    val transfer = rememberAndroidGameDocumentTransfer(documentTransfer)
+                    val sharePresenter = remember { AndroidGameSharePresenter(this) }
+                    App(
+                        runtime = runtime,
+                        documentTransfer = transfer,
+                        externalDocumentSource = documentTransfer,
+                        sharePresenter = sharePresenter,
+                        externalAppIntentSource = externalAppIntents,
+                        diagnosticArtifactWriter = diagnosticsWriter,
+                    )
+                }
             }
         }
     }
