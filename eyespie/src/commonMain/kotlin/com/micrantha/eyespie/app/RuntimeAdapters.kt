@@ -26,12 +26,15 @@ import com.micrantha.eyespie.sharing.GameBundleImportResult
 import com.micrantha.eyespie.sharing.GameDocumentReadResult
 import com.micrantha.eyespie.sharing.GameDocumentTransfer
 import com.micrantha.eyespie.sharing.GameDocumentWriteResult
+import com.micrantha.eyespie.sharing.GameSharePresentationResult
+import com.micrantha.eyespie.sharing.GameSharePresenter
 import com.micrantha.eyespie.sharing.suggestedGameBundleFileName
 import kotlin.coroutines.cancellation.CancellationException
 
 internal class LocalGameAdapter(
     runtime: EyespieRuntime,
     private val documentTransfer: GameDocumentTransfer? = null,
+    private val sharePresenter: GameSharePresenter? = null,
 ) : GameImportPreparer,
     GameImportConfirmer,
     GameImportCanceller,
@@ -113,20 +116,30 @@ internal class LocalGameAdapter(
     ): LocalGameResult<AuthoredThing> = gameLoop.addClue(gameId, clueText, expectedAnswer, targetImage)
 
     override suspend fun share(gameId: GameId, gameName: String): GameDetailShareResult {
-        val transfer = documentTransfer ?: return GameDetailShareResult.Unavailable
+        if (sharePresenter == null && documentTransfer == null) return GameDetailShareResult.Unavailable
         return try {
             when (val exported = bundleService.export(gameId)) {
-                is GameBundleExportResult.Success -> when (
-                    transfer.write(
-                        suggestedGameBundleFileName(gameName, gameId.value),
-                        exported.bytes,
-                    )
-                ) {
-                    GameDocumentWriteResult.Success -> GameDetailShareResult.Shared
-                    GameDocumentWriteResult.Cancelled -> GameDetailShareResult.Cancelled
-                    GameDocumentWriteResult.Busy -> GameDetailShareResult.Busy
-                    GameDocumentWriteResult.TooLarge -> GameDetailShareResult.TooLarge
-                    GameDocumentWriteResult.Failed -> GameDetailShareResult.Failed
+                is GameBundleExportResult.Success -> try {
+                    val fileName = suggestedGameBundleFileName(gameName, gameId.value)
+                    sharePresenter?.let { presenter ->
+                        return when (presenter.present(fileName, exported.bytes)) {
+                            GameSharePresentationResult.Presented -> GameDetailShareResult.Presented
+                            GameSharePresentationResult.Busy -> GameDetailShareResult.Busy
+                            GameSharePresentationResult.TooLarge -> GameDetailShareResult.TooLarge
+                            GameSharePresentationResult.Failed -> GameDetailShareResult.Failed
+                        }
+                    }
+
+                    when (documentTransfer?.write(fileName, exported.bytes)) {
+                        GameDocumentWriteResult.Success -> GameDetailShareResult.Shared
+                        GameDocumentWriteResult.Cancelled -> GameDetailShareResult.Cancelled
+                        GameDocumentWriteResult.Busy -> GameDetailShareResult.Busy
+                        GameDocumentWriteResult.TooLarge -> GameDetailShareResult.TooLarge
+                        GameDocumentWriteResult.Failed -> GameDetailShareResult.Failed
+                        null -> GameDetailShareResult.Unavailable
+                    }
+                } finally {
+                    exported.bytes.fill(0)
                 }
                 is GameBundleExportResult.Failure -> when (exported.code) {
                     GameBundleExportFailureCode.NOT_LOCAL_CREATOR -> GameDetailShareResult.NotLocalCreator
