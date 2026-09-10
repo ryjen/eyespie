@@ -23,7 +23,9 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         documentTransfer = AndroidGameDocumentTransfer(contentResolver)
-        offerExternalInput(intent)
+        if (savedInstanceState == null) {
+            offerExternalInput(intent)
+        }
         enableEdgeToEdge()
         setContent {
             val runtime = remember {
