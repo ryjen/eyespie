@@ -42,6 +42,7 @@ class IosExternalIngressTest {
             IosExternalIngress.offerDeepLink(
                 scheme = "eyespie",
                 host = "game",
+                percentEncodedPath = "/game:1234-abcd",
                 pathSegments = listOf("game:1234-abcd"),
                 hasQuery = false,
                 hasFragment = false,
@@ -55,11 +56,40 @@ class IosExternalIngressTest {
     }
 
     @Test
+    fun ambiguous_path_structure_is_rejected_before_normalized_segments() {
+        assertFalse(
+            IosExternalIngress.offerDeepLink(
+                scheme = "eyespie",
+                host = "game",
+                percentEncodedPath = "//game:1234",
+                pathSegments = listOf("game:1234"),
+                hasQuery = false,
+                hasFragment = false,
+                hasUserInfo = false,
+                hasPort = false,
+            ),
+        )
+        assertFalse(
+            IosExternalIngress.offerDeepLink(
+                scheme = "eyespie",
+                host = "game",
+                percentEncodedPath = "/game:1234/",
+                pathSegments = listOf("game:1234"),
+                hasQuery = false,
+                hasFragment = false,
+                hasUserInfo = false,
+                hasPort = false,
+            ),
+        )
+    }
+
+    @Test
     fun decorated_deep_links_are_rejected() {
         assertFalse(
             IosExternalIngress.offerDeepLink(
                 scheme = "eyespie",
                 host = "game",
+                percentEncodedPath = "/game:1234",
                 pathSegments = listOf("game:1234"),
                 hasQuery = true,
                 hasFragment = false,
@@ -71,6 +101,7 @@ class IosExternalIngressTest {
             IosExternalIngress.offerDeepLink(
                 scheme = "eyespie",
                 host = "game",
+                percentEncodedPath = "/game:1234",
                 pathSegments = listOf("game:1234"),
                 hasQuery = false,
                 hasFragment = true,
@@ -82,6 +113,7 @@ class IosExternalIngressTest {
             IosExternalIngress.offerDeepLink(
                 scheme = "eyespie",
                 host = "game",
+                percentEncodedPath = "/game:1234",
                 pathSegments = listOf("game:1234"),
                 hasQuery = false,
                 hasFragment = false,
@@ -93,6 +125,7 @@ class IosExternalIngressTest {
             IosExternalIngress.offerDeepLink(
                 scheme = "eyespie",
                 host = "game",
+                percentEncodedPath = "/game:1234",
                 pathSegments = listOf("game:1234"),
                 hasQuery = false,
                 hasFragment = false,
