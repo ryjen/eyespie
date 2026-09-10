@@ -51,27 +51,31 @@ class AndroidGameSharePresenter(
         }
     }
 
-    private fun writeShareFile(suggestedFileName: String, bytes: ByteArray): File? = try {
-        val directory = File(activity.cacheDir, SHARE_CACHE_DIRECTORY)
-        if (!directory.exists() && !directory.mkdirs()) return null
+    private fun writeShareFile(suggestedFileName: String, bytes: ByteArray): File? {
+        return try {
+            val directory = File(activity.cacheDir, SHARE_CACHE_DIRECTORY)
+            if (!directory.exists() && !directory.mkdirs()) {
+                null
+            } else {
+                directory.listFiles()?.forEach { previous ->
+                    runCatching { previous.delete() }
+                }
 
-        directory.listFiles()?.forEach { previous ->
-            runCatching { previous.delete() }
-        }
-
-        val leaf = suggestedFileName
-            .substringAfterLast('/')
-            .substringAfterLast('\\')
-            .take(96)
-            .ifBlank { "eyespie-game.eyespie" }
-        val safeLeaf = if (leaf.endsWith(".eyespie", ignoreCase = true)) leaf else "$leaf.eyespie"
-        File(directory, safeLeaf).apply {
-            outputStream().use { output ->
-                output.write(bytes)
-                output.flush()
+                val leaf = suggestedFileName
+                    .substringAfterLast('/')
+                    .substringAfterLast('\\')
+                    .take(96)
+                    .ifBlank { "eyespie-game.eyespie" }
+                val safeLeaf = if (leaf.endsWith(".eyespie", ignoreCase = true)) leaf else "$leaf.eyespie"
+                File(directory, safeLeaf).apply {
+                    outputStream().use { output ->
+                        output.write(bytes)
+                        output.flush()
+                    }
+                }
             }
+        } catch (_: Exception) {
+            null
         }
-    } catch (_: Exception) {
-        null
     }
 }
