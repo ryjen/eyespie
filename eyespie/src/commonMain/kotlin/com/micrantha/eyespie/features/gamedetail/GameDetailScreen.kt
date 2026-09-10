@@ -44,6 +44,7 @@ import com.micrantha.eyespie.presentation.theme.extendedColors
 fun GameDetailScreen(
     state: GameDetailState,
     dispatch: (GameDetailIntent) -> Unit,
+    separateSaveAction: Boolean = false,
 ) {
     Column(
         modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
@@ -113,7 +114,11 @@ fun GameDetailScreen(
             val transferInProgress = state.shareInProgress || state.saveInProgress
             EyespieSectionHeader(
                 title = "Case tools",
-                supportingText = "Author locally, share through another app, or save the signed game file.",
+                supportingText = if (separateSaveAction) {
+                    "Author locally, share through another app, or save the signed game file."
+                } else {
+                    "Author locally or export a signed handoff."
+                },
             )
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -131,14 +136,20 @@ fun GameDetailScreen(
                     onClick = { dispatch(GameDetailIntent.ShareSelected) },
                 )
             }
-            EyespieSecondaryAction(
-                text = if (state.saveInProgress) "Preparing file…" else "Save game file",
-                modifier = Modifier.fillMaxWidth(),
-                enabled = !transferInProgress,
-                onClick = { dispatch(GameDetailIntent.SaveSelected) },
-            )
+            if (separateSaveAction) {
+                EyespieSecondaryAction(
+                    text = if (state.saveInProgress) "Preparing file…" else "Save game file",
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !transferInProgress,
+                    onClick = { dispatch(GameDetailIntent.SaveSelected) },
+                )
+            }
             Text(
-                "Share opens the platform share sheet. Save game file opens the platform document destination. Both use the same signed .eyespie bundle.",
+                if (separateSaveAction) {
+                    "Share opens the platform share sheet. Save game file opens the platform document destination. Both use the same signed .eyespie bundle."
+                } else {
+                    "Share exports a signed .eyespie file through the platform handoff flow."
+                },
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
