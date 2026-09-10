@@ -101,6 +101,10 @@ private class FakeExternalGameDocumentSource(
     fun offer() {
         mutablePending.value = true
     }
+
+    override fun acknowledgePendingDocument() {
+        mutablePending.value = false
+    }
 }
 
 private class ExternalImportCapabilities(
