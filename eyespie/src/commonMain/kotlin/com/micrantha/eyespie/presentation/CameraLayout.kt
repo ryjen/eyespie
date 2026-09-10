@@ -14,6 +14,7 @@ import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -25,6 +26,7 @@ import com.micrantha.eyespie.presentation.theme.EyespieEyebrow
 import com.micrantha.eyespie.presentation.theme.EyespiePanel
 import com.micrantha.eyespie.presentation.theme.EyespieSecondaryAction
 import com.micrantha.eyespie.presentation.theme.EyespieTopBar
+import com.micrantha.eyespie.telemetry.LocalOperationalTelemetry
 
 /**
  * Presentation-only override used by deterministic visual tests. Production callers receive the
@@ -53,6 +55,11 @@ fun CameraLayout(
     edgeToEdgeControls: Boolean = false,
     content: @Composable ColumnScope.() -> Unit = {},
 ) {
+    val telemetry = LocalOperationalTelemetry.current
+    val availabilityDiagnostics = remember(telemetry) {
+        CameraAvailabilityDiagnosticObserver(telemetry)
+    }
+
     Box(modifier = modifier.fillMaxSize()) {
         val captureOverlay: @Composable ((capture: () -> Unit) -> Unit) = { capture ->
             var overlayModifier = Modifier.fillMaxSize()
@@ -89,7 +96,10 @@ fun CameraLayout(
         } else {
             CameraCapture(
                 modifier = Modifier.fillMaxSize(),
-                onAvailabilityChanged = onAvailabilityChanged,
+                onAvailabilityChanged = { availability ->
+                    availabilityDiagnostics.onAvailabilityChanged(availability)
+                    onAvailabilityChanged(availability)
+                },
                 onCameraError = onCameraError,
                 onCaptured = onCaptured,
                 captureButton = captureOverlay,

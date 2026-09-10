@@ -20,6 +20,7 @@ enum class DiagnosticOperation {
     GAME_PERSIST,
     PROGRESS_PERSIST,
     CAMERA_CAPTURE,
+    CAMERA_AVAILABILITY,
     BUNDLE_EXPORT,
     BUNDLE_IMPORT_PREVIEW,
     BUNDLE_IMPORT,
@@ -53,6 +54,8 @@ enum class DiagnosticCode {
     MATCH_POLICY_INVALID,
     PERSISTENCE_FAILED,
     CAMERA_CAPTURE_FAILED,
+    CAMERA_PERMISSION_DENIED,
+    CAMERA_UNAVAILABLE,
     SIGNING_IDENTITY_MISMATCH,
     BUNDLE_INVALID_FORMAT,
     BUNDLE_INVALID_GAME,
@@ -216,6 +219,7 @@ private fun DiagnosticOperation.defaultFailureCode(): DiagnosticCode = when (thi
     DiagnosticOperation.PROGRESS_PERSIST,
     -> DiagnosticCode.PERSISTENCE_FAILED
     DiagnosticOperation.CAMERA_CAPTURE -> DiagnosticCode.CAMERA_CAPTURE_FAILED
+    DiagnosticOperation.CAMERA_AVAILABILITY -> DiagnosticCode.CAMERA_UNAVAILABLE
     DiagnosticOperation.GAME_OPEN_HANDOFF,
     DiagnosticOperation.GAME_SAVE_HANDOFF,
     DiagnosticOperation.GAME_SHARE_HANDOFF,
@@ -257,6 +261,17 @@ class OperationalTelemetry(
             )
             throw throwable
         }
+    }
+
+    /**
+     * Records an already-classified callback/lifecycle outcome without fabricating a timed span.
+     * This remains fail-open and accepts only the closed diagnostic vocabulary.
+     */
+    internal fun record(
+        operation: DiagnosticOperation,
+        outcome: DiagnosticOutcome,
+    ) {
+        emit(operation, outcome, durationMillis = 0)
     }
 
     private fun emit(
