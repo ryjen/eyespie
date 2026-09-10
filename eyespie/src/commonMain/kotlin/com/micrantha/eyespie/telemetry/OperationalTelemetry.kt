@@ -15,6 +15,10 @@ enum class DiagnosticOperation {
     GAME_CREATE,
     CLUE_ADD,
     GAME_GUESS,
+    TARGET_EMBEDDING_GENERATE,
+    GUESS_EMBEDDING_GENERATE,
+    GAME_PERSIST,
+    PROGRESS_PERSIST,
 }
 
 enum class DiagnosticResult {
@@ -185,6 +189,15 @@ class BoundedDiagnosticSink(
     }
 }
 
+private fun DiagnosticOperation.defaultFailureCode(): DiagnosticCode = when (this) {
+    DiagnosticOperation.TARGET_EMBEDDING_GENERATE -> DiagnosticCode.TARGET_EMBEDDING_FAILED
+    DiagnosticOperation.GUESS_EMBEDDING_GENERATE -> DiagnosticCode.GUESS_EMBEDDING_FAILED
+    DiagnosticOperation.GAME_PERSIST,
+    DiagnosticOperation.PROGRESS_PERSIST,
+    -> DiagnosticCode.PERSISTENCE_FAILED
+    else -> DiagnosticCode.UNEXPECTED_FAILURE
+}
+
 /**
  * Application-owned telemetry facade. Provider SDKs and transport concerns stay
  * outside game/domain code; this facade can later be backed by an OTel adapter.
@@ -194,6 +207,7 @@ class OperationalTelemetry(
 ) {
     suspend fun <T> observe(
         operation: DiagnosticOperation,
+        failureCode: DiagnosticCode = operation.defaultFailureCode(),
         classify: (T) -> DiagnosticOutcome = { DiagnosticOutcome.Success },
         block: suspend () -> T,
     ): T {
@@ -211,7 +225,11 @@ class OperationalTelemetry(
             emit(operation, DiagnosticOutcome.Cancelled, started.elapsedNow().inWholeMilliseconds)
             throw cancelled
         } catch (throwable: Throwable) {
-            emit(operation, DiagnosticOutcome.UnexpectedFailure, started.elapsedNow().inWholeMilliseconds)
+            emit(
+                operation,
+                DiagnosticOutcome.failed(failureCode),
+                started.elapsedNow().inWholeMilliseconds,
+            )
             throw throwable
         }
     }

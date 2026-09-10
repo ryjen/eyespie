@@ -27,7 +27,7 @@ import kotlinx.coroutines.test.runTest
 
 class LocalGameLoopTelemetryTest {
     @Test
-    fun successfulCreateEmitsOnlyOperationOutcomeMetadata() = runTest {
+    fun successfulCreateEmitsStageAndOperationOutcomeMetadata() = runTest {
         val sink = FakeDiagnosticSink()
         val loop = loop(telemetry = OperationalTelemetry(sink))
 
@@ -39,14 +39,20 @@ class LocalGameLoopTelemetryTest {
         )
 
         assertIs<LocalGameResult.Success<CreatedGame>>(result)
-        val record = sink.records.single()
-        assertEquals(DiagnosticOperation.GAME_CREATE, record.operation)
-        assertEquals(DiagnosticResult.SUCCESS, record.result)
-        assertEquals(null, record.code)
+        assertEquals(
+            listOf(
+                DiagnosticOperation.TARGET_EMBEDDING_GENERATE,
+                DiagnosticOperation.GAME_PERSIST,
+                DiagnosticOperation.GAME_CREATE,
+            ),
+            sink.records.map { it.operation },
+        )
+        assertEquals(listOf(DiagnosticResult.SUCCESS, DiagnosticResult.SUCCESS, DiagnosticResult.SUCCESS), sink.records.map { it.result })
+        assertEquals(listOf(null, null, null), sink.records.map { it.code })
     }
 
     @Test
-    fun embeddingFailureMapsToStableDiagnosticCode() = runTest {
+    fun embeddingFailureMapsStageAndParentToStableDiagnostics() = runTest {
         val sink = FakeDiagnosticSink()
         val loop = loop(
             embeddingGenerator = TelemetryEmbeddingGenerator(
@@ -64,13 +70,19 @@ class LocalGameLoopTelemetryTest {
 
         val failure = assertIs<LocalGameResult.Failure>(result)
         assertEquals(LocalGameFailureCode.TARGET_EMBEDDING_FAILED, failure.failure.code)
-        val record = sink.records.single()
-        assertEquals(DiagnosticResult.FAILED, record.result)
-        assertEquals(DiagnosticCode.TARGET_EMBEDDING_FAILED, record.code)
+        assertEquals(
+            listOf(
+                DiagnosticOperation.TARGET_EMBEDDING_GENERATE,
+                DiagnosticOperation.GAME_CREATE,
+            ),
+            sink.records.map { it.operation },
+        )
+        assertEquals(DiagnosticCode.TARGET_EMBEDDING_FAILED, sink.records[0].code)
+        assertEquals(DiagnosticCode.TARGET_EMBEDDING_FAILED, sink.records[1].code)
     }
 
     @Test
-    fun cancellationIsRecordedButStillPropagates() = runTest {
+    fun cancellationIsRecordedAtStageAndParentButStillPropagates() = runTest {
         val sink = FakeDiagnosticSink()
         val loop = loop(
             embeddingGenerator = TelemetryEmbeddingGenerator(
@@ -88,9 +100,47 @@ class LocalGameLoopTelemetryTest {
             )
         }
 
-        val record = sink.records.single()
-        assertEquals(DiagnosticResult.CANCELLED, record.result)
-        assertEquals(null, record.code)
+        assertEquals(
+            listOf(
+                DiagnosticOperation.TARGET_EMBEDDING_GENERATE,
+                DiagnosticOperation.GAME_CREATE,
+            ),
+            sink.records.map { it.operation },
+        )
+        assertEquals(listOf(DiagnosticResult.CANCELLED, DiagnosticResult.CANCELLED), sink.records.map { it.result })
+        assertEquals(listOf(null, null), sink.records.map { it.code })
+    }
+
+    @Test
+    fun guessEmbeddingFailureIsNotMisclassifiedAsMatchPolicyFailure() = runTest {
+        val sink = FakeDiagnosticSink()
+        val generator = FailAfterFirstEmbeddingGenerator()
+        val loop = loop(
+            embeddingGenerator = generator,
+            telemetry = OperationalTelemetry(sink),
+        )
+
+        val created = assertIs<LocalGameResult.Success<CreatedGame>>(
+            loop.createGame(
+                name = "Trip",
+                clueText = "Striped",
+                expectedAnswer = "crosswalk",
+                targetImage = image(),
+            ),
+        ).value
+
+        val result = loop.guess(
+            gameId = created.gameId,
+            thingId = created.thingId,
+            guessImage = image(),
+        )
+
+        val failure = assertIs<LocalGameResult.Failure>(result)
+        assertEquals(LocalGameFailureCode.GUESS_EMBEDDING_FAILED, failure.failure.code)
+        assertEquals(DiagnosticOperation.GUESS_EMBEDDING_GENERATE, sink.records[sink.records.lastIndex - 1].operation)
+        assertEquals(DiagnosticCode.GUESS_EMBEDDING_FAILED, sink.records[sink.records.lastIndex - 1].code)
+        assertEquals(DiagnosticOperation.GAME_GUESS, sink.records.last().operation)
+        assertEquals(DiagnosticCode.GUESS_EMBEDDING_FAILED, sink.records.last().code)
     }
 
     @Test
@@ -155,9 +205,22 @@ private class TelemetryEmbeddingGenerator(
 ) : ImageEmbeddingGenerator {
     override suspend fun generate(image: CapturedImage): List<Float> {
         failure?.let { throw it }
-        return List(IMAGE_EMBEDDING_DIMENSIONS) { index -> if (index == 0) 1f else 0f }
+        return unitEmbedding()
     }
 }
+
+private class FailAfterFirstEmbeddingGenerator : ImageEmbeddingGenerator {
+    private var calls = 0
+
+    override suspend fun generate(image: CapturedImage): List<Float> {
+        calls += 1
+        if (calls > 1) throw IllegalStateException("guess embedder unavailable")
+        return unitEmbedding()
+    }
+}
+
+private fun unitEmbedding(): List<Float> =
+    List(IMAGE_EMBEDDING_DIMENSIONS) { index -> if (index == 0) 1f else 0f }
 
 private class TelemetryIdGenerator : LocalGameIdGenerator {
     override fun nextGameId(): GameId = GameId("game-test")

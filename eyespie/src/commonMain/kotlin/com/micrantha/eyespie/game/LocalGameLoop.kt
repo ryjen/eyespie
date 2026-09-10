@@ -181,7 +181,7 @@ class LocalGameLoop(
             }
 
             val targetEmbedding = try {
-                canonicalImageEmbedding(embeddingGenerator.generate(targetImage))
+                generateEmbedding(DiagnosticOperation.TARGET_EMBEDDING_GENERATE, targetImage)
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (_: Exception) {
@@ -200,7 +200,9 @@ class LocalGameLoop(
             val game = Game(gameId, normalizedName, identity.id, listOf(thing))
 
             try {
-                gameRepository.save(game)
+                telemetry.observe(DiagnosticOperation.GAME_PERSIST) {
+                    gameRepository.save(game)
+                }
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (_: Exception) {
@@ -243,7 +245,7 @@ class LocalGameLoop(
             if (game.creator != identity.id) return@exclusiveOperation failure(LocalGameFailureCode.NOT_LOCAL_CREATOR)
 
             val targetEmbedding = try {
-                canonicalImageEmbedding(embeddingGenerator.generate(targetImage))
+                generateEmbedding(DiagnosticOperation.TARGET_EMBEDDING_GENERATE, targetImage)
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (_: Exception) {
@@ -259,7 +261,9 @@ class LocalGameLoop(
                 targetThumbnail = thumbnail,
             )
             try {
-                gameRepository.save(game.copy(things = game.things + thing))
+                telemetry.observe(DiagnosticOperation.GAME_PERSIST) {
+                    gameRepository.save(game.copy(things = game.things + thing))
+                }
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (_: Exception) {
@@ -295,12 +299,18 @@ class LocalGameLoop(
             val thing = game.things.firstOrNull { it.id == thingId }
                 ?: return@exclusiveOperation failure(LocalGameFailureCode.THING_NOT_FOUND)
 
-            val match = try {
-                bestRotationMatch(thing.targetEmbedding, guessImage, thing.matchThreshold)
-            } catch (cancelled: CancellationException) {
-                throw cancelled
-            } catch (_: Exception) {
-                return@exclusiveOperation failure(LocalGameFailureCode.MATCH_POLICY_INVALID)
+            val match = when (
+                val rotationMatch = bestRotationMatch(
+                    thing.targetEmbedding,
+                    guessImage,
+                    thing.matchThreshold,
+                )
+            ) {
+                is RotationMatchResult.Success -> rotationMatch.match
+                RotationMatchResult.EmbeddingFailed ->
+                    return@exclusiveOperation failure(LocalGameFailureCode.GUESS_EMBEDDING_FAILED)
+                RotationMatchResult.MatchPolicyInvalid ->
+                    return@exclusiveOperation failure(LocalGameFailureCode.MATCH_POLICY_INVALID)
             }
 
             val existing = try {
@@ -320,7 +330,9 @@ class LocalGameLoop(
             )
 
             try {
-                progressRepository.save(progress)
+                telemetry.observe(DiagnosticOperation.PROGRESS_PERSIST) {
+                    progressRepository.save(progress)
+                }
             } catch (cancelled: CancellationException) {
                 throw cancelled
             } catch (_: Exception) {
@@ -345,6 +357,13 @@ class LocalGameLoop(
         return try { operation() } finally { operationMutex.unlock() }
     }
 
+    private suspend fun generateEmbedding(
+        operation: DiagnosticOperation,
+        image: CapturedImage,
+    ): List<Float> = telemetry.observe(operation) {
+        canonicalImageEmbedding(embeddingGenerator.generate(image))
+    }
+
     /**
      * Compares the stored target embedding against the guess image embedded at
      * each canonical rotation. A player may photograph the target at any angle,
@@ -356,21 +375,36 @@ class LocalGameLoop(
         targetEmbedding: List<Float>,
         guessImage: CapturedImage,
         threshold: Double,
-    ): MatchResult {
+    ): RotationMatchResult {
         val rotations = if (imageRotator != null) MATCH_ROTATIONS else listOf(0)
         var best: MatchResult? = null
+        var embeddedAtLeastOnce = false
+
         for (degrees in rotations) {
             val rotated = if (degrees == 0) guessImage else imageRotator?.rotate(guessImage, degrees)
                 ?: continue
-            val embedding = runCatching { canonicalImageEmbedding(embeddingGenerator.generate(rotated)) }
-                .getOrElse { continue }
-            val result = MatchEngine(threshold).compare(targetEmbedding, embedding)
+            val embedding = try {
+                generateEmbedding(DiagnosticOperation.GUESS_EMBEDDING_GENERATE, rotated)
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } catch (_: Exception) {
+                continue
+            }
+            embeddedAtLeastOnce = true
+
+            val result = try {
+                MatchEngine(threshold).compare(targetEmbedding, embedding)
+            } catch (_: Exception) {
+                return RotationMatchResult.MatchPolicyInvalid
+            }
             best = if (best == null || result.similarity > best!!.similarity) result else best
         }
-        return best ?: MatchEngine(threshold).compare(
-            targetEmbedding,
-            canonicalImageEmbedding(embeddingGenerator.generate(guessImage)),
-        )
+
+        return when {
+            best != null -> RotationMatchResult.Success(best!!)
+            !embeddedAtLeastOnce -> RotationMatchResult.EmbeddingFailed
+            else -> RotationMatchResult.MatchPolicyInvalid
+        }
     }
 
     private fun <T> failure(code: LocalGameFailureCode): LocalGameResult<T> =
@@ -393,6 +427,12 @@ class LocalGameLoop(
         LocalGameFailureCode.THING_NOT_FOUND -> DiagnosticCode.THING_NOT_FOUND
         LocalGameFailureCode.MATCH_POLICY_INVALID -> DiagnosticCode.MATCH_POLICY_INVALID
         LocalGameFailureCode.PERSISTENCE_FAILED -> DiagnosticCode.PERSISTENCE_FAILED
+    }
+
+    private sealed interface RotationMatchResult {
+        data class Success(val match: MatchResult) : RotationMatchResult
+        data object EmbeddingFailed : RotationMatchResult
+        data object MatchPolicyInvalid : RotationMatchResult
     }
 
     private companion object {
