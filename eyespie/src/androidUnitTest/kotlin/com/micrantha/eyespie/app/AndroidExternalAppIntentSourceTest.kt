@@ -6,6 +6,7 @@ import com.micrantha.eyespie.core.GameId
 import kotlin.test.Test
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
+import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlinx.coroutines.flow.first
 import kotlinx.coroutines.test.runTest
@@ -21,19 +22,38 @@ class AndroidExternalAppIntentSourceTest {
         val source = AndroidExternalAppIntentSource()
 
         assertTrue(source.offer(viewIntent("eyespie://game/game:1234-abcd")))
+        assertEquals("game:1234-abcd", source.pendingGameIdState())
     }
 
     @Test
-    fun latest_pending_deep_link_wins() = runTest {
+    fun latest_pending_deep_link_wins_and_acknowledgement_commits_it() = runTest {
         val source = AndroidExternalAppIntentSource()
 
         assertTrue(source.offer(viewIntent("eyespie://game/game:first")))
         assertTrue(source.offer(viewIntent("eyespie://game/game:second")))
 
+        val pending = source.intents.first()
         assertEquals(
             ExternalAppIntent.OpenLocalGame(GameId("game:second")),
+            pending,
+        )
+        assertEquals("game:second", source.pendingGameIdState())
+
+        source.acknowledge(pending)
+        assertNull(source.pendingGameIdState())
+    }
+
+    @Test
+    fun pending_game_id_can_be_restored_after_recreation() = runTest {
+        val source = AndroidExternalAppIntentSource()
+
+        assertTrue(source.restorePendingGameId("game:restored"))
+        assertEquals(
+            ExternalAppIntent.OpenLocalGame(GameId("game:restored")),
             source.intents.first(),
         )
+        assertEquals("game:restored", source.pendingGameIdState())
+        assertFalse(source.restorePendingGameId("bad?query"))
     }
 
     @Test
