@@ -10,6 +10,7 @@ class GameDetailFactory(
     private val sharer: GameSharer,
     private val thumbnailCache: GameThumbnailCache,
     private val output: (GameDetailOutput) -> Unit,
+    private val saver: GameSaver = UnavailableGameSaver,
 ) {
     fun create(
         scope: CoroutineScope,
@@ -18,6 +19,7 @@ class GameDetailFactory(
     ): GameDetailInteractor = GameDetailInteractor(
         snapshotLoader = snapshotLoader,
         sharer = sharer,
+        saver = saver,
         thumbnailCache = thumbnailCache,
         scope = scope,
         gameId = gameId,
