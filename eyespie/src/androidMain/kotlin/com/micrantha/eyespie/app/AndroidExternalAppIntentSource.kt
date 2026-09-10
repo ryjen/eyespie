@@ -6,7 +6,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.receiveAsFlow
 
 class AndroidExternalAppIntentSource : ExternalAppIntentSource {
-    private val channel = Channel<ExternalAppIntent>(capacity = 1)
+    private val channel = Channel<ExternalAppIntent>(capacity = Channel.CONFLATED)
     override val intents: Flow<ExternalAppIntent> = channel.receiveAsFlow()
 
     fun offer(intent: Intent?): Boolean {
