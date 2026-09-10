@@ -52,7 +52,10 @@ class DiagnosticExportTest {
 
         val root = Json.parseToJsonElement(encoded.decodeToString()).jsonObject
         assertEquals("ryjen/eyespie", root.getValue("repository").jsonPrimitive.content)
-        assertEquals(1, root.getValue("schema_version").jsonPrimitive.content.toInt())
+        assertEquals(2, root.getValue("schema_version").jsonPrimitive.content.toInt())
+        assertEquals(0, root.getValue("evicted_records").jsonPrimitive.content.toLong())
+        assertEquals(0, root.getValue("dropped_records").jsonPrimitive.content.toLong())
+        assertFalse(root.getValue("snapshot_incomplete").jsonPrimitive.content.toBoolean())
 
         val release = root.getValue("release").jsonObject
         assertEquals("0.1.0", release.getValue("app_version").jsonPrimitive.content)
@@ -73,6 +76,45 @@ class DiagnosticExportTest {
         assertEquals("success", records[0].jsonObject.getValue("result").jsonPrimitive.content)
         assertEquals("game_guess", records[1].jsonObject.getValue("operation").jsonPrimitive.content)
         assertEquals("persistence_failed", records[1].jsonObject.getValue("code").jsonPrimitive.content)
+    }
+
+    @Test
+    fun exportReportsDiagnosticLossAndIncompleteSnapshotWithoutDroppedPayload() {
+        val history = object : DiagnosticHistory {
+            override fun snapshot(): DiagnosticSnapshot = DiagnosticSnapshot(
+                records = listOf(
+                    DiagnosticRecord(
+                        operation = DiagnosticOperation.GAME_CREATE,
+                        result = DiagnosticResult.SUCCESS,
+                        durationMillis = 7,
+                    ),
+                ),
+                evictedRecords = 2,
+                droppedRecords = 3,
+                incomplete = true,
+            )
+
+            override fun clear() = Unit
+        }
+        val service = DiagnosticExportService(
+            history = history,
+            identityProvider = DiagnosticIdentityProvider {
+                DiagnosticIdentity(
+                    release = DiagnosticReleaseIdentity("0.1.0", 1),
+                    runtime = DiagnosticRuntimeIdentity(
+                        platform = DiagnosticPlatform.ANDROID,
+                        osVersion = "Android 16",
+                        mediaPipeVersion = "0.10.26",
+                    ),
+                )
+            },
+        )
+
+        val root = Json.parseToJsonElement(service.encodeJson().decodeToString()).jsonObject
+        assertEquals(2, root.getValue("evicted_records").jsonPrimitive.content.toLong())
+        assertEquals(3, root.getValue("dropped_records").jsonPrimitive.content.toLong())
+        assertTrue(root.getValue("snapshot_incomplete").jsonPrimitive.content.toBoolean())
+        assertEquals(1, root.getValue("records").jsonArray.size)
     }
 
     @Test
@@ -105,6 +147,7 @@ class DiagnosticExportTest {
                     )
                 },
                 evictedRecords = 0,
+                droppedRecords = 0,
             )
 
             override fun clear() = Unit
