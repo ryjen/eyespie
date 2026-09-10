@@ -15,6 +15,17 @@ interface ExternalAppIntentSource {
 }
 
 /**
+ * Preserve the original encoded path shape before platform URL APIs normalize decoded segments.
+ * Eyespie deep links accept exactly one non-empty slash-prefixed segment and reject repeated or
+ * trailing separators.
+ */
+internal fun hasCanonicalEyespieDeepLinkPath(percentEncodedPath: String?): Boolean {
+    val path = percentEncodedPath ?: return false
+    if (path.length <= 1 || path[0] != '/') return false
+    return path.indexOf('/', startIndex = 1) == -1
+}
+
+/**
  * Parse the normalized components of an app-owned deep link.
  *
  * URL parsing/percent-decoding remains platform-owned. This function accepts exactly one decoded
