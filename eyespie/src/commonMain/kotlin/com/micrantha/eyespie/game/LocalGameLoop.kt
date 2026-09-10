@@ -393,7 +393,9 @@ class LocalGameLoop(
             embeddedAtLeastOnce = true
 
             val result = try {
-                MatchEngine(threshold).compare(targetEmbedding, embedding)
+                telemetry.observe(DiagnosticOperation.MATCH_EVALUATE) {
+                    MatchEngine(threshold).compare(targetEmbedding, embedding)
+                }
             } catch (_: Exception) {
                 return RotationMatchResult.MatchPolicyInvalid
             }
