@@ -16,7 +16,6 @@ class IosGameSharePresenter(
     private val presenter: () -> UIViewController?,
 ) : GameSharePresenter {
     private var activeController: UIActivityViewController? = null
-    private var activePath: Path? = null
 
     override suspend fun present(
         suggestedFileName: String,
@@ -55,7 +54,6 @@ class IosGameSharePresenter(
         }
 
         activeController = controller
-        activePath = path
         host.presentViewController(controller, animated = true, completion = null)
         return GameSharePresentationResult.Presented
     }
@@ -65,8 +63,8 @@ class IosGameSharePresenter(
         path: Path,
     ) {
         if (activeController !== controller) return
+        controller.completionWithItemsHandler = null
         activeController = null
-        activePath = null
         try {
             FileSystem.SYSTEM.delete(path, mustExist = false)
         } catch (_: Exception) {
