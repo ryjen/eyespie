@@ -92,7 +92,7 @@ class HomeInteractor(
                 retryDeferredExternalImport(stateAfterReduce)
             }
             HomeIntent.ImportPreviewCancelled -> if (!previousState.importInProgress && previousState.importPreview != null) {
-                importCanceller.cancelImport()
+                importCanceller.discardImport()
                 retryDeferredExternalImport(stateAfterReduce)
             }
             HomeIntent.OnboardingSelected -> output(HomeOutput.OnboardingRequested)
