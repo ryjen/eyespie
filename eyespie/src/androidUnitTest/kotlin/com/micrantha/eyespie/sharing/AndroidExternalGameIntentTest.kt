@@ -61,4 +61,13 @@ class AndroidExternalGameIntentTest {
 
         assertNull(externalEyespieDocumentUri(intent))
     }
+
+    @Test
+    fun external_file_uri_is_not_accepted_as_document_authority() {
+        val intent = Intent(Intent.ACTION_VIEW, Uri.parse("file:///tmp/game.eyespie")).apply {
+            type = EYESPIE_ANDROID_MIME_TYPE
+        }
+
+        assertNull(externalEyespieDocumentUri(intent))
+    }
 }
