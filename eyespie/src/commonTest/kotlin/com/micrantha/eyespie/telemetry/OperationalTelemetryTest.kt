@@ -78,10 +78,29 @@ class OperationalTelemetryTest {
 
         val snapshot = sink.snapshot()
         assertEquals(1, snapshot.evictedRecords)
+        assertEquals(0, snapshot.droppedRecords)
         assertEquals(
             listOf(DiagnosticOperation.GAME_CREATE, DiagnosticOperation.GAME_GUESS),
             snapshot.records.map(DiagnosticRecord::operation),
         )
+    }
+
+    @Test
+    fun diagnosticSnapshotRejectsNegativeLossCounters() {
+        assertFailsWith<IllegalArgumentException> {
+            DiagnosticSnapshot(
+                records = emptyList(),
+                evictedRecords = -1,
+                droppedRecords = 0,
+            )
+        }
+        assertFailsWith<IllegalArgumentException> {
+            DiagnosticSnapshot(
+                records = emptyList(),
+                evictedRecords = 0,
+                droppedRecords = -1,
+            )
+        }
     }
 
     @Test

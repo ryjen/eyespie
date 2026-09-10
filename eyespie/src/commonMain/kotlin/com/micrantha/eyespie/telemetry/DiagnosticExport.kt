@@ -84,16 +84,19 @@ data class DiagnosticExportEnvelope(
     val release: DiagnosticReleaseIdentity,
     val runtime: DiagnosticRuntimeIdentity,
     val evictedRecords: Long,
+    val droppedRecords: Long,
+    val snapshotIncomplete: Boolean,
     val records: List<DiagnosticRecord>,
 ) {
     init {
         require(schemaVersion == SCHEMA_VERSION) { "unsupported diagnostic export schema" }
         require(evictedRecords >= 0) { "diagnostic eviction count must be non-negative" }
+        require(droppedRecords >= 0) { "diagnostic drop count must be non-negative" }
         require(records.size <= MAX_RECORDS) { "diagnostic export exceeds record bound" }
     }
 
     companion object {
-        const val SCHEMA_VERSION: Int = 1
+        const val SCHEMA_VERSION: Int = 2
         const val MAX_RECORDS: Int = BoundedDiagnosticSink.DEFAULT_CAPACITY
         const val MAX_BYTES: Int = 128 * 1024
     }
@@ -116,6 +119,8 @@ class DiagnosticExportService(
             release = identity.release,
             runtime = identity.runtime,
             evictedRecords = snapshot.evictedRecords,
+            droppedRecords = snapshot.droppedRecords,
+            snapshotIncomplete = snapshot.incomplete,
             records = snapshot.records,
         )
     }
@@ -152,6 +157,8 @@ private fun DiagnosticExportEnvelope.toJson(): JsonElement = buildJsonObject {
         put("model_sha256", runtime.imageEmbedderModelSha256)
     })
     put("evicted_records", evictedRecords)
+    put("dropped_records", droppedRecords)
+    put("snapshot_incomplete", snapshotIncomplete)
     put("records", buildJsonArray {
         records.forEach { record ->
             add(buildJsonObject {

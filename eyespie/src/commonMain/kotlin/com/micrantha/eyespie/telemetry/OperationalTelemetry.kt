@@ -1,6 +1,9 @@
 package com.micrantha.eyespie.telemetry
 
 import kotlinx.coroutines.sync.Mutex
+import kotlin.concurrent.atomics.AtomicLong
+import kotlin.concurrent.atomics.ExperimentalAtomicApi
+import kotlin.concurrent.atomics.fetchAndIncrement
 import kotlin.time.TimeSource
 
 /**
@@ -156,28 +159,43 @@ class FakeDiagnosticSink : DiagnosticSink {
 data class DiagnosticSnapshot(
     val records: List<DiagnosticRecord>,
     val evictedRecords: Long,
-)
+    val droppedRecords: Long = 0,
+    val incomplete: Boolean = false,
+) {
+    init {
+        require(evictedRecords >= 0) { "diagnostic eviction count must be non-negative" }
+        require(droppedRecords >= 0) { "diagnostic drop count must be non-negative" }
+    }
+}
 
 /**
  * Small in-memory ring buffer for local diagnostics.
  *
  * The mutex is deliberately non-suspending at the write boundary: contention
- * drops observational telemetry rather than delaying gameplay. The retained
- * record count is strictly bounded and oldest records are evicted first.
+ * drops observational telemetry rather than delaying gameplay. Both capacity
+ * evictions and contention drops are counted so an exported snapshot can expose
+ * that its retained timeline is incomplete without retaining any dropped payload.
+ * Snapshot lock contention also returns an explicitly incomplete view rather than
+ * silently presenting an empty history as authoritative.
  */
+@OptIn(ExperimentalAtomicApi::class)
 class BoundedDiagnosticSink(
     private val capacity: Int = DEFAULT_CAPACITY,
 ) : DiagnosticSink, DiagnosticHistory {
     private val mutex = Mutex()
     private val records = ArrayDeque<DiagnosticRecord>(capacity)
     private var evictedRecords: Long = 0
+    private val droppedRecords = AtomicLong(0)
 
     init {
         require(capacity > 0) { "diagnostic capacity must be positive" }
     }
 
     override fun record(record: DiagnosticRecord) {
-        if (!mutex.tryLock()) return
+        if (!mutex.tryLock()) {
+            droppedRecords.fetchAndIncrement()
+            return
+        }
         try {
             if (records.size == capacity) {
                 records.removeFirst()
@@ -190,9 +208,21 @@ class BoundedDiagnosticSink(
     }
 
     override fun snapshot(): DiagnosticSnapshot {
-        if (!mutex.tryLock()) return DiagnosticSnapshot(emptyList(), evictedRecords = 0)
+        if (!mutex.tryLock()) {
+            return DiagnosticSnapshot(
+                records = emptyList(),
+                evictedRecords = 0,
+                droppedRecords = droppedRecords.load(),
+                incomplete = true,
+            )
+        }
         return try {
-            DiagnosticSnapshot(records.toList(), evictedRecords)
+            DiagnosticSnapshot(
+                records = records.toList(),
+                evictedRecords = evictedRecords,
+                droppedRecords = droppedRecords.load(),
+                incomplete = false,
+            )
         } finally {
             mutex.unlock()
         }
@@ -201,6 +231,7 @@ class BoundedDiagnosticSink(
     override fun clear() {
         if (!mutex.tryLock()) return
         try {
+            droppedRecords.store(0)
             records.clear()
             evictedRecords = 0
         } finally {
