@@ -10,6 +10,7 @@ import okio.Buffer
 import okio.FileSystem
 import okio.Path.Companion.toPath
 import okio.buffer
+import platform.Foundation.NSFileCoordinator
 import platform.Foundation.NSTemporaryDirectory
 import platform.Foundation.NSURL
 import platform.Foundation.NSUUID
@@ -155,27 +156,46 @@ class IosGameDocumentTransfer(
     private fun readBounded(url: NSURL): GameDocumentReadResult {
         val accessedSecurityScope = url.startAccessingSecurityScopedResource()
         try {
-            val rawPath = url.path ?: return GameDocumentReadResult.Failed
-            val source = FileSystem.SYSTEM.source(rawPath.toPath()).buffer()
-            try {
-                val sink = Buffer()
-                var total = 0L
-                while (true) {
-                    val read = source.read(sink, IOS_DOCUMENT_READ_CHUNK_BYTES)
-                    if (read == -1L) break
-                    total += read
-                    if (total > GAME_BUNDLE_MAX_BYTES.toLong()) {
-                        return GameDocumentReadResult.TooLarge
-                    }
-                }
-                return GameDocumentReadResult.Success(sink.readByteArray())
-            } finally {
-                source.close()
+            var result: GameDocumentReadResult = GameDocumentReadResult.Failed
+            val coordinator = NSFileCoordinator(filePresenter = null)
+            coordinator.coordinateReadingItemAtURL(
+                url = url,
+                options = 0uL,
+                error = null,
+            ) { coordinatedUrl ->
+                result = readCoordinatedBounded(coordinatedUrl)
             }
+            return result
         } catch (_: Exception) {
             return GameDocumentReadResult.Failed
         } finally {
             if (accessedSecurityScope) url.stopAccessingSecurityScopedResource()
+        }
+    }
+
+    private fun readCoordinatedBounded(url: NSURL): GameDocumentReadResult {
+        val rawPath = url.path ?: return GameDocumentReadResult.Failed
+        val source = try {
+            FileSystem.SYSTEM.source(rawPath.toPath()).buffer()
+        } catch (_: Exception) {
+            return GameDocumentReadResult.Failed
+        }
+        try {
+            val sink = Buffer()
+            var total = 0L
+            while (true) {
+                val read = source.read(sink, IOS_DOCUMENT_READ_CHUNK_BYTES)
+                if (read == -1L) break
+                total += read
+                if (total > GAME_BUNDLE_MAX_BYTES.toLong()) {
+                    return GameDocumentReadResult.TooLarge
+                }
+            }
+            return GameDocumentReadResult.Success(sink.readByteArray())
+        } catch (_: Exception) {
+            return GameDocumentReadResult.Failed
+        } finally {
+            source.close()
         }
     }
 
