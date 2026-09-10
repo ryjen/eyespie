@@ -38,10 +38,10 @@ class ExternalAppIntentTest {
     @Test
     fun existing_local_game_is_opened_from_home_without_import_authority() = runTest {
         val gameId = GameId("game:local")
-        val navigation = RecordingNavigation()
-        val imports = RecordingImportCanceller()
+        val navigation = ExternalIntentRecordingNavigation()
+        val imports = ExternalIntentRecordingImportCanceller()
         val handler = ExternalAppIntentHandler(
-            snapshotLoader = FixedSnapshotLoader(snapshot(gameId)),
+            snapshotLoader = ExternalIntentFixedSnapshotLoader(snapshot(listOf(gameId))),
             navigation = navigation,
             importCanceller = imports,
         )
@@ -52,8 +52,8 @@ class ExternalAppIntentTest {
         assertEquals(1, imports.cancels)
         assertEquals(
             listOf(
-                NavigationCall.ReplaceAll(AppRoute.Home),
-                NavigationCall.Push(AppRoute.GameDetail(gameId)),
+                ExternalIntentNavigationCall.ReplaceAll(AppRoute.Home),
+                ExternalIntentNavigationCall.Push(AppRoute.GameDetail(gameId)),
             ),
             navigation.calls,
         )
@@ -61,10 +61,10 @@ class ExternalAppIntentTest {
 
     @Test
     fun unknown_game_does_not_navigate_or_create_authority() = runTest {
-        val navigation = RecordingNavigation()
-        val imports = RecordingImportCanceller()
+        val navigation = ExternalIntentRecordingNavigation()
+        val imports = ExternalIntentRecordingImportCanceller()
         val handler = ExternalAppIntentHandler(
-            snapshotLoader = FixedSnapshotLoader(snapshot()),
+            snapshotLoader = ExternalIntentFixedSnapshotLoader(snapshot()),
             navigation = navigation,
             importCanceller = imports,
         )
@@ -73,29 +73,29 @@ class ExternalAppIntentTest {
 
         assertIs<ExternalAppIntentResult.NotFound>(result)
         assertEquals(0, imports.cancels)
-        assertEquals(emptyList(), navigation.calls)
+        assertEquals(emptyList<ExternalIntentNavigationCall>(), navigation.calls)
     }
 
     @Test
     fun failed_local_snapshot_lookup_does_not_navigate() = runTest {
-        val navigation = RecordingNavigation()
+        val navigation = ExternalIntentRecordingNavigation()
         val handler = ExternalAppIntentHandler(
             snapshotLoader = object : GameSnapshotLoader {
                 override suspend fun loadSnapshot(): LocalGameResult<LocalGameSnapshot> =
                     LocalGameResult.Failure(LocalGameFailure(LocalGameFailureCode.PERSISTENCE_FAILED))
             },
             navigation = navigation,
-            importCanceller = RecordingImportCanceller(),
+            importCanceller = ExternalIntentRecordingImportCanceller(),
         )
 
         val result = handler.handle(ExternalAppIntent.OpenLocalGame(GameId("game:any")))
 
         assertIs<ExternalAppIntentResult.Failed>(result)
-        assertEquals(emptyList(), navigation.calls)
+        assertEquals(emptyList<ExternalIntentNavigationCall>(), navigation.calls)
     }
 }
 
-private fun snapshot(vararg gameIds: GameId): LocalGameSnapshot = LocalGameSnapshot(
+private fun snapshot(gameIds: List<GameId> = emptyList()): LocalGameSnapshot = LocalGameSnapshot(
     identity = PlayerIdentity(PlayerId("player-local"), "Agent"),
     games = gameIds.map { gameId ->
         LocalGameSummary(
@@ -107,14 +107,14 @@ private fun snapshot(vararg gameIds: GameId): LocalGameSnapshot = LocalGameSnaps
     },
 )
 
-private class FixedSnapshotLoader(
+private class ExternalIntentFixedSnapshotLoader(
     private val snapshot: LocalGameSnapshot,
 ) : GameSnapshotLoader {
     override suspend fun loadSnapshot(): LocalGameResult<LocalGameSnapshot> =
         LocalGameResult.Success(snapshot)
 }
 
-private class RecordingImportCanceller : GameImportCanceller {
+private class ExternalIntentRecordingImportCanceller : GameImportCanceller {
     var cancels = 0
 
     override fun cancelImport() {
@@ -122,22 +122,22 @@ private class RecordingImportCanceller : GameImportCanceller {
     }
 }
 
-private sealed interface NavigationCall {
-    data class Push(val route: AppRoute) : NavigationCall
-    data class ReplaceAll(val route: AppRoute) : NavigationCall
+private sealed interface ExternalIntentNavigationCall {
+    data class Push(val route: AppRoute) : ExternalIntentNavigationCall
+    data class ReplaceAll(val route: AppRoute) : ExternalIntentNavigationCall
 }
 
-private class RecordingNavigation : AppNavigation {
-    val calls = mutableListOf<NavigationCall>()
+private class ExternalIntentRecordingNavigation : AppNavigation {
+    val calls = mutableListOf<ExternalIntentNavigationCall>()
 
     override fun push(route: AppRoute) {
-        calls += NavigationCall.Push(route)
+        calls += ExternalIntentNavigationCall.Push(route)
     }
 
     override fun replace(route: AppRoute) = Unit
 
     override fun replaceAll(route: AppRoute) {
-        calls += NavigationCall.ReplaceAll(route)
+        calls += ExternalIntentNavigationCall.ReplaceAll(route)
     }
 
     override fun pop() = Unit
