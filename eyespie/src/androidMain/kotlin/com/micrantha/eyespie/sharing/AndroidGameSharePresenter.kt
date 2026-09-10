@@ -5,12 +5,15 @@ import android.content.Intent
 import androidx.activity.ComponentActivity
 import androidx.core.content.FileProvider
 import java.io.File
+import java.util.UUID
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.withContext
 
 private const val SHARE_CACHE_DIRECTORY = "eyespie-shares"
 private const val SHARE_PROVIDER_SUFFIX = ".eyespie-share"
+private const val SHARE_CACHE_MAX_FILES = 32
+private const val SHARE_CACHE_MAX_AGE_MS = 24L * 60L * 60L * 1000L
 
 class AndroidGameSharePresenter(
     private val activity: ComponentActivity,
@@ -57,9 +60,7 @@ class AndroidGameSharePresenter(
             if (!directory.exists() && !directory.mkdirs()) {
                 null
             } else {
-                directory.listFiles()?.forEach { previous ->
-                    runCatching { previous.delete() }
-                }
+                cleanupStaleShareFiles(directory)
 
                 val leaf = suggestedFileName
                     .substringAfterLast('/')
@@ -67,7 +68,8 @@ class AndroidGameSharePresenter(
                     .take(96)
                     .ifBlank { "eyespie-game.eyespie" }
                 val safeLeaf = if (leaf.endsWith(".eyespie", ignoreCase = true)) leaf else "$leaf.eyespie"
-                File(directory, safeLeaf).apply {
+                val uniqueLeaf = "${UUID.randomUUID()}-$safeLeaf"
+                File(directory, uniqueLeaf).apply {
                     outputStream().use { output ->
                         output.write(bytes)
                         output.flush()
@@ -76,6 +78,22 @@ class AndroidGameSharePresenter(
             }
         } catch (_: Exception) {
             null
+        }
+    }
+
+    private fun cleanupStaleShareFiles(directory: File) {
+        val files = directory.listFiles()?.filter { it.isFile } ?: return
+        val cutoff = System.currentTimeMillis() - SHARE_CACHE_MAX_AGE_MS
+        files.filter { it.lastModified() < cutoff }.forEach { stale ->
+            runCatching { stale.delete() }
+        }
+
+        val remaining = directory.listFiles()
+            ?.filter { it.isFile }
+            ?.sortedByDescending { it.lastModified() }
+            ?: return
+        remaining.drop(SHARE_CACHE_MAX_FILES - 1).forEach { excess ->
+            runCatching { excess.delete() }
         }
     }
 }
