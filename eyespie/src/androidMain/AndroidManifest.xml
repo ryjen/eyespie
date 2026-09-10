@@ -50,7 +50,6 @@
                 <action android:name="android.intent.action.VIEW" />
                 <category android:name="android.intent.category.DEFAULT" />
                 <data android:scheme="content" android:pathPattern=".*\\.eyespie" />
-                <data android:scheme="file" android:pathPattern=".*\\.eyespie" />
             </intent-filter>
 
             <intent-filter>
