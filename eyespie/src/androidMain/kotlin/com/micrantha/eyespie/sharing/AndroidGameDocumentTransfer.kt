@@ -7,6 +7,7 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.SideEffect
 import java.io.ByteArrayOutputStream
+import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
@@ -78,6 +79,15 @@ class AndroidGameDocumentTransfer(
         return true
     }
 
+    /** Platform-only recreation token; never crosses into common navigation or MVI state. */
+    fun pendingExternalDocumentState(): String? = pendingExternalUri?.toString()
+
+    override fun acknowledgePendingDocument() {
+        if (pendingExternalUri == null) return
+        pendingExternalUri = null
+        pendingExternalState.value = false
+    }
+
     fun completeWriteSelection(uri: Uri?) {
         val pending = pendingWrite ?: return
         pending.complete(uri)
@@ -118,10 +128,9 @@ class AndroidGameDocumentTransfer(
         if (externalUri != null) {
             if (!operationMutex.tryLock()) return GameDocumentReadResult.Busy
             return try {
-                if (pendingExternalUri == externalUri) {
-                    pendingExternalUri = null
-                    pendingExternalState.value = false
-                }
+                // Do not clear the platform handoff here. Common import preparation acknowledges it
+                // only after verification reaches a stable preview or terminal result. If this
+                // coroutine is cancelled, the URI remains retryable.
                 readBounded(externalUri)
             } finally {
                 operationMutex.unlock()
@@ -156,6 +165,8 @@ class AndroidGameDocumentTransfer(
                 it.flush()
             }
             GameDocumentWriteResult.Success
+        } catch (cancelled: CancellationException) {
+            throw cancelled
         } catch (_: Exception) {
             GameDocumentWriteResult.Failed
         }
@@ -180,6 +191,8 @@ class AndroidGameDocumentTransfer(
                 }
                 GameDocumentReadResult.Success(output.toByteArray())
             }
+        } catch (cancelled: CancellationException) {
+            throw cancelled
         } catch (_: Exception) {
             GameDocumentReadResult.Failed
         }
