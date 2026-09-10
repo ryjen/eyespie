@@ -9,6 +9,9 @@ sealed interface ExternalAppIntent {
 
 interface ExternalAppIntentSource {
     val intents: Flow<ExternalAppIntent>
+
+    /** Commit one handled intent; cancellation before handling leaves it retryable. */
+    fun acknowledge(intent: ExternalAppIntent) = Unit
 }
 
 /**
