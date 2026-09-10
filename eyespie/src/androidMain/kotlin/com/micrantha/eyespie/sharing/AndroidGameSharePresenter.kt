@@ -12,7 +12,7 @@ import kotlinx.coroutines.withContext
 
 private const val SHARE_CACHE_DIRECTORY = "eyespie-shares"
 private const val SHARE_PROVIDER_SUFFIX = ".eyespie-share"
-private const val SHARE_CACHE_MAX_FILES = 32
+private const val SHARE_CACHE_MAX_ENTRIES = 32
 private const val SHARE_CACHE_MAX_AGE_MS = 24L * 60L * 60L * 1000L
 
 class AndroidGameSharePresenter(
@@ -60,7 +60,7 @@ class AndroidGameSharePresenter(
             if (!directory.exists() && !directory.mkdirs()) {
                 null
             } else {
-                cleanupStaleShareFiles(directory)
+                cleanupStaleShareEntries(directory)
 
                 val leaf = suggestedFileName
                     .substringAfterLast('/')
@@ -68,11 +68,15 @@ class AndroidGameSharePresenter(
                     .take(96)
                     .ifBlank { "eyespie-game.eyespie" }
                 val safeLeaf = if (leaf.endsWith(".eyespie", ignoreCase = true)) leaf else "$leaf.eyespie"
-                val uniqueLeaf = "${UUID.randomUUID()}-$safeLeaf"
-                File(directory, uniqueLeaf).apply {
-                    outputStream().use { output ->
-                        output.write(bytes)
-                        output.flush()
+                val shareDirectory = File(directory, UUID.randomUUID().toString())
+                if (!shareDirectory.mkdir()) {
+                    null
+                } else {
+                    File(shareDirectory, safeLeaf).apply {
+                        outputStream().use { output ->
+                            output.write(bytes)
+                            output.flush()
+                        }
                     }
                 }
             }
@@ -81,19 +85,18 @@ class AndroidGameSharePresenter(
         }
     }
 
-    private fun cleanupStaleShareFiles(directory: File) {
-        val files = directory.listFiles()?.filter { it.isFile } ?: return
+    private fun cleanupStaleShareEntries(directory: File) {
+        val entries = directory.listFiles()?.toList() ?: return
         val cutoff = System.currentTimeMillis() - SHARE_CACHE_MAX_AGE_MS
-        files.filter { it.lastModified() < cutoff }.forEach { stale ->
-            runCatching { stale.delete() }
-        }
+        entries.filter { it.lastModified() < cutoff }.forEach(::deleteRecursivelyQuietly)
 
         val remaining = directory.listFiles()
-            ?.filter { it.isFile }
             ?.sortedByDescending { it.lastModified() }
             ?: return
-        remaining.drop(SHARE_CACHE_MAX_FILES - 1).forEach { excess ->
-            runCatching { excess.delete() }
-        }
+        remaining.drop(SHARE_CACHE_MAX_ENTRIES - 1).forEach(::deleteRecursivelyQuietly)
+    }
+
+    private fun deleteRecursivelyQuietly(entry: File) {
+        runCatching { entry.deleteRecursively() }
     }
 }
