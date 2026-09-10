@@ -26,8 +26,7 @@ fun externalEyespieDocumentUri(intent: Intent?): Uri? {
     val declaredEyespieType = intent.type.equals(EYESPIE_ANDROID_MIME_TYPE, ignoreCase = true)
     val eyespieExtension = uri.lastPathSegment
         ?.substringBefore('?')
-        ?.endsWith(".eyespie", ignoreCase = true)
-        == true
+        ?.endsWith(".eyespie", ignoreCase = true) == true
 
     return uri.takeIf { declaredEyespieType || eyespieExtension }
 }
