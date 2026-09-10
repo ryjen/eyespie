@@ -18,6 +18,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.produceState
 import androidx.compose.runtime.remember
@@ -36,12 +37,15 @@ import com.micrantha.eyespie.app.toDestination
 import com.micrantha.eyespie.game.EyespieRuntime
 import com.micrantha.eyespie.presentation.theme.EyespieLogo
 import com.micrantha.eyespie.presentation.theme.EyespieTheme
+import com.micrantha.eyespie.sharing.ExternalGameDocumentSource
 import com.micrantha.eyespie.sharing.GameDocumentTransfer
+import kotlinx.coroutines.flow.filter
 
 @Composable
 fun App(
     runtime: EyespieRuntime,
     documentTransfer: GameDocumentTransfer? = null,
+    externalDocumentSource: ExternalGameDocumentSource? = null,
 ) {
     val onboardingCompleted by produceState<Boolean?>(null, runtime) {
         value = try {
@@ -70,12 +74,13 @@ fun App(
                         LoadingLocalGame()
                     }
                 } else {
-                    val navigation = remember(runtime, documentTransfer) { AppNavigationBridge() }
-                    val graph = remember(runtime, documentTransfer, navigation) {
+                    val navigation = remember(runtime, documentTransfer, externalDocumentSource) { AppNavigationBridge() }
+                    val graph = remember(runtime, documentTransfer, externalDocumentSource, navigation) {
                         AppGraphFactory.fromRuntime(
                             runtime = runtime,
                             navigation = navigation,
                             documentTransfer = documentTransfer,
+                            externalDocumentSource = externalDocumentSource,
                         )
                     }
                     val showMessage: suspend (String) -> Unit = remember(snackbarHostState) {
@@ -92,6 +97,16 @@ fun App(
                             DisposableEffect(navigation, voyagerNavigation) {
                                 navigation.attach(voyagerNavigation)
                                 onDispose { navigation.detach(voyagerNavigation) }
+                            }
+                            LaunchedEffect(externalDocumentSource, completed, voyagerNavigation) {
+                                if (completed) {
+                                    externalDocumentSource
+                                        ?.pending
+                                        ?.filter { it }
+                                        ?.collect {
+                                            voyagerNavigation.replaceAll(AppRoute.Home)
+                                        }
+                                }
                             }
 
                             val currentScreen = navigator.lastItem
