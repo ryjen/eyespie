@@ -2,9 +2,13 @@ package com.micrantha.eyespie.app
 
 import android.content.Intent
 import android.net.Uri
+import com.micrantha.eyespie.core.GameId
 import kotlin.test.Test
+import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertTrue
+import kotlinx.coroutines.flow.first
+import kotlinx.coroutines.test.runTest
 
 class AndroidExternalAppIntentSourceTest {
     @Test
@@ -12,6 +16,19 @@ class AndroidExternalAppIntentSourceTest {
         val source = AndroidExternalAppIntentSource()
 
         assertTrue(source.offer(viewIntent("eyespie://game/game:1234-abcd")))
+    }
+
+    @Test
+    fun latest_pending_deep_link_wins() = runTest {
+        val source = AndroidExternalAppIntentSource()
+
+        assertTrue(source.offer(viewIntent("eyespie://game/game:first")))
+        assertTrue(source.offer(viewIntent("eyespie://game/game:second")))
+
+        assertEquals(
+            ExternalAppIntent.OpenLocalGame(GameId("game:second")),
+            source.intents.first(),
+        )
     }
 
     @Test
