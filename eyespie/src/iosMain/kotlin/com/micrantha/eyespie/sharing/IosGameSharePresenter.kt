@@ -13,6 +13,7 @@ import platform.Foundation.NSURL
 import platform.Foundation.NSUUID
 import platform.UIKit.UIActivityViewController
 import platform.UIKit.UIViewController
+import platform.UIKit.popoverPresentationController
 
 @OptIn(ExperimentalForeignApi::class)
 class IosGameSharePresenter(
