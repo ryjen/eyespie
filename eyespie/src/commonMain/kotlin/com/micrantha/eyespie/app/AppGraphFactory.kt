@@ -18,6 +18,7 @@ import com.micrantha.eyespie.features.utility.UtilityFactory
 import com.micrantha.eyespie.game.EyespieRuntime
 import com.micrantha.eyespie.game.GameSnapshotLoader
 import com.micrantha.eyespie.game.GameThumbnailCache
+import com.micrantha.eyespie.sharing.ExternalGameDocumentSource
 import com.micrantha.eyespie.sharing.GameDocumentTransfer
 
 object AppGraphFactory {
@@ -25,6 +26,7 @@ object AppGraphFactory {
         runtime: EyespieRuntime,
         navigation: AppNavigation,
         documentTransfer: GameDocumentTransfer? = null,
+        externalDocumentSource: ExternalGameDocumentSource? = null,
     ): AppGraph {
         val capabilities = LocalGameAdapter(runtime, documentTransfer)
         return fromCapabilities(
@@ -39,6 +41,7 @@ object AppGraphFactory {
             onboardingPreferences = runtime.onboardingPreferences,
             navigation = navigation,
             gameSharer = capabilities,
+            externalDocumentSource = externalDocumentSource,
         )
     }
 
@@ -54,6 +57,7 @@ object AppGraphFactory {
         onboardingPreferences: OnboardingPreferenceStore,
         navigation: AppNavigation,
         gameSharer: GameSharer = UnavailableGameSharer,
+        externalDocumentSource: ExternalGameDocumentSource? = null,
     ): AppGraph {
         val coordinator = AppCoordinator(navigation)
         return AppGraph(
@@ -64,6 +68,7 @@ object AppGraphFactory {
                 importCanceller = gameImportCanceller,
                 thumbnailCache = gameThumbnailCache,
                 output = coordinator::onHomeOutput,
+                externalDocumentSource = externalDocumentSource,
             ),
             onboardingFactory = OnboardingFactory(
                 onboardingPreferences,
