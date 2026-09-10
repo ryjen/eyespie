@@ -198,6 +198,7 @@ class OperationalTelemetry(
 ) {
     suspend fun <T> observe(
         operation: DiagnosticOperation,
+        failureCode: DiagnosticCode = DiagnosticCode.UNEXPECTED_FAILURE,
         classify: (T) -> DiagnosticOutcome = { DiagnosticOutcome.Success },
         block: suspend () -> T,
     ): T {
@@ -215,7 +216,11 @@ class OperationalTelemetry(
             emit(operation, DiagnosticOutcome.Cancelled, started.elapsedNow().inWholeMilliseconds)
             throw cancelled
         } catch (throwable: Throwable) {
-            emit(operation, DiagnosticOutcome.UnexpectedFailure, started.elapsedNow().inWholeMilliseconds)
+            emit(
+                operation,
+                DiagnosticOutcome.failed(failureCode),
+                started.elapsedNow().inWholeMilliseconds,
+            )
             throw throwable
         }
     }
