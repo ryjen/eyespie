@@ -18,12 +18,37 @@ struct ContentView: View {
     var body: some View {
 #if DEBUG
         ComposeView().ignoresSafeArea(.all, edges: .bottom)
+            .onOpenURL(perform: handleExternalURL)
             .onAppear {
                 runEmbeddingCalibrationIfRequested()
             }
 #else
         ComposeView().ignoresSafeArea(.all, edges: .bottom)
+            .onOpenURL(perform: handleExternalURL)
 #endif
+    }
+
+    private func handleExternalURL(_ url: URL) {
+        if url.isFileURL {
+            _ = IosExternalIngressKt.offerIosExternalDocument(url: url as NSURL)
+            return
+        }
+
+        guard let components = URLComponents(url: url, resolvingAgainstBaseURL: false) else {
+            return
+        }
+        let pathSegments = url.pathComponents.filter { component in
+            component != "/" && !component.isEmpty
+        }
+        _ = IosExternalIngressKt.offerIosDeepLink(
+            scheme: components.scheme,
+            host: components.host,
+            pathSegments: pathSegments,
+            hasQuery: components.query != nil,
+            hasFragment: components.fragment != nil,
+            hasUserInfo: components.user != nil || components.password != nil,
+            hasPort: components.port != nil
+        )
     }
 
 #if DEBUG
