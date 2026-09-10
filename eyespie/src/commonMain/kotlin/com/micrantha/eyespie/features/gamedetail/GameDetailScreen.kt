@@ -110,9 +110,14 @@ fun GameDetailScreen(
         }
 
         if (content.localCreator) {
+            val transferInProgress = state.shareInProgress || state.saveInProgress
             EyespieSectionHeader(
                 title = "Case tools",
-                supportingText = "Author locally or export a signed handoff.",
+                supportingText = if (state.separateSaveAction) {
+                    "Author locally, share through another app, or save the signed game file."
+                } else {
+                    "Author locally or export a signed handoff."
+                },
             )
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -126,12 +131,24 @@ fun GameDetailScreen(
                 EyespieSecondaryAction(
                     text = if (state.shareInProgress) "Preparing…" else "Share game",
                     modifier = Modifier.weight(1f),
-                    enabled = !state.shareInProgress,
+                    enabled = !transferInProgress,
                     onClick = { dispatch(GameDetailIntent.ShareSelected) },
                 )
             }
+            if (state.separateSaveAction) {
+                EyespieSecondaryAction(
+                    text = if (state.saveInProgress) "Preparing file…" else "Save game file",
+                    modifier = Modifier.fillMaxWidth(),
+                    enabled = !transferInProgress,
+                    onClick = { dispatch(GameDetailIntent.SaveSelected) },
+                )
+            }
             Text(
-                "Share exports a signed .eyespie file through the platform handoff flow.",
+                if (state.separateSaveAction) {
+                    "Share opens the platform share sheet. Save game file opens the platform document destination. Both use the same signed .eyespie bundle."
+                } else {
+                    "Share exports a signed .eyespie file through the platform handoff flow."
+                },
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

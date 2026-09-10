@@ -2,6 +2,7 @@ package com.micrantha.eyespie.features.home
 
 import com.micrantha.eyespie.game.GameSnapshotLoader
 import com.micrantha.eyespie.game.GameThumbnailCache
+import com.micrantha.eyespie.sharing.ExternalGameDocumentSource
 import kotlinx.coroutines.CoroutineScope
 
 class HomeFactory(
@@ -11,6 +12,7 @@ class HomeFactory(
     private val importCanceller: GameImportCanceller,
     private val thumbnailCache: GameThumbnailCache,
     private val output: (HomeOutput) -> Unit,
+    private val externalDocumentSource: ExternalGameDocumentSource? = null,
 ) {
     fun create(
         scope: CoroutineScope,
@@ -24,5 +26,6 @@ class HomeFactory(
         scope = scope,
         output = output,
         initialState = initialState,
+        externalDocumentSource = externalDocumentSource,
     )
 }

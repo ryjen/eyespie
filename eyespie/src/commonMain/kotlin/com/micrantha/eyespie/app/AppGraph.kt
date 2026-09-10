@@ -16,4 +16,5 @@ class AppGraph(
     val gameDetailFactory: GameDetailFactory,
     val clueAuthoringFactory: ClueAuthoringFactory,
     val playGameFactory: PlayGameFactory,
+    val externalAppIntentHandler: ExternalAppIntentHandler,
 )

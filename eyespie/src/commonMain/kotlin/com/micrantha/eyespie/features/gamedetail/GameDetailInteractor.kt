@@ -16,6 +16,7 @@ import kotlinx.coroutines.launch
 class GameDetailInteractor(
     private val snapshotLoader: GameSnapshotLoader,
     private val sharer: GameSharer,
+    private val saver: GameSaver,
     private val thumbnailCache: GameThumbnailCache,
     private val scope: CoroutineScope,
     private val gameId: GameId,
@@ -59,15 +60,30 @@ class GameDetailInteractor(
                 output(GameDetailOutput.AddClueRequested(gameId))
             }
             GameDetailIntent.ShareSelected -> if (
-                !previousState.shareInProgress && previousState.content?.localCreator == true
+                !previousState.shareInProgress &&
+                !previousState.saveInProgress &&
+                previousState.content?.localCreator == true
             ) {
                 val gameName = previousState.content.name
                 scope.launch {
                     dispatch(GameDetailIntent.ShareFinished(sharer.share(gameId, gameName)))
                 }
             }
+            GameDetailIntent.SaveSelected -> if (
+                !previousState.shareInProgress &&
+                !previousState.saveInProgress &&
+                previousState.content?.localCreator == true
+            ) {
+                val gameName = previousState.content.name
+                scope.launch {
+                    dispatch(GameDetailIntent.SaveFinished(saver.save(gameId, gameName)))
+                }
+            }
             is GameDetailIntent.ShareFinished -> if (intent.result != GameDetailShareResult.Cancelled) {
                 effectEmitter.emit(GameDetailEffect.ShareFinished(intent.result))
+            }
+            is GameDetailIntent.SaveFinished -> if (intent.result != GameDetailSaveResult.Cancelled) {
+                effectEmitter.emit(GameDetailEffect.SaveFinished(intent.result))
             }
             GameDetailIntent.Back -> output(GameDetailOutput.Closed)
             is GameDetailIntent.PlaySelected -> output(GameDetailOutput.PlayRequested(gameId, intent.thingId))

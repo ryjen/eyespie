@@ -5,7 +5,9 @@ import com.micrantha.eyespie.features.clueauthoring.ClueAuthoringFactory
 import com.micrantha.eyespie.features.create.CreateGameFactory
 import com.micrantha.eyespie.features.create.GameCreator
 import com.micrantha.eyespie.features.gamedetail.GameDetailFactory
+import com.micrantha.eyespie.features.gamedetail.GameSaver
 import com.micrantha.eyespie.features.gamedetail.GameSharer
+import com.micrantha.eyespie.features.gamedetail.UnavailableGameSaver
 import com.micrantha.eyespie.features.home.GameImportCanceller
 import com.micrantha.eyespie.features.home.GameImportConfirmer
 import com.micrantha.eyespie.features.home.GameImportPreparer
@@ -18,15 +20,24 @@ import com.micrantha.eyespie.features.utility.UtilityFactory
 import com.micrantha.eyespie.game.EyespieRuntime
 import com.micrantha.eyespie.game.GameSnapshotLoader
 import com.micrantha.eyespie.game.GameThumbnailCache
+import com.micrantha.eyespie.sharing.ExternalGameDocumentSource
 import com.micrantha.eyespie.sharing.GameDocumentTransfer
+import com.micrantha.eyespie.sharing.GameSharePresenter
 
 object AppGraphFactory {
     fun fromRuntime(
         runtime: EyespieRuntime,
         navigation: AppNavigation,
         documentTransfer: GameDocumentTransfer? = null,
+        externalDocumentSource: ExternalGameDocumentSource? = null,
+        sharePresenter: GameSharePresenter? = null,
     ): AppGraph {
-        val capabilities = LocalGameAdapter(runtime, documentTransfer)
+        val capabilities = LocalGameAdapter(
+            runtime = runtime,
+            documentTransfer = documentTransfer,
+            sharePresenter = sharePresenter,
+            externalDocumentSource = externalDocumentSource,
+        )
         return fromCapabilities(
             gameSnapshotLoader = runtime.gameLoop,
             gameThumbnailCache = runtime.gameThumbnailCache,
@@ -39,6 +50,9 @@ object AppGraphFactory {
             onboardingPreferences = runtime.onboardingPreferences,
             navigation = navigation,
             gameSharer = capabilities,
+            gameSaver = capabilities,
+            externalDocumentSource = externalDocumentSource,
+            separateSaveAction = sharePresenter != null && documentTransfer != null,
         )
     }
 
@@ -54,6 +68,9 @@ object AppGraphFactory {
         onboardingPreferences: OnboardingPreferenceStore,
         navigation: AppNavigation,
         gameSharer: GameSharer = UnavailableGameSharer,
+        gameSaver: GameSaver = UnavailableGameSaver,
+        externalDocumentSource: ExternalGameDocumentSource? = null,
+        separateSaveAction: Boolean = false,
     ): AppGraph {
         val coordinator = AppCoordinator(navigation)
         return AppGraph(
@@ -64,6 +81,7 @@ object AppGraphFactory {
                 importCanceller = gameImportCanceller,
                 thumbnailCache = gameThumbnailCache,
                 output = coordinator::onHomeOutput,
+                externalDocumentSource = externalDocumentSource,
             ),
             onboardingFactory = OnboardingFactory(
                 onboardingPreferences,
@@ -76,6 +94,8 @@ object AppGraphFactory {
                 sharer = gameSharer,
                 thumbnailCache = gameThumbnailCache,
                 output = coordinator::onGameDetailOutput,
+                saver = gameSaver,
+                separateSaveAction = separateSaveAction,
             ),
             clueAuthoringFactory = ClueAuthoringFactory(
                 clueAuthor,
@@ -85,6 +105,11 @@ object AppGraphFactory {
                 snapshotLoader = gameSnapshotLoader,
                 guessSubmitter = guessSubmitter,
                 output = coordinator::onPlayGameOutput,
+            ),
+            externalAppIntentHandler = ExternalAppIntentHandler(
+                snapshotLoader = gameSnapshotLoader,
+                navigation = navigation,
+                importCanceller = gameImportCanceller,
             ),
         )
     }

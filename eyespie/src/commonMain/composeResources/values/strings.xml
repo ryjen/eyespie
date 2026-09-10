@@ -27,8 +27,13 @@
     <string name="feedback_game_imported">Game imported.</string>
     <string name="feedback_game_already_present">Game already present.</string>
     <string name="feedback_game_shared">Game shared.</string>
+    <string name="feedback_game_saved">Game file saved.</string>
     <string name="failure_share_not_local_creator">Only games authored by this local identity can be shared.</string>
     <string name="failure_share_too_large">The Eyespie game is too large to share.</string>
     <string name="failure_share_failed">This local game could not be shared.</string>
     <string name="failure_share_unavailable">Game sharing is unavailable on this platform.</string>
+    <string name="failure_save_failed">This local game could not be saved.</string>
+    <string name="failure_save_unavailable">Saving game files is unavailable on this platform.</string>
+    <string name="failure_deep_link_game_not_found">That game is not on this device yet. Open or import the shared .eyespie file first.</string>
+    <string name="failure_deep_link_failed">The Eyespie link could not be opened.</string>
 </resources>

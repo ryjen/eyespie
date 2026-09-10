@@ -10,6 +10,8 @@ class GameDetailFactory(
     private val sharer: GameSharer,
     private val thumbnailCache: GameThumbnailCache,
     private val output: (GameDetailOutput) -> Unit,
+    private val saver: GameSaver = UnavailableGameSaver,
+    private val separateSaveAction: Boolean = false,
 ) {
     fun create(
         scope: CoroutineScope,
@@ -18,10 +20,11 @@ class GameDetailFactory(
     ): GameDetailInteractor = GameDetailInteractor(
         snapshotLoader = snapshotLoader,
         sharer = sharer,
+        saver = saver,
         thumbnailCache = thumbnailCache,
         scope = scope,
         gameId = gameId,
         output = output,
-        initialState = initialState,
+        initialState = initialState.copy(separateSaveAction = separateSaveAction),
     )
 }

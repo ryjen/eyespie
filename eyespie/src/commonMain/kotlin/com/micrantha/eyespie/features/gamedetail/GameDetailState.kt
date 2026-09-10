@@ -23,4 +23,6 @@ data class GameDetailState(
     val failure: LocalGameFailure? = null,
     val loadGeneration: Long = 0,
     val shareInProgress: Boolean = false,
+    val saveInProgress: Boolean = false,
+    val separateSaveAction: Boolean = false,
 )

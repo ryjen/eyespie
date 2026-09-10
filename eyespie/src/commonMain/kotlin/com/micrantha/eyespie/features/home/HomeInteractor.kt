@@ -6,8 +6,11 @@ import com.micrantha.eyespie.game.LocalGameResult
 import com.micrantha.eyespie.mvi.BaseInteractor
 import com.micrantha.eyespie.mvi.EffectEmitter
 import com.micrantha.eyespie.mvi.EffectSource
+import com.micrantha.eyespie.sharing.ExternalGameDocumentSource
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.Flow
+import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.launch
 
 class HomeInteractor(
@@ -19,9 +22,25 @@ class HomeInteractor(
     private val scope: CoroutineScope,
     private val output: (HomeOutput) -> Unit,
     initialState: HomeState = HomeState(),
+    private val externalDocumentSource: ExternalGameDocumentSource? = null,
 ) : BaseInteractor<HomeState, HomeIntent>(initialState, HomeReducer), EffectSource<HomeEffect> {
     private val effectEmitter = EffectEmitter<HomeEffect>()
     override val effects: Flow<HomeEffect> = effectEmitter.effects
+    private var deferredExternalImport = false
+    private val externalDocumentJob: Job? = externalDocumentSource?.let { source ->
+        scope.launch {
+            source.pending
+                .filter { it }
+                .collect {
+                    val currentState = state.value
+                    if (currentState.importInProgress || currentState.importPreview != null) {
+                        deferredExternalImport = true
+                    } else {
+                        dispatch(HomeIntent.ImportSelected)
+                    }
+                }
+        }
+    }
 
     override fun afterReduce(
         intent: HomeIntent,
@@ -66,11 +85,15 @@ class HomeInteractor(
                     }
                 }
             }
-            is HomeIntent.ImportFinished -> if (intent.result != HomeImportResult.Cancelled) {
-                effectEmitter.emit(HomeEffect.ImportFinished(intent.result))
+            is HomeIntent.ImportFinished -> {
+                if (intent.result != HomeImportResult.Cancelled) {
+                    effectEmitter.emit(HomeEffect.ImportFinished(intent.result))
+                }
+                retryDeferredExternalImport(stateAfterReduce)
             }
             HomeIntent.ImportPreviewCancelled -> if (!previousState.importInProgress && previousState.importPreview != null) {
-                importCanceller.cancelImport()
+                importCanceller.discardImport()
+                retryDeferredExternalImport(stateAfterReduce)
             }
             HomeIntent.OnboardingSelected -> output(HomeOutput.OnboardingRequested)
             HomeIntent.UtilitySelected -> output(HomeOutput.UtilityRequested)
@@ -80,7 +103,21 @@ class HomeInteractor(
         }
     }
 
+    private fun retryDeferredExternalImport(stateAfterReduce: HomeState) {
+        if (!deferredExternalImport) return
+        val source = externalDocumentSource ?: return
+        if (!source.pending.value) {
+            deferredExternalImport = false
+            return
+        }
+        if (stateAfterReduce.importInProgress || stateAfterReduce.importPreview != null) return
+
+        deferredExternalImport = false
+        dispatch(HomeIntent.ImportSelected)
+    }
+
     fun dispose() {
+        externalDocumentJob?.cancel()
         importCanceller.cancelImport()
     }
 }
