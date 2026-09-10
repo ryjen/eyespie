@@ -6,6 +6,11 @@ interface GameSaver {
     suspend fun save(gameId: GameId, gameName: String): GameDetailSaveResult
 }
 
+object UnavailableGameSaver : GameSaver {
+    override suspend fun save(gameId: GameId, gameName: String): GameDetailSaveResult =
+        GameDetailSaveResult.Unavailable
+}
+
 sealed interface GameDetailSaveResult {
     data object Saved : GameDetailSaveResult
     data object NotLocalCreator : GameDetailSaveResult
