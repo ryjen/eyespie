@@ -44,7 +44,6 @@ import com.micrantha.eyespie.presentation.theme.extendedColors
 fun GameDetailScreen(
     state: GameDetailState,
     dispatch: (GameDetailIntent) -> Unit,
-    separateSaveAction: Boolean = false,
 ) {
     Column(
         modifier = Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
@@ -114,7 +113,7 @@ fun GameDetailScreen(
             val transferInProgress = state.shareInProgress || state.saveInProgress
             EyespieSectionHeader(
                 title = "Case tools",
-                supportingText = if (separateSaveAction) {
+                supportingText = if (state.separateSaveAction) {
                     "Author locally, share through another app, or save the signed game file."
                 } else {
                     "Author locally or export a signed handoff."
@@ -136,7 +135,7 @@ fun GameDetailScreen(
                     onClick = { dispatch(GameDetailIntent.ShareSelected) },
                 )
             }
-            if (separateSaveAction) {
+            if (state.separateSaveAction) {
                 EyespieSecondaryAction(
                     text = if (state.saveInProgress) "Preparing file…" else "Save game file",
                     modifier = Modifier.fillMaxWidth(),
@@ -145,7 +144,7 @@ fun GameDetailScreen(
                 )
             }
             Text(
-                if (separateSaveAction) {
+                if (state.separateSaveAction) {
                     "Share opens the platform share sheet. Save game file opens the platform document destination. Both use the same signed .eyespie bundle."
                 } else {
                     "Share exports a signed .eyespie file through the platform handoff flow."
