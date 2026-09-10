@@ -110,9 +110,10 @@ fun GameDetailScreen(
         }
 
         if (content.localCreator) {
+            val transferInProgress = state.shareInProgress || state.saveInProgress
             EyespieSectionHeader(
                 title = "Case tools",
-                supportingText = "Author locally or export a signed handoff.",
+                supportingText = "Author locally, share through another app, or save the signed game file.",
             )
             Row(
                 modifier = Modifier.fillMaxWidth(),
@@ -126,12 +127,18 @@ fun GameDetailScreen(
                 EyespieSecondaryAction(
                     text = if (state.shareInProgress) "Preparing…" else "Share game",
                     modifier = Modifier.weight(1f),
-                    enabled = !state.shareInProgress,
+                    enabled = !transferInProgress,
                     onClick = { dispatch(GameDetailIntent.ShareSelected) },
                 )
             }
+            EyespieSecondaryAction(
+                text = if (state.saveInProgress) "Preparing file…" else "Save game file",
+                modifier = Modifier.fillMaxWidth(),
+                enabled = !transferInProgress,
+                onClick = { dispatch(GameDetailIntent.SaveSelected) },
+            )
             Text(
-                "Share exports a signed .eyespie file through the platform handoff flow.",
+                "Share opens the platform share sheet. Save game file opens the platform document destination. Both use the same signed .eyespie bundle.",
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
