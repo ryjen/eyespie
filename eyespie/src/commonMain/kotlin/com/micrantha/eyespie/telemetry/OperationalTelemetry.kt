@@ -23,6 +23,9 @@ enum class DiagnosticOperation {
     BUNDLE_EXPORT,
     BUNDLE_IMPORT_PREVIEW,
     BUNDLE_IMPORT,
+    GAME_OPEN_HANDOFF,
+    GAME_SAVE_HANDOFF,
+    GAME_SHARE_HANDOFF,
 }
 
 enum class DiagnosticResult {
@@ -59,6 +62,9 @@ enum class DiagnosticCode {
     BUNDLE_INVALID_SIGNATURE,
     BUNDLE_SIGNATURE_VERIFICATION_FAILED,
     BUNDLE_CONFLICT,
+    HANDOFF_BUSY,
+    HANDOFF_TOO_LARGE,
+    HANDOFF_FAILED,
     TELEMETRY_CLASSIFICATION_FAILED,
     UNEXPECTED_FAILURE,
 }
@@ -210,6 +216,10 @@ private fun DiagnosticOperation.defaultFailureCode(): DiagnosticCode = when (thi
     DiagnosticOperation.PROGRESS_PERSIST,
     -> DiagnosticCode.PERSISTENCE_FAILED
     DiagnosticOperation.CAMERA_CAPTURE -> DiagnosticCode.CAMERA_CAPTURE_FAILED
+    DiagnosticOperation.GAME_OPEN_HANDOFF,
+    DiagnosticOperation.GAME_SAVE_HANDOFF,
+    DiagnosticOperation.GAME_SHARE_HANDOFF,
+    -> DiagnosticCode.HANDOFF_FAILED
     else -> DiagnosticCode.UNEXPECTED_FAILURE
 }
 
