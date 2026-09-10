@@ -30,7 +30,7 @@ struct ContentView: View {
 
     private func handleExternalURL(_ url: URL) {
         if url.isFileURL {
-            _ = IosExternalIngressKt.offerIosExternalDocument(url: url as NSURL)
+            _ = IosExternalIngressKt.offerIosExternalDocument(url: url)
             return
         }
 
