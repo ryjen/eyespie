@@ -8,6 +8,7 @@ import com.micrantha.eyespie.mvi.EffectEmitter
 import com.micrantha.eyespie.mvi.EffectSource
 import com.micrantha.eyespie.sharing.ExternalGameDocumentSource
 import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.filter
 import kotlinx.coroutines.launch
@@ -26,21 +27,18 @@ class HomeInteractor(
     private val effectEmitter = EffectEmitter<HomeEffect>()
     override val effects: Flow<HomeEffect> = effectEmitter.effects
     private var deferredExternalImport = false
-
-    init {
-        externalDocumentSource?.let { source ->
-            scope.launch {
-                source.pending
-                    .filter { it }
-                    .collect {
-                        val currentState = state.value
-                        if (currentState.importInProgress || currentState.importPreview != null) {
-                            deferredExternalImport = true
-                        } else {
-                            dispatch(HomeIntent.ImportSelected)
-                        }
+    private val externalDocumentJob: Job? = externalDocumentSource?.let { source ->
+        scope.launch {
+            source.pending
+                .filter { it }
+                .collect {
+                    val currentState = state.value
+                    if (currentState.importInProgress || currentState.importPreview != null) {
+                        deferredExternalImport = true
+                    } else {
+                        dispatch(HomeIntent.ImportSelected)
                     }
-            }
+                }
         }
     }
 
@@ -119,6 +117,7 @@ class HomeInteractor(
     }
 
     fun dispose() {
+        externalDocumentJob?.cancel()
         importCanceller.cancelImport()
     }
 }
