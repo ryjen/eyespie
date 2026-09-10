@@ -15,7 +15,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.sync.Mutex
 import kotlinx.coroutines.withContext
 
-private const val EYESPIE_MIME_TYPE = "application/octet-stream"
+const val EYESPIE_ANDROID_MIME_TYPE = "application/vnd.micrantha.eyespie"
 private const val READ_BUFFER_SIZE = 8 * 1024
 
 @Composable
@@ -23,7 +23,7 @@ fun rememberAndroidGameDocumentTransfer(
     controller: AndroidGameDocumentTransfer,
 ): GameDocumentTransfer {
     val createDocument = rememberLauncherForActivityResult(
-        ActivityResultContracts.CreateDocument(EYESPIE_MIME_TYPE),
+        ActivityResultContracts.CreateDocument(EYESPIE_ANDROID_MIME_TYPE),
     ) { uri ->
         controller.completeWriteSelection(uri)
     }
