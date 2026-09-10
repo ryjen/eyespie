@@ -5,15 +5,17 @@ import com.micrantha.eyespie.core.GameId
 import com.micrantha.eyespie.core.ThingId
 import com.micrantha.eyespie.identity.LocalPlayerIdentityRepository
 import com.micrantha.eyespie.identity.PlatformSigningIdentity
+import com.micrantha.eyespie.imaging.AndroidImageRotator
 import com.micrantha.eyespie.imaging.MediaPipeImageEmbeddingGenerator
 import com.micrantha.eyespie.imaging.SkiaThumbnailCodec
-import com.micrantha.eyespie.imaging.AndroidImageRotator
 import com.micrantha.eyespie.imaging.loadAndroidImageEmbeddingModel
 import com.micrantha.eyespie.persistence.AndroidEyespieDatabaseFactory
 import com.micrantha.eyespie.persistence.SqlGameRepository
 import com.micrantha.eyespie.persistence.SqlOnboardingPreferenceStore
 import com.micrantha.eyespie.persistence.SqlThingProgressRepository
 import com.micrantha.eyespie.sharing.GameBundleService
+import com.micrantha.eyespie.telemetry.BoundedDiagnosticSink
+import com.micrantha.eyespie.telemetry.OperationalTelemetry
 import java.util.UUID
 
 fun createAndroidEyespieRuntime(context: Context): EyespieRuntime {
@@ -23,6 +25,7 @@ fun createAndroidEyespieRuntime(context: Context): EyespieRuntime {
     val identityRepository = LocalPlayerIdentityRepository(signingIdentity)
     val gameRepository = SqlGameRepository(database)
     val embeddingModel = loadAndroidImageEmbeddingModel(applicationContext)
+    val diagnosticSink = BoundedDiagnosticSink()
 
     return EyespieRuntime(
         gameLoop = LocalGameLoop(
@@ -36,6 +39,7 @@ fun createAndroidEyespieRuntime(context: Context): EyespieRuntime {
             idGenerator = AndroidLocalGameIdGenerator(),
             thumbnailCodec = SkiaThumbnailCodec,
             imageRotator = AndroidImageRotator,
+            telemetry = OperationalTelemetry(diagnosticSink),
         ),
         bundleService = GameBundleService(
             identityRepository = identityRepository,
@@ -44,6 +48,7 @@ fun createAndroidEyespieRuntime(context: Context): EyespieRuntime {
         ),
         onboardingPreferences = SqlOnboardingPreferenceStore(database),
         gameThumbnailCache = gameRepository,
+        diagnostics = diagnosticSink,
     )
 }
 
