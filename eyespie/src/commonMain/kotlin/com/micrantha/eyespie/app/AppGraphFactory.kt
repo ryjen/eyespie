@@ -97,6 +97,11 @@ object AppGraphFactory {
                 guessSubmitter = guessSubmitter,
                 output = coordinator::onPlayGameOutput,
             ),
+            externalAppIntentHandler = ExternalAppIntentHandler(
+                snapshotLoader = gameSnapshotLoader,
+                navigation = navigation,
+                importCanceller = gameImportCanceller,
+            ),
         )
     }
 }
