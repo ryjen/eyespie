@@ -50,7 +50,7 @@ class IosGameSharePresenter(
                 activityItems = listOf(fileUrl),
                 applicationActivities = null,
             )
-            controller.popoverPresentationController()?.let { popover ->
+            controller.popoverPresentationController?.let { popover ->
                 popover.sourceView = host.view
                 popover.sourceRect = host.view.bounds
             }
