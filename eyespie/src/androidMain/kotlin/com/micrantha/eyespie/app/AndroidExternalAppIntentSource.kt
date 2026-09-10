@@ -12,6 +12,8 @@ class AndroidExternalAppIntentSource : ExternalAppIntentSource {
     fun offer(intent: Intent?): Boolean {
         if (intent?.action != Intent.ACTION_VIEW) return false
         val uri = intent.data ?: return false
+        if (uri.userInfo != null || uri.port != -1 || uri.query != null || uri.fragment != null) return false
+
         val parsed = parseEyespieDeepLink(
             scheme = uri.scheme,
             host = uri.host,
