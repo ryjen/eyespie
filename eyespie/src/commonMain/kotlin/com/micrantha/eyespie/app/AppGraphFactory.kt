@@ -5,7 +5,9 @@ import com.micrantha.eyespie.features.clueauthoring.ClueAuthoringFactory
 import com.micrantha.eyespie.features.create.CreateGameFactory
 import com.micrantha.eyespie.features.create.GameCreator
 import com.micrantha.eyespie.features.gamedetail.GameDetailFactory
+import com.micrantha.eyespie.features.gamedetail.GameSaver
 import com.micrantha.eyespie.features.gamedetail.GameSharer
+import com.micrantha.eyespie.features.gamedetail.UnavailableGameSaver
 import com.micrantha.eyespie.features.home.GameImportCanceller
 import com.micrantha.eyespie.features.home.GameImportConfirmer
 import com.micrantha.eyespie.features.home.GameImportPreparer
@@ -47,6 +49,7 @@ object AppGraphFactory {
             onboardingPreferences = runtime.onboardingPreferences,
             navigation = navigation,
             gameSharer = capabilities,
+            gameSaver = capabilities,
             externalDocumentSource = externalDocumentSource,
         )
     }
@@ -63,6 +66,7 @@ object AppGraphFactory {
         onboardingPreferences: OnboardingPreferenceStore,
         navigation: AppNavigation,
         gameSharer: GameSharer = UnavailableGameSharer,
+        gameSaver: GameSaver = UnavailableGameSaver,
         externalDocumentSource: ExternalGameDocumentSource? = null,
     ): AppGraph {
         val coordinator = AppCoordinator(navigation)
@@ -87,6 +91,7 @@ object AppGraphFactory {
                 sharer = gameSharer,
                 thumbnailCache = gameThumbnailCache,
                 output = coordinator::onGameDetailOutput,
+                saver = gameSaver,
             ),
             clueAuthoringFactory = ClueAuthoringFactory(
                 clueAuthor,
