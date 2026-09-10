@@ -41,6 +41,7 @@ enum class DiagnosticCode {
     THING_NOT_FOUND,
     MATCH_POLICY_INVALID,
     PERSISTENCE_FAILED,
+    TELEMETRY_CLASSIFICATION_FAILED,
     UNEXPECTED_FAILURE,
 }
 
@@ -57,6 +58,10 @@ data class DiagnosticOutcome(
     companion object {
         val Success = DiagnosticOutcome(DiagnosticResult.SUCCESS)
         val Cancelled = DiagnosticOutcome(DiagnosticResult.CANCELLED)
+        val ClassificationDegraded = DiagnosticOutcome(
+            result = DiagnosticResult.DEGRADED,
+            code = DiagnosticCode.TELEMETRY_CLASSIFICATION_FAILED,
+        )
         val UnexpectedFailure = DiagnosticOutcome(
             result = DiagnosticResult.FAILED,
             code = DiagnosticCode.UNEXPECTED_FAILURE,
@@ -99,6 +104,11 @@ fun interface DiagnosticSink {
     fun record(record: DiagnosticRecord)
 }
 
+interface DiagnosticHistory {
+    fun snapshot(): DiagnosticSnapshot
+    fun clear()
+}
+
 object NoOpDiagnosticSink : DiagnosticSink {
     override fun record(record: DiagnosticRecord) = Unit
 }
@@ -129,7 +139,7 @@ data class DiagnosticSnapshot(
  */
 class BoundedDiagnosticSink(
     private val capacity: Int = DEFAULT_CAPACITY,
-) : DiagnosticSink {
+) : DiagnosticSink, DiagnosticHistory {
     private val mutex = Mutex()
     private val records = ArrayDeque<DiagnosticRecord>(capacity)
     private var evictedRecords: Long = 0
@@ -151,7 +161,7 @@ class BoundedDiagnosticSink(
         }
     }
 
-    fun snapshot(): DiagnosticSnapshot {
+    override fun snapshot(): DiagnosticSnapshot {
         if (!mutex.tryLock()) return DiagnosticSnapshot(emptyList(), evictedRecords = 0)
         return try {
             DiagnosticSnapshot(records.toList(), evictedRecords)
@@ -160,7 +170,7 @@ class BoundedDiagnosticSink(
         }
     }
 
-    fun clear() {
+    override fun clear() {
         if (!mutex.tryLock()) return
         try {
             records.clear()
@@ -190,7 +200,12 @@ class OperationalTelemetry(
         val started = TimeSource.Monotonic.markNow()
         return try {
             val value = block()
-            emit(operation, classify(value), started.elapsedNow().inWholeMilliseconds)
+            val outcome = try {
+                classify(value)
+            } catch (_: Exception) {
+                DiagnosticOutcome.ClassificationDegraded
+            }
+            emit(operation, outcome, started.elapsedNow().inWholeMilliseconds)
             value
         } catch (cancelled: kotlinx.coroutines.CancellationException) {
             emit(operation, DiagnosticOutcome.Cancelled, started.elapsedNow().inWholeMilliseconds)
