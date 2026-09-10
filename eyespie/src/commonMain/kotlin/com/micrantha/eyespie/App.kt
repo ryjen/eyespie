@@ -152,6 +152,9 @@ fun App(
                                                 getString(Res.string.failure_deep_link_failed),
                                             )
                                         }
+                                        // Reaching here means handling (including any user-visible
+                                        // failure message) completed without lifecycle cancellation.
+                                        externalAppIntentSource.acknowledge(intent)
                                     }
                                 }
                             }
