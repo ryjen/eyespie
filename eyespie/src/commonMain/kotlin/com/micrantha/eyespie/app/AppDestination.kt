@@ -22,6 +22,9 @@ internal val LocalAppMessageSink = staticCompositionLocalOf<suspend (String) -> 
 /** Authoring capture/review destinations own safe-area chrome so their visual field can be edge-to-edge. */
 internal interface FullBleedDestination
 
+/** External files/links remain pending until the first-run education gate has been dismissed. */
+internal interface ExternalIngressGateDestination
+
 internal fun AppRoute.toDestination(): Screen = when (this) {
     AppRoute.Home -> HomeDestination
     AppRoute.Onboarding -> OnboardingDestination
@@ -41,7 +44,7 @@ private data object HomeDestination : Screen {
     }
 }
 
-private data object OnboardingDestination : Screen {
+private data object OnboardingDestination : Screen, ExternalIngressGateDestination {
     override val key: ScreenKey = "onboarding"
 
     @Composable
