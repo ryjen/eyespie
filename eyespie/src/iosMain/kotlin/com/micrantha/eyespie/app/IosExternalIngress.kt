@@ -38,7 +38,7 @@ internal object IosExternalIngress : IosExternalGameDocumentSource, ExternalAppI
         hasPort: Boolean,
     ): Boolean {
         if (hasQuery || hasFragment || hasUserInfo || hasPort) return false
-        if (!hasCanonicalSinglePathSegment(percentEncodedPath)) return false
+        if (!hasCanonicalEyespieDeepLinkPath(percentEncodedPath)) return false
         val parsed = parseEyespieDeepLink(scheme, host, pathSegments) ?: return false
         pendingIntentState.value = parsed
         return true
@@ -79,11 +79,5 @@ fun offerIosDeepLink(
     hasUserInfo = hasUserInfo,
     hasPort = hasPort,
 )
-
-private fun hasCanonicalSinglePathSegment(percentEncodedPath: String?): Boolean {
-    val path = percentEncodedPath ?: return false
-    if (path.length <= 1 || path[0] != '/') return false
-    return path.indexOf('/', startIndex = 1) == -1
-}
 
 private const val EYESPIE_FILE_EXTENSION = "eyespie"
