@@ -1,5 +1,6 @@
 package com.micrantha.eyespie.sharing
 
+import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.NonCancellable
@@ -13,6 +14,7 @@ import platform.Foundation.NSUUID
 import platform.UIKit.UIActivityViewController
 import platform.UIKit.UIViewController
 
+@OptIn(ExperimentalForeignApi::class)
 class IosGameSharePresenter(
     private val presenter: () -> UIViewController?,
 ) : GameSharePresenter {
@@ -48,7 +50,7 @@ class IosGameSharePresenter(
                 activityItems = listOf(fileUrl),
                 applicationActivities = null,
             )
-            controller.popoverPresentationController?.let { popover ->
+            controller.popoverPresentationController()?.let { popover ->
                 popover.sourceView = host.view
                 popover.sourceRect = host.view.bounds
             }
