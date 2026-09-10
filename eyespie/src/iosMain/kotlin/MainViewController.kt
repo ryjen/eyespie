@@ -4,6 +4,7 @@ import com.micrantha.eyespie.App
 import com.micrantha.eyespie.AppUnavailable
 import com.micrantha.eyespie.game.createIosEyespieRuntime
 import com.micrantha.eyespie.sharing.IosGameDocumentTransfer
+import com.micrantha.eyespie.telemetry.IosDiagnosticArtifactWriter
 import platform.Foundation.NSLog
 import platform.UIKit.UIViewController
 
@@ -24,7 +25,14 @@ fun MainViewController(): UIViewController {
             val documentTransfer = remember {
                 IosGameDocumentTransfer { controller }
             }
-            App(runtime, documentTransfer)
+            val diagnosticsWriter = remember {
+                IosDiagnosticArtifactWriter { controller }
+            }
+            App(
+                runtime = runtime,
+                documentTransfer = documentTransfer,
+                diagnosticArtifactWriter = diagnosticsWriter,
+            )
         }
     }
     return controller

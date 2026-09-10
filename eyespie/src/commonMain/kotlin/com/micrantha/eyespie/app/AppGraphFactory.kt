@@ -16,6 +16,9 @@ import com.micrantha.eyespie.features.onboarding.OnboardingFactory
 import com.micrantha.eyespie.features.onboarding.OnboardingPreferenceStore
 import com.micrantha.eyespie.features.play.GuessSubmitter
 import com.micrantha.eyespie.features.play.PlayGameFactory
+import com.micrantha.eyespie.features.utility.DiagnosticExportResult
+import com.micrantha.eyespie.features.utility.DiagnosticsExporter
+import com.micrantha.eyespie.features.utility.UnavailableDiagnosticsExporter
 import com.micrantha.eyespie.features.utility.UtilityFactory
 import com.micrantha.eyespie.game.EyespieRuntime
 import com.micrantha.eyespie.game.GameSnapshotLoader
@@ -23,6 +26,10 @@ import com.micrantha.eyespie.game.GameThumbnailCache
 import com.micrantha.eyespie.sharing.ExternalGameDocumentSource
 import com.micrantha.eyespie.sharing.GameDocumentTransfer
 import com.micrantha.eyespie.sharing.GameSharePresenter
+import com.micrantha.eyespie.telemetry.DIAGNOSTIC_ARTIFACT_FILE_NAME
+import com.micrantha.eyespie.telemetry.DiagnosticArtifactWriteResult
+import com.micrantha.eyespie.telemetry.DiagnosticArtifactWriter
+import kotlin.coroutines.cancellation.CancellationException
 
 object AppGraphFactory {
     fun fromRuntime(
@@ -31,6 +38,7 @@ object AppGraphFactory {
         documentTransfer: GameDocumentTransfer? = null,
         externalDocumentSource: ExternalGameDocumentSource? = null,
         sharePresenter: GameSharePresenter? = null,
+        diagnosticArtifactWriter: DiagnosticArtifactWriter? = null,
     ): AppGraph {
         val capabilities = LocalGameAdapter(
             runtime = runtime,
@@ -53,6 +61,7 @@ object AppGraphFactory {
             gameSaver = capabilities,
             externalDocumentSource = externalDocumentSource,
             separateSaveAction = sharePresenter != null && documentTransfer != null,
+            diagnosticsExporter = RuntimeDiagnosticsExporter(runtime, diagnosticArtifactWriter),
         )
     }
 
@@ -71,6 +80,7 @@ object AppGraphFactory {
         gameSaver: GameSaver = UnavailableGameSaver,
         externalDocumentSource: ExternalGameDocumentSource? = null,
         separateSaveAction: Boolean = false,
+        diagnosticsExporter: DiagnosticsExporter = UnavailableDiagnosticsExporter,
     ): AppGraph {
         val coordinator = AppCoordinator(navigation)
         return AppGraph(
@@ -87,7 +97,11 @@ object AppGraphFactory {
                 onboardingPreferences,
                 coordinator::onOnboardingOutput,
             ),
-            utilityFactory = UtilityFactory(gameSnapshotLoader, coordinator::onUtilityOutput),
+            utilityFactory = UtilityFactory(
+                snapshotLoader = gameSnapshotLoader,
+                output = coordinator::onUtilityOutput,
+                diagnosticsExporter = diagnosticsExporter,
+            ),
             createGameFactory = CreateGameFactory(gameCreator, coordinator::onCreateGameOutput),
             gameDetailFactory = GameDetailFactory(
                 snapshotLoader = gameSnapshotLoader,
@@ -112,5 +126,35 @@ object AppGraphFactory {
                 importCanceller = gameImportCanceller,
             ),
         )
+    }
+}
+
+private class RuntimeDiagnosticsExporter(
+    private val runtime: EyespieRuntime,
+    private val writer: DiagnosticArtifactWriter?,
+) : DiagnosticsExporter {
+    override suspend fun export(): DiagnosticExportResult {
+        val writer = writer ?: return DiagnosticExportResult.Unavailable
+        val bytes = try {
+            runtime.diagnosticExport.encodeJson()
+        } catch (_: Exception) {
+            return DiagnosticExportResult.Failed
+        }
+
+        return try {
+            when (writer.write(DIAGNOSTIC_ARTIFACT_FILE_NAME, bytes)) {
+                DiagnosticArtifactWriteResult.Success -> DiagnosticExportResult.Exported
+                DiagnosticArtifactWriteResult.Cancelled -> DiagnosticExportResult.Cancelled
+                DiagnosticArtifactWriteResult.Busy -> DiagnosticExportResult.Busy
+                DiagnosticArtifactWriteResult.TooLarge -> DiagnosticExportResult.TooLarge
+                DiagnosticArtifactWriteResult.Failed -> DiagnosticExportResult.Failed
+            }
+        } catch (cancelled: CancellationException) {
+            throw cancelled
+        } catch (_: Exception) {
+            DiagnosticExportResult.Failed
+        } finally {
+            bytes.fill(0)
+        }
     }
 }

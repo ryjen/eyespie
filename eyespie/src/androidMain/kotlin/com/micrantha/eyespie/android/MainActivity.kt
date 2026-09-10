@@ -16,14 +16,18 @@ import com.micrantha.eyespie.sharing.AndroidGameDocumentTransfer
 import com.micrantha.eyespie.sharing.AndroidGameSharePresenter
 import com.micrantha.eyespie.sharing.externalEyespieDocumentUri
 import com.micrantha.eyespie.sharing.rememberAndroidGameDocumentTransfer
+import com.micrantha.eyespie.telemetry.AndroidDiagnosticArtifactWriter
+import com.micrantha.eyespie.telemetry.rememberAndroidDiagnosticArtifactWriter
 
 class MainActivity : ComponentActivity() {
     private lateinit var documentTransfer: AndroidGameDocumentTransfer
+    private lateinit var diagnosticArtifactWriter: AndroidDiagnosticArtifactWriter
     private val externalAppIntents = AndroidExternalAppIntentSource()
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         documentTransfer = AndroidGameDocumentTransfer(contentResolver)
+        diagnosticArtifactWriter = AndroidDiagnosticArtifactWriter(contentResolver)
 
         if (savedInstanceState == null) {
             offerExternalInput(intent)
@@ -56,12 +60,14 @@ class MainActivity : ComponentActivity() {
             } else {
                 val transfer = rememberAndroidGameDocumentTransfer(documentTransfer)
                 val sharePresenter = remember { AndroidGameSharePresenter(this) }
+                val diagnosticsWriter = rememberAndroidDiagnosticArtifactWriter(diagnosticArtifactWriter)
                 App(
                     runtime = runtime,
                     documentTransfer = transfer,
                     externalDocumentSource = documentTransfer,
                     sharePresenter = sharePresenter,
                     externalAppIntentSource = externalAppIntents,
+                    diagnosticArtifactWriter = diagnosticsWriter,
                 )
             }
         }

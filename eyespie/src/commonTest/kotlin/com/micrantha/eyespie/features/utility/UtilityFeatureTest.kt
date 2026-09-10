@@ -9,6 +9,7 @@ import com.micrantha.eyespie.game.LocalGameResult
 import com.micrantha.eyespie.game.LocalGameSnapshot
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertNull
 import kotlin.test.assertTrue
 import kotlinx.coroutines.ExperimentalCoroutinesApi
@@ -67,6 +68,27 @@ class UtilityFeatureTest {
         assertEquals(UtilityContent("Agent", "player-1"), interactor.state.value.content)
         assertNull(interactor.state.value.failure)
     }
+
+    @OptIn(ExperimentalCoroutinesApi::class)
+    @Test
+    fun diagnostic_export_is_serialized_and_reports_closed_result() = runTest {
+        val exporter = FakeDiagnosticsExporter(DiagnosticExportResult.Exported)
+        val interactor = UtilityFactory(
+            snapshotLoader = FakeSnapshotLoader(),
+            output = {},
+            diagnosticsExporter = exporter,
+        ).create(this)
+
+        interactor.dispatch(UtilityIntent.ExportDiagnostics)
+        interactor.dispatch(UtilityIntent.ExportDiagnostics)
+        assertTrue(interactor.state.value.exportingDiagnostics)
+
+        advanceUntilIdle()
+
+        assertEquals(1, exporter.exports)
+        assertFalse(interactor.state.value.exportingDiagnostics)
+        assertEquals(DiagnosticExportResult.Exported, interactor.state.value.diagnosticExportResult)
+    }
 }
 
 private class FakeSnapshotLoader(
@@ -85,5 +107,16 @@ private class FakeSnapshotLoader(
                 games = emptyList(),
             ),
         )
+    }
+}
+
+private class FakeDiagnosticsExporter(
+    private val result: DiagnosticExportResult,
+) : DiagnosticsExporter {
+    var exports = 0
+
+    override suspend fun export(): DiagnosticExportResult {
+        exports += 1
+        return result
     }
 }

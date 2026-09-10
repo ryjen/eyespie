@@ -3,11 +3,13 @@ package com.micrantha.eyespie.features.utility
 import com.micrantha.eyespie.game.GameSnapshotLoader
 import com.micrantha.eyespie.game.LocalGameResult
 import com.micrantha.eyespie.mvi.BaseInteractor
+import kotlin.coroutines.cancellation.CancellationException
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.launch
 
 class UtilityInteractor(
     private val snapshotLoader: GameSnapshotLoader,
+    private val diagnosticsExporter: DiagnosticsExporter,
     private val scope: CoroutineScope,
     private val output: (UtilityOutput) -> Unit,
     initialState: UtilityState = UtilityState(),
@@ -28,6 +30,18 @@ class UtilityInteractor(
                         )
                         is LocalGameResult.Failure -> dispatch(UtilityIntent.LoadFailed(generation, result.failure))
                     }
+                }
+            }
+            UtilityIntent.ExportDiagnostics -> if (!previousState.exportingDiagnostics) {
+                scope.launch {
+                    val result = try {
+                        diagnosticsExporter.export()
+                    } catch (cancelled: CancellationException) {
+                        throw cancelled
+                    } catch (_: Exception) {
+                        DiagnosticExportResult.Failed
+                    }
+                    dispatch(UtilityIntent.DiagnosticExportCompleted(result))
                 }
             }
             UtilityIntent.OnboardingSelected -> output(UtilityOutput.OnboardingRequested)
