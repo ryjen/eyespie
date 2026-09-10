@@ -1,5 +1,6 @@
 package com.micrantha.eyespie.sharing
 
+import kotlinx.cinterop.ExperimentalForeignApi
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.CompletableDeferred
 import kotlinx.coroutines.Dispatchers
@@ -10,6 +11,7 @@ import okio.Buffer
 import okio.FileSystem
 import okio.Path.Companion.toPath
 import okio.buffer
+import platform.Foundation.NSFileCoordinator
 import platform.Foundation.NSTemporaryDirectory
 import platform.Foundation.NSURL
 import platform.Foundation.NSUUID
@@ -20,10 +22,12 @@ import platform.UIKit.UIViewController
 import platform.darwin.NSObject
 
 private const val IOS_DOCUMENT_READ_CHUNK_BYTES = 8 * 1024L
-private const val IOS_DATA_UTI = "public.data"
+private const val IOS_EYESPIE_UTI = "com.micrantha.eyespie.game"
 
+@OptIn(ExperimentalForeignApi::class)
 class IosGameDocumentTransfer(
     private val presenter: () -> UIViewController?,
+    private val externalDocumentSource: IosExternalGameDocumentSource? = null,
 ) : GameDocumentTransfer {
     private val operationMutex = Mutex()
     private var pendingSelection: CompletableDeferred<NSURL?>? = null
@@ -31,6 +35,19 @@ class IosGameDocumentTransfer(
     private val pickerDelegate = IosDocumentPickerDelegate(::completeSelection)
 
     override suspend fun read(): GameDocumentReadResult {
+        val externalUrl = externalDocumentSource?.pendingDocumentUrl()
+        if (externalUrl != null) {
+            if (pendingSelection != null) return GameDocumentReadResult.Busy
+            if (!operationMutex.tryLock()) return GameDocumentReadResult.Busy
+            return try {
+                withContext(Dispatchers.Default) { readBounded(externalUrl) }
+            } catch (cancelled: CancellationException) {
+                throw cancelled
+            } finally {
+                operationMutex.unlock()
+            }
+        }
+
         if (pendingSelection != null) return GameDocumentReadResult.Busy
         if (!operationMutex.tryLock()) return GameDocumentReadResult.Busy
 
@@ -38,7 +55,7 @@ class IosGameDocumentTransfer(
         return try {
             val presenter = presenter() ?: return GameDocumentReadResult.Failed
             val picker = UIDocumentPickerViewController(
-                documentTypes = listOf(IOS_DATA_UTI),
+                documentTypes = listOf(IOS_EYESPIE_UTI),
                 inMode = UIDocumentPickerMode.UIDocumentPickerModeOpen,
             )
             picker.delegate = pickerDelegate
@@ -62,7 +79,9 @@ class IosGameDocumentTransfer(
         bytes: ByteArray,
     ): GameDocumentWriteResult {
         if (bytes.size > GAME_BUNDLE_MAX_BYTES) return GameDocumentWriteResult.TooLarge
-        if (pendingSelection != null) return GameDocumentWriteResult.Busy
+        if (pendingSelection != null || externalDocumentSource?.pending?.value == true) {
+            return GameDocumentWriteResult.Busy
+        }
         if (!operationMutex.tryLock()) return GameDocumentWriteResult.Busy
 
         val selection = CompletableDeferred<NSURL?>()
@@ -139,27 +158,46 @@ class IosGameDocumentTransfer(
     private fun readBounded(url: NSURL): GameDocumentReadResult {
         val accessedSecurityScope = url.startAccessingSecurityScopedResource()
         try {
-            val rawPath = url.path ?: return GameDocumentReadResult.Failed
-            val source = FileSystem.SYSTEM.source(rawPath.toPath()).buffer()
-            try {
-                val sink = Buffer()
-                var total = 0L
-                while (true) {
-                    val read = source.read(sink, IOS_DOCUMENT_READ_CHUNK_BYTES)
-                    if (read == -1L) break
-                    total += read
-                    if (total > GAME_BUNDLE_MAX_BYTES.toLong()) {
-                        return GameDocumentReadResult.TooLarge
-                    }
-                }
-                return GameDocumentReadResult.Success(sink.readByteArray())
-            } finally {
-                source.close()
+            var result: GameDocumentReadResult = GameDocumentReadResult.Failed
+            val coordinator = NSFileCoordinator(filePresenter = null)
+            coordinator.coordinateReadingItemAtURL(
+                url = url,
+                options = 0uL,
+                error = null,
+            ) { coordinatedUrl ->
+                coordinatedUrl?.let { result = readCoordinatedBounded(it) }
             }
+            return result
         } catch (_: Exception) {
             return GameDocumentReadResult.Failed
         } finally {
             if (accessedSecurityScope) url.stopAccessingSecurityScopedResource()
+        }
+    }
+
+    private fun readCoordinatedBounded(url: NSURL): GameDocumentReadResult {
+        val rawPath = url.path ?: return GameDocumentReadResult.Failed
+        val source = try {
+            FileSystem.SYSTEM.source(rawPath.toPath()).buffer()
+        } catch (_: Exception) {
+            return GameDocumentReadResult.Failed
+        }
+        try {
+            val sink = Buffer()
+            var total = 0L
+            while (true) {
+                val read = source.read(sink, IOS_DOCUMENT_READ_CHUNK_BYTES)
+                if (read == -1L) break
+                total += read
+                if (total > GAME_BUNDLE_MAX_BYTES.toLong()) {
+                    return GameDocumentReadResult.TooLarge
+                }
+            }
+            return GameDocumentReadResult.Success(sink.readByteArray())
+        } catch (_: Exception) {
+            return GameDocumentReadResult.Failed
+        } finally {
+            source.close()
         }
     }
 

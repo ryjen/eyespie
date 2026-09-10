@@ -2,8 +2,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.ui.window.ComposeUIViewController
 import com.micrantha.eyespie.App
 import com.micrantha.eyespie.AppUnavailable
+import com.micrantha.eyespie.app.IosExternalIngress
 import com.micrantha.eyespie.game.createIosEyespieRuntime
 import com.micrantha.eyespie.sharing.IosGameDocumentTransfer
+import com.micrantha.eyespie.sharing.IosGameSharePresenter
 import com.micrantha.eyespie.telemetry.IosDiagnosticArtifactWriter
 import platform.Foundation.NSLog
 import platform.UIKit.UIViewController
@@ -23,7 +25,13 @@ fun MainViewController(): UIViewController {
             AppUnavailable()
         } else {
             val documentTransfer = remember {
-                IosGameDocumentTransfer { controller }
+                IosGameDocumentTransfer(
+                    presenter = { controller },
+                    externalDocumentSource = IosExternalIngress,
+                )
+            }
+            val sharePresenter = remember {
+                IosGameSharePresenter { controller }
             }
             val diagnosticsWriter = remember {
                 IosDiagnosticArtifactWriter { controller }
@@ -31,6 +39,9 @@ fun MainViewController(): UIViewController {
             App(
                 runtime = runtime,
                 documentTransfer = documentTransfer,
+                externalDocumentSource = IosExternalIngress,
+                sharePresenter = sharePresenter,
+                externalAppIntentSource = IosExternalIngress,
                 diagnosticArtifactWriter = diagnosticsWriter,
             )
         }

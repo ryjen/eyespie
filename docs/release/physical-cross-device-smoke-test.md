@@ -14,9 +14,9 @@ physical creator device
   -> create target + manual clue
   -> on-device embedding
   -> local persistence
-  -> signed .eyespie export
-  -> ordinary user-controlled file transfer
-  -> physical guesser device import + signature validation
+  -> signed .eyespie export/share
+  -> native user-controlled transfer
+  -> physical guesser device external open/import + signature validation
   -> related guess / match
   -> unrelated guess / non-match
   -> progress persistence across relaunch
@@ -61,13 +61,49 @@ Before starting the physical scenario:
 - install the **same intended candidate** on both devices;
 - verify the candidate was produced from the source SHA recorded in `/tmp/eyespie-candidate.json`;
 - verify the installed Android/iOS version and build match that manifest;
-- verify #173/#174 software sharing is present in the build;
+- verify #299 native sharing, saving, external document opening, and local-game deep-link routing are present in the build;
 - use ordinary system document/share surfaces only — no app backend transport;
 - confirm each device can launch and establish its device-local cryptographic identity;
 - where #91 calibration reports are collected, use the pinned fixtures and current configured match policy rather than tuning the threshold during this test;
 - note the current status of #18 and #125; this runbook does not substitute for those sign-offs.
 
 After installation/setup, disable normal network connectivity for the core create/import/play proof. A user-selected transfer mechanism may itself use a network service, but the received `.eyespie` file must remain self-verifying and playable with application networking unavailable.
+
+## Native handoff and deep-link acceptance
+
+Treat **share**, **save**, **external file open**, and **deep link** as separate platform behaviors. Passing one does not imply another passes.
+
+On both platforms, verify:
+
+1. **Share game** opens the native OS share sheet rather than a document-save picker.
+2. Select at least one ordinary messaging/chat target available on the test devices and send the `.eyespie` attachment.
+3. From the receiving device, tap the received `.eyespie` attachment rather than first opening Eyespie and choosing Import.
+4. Confirm the OS launches or foregrounds Eyespie and reaches the normal verified import-preview flow before persistence.
+5. Repeat once from a cold application state and once while Eyespie is already running/backgrounded.
+6. Cancel a share and confirm no game authority changes and no stale completion appears later.
+7. **Save game file** opens the native document/files destination and remains distinct from Share game.
+8. Open the saved `.eyespie` from the platform file surface and confirm it reaches the same verified import-preview path.
+
+The file association is hostile-input ingress. MIME type, filename, file extension, sending application, contact identity, AirDrop/Quick Share proximity, or URI authority must not bypass bounded bundle parsing, signature/schema/domain validation, verified preview, or explicit import confirmation.
+
+### Local-game deep links
+
+Use an already accepted local game on each device and exercise:
+
+```text
+eyespie://game/<GameId>
+```
+
+Verify all of the following on Android and iOS:
+
+- cold launch routes to the already-local game;
+- warm/backgrounded launch routes to the already-local game without corrupting the existing navigation stack;
+- an unknown but syntactically valid `GameId` produces the bounded not-available/local-game-needed state and creates/downloads nothing;
+- malformed scheme/host/path variants are rejected;
+- query, fragment, user-info, port, or other decorated variants are rejected where the platform can deliver them;
+- a deep link never carries `.eyespie` bytes, signatures, embeddings, hidden answers, or other portable-game authority.
+
+Opening a `.eyespie` attachment and opening `eyespie://game/<GameId>` are deliberately different paths: the former is untrusted document import; the latter is navigation to authority already accepted locally.
 
 ## Direction A — Android creator → iOS guesser
 
@@ -79,26 +115,30 @@ After installation/setup, disable normal network connectivity for the core creat
    - author a manual clue and creator-only expected answer;
    - confirm challenge creation completes locally.
 
-2. **Relaunch creator before export**
+2. **Relaunch creator before handoff**
    - terminate and relaunch Eyespie;
    - confirm the game/clue reloads;
    - confirm no target image is required to restore the challenge.
 
-3. **Export**
-   - export the game through the Android system document UI;
-   - record the resulting `.eyespie` file byte size and SHA-256 outside the app;
+3. **Share and save**
+   - use **Share game** and confirm Android opens the system share chooser;
+   - send the game through an ordinary messaging/chat target to the iPhone;
+   - separately use **Save game file** and confirm Android opens the system document destination;
+   - record one resulting `.eyespie` artifact byte size and SHA-256 outside the app;
    - do **not** attach the bundle publicly if its target embedding or clue should remain private.
 
-4. **Transfer**
-   - move the file to the iPhone using an ordinary user-controlled mechanism;
-   - do not modify or repackage the file.
-
-5. **Import on iOS**
-   - use `Import .eyespie` and select the transferred document;
-   - expect `Imported` on the first import;
-   - repeat the same import and expect `AlreadyPresent`, not a duplicate or overwrite;
+4. **External open on iOS**
+   - tap the received `.eyespie` attachment from the receiving app/file surface;
+   - confirm iOS launches/foregrounds Eyespie and reaches verified import preview before persistence;
+   - explicitly add the game and expect `Imported` on the first import;
+   - repeat the same file/open and expect `AlreadyPresent`, not a duplicate or overwrite;
    - open the imported game and confirm the playable clue is present;
    - confirm no creator-only expected answer is exposed in guesser-facing UI.
+
+5. **Deep-link the accepted iOS game**
+   - exercise `eyespie://game/<GameId>` once from cold state and once while the app is running/backgrounded;
+   - confirm both navigate only to the already-accepted local game;
+   - exercise an unknown/malformed link and confirm it fails without creating/importing authority.
 
 6. **Guess on iOS**
    - capture a related guess and record match/non-match + configured policy identity;
@@ -112,7 +152,9 @@ After installation/setup, disable normal network connectivity for the core creat
 
 ## Direction B — iOS creator → Android guesser
 
-Repeat the complete Direction A procedure with iOS as creator and Android as guesser. Use a newly authored game so this direction exercises iOS signing/export rather than merely re-exporting imported authority.
+Repeat the complete Direction A procedure with iOS as creator and Android as guesser. Use a newly authored game so this direction exercises iOS signing/share/export rather than merely re-exporting imported authority.
+
+Confirm iOS **Share game** presents `UIActivityViewController` targets such as Messages/AirDrop/installed providers as available on the device, while **Save game file** remains the separate document destination. On Android, tap/open the received attachment externally and repeat the cold/warm deep-link checks after the game is accepted.
 
 An imported game must not be re-signed as though the importing device were the original creator.
 
@@ -139,8 +181,10 @@ On both physical devices:
 - grant permission through the normal OS path and retry successfully;
 - background/cancel during capture where practical and confirm the operation does not later complete unexpectedly;
 - repeat target/guess capture cycles and look for unbounded concurrent work or monotonic app-owned temporary-capture growth;
+- cancel native Share and Save surfaces and confirm no game authority changes or stale result is applied later;
+- receive/open a second `.eyespie` while the app is foregrounded/backgrounded and confirm the external ingress is handled exactly once;
 - on Android, confirm normal Eyespie capture does not create a gallery/MediaStore artifact;
-- on iOS, cancel document import/export and confirm no game authority changes and no stale picker result is applied to a later operation.
+- on iOS, confirm cancelled share/export material is cleaned and a cancelled document open does not affect a later operation.
 
 ## #91 embedding parity evidence
 
@@ -177,6 +221,14 @@ Record a concise result for each Android→iOS and iOS→Android run:
 | Bundle schema | |
 | Bundle byte size | |
 | Bundle SHA-256 | |
+| Native Share sheet opens | pass/fail |
+| Chat/attachment handoff | pass/fail + target category |
+| Cold external attachment open | pass/fail |
+| Warm external attachment open | pass/fail |
+| Separate Save game file surface | pass/fail |
+| Cold local-game deep link | pass/fail |
+| Warm local-game deep link | pass/fail |
+| Invalid/unknown deep link fails boundedly | pass/fail |
 | Creator public-key/`PlayerId` consistency | pass/fail |
 | Signature verification | pass/fail |
 | Embedding model/dimension compatibility | pass/fail |
@@ -196,13 +248,17 @@ For failures, record the stable application diagnostic/result code and a minimal
 
 Do not mark #92 complete until all of the following are true:
 
-- Android-created signed game imports and plays on physical iOS;
-- iOS-created signed game imports and plays on physical Android;
+- Android-created signed game shares/opens/imports and plays on physical iOS;
+- iOS-created signed game shares/opens/imports and plays on physical Android;
+- native Share and Save surfaces remain distinct on both platforms;
+- received `.eyespie` attachments reach verified import preview on cold and warm app launches;
+- `eyespie://game/<GameId>` reaches already-local games on cold and warm launches on both platforms;
+- unknown/malformed deep links fail safely without creating or downloading authority;
 - related/unrelated guesses behave predictably under the **already configured** match policy;
 - imported game/progress survives relaunch in both directions;
 - both directions demonstrate backend/account/network independence for core play;
 - negative bundle checks fail closed without corrupting accepted state;
-- camera/document cancellation and permission recovery are safe;
+- camera/share/document cancellation and permission recovery are safe;
 - #91 physical embedding evidence is attached/accepted;
 - #18 backendless threat-model evidence and #125 telemetry/network evidence are accepted for the candidate;
 - the scenario is repeated against the final closed-alpha candidate.

@@ -12,11 +12,25 @@ import com.micrantha.eyespie.game.LocalGameSnapshot
 import com.micrantha.eyespie.game.LocalGameSummary
 import kotlin.test.Test
 import kotlin.test.assertEquals
+import kotlin.test.assertFalse
 import kotlin.test.assertIs
 import kotlin.test.assertNull
+import kotlin.test.assertTrue
 import kotlinx.coroutines.test.runTest
 
 class ExternalAppIntentTest {
+    @Test
+    fun encoded_path_shape_rejects_platform_normalization_ambiguity() {
+        assertTrue(hasCanonicalEyespieDeepLinkPath("/game:1234"))
+        assertFalse(hasCanonicalEyespieDeepLinkPath(null))
+        assertFalse(hasCanonicalEyespieDeepLinkPath(""))
+        assertFalse(hasCanonicalEyespieDeepLinkPath("/"))
+        assertFalse(hasCanonicalEyespieDeepLinkPath("game:1234"))
+        assertFalse(hasCanonicalEyespieDeepLinkPath("//game:1234"))
+        assertFalse(hasCanonicalEyespieDeepLinkPath("/game:1234/"))
+        assertFalse(hasCanonicalEyespieDeepLinkPath("/one/two"))
+    }
+
     @Test
     fun parser_accepts_only_one_bounded_local_game_segment() {
         val parsed = parseEyespieDeepLink(
