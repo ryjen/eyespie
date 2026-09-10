@@ -25,6 +25,9 @@ internal interface FullBleedDestination
 /** External files/links remain pending until the first-run education gate has been dismissed. */
 internal interface ExternalIngressGateDestination
 
+/** External documents converge here before entering the existing verified import-preview flow. */
+internal interface ExternalDocumentLandingDestination
+
 internal fun AppRoute.toDestination(): Screen = when (this) {
     AppRoute.Home -> HomeDestination
     AppRoute.Onboarding -> OnboardingDestination
@@ -35,7 +38,7 @@ internal fun AppRoute.toDestination(): Screen = when (this) {
     is AppRoute.Play -> PlayDestination(gameId.value, thingId.value)
 }
 
-private data object HomeDestination : Screen {
+private data object HomeDestination : Screen, ExternalDocumentLandingDestination {
     override val key: ScreenKey = "home"
 
     @Composable
