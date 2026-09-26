@@ -12,21 +12,21 @@
     flake-utils,
   }:
     flake-utils.lib.eachDefaultSystem (system: let
+      isAndroidCiSystem = system == "x86_64-linux";
+
       pkgs = import nixpkgs {
         inherit system;
-        config = {
+        config = nixpkgs.lib.optionalAttrs isAndroidCiSystem {
           allowUnfree = true;
           android_sdk.accept_license = true;
         };
       };
 
-      isLinux = pkgs.stdenv.isLinux;
-
       # Keep the ordinary CI closure focused on compilation/package inspection.
       # Emulator/system-image work remains a separate hosted instrumentation
       # workload and must not inflate every Dubnium JIT worker.
       androidComposition =
-        if isLinux
+        if isAndroidCiSystem
         then
           pkgs.androidenv.composeAndroidPackages {
             platformVersions = [ "36" ];
@@ -38,21 +38,18 @@
         else null;
 
       androidSdk =
-        if isLinux
+        if isAndroidCiSystem
         then androidComposition.androidsdk
         else null;
 
-      ciToolchainPackages =
-        [
-          pkgs.jdk21
-          pkgs.python3
-        ]
-        ++ pkgs.lib.optionals isLinux [
-          androidSdk
-        ];
+      ciToolchainPackages = pkgs.lib.optionals isAndroidCiSystem [
+        pkgs.jdk21_headless
+        pkgs.python3
+        androidSdk
+      ];
 
       ciToolchain =
-        if isLinux
+        if isAndroidCiSystem
         then
           pkgs.buildEnv {
             name = "eyespie-android-ci-toolchain";
@@ -60,33 +57,30 @@
           }
         else null;
 
-      androidEnvironment = pkgs.lib.optionalAttrs isLinux {
+      ciEnvironment = pkgs.lib.optionalAttrs isAndroidCiSystem {
         ANDROID_HOME = "${androidSdk}/libexec/android-sdk";
         ANDROID_SDK_ROOT = "${androidSdk}/libexec/android-sdk";
-      };
-
-      shellEnvironment = {
-        JAVA_HOME = pkgs.jdk21.home;
+        JAVA_HOME = pkgs.jdk21_headless.home;
         LANG = "C.UTF-8";
         LC_ALL = "C.UTF-8";
       };
     in {
-      packages = pkgs.lib.optionalAttrs isLinux {
+      packages = pkgs.lib.optionalAttrs isAndroidCiSystem {
         ci-toolchain = ciToolchain;
       };
 
-      checks = pkgs.lib.optionalAttrs isLinux {
+      checks = pkgs.lib.optionalAttrs isAndroidCiSystem {
         ci-toolchain = pkgs.runCommand "eyespie-android-ci-toolchain-check" {
-          nativeBuildInputs = ciToolchainPackages;
+          nativeBuildInputs = [ ciToolchain ];
         } ''
           set -eu
 
-          java -version 2>&1 | grep -Eq 'version "21\\.'
-          python3 --version | grep -Eq '^Python 3\\.'
+          java -version 2>&1 | grep -Eq 'version "21\.'
+          python3 --version | grep -Eq '^Python 3\.'
 
           grep -R -l -F "AndroidVersion.ApiLevel=36" \
             "${androidSdk}/libexec/android-sdk/platforms"/*/source.properties
-          grep -R -l -F "Pkg.Revision=36.0.0" \
+          grep -R -l -F "Pkg.Revision=35.0.0" \
             "${androidSdk}/libexec/android-sdk/build-tools"/*/source.properties
 
           test -n "$(
@@ -94,26 +88,27 @@
               -type f -name apkanalyzer -perm -u+x -print -quit
           )"
 
+          test ! -d "${androidSdk}/libexec/android-sdk/emulator"
+          test ! -d "${androidSdk}/libexec/android-sdk/ndk"
+          test ! -d "${androidSdk}/libexec/android-sdk/system-images"
+
           touch "$out"
         '';
       };
 
       devShells =
         {
-          default = pkgs.mkShellNoCC (shellEnvironment
-            // androidEnvironment
-            // {
-              packages =
-                ciToolchainPackages
-                ++ [
-                  pkgs.actionlint
-                  pkgs.supabase-cli
-                ];
-            });
+          # Preserve the fast repository shell: ordinary editing/linting should
+          # not materialize the Android SDK closure.
+          default = pkgs.mkShellNoCC {
+            packages = [
+              pkgs.actionlint
+              pkgs.supabase-cli
+            ];
+          };
         }
-        // pkgs.lib.optionalAttrs isLinux {
-          ci = pkgs.mkShellNoCC (shellEnvironment
-            // androidEnvironment
+        // pkgs.lib.optionalAttrs isAndroidCiSystem {
+          ci = pkgs.mkShellNoCC (ciEnvironment
             // {
               packages = [ ciToolchain ];
             });
