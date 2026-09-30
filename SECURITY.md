@@ -1,5 +1,7 @@
 # Security
 
+See [Cryptographic Survivability](docs/architecture/cryptographic-survivability.md) for the post-alpha crypto-agility, zero-access, device-key, and post-quantum migration posture.
+
 ## Backendless trust model
 
 Eyespie's default trust boundary is the local device. Core play does not rely on a hosted account, database, storage service, or server-side authorization policy.
