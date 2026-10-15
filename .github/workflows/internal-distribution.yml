@@ -60,7 +60,25 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ inputs.source_sha }}
+          fetch-depth: 0 # full history is required for ancestry proof
           persist-credentials: false
+
+      - name: Authorize candidate against protected main history
+        shell: bash
+        run: |
+          set -euo pipefail
+          # A full SHA identifies code but does not authorize it for signing.
+          # This check runs before any scripts/actions controlled by that SHA.
+          if [ "$GITHUB_REPOSITORY" != "ryjen/eyespie" ] || [ "$GITHUB_REF" != "refs/heads/main" ]; then
+            echo "Internal signing must be dispatched from ryjen/eyespie main" >&2
+            exit 1
+          fi
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          approved_main="$(git rev-parse --verify refs/remotes/origin/main)"
+          if ! git merge-base --is-ancestor "$SOURCE_SHA" "$approved_main"; then
+            echo "Requested commit is not in the approved main ancestry" >&2
+            exit 1
+          fi
 
       - name: Set up JDK 21
         uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
@@ -292,7 +310,25 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ inputs.source_sha }}
+          fetch-depth: 0 # full history is required for ancestry proof
           persist-credentials: false
+
+      - name: Authorize candidate against protected main history
+        shell: bash
+        run: |
+          set -euo pipefail
+          # A full SHA identifies code but does not authorize it for signing.
+          # This check runs before any scripts/actions controlled by that SHA.
+          if [ "$GITHUB_REPOSITORY" != "ryjen/eyespie" ] || [ "$GITHUB_REF" != "refs/heads/main" ]; then
+            echo "Internal signing must be dispatched from ryjen/eyespie main" >&2
+            exit 1
+          fi
+          test "$(git rev-parse HEAD)" = "$SOURCE_SHA"
+          approved_main="$(git rev-parse --verify refs/remotes/origin/main)"
+          if ! git merge-base --is-ancestor "$SOURCE_SHA" "$approved_main"; then
+            echo "Requested commit is not in the approved main ancestry" >&2
+            exit 1
+          fi
 
       - name: Set up JDK 21
         uses: actions/setup-java@b6effb05e454b25005698d916606bdc6ffcbf961 # v5.7.0
