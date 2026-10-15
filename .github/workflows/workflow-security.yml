@@ -7,12 +7,14 @@ on:
       - ".github/workflows/**"
       - ".github/actions/**"
       - ".github/dependabot.yml"
+      - "scripts/tests/test_internal_distribution_source_gate.py"
   pull_request:
     branches: [main]
     paths:
       - ".github/workflows/**"
       - ".github/actions/**"
       - ".github/dependabot.yml"
+      - "scripts/tests/test_internal_distribution_source_gate.py"
   workflow_dispatch:
 
 env:
@@ -38,6 +40,9 @@ jobs:
 
       - name: Set up uv
         uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+
+      - name: Test signed-source authorization against synthetic Git histories
+        run: python3 -m unittest scripts/tests/test_internal_distribution_source_gate.py
 
       - name: Audit GitHub workflows and composite actions
         run: >-
