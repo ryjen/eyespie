@@ -12,11 +12,14 @@ The workflow uses the GitHub environment `closed-alpha-internal`. Configure requ
 
 The caller supplies an exact `source_sha`. Each platform job:
 
-1. checks out that SHA directly;
-2. verifies `git rev-parse HEAD` is identical;
-3. runs `scripts/release_candidate_identity.py verify`;
-4. renders candidate-identity schema v2 from the clean checkout;
-5. runs `scripts/internal_release_evidence.py verify-source` before signing/building.
+1. dispatches the signed-candidate workflow from `refs/heads/main` in `ryjen/eyespie`;
+2. checks out the exact candidate SHA with full Git history;
+3. **before running any candidate-controlled build script**, checks the requested SHA equals checkout HEAD and is an ancestor of `origin/main`; unmerged branch-only commits fail closed;
+4. runs `scripts/release_candidate_identity.py verify`;
+5. renders candidate-identity schema v2 from the clean checkout;
+6. runs `scripts/internal_release_evidence.py verify-source` before signing/building.
+
+The protected `closed-alpha-internal` environment, its required reviewers, and repository branch protection remain independent requirements: ancestry establishes eligibility from approved Git history but **does not** replace authorization to use signing credentials. Building an older ancestor is permitted for repeatable qualification. The source authorization check must run before Gradle/CocoaPods/Fastlane or any source-controlled scripts, not merely before the signing command.
 
 Distribution never edits `iosApp/Configuration/Version.xcconfig`. A version/build change is a reviewed source change that produces a new candidate identity.
 
