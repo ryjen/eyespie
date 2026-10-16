@@ -5,6 +5,7 @@ package com.micrantha.eyespie.features.onboarding
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -15,6 +16,11 @@ import com.micrantha.eyespie.presentation.theme.EyespieSecondaryAction
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import platform.AVFoundation.*
+import platform.Foundation.NSNotificationCenter
+import platform.Foundation.NSURL
+import platform.UIKit.UIApplication
+import platform.UIKit.UIApplicationDidBecomeActiveNotification
+import platform.UIKit.UIApplicationOpenSettingsURLString
 import kotlin.coroutines.resume
 
 @Composable
@@ -23,6 +29,17 @@ actual fun OnboardingCameraPermission() {
     var status by remember {
         mutableStateOf(AVCaptureDevice.authorizationStatusForMediaType(AVMediaTypeVideo))
     }
+    DisposableEffect(Unit) {
+        val observer = NSNotificationCenter.defaultCenter.addObserverForName(
+            UIApplicationDidBecomeActiveNotification,
+            null,
+            null,
+        ) {
+            status = AVCaptureDevice.authorizationStatusForMediaType(AVMediaTypeVideo)
+        }
+        onDispose { NSNotificationCenter.defaultCenter.removeObserver(observer) }
+    }
+
     if (status == AVAuthorizationStatusAuthorized) {
         Text("Camera enabled")
     } else if (status == AVAuthorizationStatusNotDetermined) {
@@ -42,6 +59,15 @@ actual fun OnboardingCameraPermission() {
         )
         Text("Optional. You can continue without camera access and enable it later.")
     } else {
-        Text("Camera access is off. You can enable it in iOS Settings when you need the camera.")
+        Text("Camera access is off. Enable it in iOS Settings when you need the camera.")
+        EyespieSecondaryAction(
+            text = "Open Settings",
+            modifier = Modifier.fillMaxWidth(),
+            onClick = {
+                NSURL(string = UIApplicationOpenSettingsURLString)?.let { settingsUrl ->
+                    UIApplication.sharedApplication.openURL(settingsUrl)
+                }
+            },
+        )
     }
 }
