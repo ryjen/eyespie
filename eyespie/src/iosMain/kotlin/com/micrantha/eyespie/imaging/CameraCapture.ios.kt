@@ -41,8 +41,11 @@ import platform.CoreMedia.CMSampleBufferRef
 import platform.CoreVideo.CVPixelBufferRelease
 import platform.CoreVideo.CVPixelBufferRetain
 import platform.CoreVideo.kCVPixelBufferPixelFormatTypeKey
+import platform.CoreVideo.kCVPixelFormatType_32BGRA
+import platform.CoreVideo.kCVPixelFormatType_420YpCbCr8BiPlanarFullRange
 import platform.CoreVideo.kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange
 import platform.Foundation.NSError
+import platform.Foundation.NSNumber
 import platform.Foundation.NSNotificationCenter
 import platform.Foundation.NSURL
 import platform.ImageIO.kCGImagePropertyOrientationDown
@@ -59,6 +62,12 @@ import platform.darwin.NSObject
 import platform.darwin.dispatch_async
 import platform.darwin.dispatch_queue_create
 import kotlin.coroutines.resume
+
+private val CAMERA_PIXEL_FORMAT_PREFERENCE = listOf(
+    kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange,
+    kCVPixelFormatType_420YpCbCr8BiPlanarFullRange,
+    kCVPixelFormatType_32BGRA,
+)
 
 @Composable
 actual fun CameraCapture(
@@ -86,6 +95,12 @@ actual fun CameraCapture(
             authorization = currentCameraAvailability()
         }
         onDispose { NSNotificationCenter.defaultCenter.removeObserver(observer) }
+    }
+
+    LaunchedEffect(authorization) {
+        if (authorization == CameraAvailability.Requestable) {
+            authorization = requestCameraAccess()
+        }
     }
 
     val device = remember(authorization) {
@@ -130,11 +145,7 @@ actual fun CameraCapture(
     }
 
     when (effectiveAvailability) {
-        CameraAvailability.Requestable -> captureButton {
-            compositionScope.launch {
-                authorization = requestCameraAccess()
-            }
-        }
+        CameraAvailability.Requestable -> Unit
         CameraAvailability.PermissionDenied -> recoveryButton {
             val settingsUrl = NSURL(string = UIApplicationOpenSettingsURLString)
             if (settingsUrl != null) {
@@ -277,18 +288,18 @@ private class CameraStream(
         session.addInput(input)
 
         val output = AVCaptureVideoDataOutput().apply {
+            alwaysDiscardsLateVideoFrames = true
             setSampleBufferDelegate(this@CameraStream, dispatchQueue)
-            if (availableVideoCVPixelFormatTypes.contains(
-                    kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange,
-                )
-            ) {
-                setVideoSettings(
-                    mapOf(
-                        kCVPixelBufferPixelFormatTypeKey to
-                            kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange,
-                    ),
-                )
-            }
+
+            val availablePixelFormats = availableVideoCVPixelFormatTypes
+                .mapNotNull(::cameraPixelFormatValue)
+                .toSet()
+            val selectedPixelFormat = CAMERA_PIXEL_FORMAT_PREFERENCE
+                .firstOrNull(availablePixelFormats::contains)
+                ?: throw IllegalStateException("camera exposes no supported pixel format")
+            setVideoSettings(
+                mapOf(kCVPixelBufferPixelFormatTypeKey to selectedPixelFormat),
+            )
         }
         check(session.canAddOutput(output)) { "cannot add output to video session" }
         session.addOutput(output)
@@ -323,3 +334,12 @@ private class CameraStream(
         }
     }
 }
+
+
+private fun cameraPixelFormatValue(value: Any?): UInt? =
+    when (value) {
+        is UInt -> value
+        is NSNumber -> value.unsignedIntValue
+        is Number -> value.toLong().toUInt()
+        else -> null
+    }

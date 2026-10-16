@@ -148,10 +148,12 @@ class FeatureScreenTest {
         val intents = mutableListOf<CreateGameIntent>()
         compose.setContent {
             EyespieTheme {
-                CreateGameScreen(
-                    state = CreateGameState(),
-                    dispatch = intents::add,
-                )
+                FakeCameraCaptureSurface {
+                    CreateGameScreen(
+                        state = CreateGameState(),
+                        dispatch = intents::add,
+                    )
+                }
             }
         }
 
@@ -164,10 +166,12 @@ class FeatureScreenTest {
     fun create_screen_disables_back_navigation_while_busy() {
         compose.setContent {
             EyespieTheme {
-                CreateGameScreen(
-                    state = CreateGameState(busy = true),
-                    dispatch = {},
-                )
+                FakeCameraCaptureSurface {
+                    CreateGameScreen(
+                        state = CreateGameState(busy = true),
+                        dispatch = {},
+                    )
+                }
             }
         }
 
@@ -233,10 +237,12 @@ class FeatureScreenTest {
         val intents = mutableListOf<ClueAuthoringIntent>()
         compose.setContent {
             EyespieTheme {
-                ClueAuthoringScreen(
-                    state = ClueAuthoringState(),
-                    dispatch = intents::add,
-                )
+                FakeCameraCaptureSurface {
+                    ClueAuthoringScreen(
+                        state = ClueAuthoringState(),
+                        dispatch = intents::add,
+                    )
+                }
             }
         }
 
@@ -280,20 +286,22 @@ class FeatureScreenTest {
         val intents = mutableListOf<PlayGameIntent>()
         compose.setContent {
             EyespieTheme {
-                PlayGameScreen(
-                    state = PlayGameState(
-                        gameId = GameId("game-1"),
-                        thingId = ThingId("thing-1"),
-                        content = PlayGameContent(
-                            gameName = "Trip",
-                            clueText = "Find it",
-                            matched = false,
-                            bestSimilarity = null,
+                FakeCameraCaptureSurface {
+                    PlayGameScreen(
+                        state = PlayGameState(
+                            gameId = GameId("game-1"),
+                            thingId = ThingId("thing-1"),
+                            content = PlayGameContent(
+                                gameName = "Trip",
+                                clueText = "Find it",
+                                matched = false,
+                                bestSimilarity = null,
+                            ),
+                            loading = false,
                         ),
-                        loading = false,
-                    ),
-                    dispatch = intents::add,
-                )
+                        dispatch = intents::add,
+                    )
+                }
             }
         }
 
