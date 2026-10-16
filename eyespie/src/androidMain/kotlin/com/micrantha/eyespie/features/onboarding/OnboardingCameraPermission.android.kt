@@ -2,6 +2,9 @@ package com.micrantha.eyespie.features.onboarding
 
 import android.Manifest
 import android.content.Context
+import android.content.Intent
+import android.net.Uri
+import android.provider.Settings
 import android.content.pm.PackageManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
@@ -37,8 +40,12 @@ actual fun OnboardingCameraPermission() {
     val preferences = remember(context) {
         context.getSharedPreferences(CAMERA_PREFS, Context.MODE_PRIVATE)
     }
+    var requestAttempted by remember {
+        mutableStateOf(preferences.getBoolean(CAMERA_REQUEST_ATTEMPTED, false))
+    }
     val launcher = rememberLauncherForActivityResult(ActivityResultContracts.RequestPermission()) { allowed ->
         preferences.edit().putBoolean(CAMERA_REQUEST_ATTEMPTED, true).apply()
+        requestAttempted = true
         granted = allowed
     }
 
@@ -55,6 +62,20 @@ actual fun OnboardingCameraPermission() {
 
     if (granted) {
         Text("Camera enabled")
+    } else if (requestAttempted) {
+        Text("Camera access is off. Enable it in Android Settings when you need the camera.")
+        EyespieSecondaryAction(
+            text = "Open Settings",
+            modifier = Modifier.fillMaxWidth(),
+            onClick = {
+                context.startActivity(
+                    Intent(
+                        Settings.ACTION_APPLICATION_DETAILS_SETTINGS,
+                        Uri.fromParts("package", context.packageName, null),
+                    ),
+                )
+            },
+        )
     } else {
         EyespieSecondaryAction(
             text = "Enable camera",
