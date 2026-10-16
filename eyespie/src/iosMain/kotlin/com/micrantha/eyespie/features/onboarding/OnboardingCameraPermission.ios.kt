@@ -1,3 +1,5 @@
+@file:OptIn(kotlinx.cinterop.ExperimentalForeignApi::class)
+
 package com.micrantha.eyespie.features.onboarding
 
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -12,10 +14,7 @@ import androidx.compose.ui.Modifier
 import com.micrantha.eyespie.presentation.theme.EyespieSecondaryAction
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
-import platform.AVFoundation.AVAuthorizationStatusAuthorized
-import platform.AVFoundation.AVAuthorizationStatusNotDetermined
-import platform.AVFoundation.AVCaptureDevice
-import platform.AVFoundation.AVMediaTypeVideo
+import platform.AVFoundation.*
 import kotlin.coroutines.resume
 
 @Composable
@@ -33,7 +32,7 @@ actual fun OnboardingCameraPermission() {
             onClick = {
                 scope.launch {
                     suspendCancellableCoroutine<Unit> { continuation ->
-                        AVCaptureDevice.requestAccessForMediaType(AVMediaTypeVideo) {
+                        AVCaptureDevice.requestAccessForMediaType(mediaType = AVMediaTypeVideo) { _: Boolean ->
                             if (continuation.isActive) continuation.resume(Unit)
                         }
                     }
