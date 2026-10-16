@@ -88,6 +88,12 @@ actual fun CameraCapture(
         onDispose { NSNotificationCenter.defaultCenter.removeObserver(observer) }
     }
 
+    LaunchedEffect(authorization) {
+        if (authorization == CameraAvailability.Requestable) {
+            authorization = requestCameraAccess()
+        }
+    }
+
     val device = remember(authorization) {
         if (authorization == CameraAvailability.Ready) {
             AVCaptureDevice.defaultDeviceWithMediaType(AVMediaTypeVideo)
@@ -130,11 +136,7 @@ actual fun CameraCapture(
     }
 
     when (effectiveAvailability) {
-        CameraAvailability.Requestable -> captureButton {
-            compositionScope.launch {
-                authorization = requestCameraAccess()
-            }
-        }
+        CameraAvailability.Requestable -> Unit
         CameraAvailability.PermissionDenied -> recoveryButton {
             val settingsUrl = NSURL(string = UIApplicationOpenSettingsURLString)
             if (settingsUrl != null) {
