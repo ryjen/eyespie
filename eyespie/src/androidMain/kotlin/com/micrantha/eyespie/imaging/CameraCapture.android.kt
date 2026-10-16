@@ -98,6 +98,12 @@ actual fun CameraCapture(
         permissionGranted = granted
     }
 
+    LaunchedEffect(availability) {
+        if (availability == CameraAvailability.Requestable) {
+            permissionLauncher.launch(Manifest.permission.CAMERA)
+        }
+    }
+
     DisposableEffect(lifecycleOwner, context) {
         val observer = LifecycleEventObserver { _, event ->
             if (event == Lifecycle.Event.ON_RESUME) {
@@ -112,14 +118,7 @@ actual fun CameraCapture(
 
     when (availability) {
         CameraAvailability.Unavailable -> return
-        CameraAvailability.Requestable -> {
-            captureButton {
-                requestAttempted = true
-                preferences.edit().putBoolean(CAMERA_REQUEST_ATTEMPTED, true).apply()
-                permissionLauncher.launch(Manifest.permission.CAMERA)
-            }
-            return
-        }
+        CameraAvailability.Requestable -> return
         CameraAvailability.PermissionDenied -> {
             recoveryButton {
                 context.startActivity(
