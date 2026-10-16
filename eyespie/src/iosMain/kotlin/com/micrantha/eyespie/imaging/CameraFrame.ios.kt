@@ -45,9 +45,30 @@ private const val FULL_GREEN_U_SCALE = 88
 private const val FULL_GREEN_V_SCALE = 183
 private const val FULL_BLUE_CHROMA_SCALE = 454
 
-internal enum class CameraYuvRange {
-    VIDEO,
-    FULL,
+internal enum class CameraYuvRange(
+    val lumaOffset: Int,
+    val lumaScale: Int,
+    val redChromaScale: Int,
+    val greenUScale: Int,
+    val greenVScale: Int,
+    val blueChromaScale: Int,
+) {
+    VIDEO(
+        lumaOffset = VIDEO_LUMA_OFFSET,
+        lumaScale = VIDEO_LUMA_SCALE,
+        redChromaScale = VIDEO_RED_CHROMA_SCALE,
+        greenUScale = VIDEO_GREEN_U_SCALE,
+        greenVScale = VIDEO_GREEN_V_SCALE,
+        blueChromaScale = VIDEO_BLUE_CHROMA_SCALE,
+    ),
+    FULL(
+        lumaOffset = 0,
+        lumaScale = FULL_LUMA_SCALE,
+        redChromaScale = FULL_RED_CHROMA_SCALE,
+        greenUScale = FULL_GREEN_U_SCALE,
+        greenVScale = FULL_GREEN_V_SCALE,
+        blueChromaScale = FULL_BLUE_CHROMA_SCALE,
+    ),
 }
 
 internal data class OwnedCameraFrame(
@@ -149,28 +170,19 @@ internal fun yuvToBgraPixel(
     val uDelta = u.toInt() - CHROMA_OFFSET
     val vDelta = v.toInt() - CHROMA_OFFSET
 
-    val (luma, red, greenU, greenV, blue) = when (range) {
-        CameraYuvRange.VIDEO -> listOf(
-            (yValue - VIDEO_LUMA_OFFSET).coerceAtLeast(0) * VIDEO_LUMA_SCALE,
-            VIDEO_RED_CHROMA_SCALE,
-            VIDEO_GREEN_U_SCALE,
-            VIDEO_GREEN_V_SCALE,
-            VIDEO_BLUE_CHROMA_SCALE,
-        )
-        CameraYuvRange.FULL -> listOf(
-            yValue * FULL_LUMA_SCALE,
-            FULL_RED_CHROMA_SCALE,
-            FULL_GREEN_U_SCALE,
-            FULL_GREEN_V_SCALE,
-            FULL_BLUE_CHROMA_SCALE,
-        )
-    }
+    val luma = (yValue - range.lumaOffset).coerceAtLeast(0) * range.lumaScale
 
-    val r = ((luma + red * vDelta + FIXED_POINT_ROUNDING) shr FIXED_POINT_SHIFT)
+    val r = ((luma + range.redChromaScale * vDelta + FIXED_POINT_ROUNDING) shr FIXED_POINT_SHIFT)
         .coerceIn(0, CHANNEL_MAX)
-    val g = ((luma - greenU * uDelta - greenV * vDelta + FIXED_POINT_ROUNDING) shr FIXED_POINT_SHIFT)
-        .coerceIn(0, CHANNEL_MAX)
-    val b = ((luma + blue * uDelta + FIXED_POINT_ROUNDING) shr FIXED_POINT_SHIFT)
+    val g = (
+        (
+            luma -
+                range.greenUScale * uDelta -
+                range.greenVScale * vDelta +
+                FIXED_POINT_ROUNDING
+        ) shr FIXED_POINT_SHIFT
+    ).coerceIn(0, CHANNEL_MAX)
+    val b = ((luma + range.blueChromaScale * uDelta + FIXED_POINT_ROUNDING) shr FIXED_POINT_SHIFT)
         .coerceIn(0, CHANNEL_MAX)
     return b or (g shl FIXED_POINT_SHIFT) or (r shl (FIXED_POINT_SHIFT * 2))
 }
