@@ -113,6 +113,14 @@ fun OnboardingScreen(
                 )
             }
 
+            if (state.page == OnboardingPage.Create) {
+                EyespiePanel {
+                    EyespieEyebrow("CAMERA ACCESS")
+                    Text("Eyespie uses the camera to capture targets and check clues. Photos are processed on this device.")
+                    OnboardingCameraPermission()
+                }
+            }
+
             if (state.completionFailed) {
                 EyespiePanel(containerColor = MaterialTheme.colorScheme.errorContainer) {
                     EyespieEyebrow("Could not save", color = MaterialTheme.colorScheme.onErrorContainer)
