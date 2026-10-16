@@ -338,6 +338,7 @@ private class CameraStream(
 
 private fun cameraPixelFormatValue(value: Any?): UInt? =
     when (value) {
+        is UInt -> value
         is NSNumber -> value.unsignedIntValue
         is Number -> value.toLong().toUInt()
         else -> null
