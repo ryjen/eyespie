@@ -85,6 +85,20 @@ The Gradle application project is named `:app` even though its source directory 
 ./gradlew :app:installDebug
 ```
 
+### Local build/test cleanup
+
+After the build or test sequence finishes **and its required evidence and artifacts have been retained**, run the repository-native Gradle cleanup in the **same Git worktree**:
+
+```bash
+./gradlew clean --no-daemon --stacktrace
+# Convenience alias when using this repository's task runner:
+mise run clean
+```
+
+Run cleanup after failures too, using an `EXIT` trap, a `finally` block, or an equivalent CI finalizer. Keep the original build/test result and report a cleanup failure separately. The individual `mise run build`, `mise run test`, and `mise run ci` commands do **not** automatically invoke cleanup; the workflow owner must finish the lifecycle once evidence consumers are done. In particular, `mise run ci` inspects the generated debug APK: do not clean before its permission verification completes or before saving any candidate artifacts, test results, and diagnostics needed for release/review.
+
+Gradle's native `clean` task is restricted to build directories in this checkout's Gradle projects. It does **not** remove downloaded model data under `eyespie/bluebellAssets/`, SDKs, checked-out sources, project-local Gradle dependency caches, the shared Gradle user home, or other agents' worktrees. This command is a local generated-output cleanup, not a release-artifact retention or model-management operation. Do not run it while another process is consuming this worktree's build outputs.
+
 See [`docs/development/android-runtime.md`](docs/development/android-runtime.md) for the stage → verify → install contract, failure diagnosis, and shared-automation boundary.
 
 The iOS integration workflow additionally resolves the project-specific MediaPipe CocoaPods graph, compiles the Kotlin/Native simulator target, and builds the real unsigned Xcode simulator application.
