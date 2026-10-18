@@ -15,6 +15,8 @@ class CleanCIContract(unittest.TestCase):
         self.assertIn("run: ./gradlew clean --no-daemon --stacktrace", s[clean:])
         self.assertIn("always()", s[clean:])
         self.assertIn(guard, s[clean:])
+        if file != "main.yml":
+            self.assertIn("if-no-files-found: error", s[:clean])
 
     def test_offline_core(self):
         self.verify_finalizer("main.yml", "run: mise run ci",
