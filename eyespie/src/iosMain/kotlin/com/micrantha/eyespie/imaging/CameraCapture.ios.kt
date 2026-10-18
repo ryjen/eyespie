@@ -18,6 +18,7 @@ import kotlinx.cinterop.ObjCObjectVar
 import kotlinx.cinterop.alloc
 import kotlinx.cinterop.memScoped
 import kotlinx.cinterop.ptr
+import kotlinx.cinterop.readValue
 import kotlinx.cinterop.value
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
@@ -27,6 +28,7 @@ import kotlinx.coroutines.launch
 import kotlinx.coroutines.suspendCancellableCoroutine
 import kotlinx.coroutines.withContext
 import platform.AVFoundation.*
+import platform.CoreGraphics.CGRectZero
 import platform.CoreMedia.CMSampleBufferGetImageBuffer
 import platform.CoreMedia.CMSampleBufferRef
 import platform.CoreVideo.CVImageBufferRef
@@ -322,7 +324,7 @@ private class CameraStream(
  * current bounds on every UIKit layout pass; setting only an initial/resize callback frame
  * leaves a zero-sized preview layer on some iPhones despite live captured frames.
  */
-private class CameraPreviewView(session: AVCaptureSession) : UIView() {
+private class CameraPreviewView(session: AVCaptureSession) : UIView(frame = CGRectZero.readValue()) {
     private val previewLayer = AVCaptureVideoPreviewLayer(session = session).apply {
         videoGravity = AVLayerVideoGravityResizeAspectFill
         connection?.videoOrientation = AVCaptureVideoOrientationPortrait
