@@ -14,30 +14,22 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.interop.UIKitView
 import com.micrantha.eyespie.telemetry.LocalOperationalTelemetry
 import kotlinx.cinterop.BetaInteropApi
-import kotlinx.cinterop.CValue
 import kotlinx.cinterop.ObjCObjectVar
 import kotlinx.cinterop.alloc
 import kotlinx.cinterop.memScoped
 import kotlinx.cinterop.ptr
 import kotlinx.cinterop.value
 import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.Job
-import kotlinx.coroutines.NonCancellable
-import kotlinx.coroutines.cancel
 import kotlinx.coroutines.currentCoroutineContext
 import kotlinx.coroutines.ensureActive
 import kotlinx.coroutines.launch
-import kotlinx.coroutines.plus
 import kotlinx.coroutines.suspendCancellableCoroutine
-import kotlinx.coroutines.sync.Mutex
-import kotlinx.coroutines.sync.withLock
 import kotlinx.coroutines.withContext
 import platform.AVFoundation.*
-import platform.CoreGraphics.CGRect
 import platform.CoreMedia.CMSampleBufferGetImageBuffer
 import platform.CoreMedia.CMSampleBufferRef
+import platform.CoreVideo.CVImageBufferRef
 import platform.CoreVideo.CVPixelBufferRelease
 import platform.CoreVideo.CVPixelBufferRetain
 import platform.CoreVideo.kCVPixelBufferPixelFormatTypeKey
@@ -46,8 +38,10 @@ import platform.CoreVideo.kCVPixelFormatType_420YpCbCr8BiPlanarFullRange
 import platform.CoreVideo.kCVPixelFormatType_420YpCbCr8BiPlanarVideoRange
 import platform.Foundation.NSError
 import platform.Foundation.NSNumber
+import platform.Foundation.NSLock
 import platform.Foundation.NSNotificationCenter
 import platform.Foundation.NSURL
+import platform.ImageIO.CGImagePropertyOrientation
 import platform.ImageIO.kCGImagePropertyOrientationDown
 import platform.ImageIO.kCGImagePropertyOrientationLeft
 import platform.ImageIO.kCGImagePropertyOrientationRight
@@ -78,11 +72,7 @@ actual fun CameraCapture(
     captureButton: @Composable ((capture: () -> Unit) -> Unit),
     recoveryButton: @Composable ((openSettings: () -> Unit) -> Unit),
 ) {
-    val controller = remember { IosCameraCaptureController() }
     val telemetry = LocalOperationalTelemetry.current
-    val imageCapture: ImageCapture = remember(controller, telemetry) {
-        TelemetryImageCapture(delegate = controller, telemetry = telemetry)
-    }
     val compositionScope = rememberCoroutineScope()
     var authorization by remember { mutableStateOf(currentCameraAvailability()) }
 
@@ -122,9 +112,12 @@ actual fun CameraCapture(
                 onCameraError = { error ->
                     compositionScope.launch { onCameraError(error) }
                 },
-                onCameraFrame = controller::updateFrame,
             )
         }
+    }
+
+    val imageCapture = remember(stream, telemetry) {
+        stream?.let { TelemetryImageCapture(delegate = it, telemetry = telemetry) }
     }
 
     if (stream != null) {
@@ -139,7 +132,6 @@ actual fun CameraCapture(
 
         UIKitView(
             factory = stream::preview,
-            onResize = stream::resize,
             modifier = modifier,
         )
     }
@@ -153,14 +145,16 @@ actual fun CameraCapture(
             }
         }
         CameraAvailability.Unavailable -> Unit
-        CameraAvailability.Ready -> captureButton {
-            compositionScope.launch {
-                try {
-                    onCaptured(imageCapture.capture())
-                } catch (cancelled: CancellationException) {
-                    throw cancelled
-                } catch (error: Throwable) {
-                    onCameraError(error)
+        CameraAvailability.Ready -> if (imageCapture != null) {
+            captureButton {
+                compositionScope.launch {
+                    try {
+                        onCaptured(imageCapture.capture())
+                    } catch (cancelled: CancellationException) {
+                        throw cancelled
+                    } catch (error: Throwable) {
+                        onCameraError(error)
+                    }
                 }
             }
         }
@@ -195,58 +189,31 @@ private suspend fun requestCameraAccess(): CameraAvailability =
         else -> CameraAvailability.Unavailable
     }
 
-private class IosCameraCaptureController : ImageCapture {
-    private val stateMutex = Mutex()
-    private var latestFrame: OwnedCameraFrame? = null
-    private var captureInFlight = false
-
-    suspend fun updateFrame(frame: OwnedCameraFrame) {
-        stateMutex.withLock { latestFrame = frame }
-    }
-
-    override suspend fun capture(): CapturedImage {
-        val frame = stateMutex.withLock {
-            when {
-                captureInFlight -> throw IllegalStateException("a camera capture is already in progress")
-                latestFrame == null -> throw IllegalStateException("no camera frame is available to capture")
-                else -> {
-                    captureInFlight = true
-                    latestFrame!!
-                }
-            }
-        }
-
-        return try {
-            withContext(Dispatchers.Default) {
-                currentCoroutineContext().ensureActive()
-                frame.toCapturedImage()
-            }
-        } finally {
-            withContext(NonCancellable) {
-                stateMutex.withLock { captureInFlight = false }
-            }
-        }
-    }
-}
+/**
+ * Exactly one native pixel buffer is retained while the camera is live. A capture takes its own
+ * retain under the same lock so a concurrent frame replacement or stop cannot release its data.
+ */
+private data class RetainedCameraFrame(
+    val pixelBuffer: CVImageBufferRef,
+    val orientation: CGImagePropertyOrientation,
+)
 
 private class CameraStream(
     private val device: AVCaptureDevice,
     private val onCameraError: (Throwable) -> Unit,
-    private val onCameraFrame: suspend (OwnedCameraFrame) -> Unit,
-) : NSObject(), AVCaptureVideoDataOutputSampleBufferDelegateProtocol {
+) : NSObject(), AVCaptureVideoDataOutputSampleBufferDelegateProtocol, ImageCapture {
     private val session = AVCaptureSession()
-    private val workerJob = Job()
-    private val scope = CoroutineScope(Dispatchers.Default) + workerJob
     private val dispatchQueue = dispatch_queue_create("eyespie.camera.frames", null)
-    private var cameraPreviewLayer: AVCaptureVideoPreviewLayer? = null
-    private var frameInFlight = false
+    private val frameLock = NSLock()
+    private var latestFrame: RetainedCameraFrame? = null
+    private var captureInFlight = false
+    private var active = true
 
     override fun captureOutput(
         output: AVCaptureOutput,
         didOutputSampleBuffer: CMSampleBufferRef?,
         fromConnection: AVCaptureConnection,
     ) {
-        if (frameInFlight) return
         val pixelBuffer = CMSampleBufferGetImageBuffer(didOutputSampleBuffer) ?: return
         val orientation = when (fromConnection.videoOrientation) {
             AVCaptureVideoOrientationPortraitUpsideDown -> kCGImagePropertyOrientationDown
@@ -255,21 +222,48 @@ private class CameraStream(
             else -> kCGImagePropertyOrientationUp
         }
 
-        CVPixelBufferRetain(pixelBuffer)
-        frameInFlight = true
-        val conversionJob = scope.launch {
+        // This delegate's hot path performs only a bounded retain/swap/release, never YUV
+        // conversion, BGRA rotation, PNG encoding, or coroutine scheduling per frame.
+        frameLock.lock()
+        val previous = try {
+            if (!active) return
+            CVPixelBufferRetain(pixelBuffer)
+            val old = latestFrame
+            latestFrame = RetainedCameraFrame(pixelBuffer, orientation)
+            old
+        } finally {
+            frameLock.unlock()
+        }
+        previous?.let { CVPixelBufferRelease(it.pixelBuffer) }
+    }
+
+    override suspend fun capture(): CapturedImage {
+        val frame = frameLock.run {
+            lock()
             try {
-                val frame = copyCameraFrame(pixelBuffer, orientation)
-                onCameraFrame(frame)
-            } catch (cancelled: CancellationException) {
-                throw cancelled
-            } catch (error: Throwable) {
-                onCameraError(error)
+                check(active) { "camera session is stopped" }
+                check(!captureInFlight) { "a camera capture is already in progress" }
+                val current = latestFrame ?: error("no camera frame is available to capture")
+                CVPixelBufferRetain(current.pixelBuffer)
+                captureInFlight = true
+                current
+            } finally {
+                unlock()
             }
         }
-        conversionJob.invokeOnCompletion {
-            CVPixelBufferRelease(pixelBuffer)
-            dispatch_async(dispatchQueue) { frameInFlight = false }
+        return try {
+            withContext(Dispatchers.Default) {
+                currentCoroutineContext().ensureActive()
+                copyCameraFrame(frame.pixelBuffer, frame.orientation).toCapturedImage()
+            }
+        } finally {
+            CVPixelBufferRelease(frame.pixelBuffer)
+            frameLock.lock()
+            try {
+                captureInFlight = false
+            } finally {
+                frameLock.unlock()
+            }
         }
     }
 
@@ -310,25 +304,43 @@ private class CameraStream(
     }
 
     fun stop() {
-        scope.cancel()
+        frameLock.lock()
+        val previous = try {
+            active = false
+            val old = latestFrame
+            latestFrame = null
+            old
+        } finally {
+            frameLock.unlock()
+        }
+        previous?.let { CVPixelBufferRelease(it.pixelBuffer) }
         dispatch_async(dispatchQueue) { session.stopRunning() }
     }
 
-    fun preview(): UIView {
-        val previewLayer = AVCaptureVideoPreviewLayer(session = session).apply {
-            videoGravity = AVLayerVideoGravityResizeAspectFill
-            connection?.videoOrientation = AVCaptureVideoOrientationPortrait
-        }
-        cameraPreviewLayer = previewLayer
-        return UIView().also { it.layer.addSublayer(previewLayer) }
+    fun preview(): UIView = CameraPreviewView(session)
+}
+
+/**
+ * Compose controls the UIView's frame. Keep the AVFoundation sublayer equal to the view's
+ * current bounds on every UIKit layout pass; setting only an initial/resize callback frame
+ * leaves a zero-sized preview layer on some iPhones despite live captured frames.
+ */
+private class CameraPreviewView(session: AVCaptureSession) : UIView() {
+    private val previewLayer = AVCaptureVideoPreviewLayer(session = session).apply {
+        videoGravity = AVLayerVideoGravityResizeAspectFill
+        connection?.videoOrientation = AVCaptureVideoOrientationPortrait
     }
 
-    fun resize(view: UIView, rect: CValue<CGRect>) {
+    init {
+        layer.addSublayer(previewLayer)
+    }
+
+    override fun layoutSubviews() {
+        super.layoutSubviews()
+        CATransaction.begin()
         try {
-            CATransaction.begin()
             CATransaction.setValue(true, kCATransactionDisableActions)
-            view.layer.setFrame(rect)
-            cameraPreviewLayer?.setFrame(rect)
+            previewLayer.setFrame(bounds)
         } finally {
             CATransaction.commit()
         }
