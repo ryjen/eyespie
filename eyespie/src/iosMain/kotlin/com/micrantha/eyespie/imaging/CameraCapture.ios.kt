@@ -105,16 +105,9 @@ actual fun CameraCapture(
     ) CameraAvailability.Unavailable else authorization
     LaunchedEffect(effectiveAvailability) { onAvailabilityChanged(effectiveAvailability) }
 
-    val stream = remember(device, onCameraError) {
-        device?.let {
-            CameraStream(
-                device = it,
-                onCameraError = { error ->
-                    compositionScope.launch { onCameraError(error) }
-                },
-            )
-        }
-    }
+    // Callback lambdas may change during recomposition; only the physical device controls
+    // session identity. Recreating the stream on an overlay state change restarts preview.
+    val stream = remember(device) { device?.let(::CameraStream) }
 
     val imageCapture = remember(stream, telemetry) {
         stream?.let { TelemetryImageCapture(delegate = it, telemetry = telemetry) }
@@ -200,7 +193,6 @@ private data class RetainedCameraFrame(
 
 private class CameraStream(
     private val device: AVCaptureDevice,
-    private val onCameraError: (Throwable) -> Unit,
 ) : NSObject(), AVCaptureVideoDataOutputSampleBufferDelegateProtocol, ImageCapture {
     private val session = AVCaptureSession()
     private val dispatchQueue = dispatch_queue_create("eyespie.camera.frames", null)
