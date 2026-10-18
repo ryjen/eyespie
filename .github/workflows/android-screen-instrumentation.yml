@@ -72,6 +72,7 @@ jobs:
           script: bash scripts/run_android_screen_instrumentation.sh
 
       - name: Upload installed-build visual evidence
+        id: diagnostics
         if: always()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
@@ -82,3 +83,7 @@ jobs:
             build/ci/android-screen-instrumentation/
             eyespie/build/reports/androidTests/connected/
             eyespie/build/outputs/androidTest-results/connected/
+
+      - name: Clean task-local Gradle outputs after visual evidence upload
+        if: ${{ always() && steps.diagnostics.outcome == 'success' }}
+        run: ./gradlew clean --no-daemon --stacktrace
