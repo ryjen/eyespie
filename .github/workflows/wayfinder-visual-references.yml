@@ -39,13 +39,18 @@ jobs:
         run: ./gradlew :app:verifyRoborazziDebug --no-daemon --stacktrace
 
       - name: Upload visual diff diagnostics
+        id: diagnostics
         if: failure()
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: wayfinder-roborazzi-diff-${{ github.run_id }}
-          if-no-files-found: warn
+          if-no-files-found: error
           retention-days: 7
           path: |
             eyespie/build/reports/roborazzi/
             eyespie/build/outputs/roborazzi/
             eyespie/build/test-results/roborazzi/
+
+      - name: Clean task-local Gradle outputs after visual evidence handling
+        if: ${{ always() && (success() || steps.diagnostics.outcome == 'success') }}
+        run: ./gradlew clean --no-daemon --stacktrace
