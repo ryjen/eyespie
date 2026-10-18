@@ -110,7 +110,7 @@ actual fun CameraCapture(
     val stream = remember(device) { device?.let(::CameraStream) }
 
     val imageCapture = remember(stream, telemetry) {
-        stream?.let { TelemetryImageCapture(delegate = it, telemetry = telemetry) }
+        stream?.let { TelemetryImageCapture(delegate = StreamImageCapture(it), telemetry = telemetry) }
     }
 
     if (stream != null) {
@@ -191,9 +191,14 @@ private data class RetainedCameraFrame(
     val orientation: CGImagePropertyOrientation,
 )
 
+// Kotlin/Native cannot mix a Kotlin interface with ObjC superclass/protocol inheritance.
+private class StreamImageCapture(private val stream: CameraStream) : ImageCapture {
+    override suspend fun capture(): CapturedImage = stream.capture()
+}
+
 private class CameraStream(
     private val device: AVCaptureDevice,
-) : NSObject(), AVCaptureVideoDataOutputSampleBufferDelegateProtocol, ImageCapture {
+) : NSObject(), AVCaptureVideoDataOutputSampleBufferDelegateProtocol {
     private val session = AVCaptureSession()
     private val dispatchQueue = dispatch_queue_create("eyespie.camera.frames", null)
     private val frameLock = NSLock()
@@ -229,7 +234,7 @@ private class CameraStream(
         previous?.let { CVPixelBufferRelease(it.pixelBuffer) }
     }
 
-    override suspend fun capture(): CapturedImage {
+    suspend fun capture(): CapturedImage {
         val frame = frameLock.run {
             lock()
             try {
