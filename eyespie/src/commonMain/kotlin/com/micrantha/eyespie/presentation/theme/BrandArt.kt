@@ -4,6 +4,7 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.layout.size
 import androidx.compose.runtime.Composable
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.geometry.CornerRadius
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
@@ -180,8 +181,8 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawCreateScene(w: 
 
 private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawShareScene(w: Float, h: Float) {
     drawRect(EyespieBrandColors.PetalInner.copy(alpha = 0.14f), Offset(0f, 0f), Size(w, h))
-    val documentWidth = w * 0.26f
-    val documentX = w * 0.28f
+    val documentWidth = w * 0.24f
+    val documentX = w * 0.16f
     val documentY = h * 0.32f
     drawRect(EyespieBrandColors.Ink, Offset(documentX, documentY), Size(documentWidth, h * 0.30f))
     drawLine(
@@ -197,38 +198,57 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawShareScene(w: F
         strokeWidth = w * 0.012f,
     )
 
-    val phoneX = w * 0.66f
+    val phoneX = w * 0.70f
+    // Keep a clear run and margin between the file and the receiving device.
     drawArrow(
-        Offset(documentX + documentWidth, documentY + h * 0.15f),
-        Offset(phoneX, documentY + h * 0.15f),
+        Offset(documentX + documentWidth + w * 0.035f, documentY + h * 0.15f),
+        Offset(phoneX - w * 0.035f, documentY + h * 0.15f),
         Success,
-        w * 0.02f,
+        w * 0.014f,
     )
-    drawRect(
-        EyespieBrandColors.Pupil,
-        Offset(phoneX, h * 0.24f),
-        Size(w * 0.20f, h * 0.46f),
-    )
+    drawHandoffPhone(phoneX, h * 0.24f, w * 0.20f, h * 0.46f, Success)
 }
 
 private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawJoinScene(w: Float, h: Float) {
     drawRect(Success.copy(alpha = 0.14f), Offset(0f, 0f), Size(w, h))
-    val documentWidth = w * 0.26f
-    val documentX = w * 0.30f
+    val documentWidth = w * 0.24f
+    val documentX = w * 0.18f
     val documentY = h * 0.34f
     drawRect(EyespieBrandColors.Ink, Offset(documentX, documentY), Size(documentWidth, h * 0.28f))
 
-    val phoneX = w * 0.64f
+    val phoneX = w * 0.70f
     drawArrow(
-        Offset(documentX + documentWidth, documentY + h * 0.14f),
-        Offset(phoneX, documentY + h * 0.14f),
+        Offset(documentX + documentWidth + w * 0.035f, documentY + h * 0.14f),
+        Offset(phoneX - w * 0.035f, documentY + h * 0.14f),
         EyespieBrandColors.Iris,
-        w * 0.02f,
+        w * 0.014f,
     )
-    drawRect(
+    drawHandoffPhone(phoneX, h * 0.26f, w * 0.20f, h * 0.42f, EyespieBrandColors.Iris)
+}
+
+private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawHandoffPhone(
+    x: Float,
+    y: Float,
+    width: Float,
+    height: Float,
+    accent: Color,
+) {
+    drawRoundRect(
         EyespieBrandColors.Pupil,
-        Offset(phoneX, h * 0.26f),
-        Size(w * 0.20f, h * 0.42f),
+        topLeft = Offset(x, y),
+        size = Size(width, height),
+        cornerRadius = CornerRadius(width * 0.12f),
+    )
+    drawRoundRect(
+        EyespieBrandColors.Field,
+        topLeft = Offset(x + width * 0.10f, y + height * 0.12f),
+        size = Size(width * 0.80f, height * 0.73f),
+        cornerRadius = CornerRadius(width * 0.05f),
+    )
+    drawCircle(
+        accent,
+        radius = width * 0.11f,
+        center = Offset(x + width * 0.50f, y + height * 0.49f),
     )
 }
 
@@ -240,9 +260,9 @@ private fun androidx.compose.ui.graphics.drawscope.DrawScope.drawArrow(
 ) {
     drawLine(color, from, to, strokeWidth = width, cap = StrokeCap.Round)
     val angle = kotlin.math.atan2(to.y - from.y, to.x - from.x)
-    val len = width * 4f
-    val left = angle + PI.toFloat() * 0.85f
-    val right = angle - PI.toFloat() * 0.85f
+    val len = width * 3.5f
+    val left = angle + PI.toFloat() * 0.80f
+    val right = angle - PI.toFloat() * 0.80f
     drawLine(
         color,
         to,
