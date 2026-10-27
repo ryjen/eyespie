@@ -97,6 +97,7 @@ fun CameraLayout(
                     onBack = onBack,
                     backContentDescription = backLabel,
                     backEnabled = !busy,
+                    backChevronOnly = true,
                 )
 
                 content()
