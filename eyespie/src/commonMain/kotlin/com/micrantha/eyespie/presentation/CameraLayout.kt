@@ -1,7 +1,9 @@
 package com.micrantha.eyespie.presentation
 
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Spacer
@@ -9,6 +11,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material3.CircularProgressIndicator
@@ -92,23 +95,33 @@ fun CameraLayout(
 
                 Spacer(modifier = Modifier.weight(1f))
 
-                if (captureInProgress) {
-                    CircularProgressIndicator(
-                        modifier = Modifier
-                            .align(Alignment.CenterHorizontally)
-                            .padding(4.dp),
-                    )
-                    Text(
-                        text = "Capturing…",
-                        modifier = Modifier.align(Alignment.CenterHorizontally),
-                        style = MaterialTheme.typography.labelLarge,
-                    )
-                }
-                captureButton {
-                    if (!captureInProgress) {
-                        // Show feedback synchronously; native image conversion completes later.
-                        captureInProgress = true
-                        capture()
+                Box(
+                    modifier = Modifier.fillMaxWidth(),
+                    contentAlignment = Alignment.Center,
+                ) {
+                    Column(modifier = Modifier.fillMaxWidth()) {
+                        captureButton {
+                            if (!captureInProgress) {
+                                // Immediate feedback; native image conversion completes later.
+                                captureInProgress = true
+                                capture()
+                            }
+                        }
+                    }
+                    if (captureInProgress) {
+                        Row(
+                            modifier = Modifier
+                                .background(
+                                    MaterialTheme.colorScheme.surface.copy(alpha = 0.95f),
+                                    MaterialTheme.shapes.small,
+                                )
+                                .padding(horizontal = 12.dp, vertical = 8.dp),
+                            horizontalArrangement = Arrangement.spacedBy(8.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            CircularProgressIndicator(modifier = Modifier.size(20.dp), strokeWidth = 2.dp)
+                            Text("Capturing…", style = MaterialTheme.typography.labelLarge)
+                        }
                     }
                 }
             }
