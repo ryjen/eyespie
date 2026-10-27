@@ -157,7 +157,7 @@ class FeatureScreenTest {
             }
         }
 
-        compose.onNodeWithText("Back to field desk").performClick()
+        compose.onNodeWithContentDescription("Back to field desk").performClick()
 
         assertEquals(listOf(CreateGameIntent.Back), intents)
     }
@@ -175,7 +175,7 @@ class FeatureScreenTest {
             }
         }
 
-        compose.onNodeWithText("Back to field desk").assertIsNotEnabled()
+        compose.onNodeWithContentDescription("Back to field desk").assertIsNotEnabled()
     }
 
     @Test
@@ -246,7 +246,7 @@ class FeatureScreenTest {
             }
         }
 
-        compose.onNodeWithText("Back to game").performScrollTo().performClick()
+        compose.onNodeWithContentDescription("Back to game").performClick()
 
         assertEquals(listOf(ClueAuthoringIntent.Back), intents)
     }
