@@ -11,10 +11,14 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -60,6 +64,8 @@ fun CameraLayout(
         CameraAvailabilityDiagnosticObserver(telemetry)
     }
 
+    var captureInProgress by remember { mutableStateOf(false) }
+
     Box(modifier = modifier.fillMaxSize()) {
         val captureOverlay: @Composable ((capture: () -> Unit) -> Unit) = { capture ->
             var overlayModifier = Modifier.fillMaxSize()
@@ -86,7 +92,25 @@ fun CameraLayout(
 
                 Spacer(modifier = Modifier.weight(1f))
 
-                captureButton(capture)
+                if (captureInProgress) {
+                    CircularProgressIndicator(
+                        modifier = Modifier
+                            .align(Alignment.CenterHorizontally)
+                            .padding(4.dp),
+                    )
+                    Text(
+                        text = "Capturing…",
+                        modifier = Modifier.align(Alignment.CenterHorizontally),
+                        style = MaterialTheme.typography.labelLarge,
+                    )
+                }
+                captureButton {
+                    if (!captureInProgress) {
+                        // Show feedback synchronously; native image conversion completes later.
+                        captureInProgress = true
+                        capture()
+                    }
+                }
             }
         }
 
@@ -100,8 +124,14 @@ fun CameraLayout(
                     availabilityDiagnostics.onAvailabilityChanged(availability)
                     onAvailabilityChanged(availability)
                 },
-                onCameraError = onCameraError,
-                onCaptured = onCaptured,
+                onCameraError = { error ->
+                    captureInProgress = false
+                    onCameraError(error)
+                },
+                onCaptured = { image ->
+                    captureInProgress = false
+                    onCaptured(image)
+                },
                 captureButton = captureOverlay,
                 recoveryButton = { openSettings ->
                     var recoveryModifier = Modifier
