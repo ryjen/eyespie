@@ -1,6 +1,15 @@
 package com.micrantha.eyespie.presentation.theme
 
 import androidx.compose.foundation.BorderStroke
+import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.material3.IconButton
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.StrokeCap
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
@@ -165,6 +174,7 @@ fun EyespieTopBar(
     backContentDescription: String = "Back",
     backEnabled: Boolean = true,
     modifier: Modifier = Modifier,
+    backChevronOnly: Boolean = false,
 ) {
     Row(
         modifier = modifier.fillMaxWidth(),
@@ -172,22 +182,55 @@ fun EyespieTopBar(
         verticalAlignment = Alignment.CenterVertically,
     ) {
         if (onBack != null) {
-            OutlinedButton(
-                onClick = onBack,
-                enabled = backEnabled,
-                shape = MaterialTheme.shapes.medium,
-                border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
-            ) {
-                Icon(
-                    Icons.AutoMirrored.Filled.ArrowBack,
-                    contentDescription = null,
-                )
-                Text(
-                    backContentDescription,
-                    modifier = Modifier.padding(start = 6.dp),
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.Bold,
-                )
+            if (backChevronOnly) {
+                val chevronColor = MaterialTheme.colorScheme.onSurface
+                IconButton(
+                    onClick = onBack,
+                    enabled = backEnabled,
+                    modifier = Modifier
+                        .size(48.dp)
+                        .background(
+                            MaterialTheme.colorScheme.surface.copy(alpha = 0.82f),
+                            CircleShape,
+                        )
+                        .semantics { contentDescription = backContentDescription },
+                ) {
+                    Canvas(modifier = Modifier.size(22.dp)) {
+                        val strokeWidth = 2.5.dp.toPx()
+                        drawLine(
+                            color = chevronColor,
+                            start = Offset(size.width * 0.63f, size.height * 0.18f),
+                            end = Offset(size.width * 0.33f, size.height * 0.50f),
+                            strokeWidth = strokeWidth,
+                            cap = StrokeCap.Round,
+                        )
+                        drawLine(
+                            color = chevronColor,
+                            start = Offset(size.width * 0.33f, size.height * 0.50f),
+                            end = Offset(size.width * 0.63f, size.height * 0.82f),
+                            strokeWidth = strokeWidth,
+                            cap = StrokeCap.Round,
+                        )
+                    }
+                }
+            } else {
+                OutlinedButton(
+                    onClick = onBack,
+                    enabled = backEnabled,
+                    shape = MaterialTheme.shapes.medium,
+                    border = BorderStroke(1.dp, MaterialTheme.colorScheme.outlineVariant),
+                ) {
+                    Icon(
+                        Icons.AutoMirrored.Filled.ArrowBack,
+                        contentDescription = null,
+                    )
+                    Text(
+                        backContentDescription,
+                        modifier = Modifier.padding(start = 6.dp),
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = FontWeight.Bold,
+                    )
+                }
             }
         } else {
             Surface(color = Color.Transparent) { Text("") }
