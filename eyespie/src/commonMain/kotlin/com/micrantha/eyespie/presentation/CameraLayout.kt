@@ -68,6 +68,14 @@ fun CameraLayout(
     }
 
     var captureInProgress by remember { mutableStateOf(false) }
+    val captureCompleted: (CapturedImage) -> Unit = { image ->
+        captureInProgress = false
+        onCaptured(image)
+    }
+    val captureFailed: (Throwable) -> Unit = { error ->
+        captureInProgress = false
+        onCameraError(error)
+    }
 
     Box(modifier = modifier.fillMaxSize()) {
         val captureOverlay: @Composable ((capture: () -> Unit) -> Unit) = { capture ->
@@ -129,7 +137,7 @@ fun CameraLayout(
 
         val surfaceOverride = LocalCameraCaptureSurfaceOverride.current
         if (surfaceOverride != null) {
-            surfaceOverride(Modifier.fillMaxSize(), onCaptured, captureOverlay)
+            surfaceOverride(Modifier.fillMaxSize(), captureCompleted, captureOverlay)
         } else {
             CameraCapture(
                 modifier = Modifier.fillMaxSize(),
@@ -137,14 +145,8 @@ fun CameraLayout(
                     availabilityDiagnostics.onAvailabilityChanged(availability)
                     onAvailabilityChanged(availability)
                 },
-                onCameraError = { error ->
-                    captureInProgress = false
-                    onCameraError(error)
-                },
-                onCaptured = { image ->
-                    captureInProgress = false
-                    onCaptured(image)
-                },
+                onCameraError = captureFailed,
+                onCaptured = captureCompleted,
                 captureButton = captureOverlay,
                 recoveryButton = { openSettings ->
                     var recoveryModifier = Modifier
