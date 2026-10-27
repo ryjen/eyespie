@@ -1,4 +1,7 @@
-@file:OptIn(kotlinx.cinterop.ExperimentalForeignApi::class)
+@file:OptIn(
+    kotlinx.cinterop.ExperimentalForeignApi::class,
+    androidx.compose.ui.ExperimentalComposeUiApi::class,
+)
 
 package com.micrantha.eyespie.imaging
 
@@ -131,7 +134,7 @@ actual fun CameraCapture(
         UIKitView(
             factory = stream::preview,
             modifier = modifier,
-            properties = UIKitInteropProperties(isInteractive = false),
+            properties = UIKitInteropProperties(interactionMode = null),
         )
     }
 
