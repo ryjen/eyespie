@@ -143,6 +143,7 @@ fun AuthoringCaptureLayout(
                 onBack = onBack,
                 backContentDescription = backLabel,
                 backEnabled = !busy,
+                backChevronOnly = true,
             )
 
             Spacer(modifier = Modifier.weight(1f))

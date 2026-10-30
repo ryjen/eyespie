@@ -27,6 +27,7 @@ import platform.ImageIO.kCGImagePropertyOrientationLeft
 import platform.ImageIO.kCGImagePropertyOrientationRight
 
 private const val BGRA_BYTES_PER_PIXEL = 4
+private const val CAMERA_JPEG_QUALITY = 90
 private const val CHANNEL_MAX = 255
 private const val CHROMA_OFFSET = 128
 private const val FIXED_POINT_SHIFT = 8
@@ -106,7 +107,7 @@ internal fun copyCameraFrame(
 }
 
 internal fun OwnedCameraFrame.toCapturedImage(): CapturedImage =
-    CapturedImage.fromEncoded(toPng())
+    CapturedImage.fromEncoded(toJpeg())
 
 private fun yuvToBgra(
     yuvBuffer: CVImageBufferRef,
@@ -219,24 +220,34 @@ internal fun rotateBgra(
     for (y in 0 until height) {
         for (x in 0 until width) {
             val sourceIndex = (y * width + x) * BGRA_BYTES_PER_PIXEL
-            val (destinationX, destinationY) = when (normalized) {
-                90 -> (height - 1 - y) to x
-                180 -> (width - 1 - x) to (height - 1 - y)
-                else -> y to (width - 1 - x)
+            // Avoid allocating a Pair per pixel during full-resolution rotation.
+            val destinationX: Int
+            val destinationY: Int
+            when (normalized) {
+                90 -> {
+                    destinationX = height - 1 - y
+                    destinationY = x
+                }
+                180 -> {
+                    destinationX = width - 1 - x
+                    destinationY = height - 1 - y
+                }
+                else -> {
+                    destinationX = y
+                    destinationY = width - 1 - x
+                }
             }
             val destinationIndex = (destinationY * destinationWidth + destinationX) * BGRA_BYTES_PER_PIXEL
-            source.copyInto(
-                destination,
-                destinationIndex,
-                sourceIndex,
-                sourceIndex + BGRA_BYTES_PER_PIXEL,
-            )
+            destination[destinationIndex] = source[sourceIndex]
+            destination[destinationIndex + 1] = source[sourceIndex + 1]
+            destination[destinationIndex + 2] = source[sourceIndex + 2]
+            destination[destinationIndex + 3] = source[sourceIndex + 3]
         }
     }
     return OwnedCameraFrame(destination, destinationWidth, destinationHeight)
 }
 
-private fun OwnedCameraFrame.toPng(): ByteArray {
+private fun OwnedCameraFrame.toJpeg(): ByteArray {
     val bitmap = Bitmap()
     try {
         check(bitmap.allocN32Pixels(width, height, opaque = true)) {
@@ -245,8 +256,8 @@ private fun OwnedCameraFrame.toPng(): ByteArray {
         check(bitmap.installPixels(bytes)) { "unable to install camera bitmap pixels" }
         val image = Image.makeFromBitmap(bitmap)
         try {
-            val data = image.encodeToData(EncodedImageFormat.PNG)
-                ?: throw IllegalStateException("unable to encode camera bitmap")
+            val data = image.encodeToData(EncodedImageFormat.JPEG, quality = CAMERA_JPEG_QUALITY)
+                ?: throw IllegalStateException("unable to encode camera JPEG")
             try {
                 return data.bytes
             } finally {

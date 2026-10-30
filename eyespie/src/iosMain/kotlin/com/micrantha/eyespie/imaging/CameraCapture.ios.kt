@@ -1,4 +1,7 @@
-@file:OptIn(kotlinx.cinterop.ExperimentalForeignApi::class)
+@file:OptIn(
+    kotlinx.cinterop.ExperimentalForeignApi::class,
+    androidx.compose.ui.ExperimentalComposeUiApi::class,
+)
 
 package com.micrantha.eyespie.imaging
 
@@ -11,7 +14,8 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.interop.UIKitView
+import androidx.compose.ui.viewinterop.UIKitInteropProperties
+import androidx.compose.ui.viewinterop.UIKitView
 import com.micrantha.eyespie.telemetry.LocalOperationalTelemetry
 import kotlinx.cinterop.BetaInteropApi
 import kotlinx.cinterop.ObjCObjectVar
@@ -125,9 +129,12 @@ actual fun CameraCapture(
             onDispose { stream.stop() }
         }
 
+        // The native preview is display-only. Forwarding taps to UIKit makes Compose's
+        // shutter/back controls compete with the interop touch arbitration delay.
         UIKitView(
             factory = stream::preview,
             modifier = modifier,
+            properties = UIKitInteropProperties(interactionMode = null),
         )
     }
 
