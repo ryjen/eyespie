@@ -50,6 +50,8 @@ def main():
         return command("adb", "-s", serial, *args, check=check)
 
     def snapshot():
+        # A failed dump must never be able to reuse a previous screen snapshot.
+        adb("shell", "rm", "-f", DUMP_PATH)
         adb("shell", "uiautomator", "dump", DUMP_PATH)
         xml = adb("exec-out", "cat", DUMP_PATH).stdout
         return ET.fromstring(xml)
