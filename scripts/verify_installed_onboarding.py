@@ -56,12 +56,35 @@ def main():
         xml = adb("exec-out", "cat", DUMP_PATH).stdout
         return ET.fromstring(xml)
 
+    def tap(node, label):
+        bounds = re.fullmatch(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]", node.get("bounds", ""))
+        if bounds is None:
+            raise AssertionError(f"{label} control lacks usable accessibility bounds")
+        left, top, right, bottom = map(int, bounds.groups())
+        if right <= left or bottom <= top:
+            raise AssertionError(f"{label} control has invalid bounds")
+        adb("shell", "input", "tap", str((left + right) // 2), str((top + bottom) // 2))
+
+    recovered_launcher_anr = False
+
     def wait_for(label):
+        nonlocal recovered_launcher_anr
         deadline = time.monotonic() + 35
         last_error = None
         while time.monotonic() < deadline:
             try:
                 root = snapshot()
+                # An emulator boot-time launcher ANR can overlay the test app.
+                # Recover *only* this exact system dialog, once per journey;
+                # never dismiss a dialog from the app under test.
+                if find_label(root, "Pixel Launcher isn't responding") is not None:
+                    close = find_label(root, "Close app")
+                    if recovered_launcher_anr or close is None:
+                        raise AssertionError("Unrecoverable Pixel Launcher ANR obscures the app")
+                    tap(close, "Pixel Launcher Close app")
+                    recovered_launcher_anr = True
+                    print("RECOVERED: dismissed emulator Pixel Launcher ANR", flush=True)
+                    continue
                 if find_label(root, label) is not None:
                     return root
             except (subprocess.CalledProcessError, ET.ParseError) as error:
@@ -71,14 +94,7 @@ def main():
 
     wait_for("Play locally")
     root = wait_for("Skip")
-    skip = find_label(root, "Skip")
-    bounds = re.fullmatch(r"\[(\d+),(\d+)\]\[(\d+),(\d+)\]", skip.get("bounds", ""))
-    if bounds is None:
-        raise AssertionError("Skip control lacks usable accessibility bounds")
-    left, top, right, bottom = map(int, bounds.groups())
-    if right <= left or bottom <= top:
-        raise AssertionError("Skip control has invalid bounds")
-    adb("shell", "input", "tap", str((left + right) // 2), str((top + bottom) // 2))
+    tap(find_label(root, "Skip"), "Skip")
 
     wait_for("Field desk")
     wait_for("Local Mode")
