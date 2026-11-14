@@ -38,6 +38,18 @@ def assert_visible(root, label):
         raise AssertionError(f"Expected UI label not visible: {label}")
 
 
+
+def recover_launcher_anr(root, *, already_recovered, tap):
+    """Recover a single *exact* emulator launcher ANR, never an app dialog."""
+    if find_label(root, "Pixel Launcher isn't responding") is None:
+        return False
+    close = find_label(root, "Close app")
+    if already_recovered or close is None:
+        raise AssertionError("Unrecoverable Pixel Launcher ANR obscures the app")
+    tap(close, "Pixel Launcher Close app")
+    return True
+
+
 def main():
     if len(sys.argv) != 1:
         raise SystemExit("usage: verify_installed_onboarding.py")
@@ -77,11 +89,9 @@ def main():
                 # An emulator boot-time launcher ANR can overlay the test app.
                 # Recover *only* this exact system dialog, once per journey;
                 # never dismiss a dialog from the app under test.
-                if find_label(root, "Pixel Launcher isn't responding") is not None:
-                    close = find_label(root, "Close app")
-                    if recovered_launcher_anr or close is None:
-                        raise AssertionError("Unrecoverable Pixel Launcher ANR obscures the app")
-                    tap(close, "Pixel Launcher Close app")
+                if recover_launcher_anr(
+                    root, already_recovered=recovered_launcher_anr, tap=tap,
+                ):
                     recovered_launcher_anr = True
                     print("RECOVERED: dismissed emulator Pixel Launcher ANR", flush=True)
                     continue
