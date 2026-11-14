@@ -102,7 +102,7 @@ def main():
         capture_output=True,
         timeout=40,
     ).stdout
-    if not image.startswith(b"\\x89PNG\\r\\n\\x1a\\n"):
+    if not image.startswith(b"\x89PNG\r\n\x1a\n"):
         raise AssertionError("Installed onboarding screenshot is not a PNG")
     with open("build/ci/android-screen-instrumentation/installed-onboarding.png", "wb") as capture:
         capture.write(image)
