@@ -40,6 +40,7 @@ if [[ -z "$apk_path" ]]; then
   echo "Debug APK missing after instrumentation build" >&2
   exit 1
 fi
+sha256sum "$apk_path" | tee "$ARTIFACT_DIR/installed-apk-sha256.txt"
 adb install -r "$apk_path" | tee "$ARTIFACT_DIR/installed-apk.txt"
 adb shell pm clear "$PACKAGE_ID" | tee "$ARTIFACT_DIR/pm-clear.txt"
 adb shell monkey -p "$PACKAGE_ID" -c android.intent.category.LAUNCHER 1 \
@@ -56,5 +57,15 @@ if [[ ! -s "$ARTIFACT_DIR/installed-onboarding.png" ]]; then
   exit 1
 fi
 
+# Exercise the installed application rather than a synthetic Compose test tree.
+# Keep the original instrumentation result authoritative if both checks fail.
+set +e
+python3 scripts/verify_installed_onboarding.py > "$ARTIFACT_DIR/onboarding-relaunch.txt" 2>&1
+journey_status=$?
+set -e
+cat "$ARTIFACT_DIR/onboarding-relaunch.txt"
 adb logcat -d > "$ARTIFACT_DIR/logcat.txt" 2>&1 || true
-exit "$status"
+if [[ "$status" -ne 0 ]]; then
+  exit "$status"
+fi
+exit "$journey_status"
