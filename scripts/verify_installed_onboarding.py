@@ -94,6 +94,18 @@ def main():
 
     wait_for("Play locally")
     root = wait_for("Skip")
+    # Refresh the existing CI screenshot only after the onboarding UI is
+    # observable; an earlier capture may show a transient emulator dialog.
+    image = subprocess.run(
+        ("adb", "-s", serial, "exec-out", "screencap", "-p"),
+        check=True,
+        capture_output=True,
+        timeout=40,
+    ).stdout
+    if not image.startswith(b"\\x89PNG\\r\\n\\x1a\\n"):
+        raise AssertionError("Installed onboarding screenshot is not a PNG")
+    with open("build/ci/android-screen-instrumentation/installed-onboarding.png", "wb") as capture:
+        capture.write(image)
     tap(find_label(root, "Skip"), "Skip")
 
     wait_for("Field desk")
